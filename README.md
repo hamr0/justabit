@@ -80,7 +80,7 @@ conforming to profile mode:
 ```
 
 Full text with definitions, the per-API adoption checklist, and the residuals stated
-honestly: [`docs/02-profile/attested-windowed-disclosure.md`](docs/02-profile/attested-windowed-disclosure.md).
+honestly: [`docs/02-features/attested-windowed-disclosure.md`](docs/02-features/attested-windowed-disclosure.md).
 
 ## Why a profile, not one more API
 
@@ -119,22 +119,22 @@ this profile.
 ## Repo map
 
 ```
-docs/01-proposal/    carrier-attestation-proposal.md — the master proposal
-docs/02-profile/     attested-windowed-disclosure.md — the horizontal profile
-                     (the actual standard: normative rules any API can adopt)
-docs/03-submissions/ camara-plan.md, aaif-plan.md — per-body deliverables & process
-spec/                carrier-attestation.yaml — OpenAPI sketch (CAMARA-style)
-poc/                 Mode A demo against Orange Network APIs Playground
+docs/01-product/    carrier-attestation-proposal.md — the master proposal
+                    camara-plan.md, aaif-plan.md — per-body deliverables & process
+docs/02-features/   attested-windowed-disclosure.md — the horizontal profile
+                    (the actual standard: normative rules any API can adopt)
+spec/               carrier-attestation.yaml — OpenAPI sketch (CAMARA-style)
+poc/                Mode A demo against Orange Network APIs Playground
 ```
 
 ## The two tracks
 
 Each track cites the other as its counterpart; neither depends on the other's approval.
 
-- **[CAMARA](docs/03-submissions/camara-plan.md)** — the operator/attestation side. What
+- **[CAMARA](docs/01-product/camara-plan.md)** — the operator/attestation side. What
   the operator attests and how it travels. Profile to Commonalities, consent hooks to ICM,
   adoption PRs to sim-swap and roaming-status, new-case proposal to APIBacklog.
-- **[AAIF](docs/03-submissions/aaif-plan.md)** — the agent/delegation side. What the agent
+- **[AAIF](docs/01-product/aaif-plan.md)** — the agent/delegation side. What the agent
   carries and how permissions flow: floor-gated SIM attestation, scoped monotone
   delegations, A2A. Their Identity & Trust WG is the target.
 

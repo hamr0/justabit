@@ -2,13 +2,13 @@
 
 ## What we deliver to CAMARA
 
-1. **The horizontal profile** (`docs/02-profile/`) → Commonalities as a design
+1. **The horizontal profile** (`docs/02-features/`) → Commonalities as a design
    guideline proposal + ICM discussion for the consent/auth hooks. Primary ask:
    "finish what the catalog already started (`/retrieve-age-band`,
    identifier-free 3-legged, `kyc-age-verification`) — catalog-wide."
 2. **Adoption PRs** to existing sub-projects (sim-swap first: nonce+expiry on
    `/check`) — small diffs that make existing APIs the profile's examples.
-3. **CarrierAttestation new-case proposal** (`docs/01-proposal/`, distilled into
+3. **CarrierAttestation new-case proposal** (`docs/01-product/`, distilled into
    the official API-proposal template) → PR to `camaraproject/APIBacklog` with
    named supporters — only for what nothing existing covers: agent-grade floor
    profiles, Mode B presentment.
