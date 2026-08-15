@@ -7,6 +7,41 @@ memory. A finding here is something that was RUN and OBSERVED, not reasoned.
 
 ---
 
+## 2026-08-15 — M2 build + review round (6 findings, 5 fixed, 1 documented)
+
+M2 built (`poc/m2-envelope.mjs` seal/open + `poc/m2-check.mjs`, 10 cases,
+10/10 exit 0; M1 regression-checked at 17/17). The review's orchestrator
+died on a session limit, so the finders' raw candidates were validated
+manually before fixing (a dead reviewer's silence is never a clean bill).
+
+1. **seal()'s capacity guard was hard-coded to the RSA-4096 value (446).**
+   Proven live: a 300-byte payload sealed to an RSA-2048 key passed the
+   guard and died inside OpenSSL as raw `data too large for key size` —
+   the exact unhelpful failure the guard exists to replace; a larger key
+   would falsely reject legal payloads. Fixed: capacity DERIVED from the
+   recipient key's modulus (`bits/8 − 66`); non-RSA/PEM-string recipients
+   get a clear "must be an RSA KeyObject" throw. Mutation-proven: restoring
+   the hard-coded guard turns the new RSA-2048 case red. Lesson: a
+   constant that is a property of a KEY must be derived from the key.
+2. **A hardcoded `ok: true` extra assertion** (TAMPER case) printed as if
+   verified while asserting nothing. Dropped — a decorative always-true
+   assertion is worse than none.
+3. **HUB BLIND redundancy/mislabeling** — the extra duplicated the verdict
+   condition, and a catastrophic recovery would have printed as a
+   taxonomy note ('mixed reasons') instead of the actual event. Fixed:
+   reason now says 'recovered' when the hub reads plaintext.
+4. **Triple hand-synced copies of one predicate** (SIZE CONSTANT) — now
+   computed once.
+5. **Unguarded parses after open() in the E2E** — a regression would have
+   died as a stack trace with NO RESULT line instead of a FAIL. Fixed with
+   ok-gated steps; negative control run both ways (gated → clean
+   `RESULT: 9/10` exit 1; ungated shape → dead process, no RESULT).
+6. **Documented, NOT fixed: the check-harness duplication** between
+   m1-check and m2-check (~20 lines). Deliberate: each module's check must
+   run standalone, and refactoring would touch the already-user-validated
+   M1 files. Accepted drift risk, revisit only if a third copy appears
+   with an actual harness bug to sync.
+
 ## 2026-08-15 — M2 throwaway spike (blind envelope, scratchpad)
 
 RSA-4096 OAEP-SHA256 (`crypto.publicEncrypt`/`privateDecrypt`, one vetted

@@ -2,6 +2,19 @@
 
 ## 0.0.3 — 2026-08-15
 
+- **M2 (blind envelope) built under the §4.4 ladder** —
+  `poc/m2-envelope.mjs` (RSA-4096 OAEP-SHA256 via `node:crypto`, one vetted
+  primitive, zero deps; `seal` derives capacity from the recipient key,
+  `open` rejects-never-throws on wire input, failure reasons deliberately
+  collapsed against padding oracles) + `poc/m2-check.mjs` (10 cases,
+  negatives first, exact reasons; 10/10 exit 0; happy path composes with
+  the shipped M1 module end-to-end). Spike measured: real payloads fit
+  (148 B request / 270 B response vs 446 B cap), hub blindness structural
+  (8 key attempts, 0 recoveries, mutation-falsifiable), ciphertext length
+  CONSTANT at 512 B (the rule-6 size side channel does not exist at this
+  layer; count/timing/pairing remain visible and stated). Review round: 6
+  findings — 5 fixed (incl. a live-proven derived-capacity bug), 1
+  documented (standalone check-harness duplication, deliberate).
 - **M1 (attestation core) built under the §4.4 ladder** — first module of the
   PoC rebuild. `poc/m1-attestation.mjs` (Ed25519 via `node:crypto`, zero
   deps, sign-the-exact-bytes) + `poc/m1-check.mjs` (17 cases, negatives

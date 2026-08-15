@@ -139,9 +139,10 @@ user runs each module's check themselves.
 
 Gate mapping: G1 = M1–M4 + M6 all user-validated; G2 = M5 user-validated live.
 
-Ladder status (2026-08-15): **M1 built** (spike user-validated → build → two
-review rounds, all findings fixed and swept across doc surfaces) — awaiting
-user validation via `node poc/m1-check.mjs`. M2–M6 not started.
+Ladder status (2026-08-15): **M1 user-validated** (17/17). **M2 built**
+(spike user-validated → build → review round, 5 findings fixed, 1
+documented) — awaiting user validation via `node poc/m2-check.mjs`.
+M3–M6 not started.
 
 ### 4.5 POC-first discipline applied to each module
 
@@ -297,6 +298,18 @@ we manage here:
 
 Dated, append-only. Rationale in one line; details in the stash/history.
 
+- **2026-08-15 — M2 envelope shape settled.** One vetted stdlib primitive:
+  RSA-4096 OAEP-SHA256 (`publicEncrypt`/`privateDecrypt`), keys exchanged
+  via the trust directory — NEVER inside payloads (this is what makes the
+  446-byte cap workable). `seal` throws loudly on the sender's own faults
+  (oversize, non-RSA key — capacity derived from the recipient key);
+  `open` rejects-never-throws on untrusted wire input, with failure modes
+  deliberately collapsed to one reason (padding-oracle avoidance).
+  Measured: ciphertexts constant 512 B → the hub's byte log carries no
+  content signal; count/timing/pairing remain visible (stated honestly).
+  Bigger payloads (Mode B, bundles) exceed one envelope and require a
+  vetted AEAD hybrid as an explicit future decision — never hand-glued
+  primitives. Demo transport only; production = TLS + HPKE-class.
 - **2026-08-15 — M1 built under the ladder; verifier shape settled.**
   Spike (throwaway, user-validated) → build → review round. Attestation =
   Ed25519 (`node:crypto`, one vetted primitive, zero deps), sign-the-exact-
