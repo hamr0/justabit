@@ -55,8 +55,13 @@ check('8 WRONG ENUM', false, checkFloor(PUB, { simType: 'data-only' }),
 // 9 STRING-COMPARE TRAP — 'P100D' < 'P90D' LEXICOGRAPHICALLY (spike trap 1).
 // A naive string compare would reject this TIGHTER request; numeric parse must
 // allow it. This is the mutation canary for the parse-then-compare design.
-check('9 STRING-COMPARE TRAP', true, checkFloor(PUB, { swapAgeMin: 'P100D' }), 'ok',
-  { label: 'effective keeps P100D', ok: checkFloor(PUB, { swapAgeMin: 'P100D' }).effective.swapAgeMin === 'P100D' });
+// (`?.` on effective: a regressed module returns no effective — that must print
+// as a FAIL line, not die as a stack trace with no RESULT — M2 review lesson.)
+{
+  const v = checkFloor(PUB, { swapAgeMin: 'P100D' });
+  check('9 STRING-COMPARE TRAP', true, v, 'ok',
+    { label: 'effective keeps P100D', ok: v.effective?.swapAgeMin === 'P100D' });
+}
 
 // 10 EQUAL — restating the published floor exactly is allowed; the effective
 // floor equals the published one (tie keeps the operator's spelling).
@@ -70,7 +75,7 @@ check('9 STRING-COMPARE TRAP', true, checkFloor(PUB, { swapAgeMin: 'P100D' }), '
 {
   const v = checkFloor(PUB, { tenureMin: 'P3Y', swapAgeMin: 'P180D' });
   check('11 TIGHTER', true, v, 'ok',
-    { label: 'effective tightened', ok: v.effective.tenureMin === 'P3Y' && v.effective.swapAgeMin === 'P180D' });
+    { label: 'effective tightened', ok: v.effective?.tenureMin === 'P3Y' && v.effective?.swapAgeMin === 'P180D' });
 }
 
 // 12 OMITTED = INHERIT — an empty request floor: the operator's minimums apply
@@ -88,7 +93,7 @@ check('9 STRING-COMPARE TRAP', true, checkFloor(PUB, { swapAgeMin: 'P100D' }), '
 {
   const v = checkFloor(PUB, { class: 'postpaid' });
   check('13 EXTRA TIGHTENING', true, v, 'ok',
-    { label: 'class enforced + rest inherited', ok: v.effective.class === 'postpaid' && v.effective.swapAgeMin === 'P90D' });
+    { label: 'class enforced + rest inherited', ok: v.effective?.class === 'postpaid' && v.effective?.swapAgeMin === 'P90D' });
 }
 
 // 14 BROKEN PUBLISHED FLOOR THROWS — the operator's OWN config carries P3M.
