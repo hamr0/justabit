@@ -7,6 +7,15 @@ memory. A finding here is something that was RUN and OBSERVED, not reasoned.
 
 ---
 
+## 2026-08-15 — user validation run: all three modules green at post-release counts
+
+After the v0.1.0 merge, the user personally ran the full runbook on their own
+machine and reported all green: `node poc/m1-check.mjs` **19/19**,
+`node poc/m2-check.mjs` **10/10**, `node poc/m3-check.mjs` **22/22**. This is
+the dated user-run record that was pending for M2 (first ever) and for the
+post-review M1 (19-case) and M3 (22-case) states. Ladder status: **M1, M2, M3
+all user-validated at current counts.**
+
 ## 2026-08-15 — 0.1.0 release gate: three unpinned guards found by mutation, fuzz clean at 500k
 
 Release-gate sweep before merging the M3 module. The floor logic itself came

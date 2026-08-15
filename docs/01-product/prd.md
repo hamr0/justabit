@@ -141,13 +141,13 @@ user runs each module's check themselves.
 
 Gate mapping: G1 = M1–M4 + M6 all user-validated; G2 = M5 user-validated live.
 
-Ladder status (2026-08-15): **M1 user-validated** (19/19 after the
-duplicate-key hardening; user ran 17/17 pre-hardening, 19/19 agent-run).
-**M2 10/10 green at the M2 gate session; dated user-run record missing —
-user validation pending** (spike user-validated → build → review round, 5
-findings fixed → runbook green). **M3 user-validated at 14/14 (pre-review
-build); two review rounds plus a release-gate round hardened the module and
-grew the check to 22 cases — agent-run green, user run pending** (spec
+Ladder status (2026-08-15): **M1 user-validated 19/19** (user ran 17/17
+pre-hardening, then 19/19 post-release — dated findings entry).
+**M2 user-validated 10/10** (post-release user run, 2026-08-15 — the first
+dated user-run record for M2; spike user-validated → build → review round, 5
+findings fixed → runbook green). **M3 user-validated 22/22** (user ran 14/14
+at the pre-review build gate, then 22/22 post-release after two review rounds
+plus a release-gate round hardened the module to 22 cases) (spec
 signed off with 3 user decisions → spike at the silent-widening traps →
 build → user ran `node poc/m3-check.mjs` 14/14 → 3 mutants killed → review
 round 1: 7 warnings fixed, +3 canary cases → 17/17 → review round 2: 8
