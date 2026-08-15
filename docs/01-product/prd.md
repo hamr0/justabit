@@ -309,6 +309,11 @@ we manage here:
 
 Dated, append-only. Rationale in one line; details in the stash/history.
 
+- **2026-08-15 — Versioning scheme corrected (user-decided).** Module
+  releases are features, not patches: this M3 release ships as **0.1.0**
+  (not 0.0.5); each subsequent module bumps MINOR (M4→0.2.0 … M6→0.4.0);
+  PATCH is for fixes; **1.0.0 = PoC complete + proposals submission-ready**.
+  Existing 0.0.x tags stay untouched (history is not rewritten).
 - **2026-08-15 — M3 floor-gate spec signed off (3 user decisions).**
   (1) Durations: `P<n>D` and `P<n>Y` only, 1 year = 365 days stated;
   months REJECTED as ambiguous (28–31 days — no honest compare exists).

@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.0.5 — 2026-08-15
+## 0.1.0 — 2026-08-15
 
 - **M3 (floor gate) built under the §4.4 ladder — user-validated 14/14.**
   `poc/m3-floor.mjs`: `checkFloor(published, requested)` — pure logic, zero
