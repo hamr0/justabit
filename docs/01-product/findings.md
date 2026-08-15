@@ -7,6 +7,39 @@ memory. A finding here is something that was RUN and OBSERVED, not reasoned.
 
 ---
 
+## 2026-08-15 — M2 throwaway spike (blind envelope, scratchpad)
+
+RSA-4096 OAEP-SHA256 (`crypto.publicEncrypt`/`privateDecrypt`, one vetted
+stdlib primitive, zero deps, no hand-composed crypto), keys exchanged via
+the trust directory — never inside payloads. 8 checks, exit 0.
+
+- **Fit is real but not roomy.** OAEP capacity is 446 bytes. Measured:
+  request 148 B (33% of cap), response 270 B (60% of cap, 176 B headroom).
+  Overflow control proved the cap genuinely refuses (966 B →
+  `DATA_TOO_LARGE_FOR_KEY_SIZE`) — the fit tests could fail. **Constraint
+  for later modules: one added claim field or a bigger payload (Mode B,
+  multi-attestation) blows the envelope — that would require a vetted AEAD
+  hybrid scheme as an explicit new decision, not glue.**
+- **Hub blindness proven structurally, and falsifiably.** The hub tried
+  all 3 directory public keys AND its own private key against both
+  ciphertexts: 8 attempts, 0 recoveries, 0 plaintext substrings.
+  Mutation-verified: handing the hub the true recipient's private key
+  flips the blindness checks red. Positive control: operator read the
+  request exactly; RP verified the M1 signature end-to-end.
+- **Size side channel: does NOT exist at this layer.** All content
+  variants (3 predicates, both result values, plaintexts 141–274 B)
+  produced EXACTLY 512-byte ciphertexts — RSA is fixed-width, so the
+  hub's byte-metering log records a constant. The rule-6 padding worry is
+  answered for the demo envelope. **Honest remainder: message COUNT,
+  TIMING, and the RP↔operator PAIRING stay visible to the hub — that is
+  the real metadata surface, and the docs must say so.**
+- **Tamper = reject, not crash**: one flipped ciphertext bit →
+  `OAEP_DECODING_ERROR`, caught — the hub cannot mutate an in-flight
+  answer undetected, on top of the Ed25519 signature underneath.
+- Implementation note: `privateDecrypt` THROWS on every failure mode
+  (wrong key, public key, tamper) — a real hub/recipient must catch
+  per-attempt or die on its own probe.
+
 ## 2026-08-15 — M1 round-2 review (8 findings on the fix round + doc sweep)
 
 A second review of the FIXED M1 (a fix round is the least-reviewed code)
