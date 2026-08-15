@@ -42,6 +42,27 @@ manually before fixing (a dead reviewer's silence is never a clean bill).
    M1 files. Accepted drift risk, revisit only if a third copy appears
    with an actual harness bug to sync.
 
+Post-build honesty audit (user challenge, answered item-by-item):
+- **The hub is a ROLE in the check, not code** — the routing/metering hub
+  actor is M6's to build; M2 delivered the envelope primitives + the
+  blindness proof.
+- **Requests are encrypted but NOT authenticated** — the response carries
+  M1's signature, the request carries none; nothing cryptographically ties
+  a request to an RP, and no ladder module owns sender authentication yet.
+  OPEN ITEM — assign at M6 spec time (options: RP signature over the
+  request, or accept hub-level API auth as the demo answer, stated).
+- **Envelope-level replay**: a captured request ciphertext re-sent to the
+  operator burns a query (billing nuisance); the RP still rejects the
+  stale answer via nonce. Stateless, same story as M1 — now stated.
+- **No forward secrecy**: a stolen private key decrypts recorded past
+  traffic; subsumed under "demo transport, production = TLS/HPKE" but
+  named here explicitly.
+- **512 B constancy assumes uniform RSA-4096** (pinned by
+  generateEnvelopeKeys); mixed key sizes would fingerprint key size.
+- Validation split, stated: green paths re-run by the orchestrator
+  directly (exit codes); mutation proofs and the live RSA-2048 probe
+  validated from agents' verbatim captured output, not re-executed.
+
 ## 2026-08-15 — M2 throwaway spike (blind envelope, scratchpad)
 
 RSA-4096 OAEP-SHA256 (`crypto.publicEncrypt`/`privateDecrypt`, one vetted
