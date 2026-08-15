@@ -11,10 +11,24 @@
   closed-set rejection (an ignored typo silently drops a constraint);
   omitted axis inherits the published floor, visible via the returned
   `effective`; broken PUBLISHED config throws loud, wire input never
-  throws. `poc/m3-check.mjs`: 14 cases negatives-first. Mutation-proven: 3
-  mutants (rejection disabled / unknown-axes ignored / string compare) all
-  killed; check hardened to fail-clean (`?.`) after mutant C first died as
-  a stack trace — the M2 "no RESULT line" lesson re-applied.
+  throws. `poc/m3-check.mjs`: 17 cases negatives-first (14 at build + 3
+  review-round canaries). Mutation-proven: 5 mutants killed (rejection
+  disabled / unknown-axes ignored / string compare / 360-day year /
+  null-floor branch); check hardened to fail-clean (`?.`) after one mutant
+  first died as a stack trace — the M2 "no RESULT line" lesson re-applied.
+- **M3 review round (opus, adversarial + 200k-iteration differential fuzz
+  vs an independent BigInt oracle — 36,452 allow-verdicts, 0 violations on
+  wire-shaped input): 7 warnings fixed.** Non-plain published config (a
+  prototype chain or a flip-flopping getter) could slip past validation and
+  fail OPEN — closed by rejecting non-plain-prototype configs loud + a
+  own-props snapshot before validation (validate and compare now see the
+  same data); duration compare gained an explicit null guard (defense in
+  depth — `r < null` coerces to `r < 0` = allowed); day counts past 2^53
+  rejected (`Number()` can collapse strict-less into equal there, which
+  strict `<` reads as not-below); the declared 1Y=365D constant and the
+  null/absent-floor "wire never throws" branch each gained a
+  mutation-proven canary case; two doc lines the code contradicted
+  corrected (poc/README module status; findings.md 2^53 wording).
 
 ## 0.0.4 — 2026-08-15
 

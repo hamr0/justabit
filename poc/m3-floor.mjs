@@ -26,7 +26,11 @@ function durationDays(value) {
   if (typeof value !== 'string') return null;
   const m = /^P(\d+)(D|Y)$/.exec(value);
   if (!m) return null;
-  return Number(m[1]) * (m[2] === 'Y' ? 365 : 1);
+  const days = Number(m[1]) * (m[2] === 'Y' ? 365 : 1);
+  // Past 2^53 Number() can collapse a strict ordering into equality, which a
+  // strict `<` compare reads as "not below" — a marginally looser request
+  // would be admitted. Absurd at profile magnitudes; rejected anyway.
+  return Number.isSafeInteger(days) ? days : null;
 }
 
 // Why `value` is invalid for `axis`, or null if it is fine.
@@ -67,12 +71,32 @@ function validatePublished(published) {
 //     axis inheriting the published value is VISIBLE, never hidden — or
 //   { allowed: false, reason }                     — first failure wins.
 export function checkFloor(published, requested) {
+  // Snapshot own enumerable props FIRST: validation iterates own keys, but the
+  // compare below reads `obj[axis]` — on a non-plain object that read walks the
+  // prototype chain (validatePublished sees no own keys, no throw, then a
+  // prototype value reaches the compare = fail OPEN) or re-invokes a getter
+  // (validated once, compared with a different value). Snapshotting makes
+  // validate and compare see the same plain data. Wire-shaped (JSON.parse'd)
+  // input was never affected — this closes the in-process object path M6 will use.
+  if (published !== null && typeof published === 'object' && !Array.isArray(published)) {
+    // A published floor with a non-trivial prototype must throw, not quietly
+    // act as an EMPTY config once the snapshot strips inherited values —
+    // "broken config fails loud" includes config built the wrong way.
+    const proto = Object.getPrototypeOf(published);
+    if (proto !== Object.prototype && proto !== null) {
+      throw new Error('invalid published floor: not a plain object');
+    }
+    published = { ...published };
+  }
   validatePublished(published);
 
+  // An absent/null requested floor means "no extra strictness demanded": the
+  // published floor applies in full (and `effective` shows it) — fail-closed.
   if (requested === undefined || requested === null) requested = {};
   if (typeof requested !== 'object' || Array.isArray(requested)) {
     return { allowed: false, reason: 'malformed floor' };
   }
+  requested = { ...requested };
   // Validate every requested axis before comparing anything: unknown fields and
   // malformed values are named individually. (A JSON.parse'd "__proto__" arrives
   // as an own key and is caught here as unknown — same behavior M1 probes proved.)
@@ -94,10 +118,16 @@ export function checkFloor(published, requested) {
     if (AXES[axis].kind === 'duration') {
       const p = durationDays(pub);
       const r = durationDays(req);
+      // Unreachable after validation — defense in depth: `r < null` would
+      // coerce to `r < 0` = false = fail OPEN, the exact trap named above.
+      if (p === null || r === null) return { allowed: false, reason: `unparseable duration: ${axis}` };
       if (r < p) return { allowed: false, reason: `below floor: ${axis} ${req} < ${pub}` };
       effective[axis] = r === p ? pub : req; // tie keeps the operator's spelling (P2Y over P730D)
     } else {
-      effective[axis] = pub; // enum axes: both already validated equal to the single legal value
+      // Correct ONLY while each enum axis has exactly one legal value (so
+      // pub === req by validation). A second legal value would make two valid
+      // enums unordered — this line must then become an explicit compare.
+      effective[axis] = pub;
     }
   }
   return { allowed: true, reason: 'ok', effective };

@@ -146,7 +146,8 @@ duplicate-key hardening). **M2 user-validated** (spike user-validated →
 build → review round, 5 findings fixed → runbook green at the M2 gate
 session, 10/10). **M3 user-validated** (spec signed off with 3 user
 decisions → spike at the silent-widening traps → build → user ran
-`node poc/m3-check.mjs` 14/14 → 3 mutants killed). M4–M6 not started.
+`node poc/m3-check.mjs` 14/14 → 3 mutants killed → review round: 7
+warnings fixed, +3 canary cases → 17/17). M4–M6 not started.
 
 ### 4.5 POC-first discipline applied to each module
 

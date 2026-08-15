@@ -111,4 +111,42 @@ check('8 WRONG ENUM', false, checkFloor(PUB, { simType: 'data-only' }),
   check('14 BROKEN PUBLISHED FLOOR THROWS', false, verdict, 'threw', extra);
 }
 
+// 15 NULL FLOOR — a wire request carrying `floor: null`. "Wire input never
+// throws" is the invariant: null means no extra strictness, the published
+// floor applies in full, visibly. (Mutation-proven gap: deleting the
+// null-branch threw a raw TypeError while the old suite stayed 14/14.)
+{
+  const v = checkFloor(PUB, null);
+  const absent = checkFloor(PUB); // no floor argument at all — same meaning
+  check('15 NULL FLOOR', true, v, 'ok',
+    { label: 'effective = published + absent floor also inherits',
+      ok: JSON.stringify(v.effective) === JSON.stringify(PUB) && absent.allowed === true && JSON.stringify(absent.effective) === JSON.stringify(PUB) });
+}
+
+// 16 YEAR CONSTANT — pins the declared 1Y = 365D from both sides: P364D is
+// below a P1Y floor, P365D is not, and the tie keeps the operator's spelling.
+// (A 360-day mutant survived the old suite; this case kills it.)
+{
+  const pub = { tenureMin: 'P1Y' };
+  const tie = checkFloor(pub, { tenureMin: 'P365D' });
+  check('16 YEAR CONSTANT', false, checkFloor(pub, { tenureMin: 'P364D' }),
+    'below floor: tenureMin P364D < P1Y',
+    { label: 'P365D allowed + tie keeps P1Y spelling', ok: tie.allowed === true && tie.effective?.tenureMin === 'P1Y' });
+}
+
+// 17 PUBLISHED TYPO THROWS NAMED — the named diagnostic is the point of
+// validatePublished: a typo'd axis in the operator's OWN config must throw
+// an error that names the field, not an incidental TypeError later.
+{
+  let verdict, extra = { label: 'error names the typo', ok: false };
+  try {
+    checkFloor({ swapAgemin: 'P90D' }, {});
+    verdict = { allowed: true, reason: 'did not throw' };
+  } catch (e) {
+    verdict = { allowed: false, reason: 'threw' };
+    extra.ok = e.message.includes('swapAgemin');
+  }
+  check('17 PUBLISHED TYPO THROWS NAMED', false, verdict, 'threw', extra);
+}
+
 conclude();

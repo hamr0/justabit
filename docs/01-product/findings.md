@@ -22,7 +22,11 @@ widening path exists" — and confirmed six JS traps a naive gate would ship:
    published config THROWS (operator's own fault, loud); wire input rejects.
 4. Strict grammar `^P(\d+)(D|Y)$` kills `P3M`/`P90d`/`90D`/`PT90H`/
    `P-90D`/compound forms/non-strings in one regex.
-5. Precision at the 2^53 edge cannot flip an ordering (monotone).
+5. Precision past 2^53: `Number()` is monotone non-DECREASING, so an
+   ordering cannot reverse — but strict-less can COLLAPSE to equal, and the
+   gate's strict `<` then admits a marginally looser request. Absurd at
+   profile magnitudes (~10^13 years); closed anyway by rejecting
+   non-safe-integer day counts (review round).
 6. Enum compare is exact-match, case-sensitive.
 
 Build: `poc/m3-floor.mjs` (pure function, no crypto) + `poc/m3-check.mjs`
@@ -36,6 +40,36 @@ trace with no RESULT line — the check's own `v.effective.x` derefs were
 unguarded, the exact "dead process instead of a FAIL" defect M2's review
 caught — fixed with `?.` so a regressed module prints clean FAIL lines to
 a RESULT tally.
+
+Review round (opus, adversarial): 200k-iteration differential fuzz vs an
+independently-written BigInt oracle — 36,452 allow-verdicts audited, 0
+violations on wire-shaped (JSON.parse'd) input; the fuzz's own negative
+control (a rejection-disabled mutant) produced 14,725 violations, so it
+could fail. 7 warnings, all fixed and re-proven:
+
+1. **Non-plain objects bypassed "throws loud" and failed OPEN** (validation
+   iterates OWN keys; the compare read `obj[axis]` through the prototype
+   chain, and getters were read twice — validate-once/compare-different
+   TOCTOU). Demonstrated: `Object.create({tenureMin:'P3M'})` admitted a
+   P1D request. Not wire-reachable (`JSON.parse('{"__proto__":…}')` yields
+   an OWN key, caught as unknown field — verified) but M6 hands this
+   function in-process objects. Fixed: non-plain-prototype published
+   config now THROWS ('not a plain object'); both inputs snapshotted to
+   own props before validation so validate and compare see the same data.
+2. **`r < null` coerces to `r < 0` = allowed** — explicit null guard added
+   to the compare (defense in depth behind validation).
+3. `effective` could carry a never-validated value (same root; closed by 1).
+4. The null/absent-floor branch guarding "wire never throws" was untested —
+   canary case 15 added (null AND absent both inherit, mutation-proven).
+5. The declared 1Y=365D constant was unpinned (a 360-day mutant survived
+   14/14) — canary case 16 pins it from both sides (P364D rejects, P365D
+   allows, tie keeps the operator's 'P1Y' spelling).
+6. poc/README still said "M3–M6 not started" beside the M3 run line → M4–M6.
+7. This log's own 2^53 claim was worded wrong (see corrected item 5 above);
+   non-safe-integer day counts now rejected outright.
+
+Post-fix: 17/17 exit 0 (user-validated build + 3 canaries), m1 19/19,
+m2 10/10, five mutants killed total, all restores byte-identical.
 
 ## 2026-08-15 — The two v0.0.3 security Mediums closed (duplicate keys + key pinning)
 
