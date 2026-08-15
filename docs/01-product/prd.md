@@ -142,10 +142,11 @@ user runs each module's check themselves.
 Gate mapping: G1 = M1–M4 + M6 all user-validated; G2 = M5 user-validated live.
 
 Ladder status (2026-08-15): **M1 user-validated** (19/19 after the
-duplicate-key hardening). **M2 built**
-(spike user-validated → build → review round, 5 findings fixed, 1
-documented) — awaiting user validation via `node poc/m2-check.mjs`.
-M3–M6 not started.
+duplicate-key hardening). **M2 user-validated** (spike user-validated →
+build → review round, 5 findings fixed → runbook green at the M2 gate
+session, 10/10). **M3 user-validated** (spec signed off with 3 user
+decisions → spike at the silent-widening traps → build → user ran
+`node poc/m3-check.mjs` 14/14 → 3 mutants killed). M4–M6 not started.
 
 ### 4.5 POC-first discipline applied to each module
 
@@ -308,6 +309,18 @@ we manage here:
 
 Dated, append-only. Rationale in one line; details in the stash/history.
 
+- **2026-08-15 — M3 floor-gate spec signed off (3 user decisions).**
+  (1) Durations: `P<n>D` and `P<n>Y` only, 1 year = 365 days stated;
+  months REJECTED as ambiguous (28–31 days — no honest compare exists).
+  (2) Omitted axis in a request floor: the operator's published value
+  applies anyway (omission = silent tightening, allowed); the returned
+  `effective` floor makes the inheritance visible. (3) Unknown/typo'd
+  axis: closed-set rejection (an ignored typo silently drops a constraint
+  — the exact widening path M3 kills). Gate = pure function
+  `checkFloor(published, requested)`; published floor is per-OPERATOR
+  config (never hardcoded — the §3.4 reference values are the demo
+  operator's choice); broken published config throws loud, wire input
+  never throws.
 - **2026-08-15 — Both v0.0.3 security Mediums closed now (user-decided:
   "fix both now").** (1) Duplicate claim keys are a rejection — normative in
   profile rule 2, implemented in the M1 verifier (byte-level scan, keys

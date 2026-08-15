@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.0.5 — 2026-08-15
+
+- **M3 (floor gate) built under the §4.4 ladder — user-validated 14/14.**
+  `poc/m3-floor.mjs`: `checkFloor(published, requested)` — pure logic, zero
+  deps; closed 4-axis set (simType/tenureMin/swapAgeMin/class); strict
+  `P<n>D`/`P<n>Y` durations (1Y = 365D stated; months rejected as ambiguous
+  — user decision); no coercion (spike: `parseInt('3M')===3`,
+  `Number(null)===0` would admit every request); unknown/typo'd axis =
+  closed-set rejection (an ignored typo silently drops a constraint);
+  omitted axis inherits the published floor, visible via the returned
+  `effective`; broken PUBLISHED config throws loud, wire input never
+  throws. `poc/m3-check.mjs`: 14 cases negatives-first. Mutation-proven: 3
+  mutants (rejection disabled / unknown-axes ignored / string compare) all
+  killed; check hardened to fail-clean (`?.`) after mutant C first died as
+  a stack trace — the M2 "no RESULT line" lesson re-applied.
+
 ## 0.0.4 — 2026-08-15
 
 - **Both v0.0.3 security Mediums closed (user decision: now, not M3).**

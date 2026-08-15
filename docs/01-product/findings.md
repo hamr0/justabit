@@ -7,6 +7,36 @@ memory. A finding here is something that was RUN and OBSERVED, not reasoned.
 
 ---
 
+## 2026-08-15 — M3 floor gate: spike traps, build, mutation proofs (user-validated 14/14)
+
+Spike (throwaway, scratchpad) attacked the toughest assumption — "no silent
+widening path exists" — and confirmed six JS traps a naive gate would ship:
+
+1. **Lexicographic string compare WIDENS silently**: `'P100D' < 'P90D'` is
+   true as strings — a naive `requested >= published` compare rejects
+   tighter requests and (mirrored) admits looser ones. Parse, never compare
+   strings.
+2. **`parseInt('3M') === 3`** — a lenient parser reads months as days.
+3. **`Number(null) === 0`, `Number('') === 0`** — coercion turns a garbage
+   PUBLISHED floor into "0 days", admitting EVERY request. Hence: broken
+   published config THROWS (operator's own fault, loud); wire input rejects.
+4. Strict grammar `^P(\d+)(D|Y)$` kills `P3M`/`P90d`/`90D`/`PT90H`/
+   `P-90D`/compound forms/non-strings in one regex.
+5. Precision at the 2^53 edge cannot flip an ordering (monotone).
+6. Enum compare is exact-match, case-sensitive.
+
+Build: `poc/m3-floor.mjs` (pure function, no crypto) + `poc/m3-check.mjs`
+(14 cases, negatives first). USER ran the check personally: 14/14 exit 0.
+
+Mutation proofs (module restored byte-identical from working-copy backup
+after each): (A) below-floor rejection disabled → cases 1+2 red; (B)
+unknown axes ignored → cases 4+5 red; (C) numeric compare replaced with
+string compare → cases 2, 9, 11 red. Mutant C's FIRST run died as a stack
+trace with no RESULT line — the check's own `v.effective.x` derefs were
+unguarded, the exact "dead process instead of a FAIL" defect M2's review
+caught — fixed with `?.` so a regressed module prints clean FAIL lines to
+a RESULT tally.
+
 ## 2026-08-15 — The two v0.0.3 security Mediums closed (duplicate keys + key pinning)
 
 Closed same-day on user decision ("fix both now"), not parked to M3.

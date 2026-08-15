@@ -11,7 +11,8 @@ holds):
 
 ```
 node poc/m1-check.mjs   # M1 attestation core — 19 cases (user-validated)
-node poc/m2-check.mjs   # M2 blind envelope — 10 cases (built; awaiting user validation)
+node poc/m2-check.mjs   # M2 blind envelope — 10 cases (user-validated)
+node poc/m3-check.mjs   # M3 floor gate — 14 cases (user-validated)
 ```
 
 M3–M6 are not started; `poc/demo.mjs` does not exist yet. The measured
