@@ -38,11 +38,33 @@
   (intended constraint silently unenforced), and a request floor carrying
   its axes on the prototype came back ALLOWED with the demanded constraint
   silently dropped — both now mutation-proven by check cases 18 and 19
-  (19 cases total). The three signed-off M3 rules (closed axis set,
+  (19 cases at that point). The three signed-off M3 rules (closed axis set,
   `P<n>D`/`P<n>Y` only with 1Y = 365D, numeric-not-lexicographic compare)
   reached the normative text at proposal rule 5 and the spec's Floor schema.
-  **User re-runs of this final 19/19 (M3), 19/19 (M1) and 10/10 (M2) state
-  are pending at merge time** — the counts above are agent-run.
+- **M3 release round: three unpinned guards closed (19 → 22 cases).** A
+  release-gate mutation sweep found three *already-fixed* fail-opens with no
+  case that could catch their regression — mutants removing them survived
+  19/19 exit 0. Cases 18/19 pinned only one diagonal of
+  {published,requested} × {prototype,non-enumerable}; the other diagonal and
+  the 2^53 guard were uncovered. Added case 20 (published floor on a
+  prototype throws — the mutant admitted a P1D request against a P90D floor
+  with the operator's ENTIRE floor unenforced), case 21 (request carrying a
+  demanded axis as a non-enumerable own prop rejects `malformed floor`, not
+  ALLOWED-with-constraint-dropped), and case 22 (day counts past 2^53 —
+  wire side rejects, operator side fails loud). Each mutation-proven: guard
+  removed → that case alone red at 21/22 exit 1, restored → 22/22 exit 0.
+  Two independent differential fuzzes against BigInt oracles written from
+  the rule (not the code) — 200k and 300k iterations, ~156k allow-verdicts —
+  found **0 monotonicity violations**, with a rejection-disabled negative
+  control producing 6,200 violations (the fuzz can fail). Non-blocking items
+  left open and recorded in `findings.md`, not fixed here: an untrusted-side
+  `JSON.stringify` that can throw on BigInt/circular/throwing-`toJSON`
+  (unreachable via the current `JSON.parse` path, fails closed), an
+  unescaped key in one rejection reason (log injection), an unbounded reason
+  echo, and the spec `pattern` lacking a magnitude bound.
+  **User runs of this final 22/22 (M3), 19/19 (M1) and 10/10 (M2) state are
+  pending at merge time** — those counts are agent-run. The standing
+  user-validated M3 record remains 14/14 on the pre-review build.
 
 ## 0.0.4 — 2026-08-15
 

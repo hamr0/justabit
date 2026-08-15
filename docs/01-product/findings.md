@@ -7,6 +7,85 @@ memory. A finding here is something that was RUN and OBSERVED, not reasoned.
 
 ---
 
+## 2026-08-15 — 0.1.0 release gate: three unpinned guards found by mutation, fuzz clean at 500k
+
+Release-gate sweep before merging the M3 module. The floor logic itself came
+through clean; what did **not** was the suite's ability to catch a regression
+of fixes the previous two rounds had just made.
+
+**Fuzz (two independent oracles, both written from the rule text, not from
+`m3-floor.mjs`):** 200,000 and 300,000 random published/requested pairs
+compared against BigInt reference implementations — **0 monotonicity
+violations across ~156,000 allow-verdicts**, and for every `allowed:true` the
+returned `effective` was ≥ published on every duration axis with no axis
+silently dropped. The fuzz can fail: a rejection-disabled mutant produced
+**6,200 violations**. Precision past 2^53 verified by reasoning *and* probe —
+any true product > 2^53−1 rounds to a double ≥ 2^53, so `isSafeInteger` can
+never let a collapsed ordering through.
+
+**Three surviving mutants (the real finding).** Cases 18/19 pinned only one
+diagonal of {published,requested} × {prototype,non-enumerable}; removing any
+of these three guards left the suite at **19/19 exit 0**:
+
+| Guard removed | Observed fail-open |
+|---|---|
+| `m3-floor.mjs:63` published prototype | `checkFloor(Object.create({tenureMin:'P3M',swapAgeMin:'P90D'}), {swapAgeMin:'P1D'})` → `{allowed:true}` — the operator's ENTIRE floor unenforced |
+| `m3-floor.mjs:95` requested non-enumerable | request demanding `swapAgeMin:'P180D'` non-enumerably → `{allowed:true, effective.swapAgeMin:'P90D'}` — demanded constraint silently dropped |
+| `m3-floor.mjs:33` `Number.isSafeInteger` | pub `P9007199254740993D` vs req `P9007199254740992D` (1 day looser) → `{allowed:true}` |
+
+The shipping code was **correct throughout** — every guard was present and
+load-bearing (verified by probe: each rejects/throws correctly with the guard
+in place). This was a test-coverage gap, not a defect.
+
+**Closed by cases 20/21/22**, each mutation-proven with the guard reverted
+then restored from a working-copy backup (`git checkout` stays banned here —
+it reverts tracked files to HEAD and would wipe the uncommitted fix under
+test): guard removed → that case **alone** red, `21/22 exit 1`; restored →
+`22/22 exit 0`, module byte-identical (md5 `dfe8c276`). No collateral: each
+mutant killed exactly its own case, so each case pins one guard.
+
+**Docs honesty fix:** `poc/README.md` said M2 was `(user re-run pending)`,
+implying a prior user run that `findings.md` and `prd.md` both record as
+never having happened — corrected to `(user validation pending)`.
+
+**Open items, deliberately NOT fixed in this release** (recorded so they are
+on the books rather than papered over):
+
+1. **`m3-floor.mjs:41,46` — `JSON.stringify(value)` on an untrusted value can
+   throw**, breaking the module's own "wire input never throws" line. Observed:
+   BigInt → `TypeError: Do not know how to serialize a BigInt`; circular →
+   `TypeError: Converting circular structure to JSON`; a throwing `toJSON` →
+   the attacker's `Error` escapes verbatim. **Not reachable through the
+   current wire path** — `JSON.parse` cannot produce any of the three — and it
+   fails *closed*, not open. Matters if a non-JSON codec (CBOR/COSE, the
+   natural M2 direction) ever feeds this, or for the in-process M6 caller.
+   Fix when that lands: a total `safeStr()` used at both sites, plus extending
+   case 19's extra to a throwing `toJSON`.
+2. **`m3-floor.mjs:118` — untrusted key echoed unescaped** into
+   `unknown floor field: ${k}` (every other interpolation goes through
+   `JSON.stringify`). Observed: `JSON.parse('{"a\\nPASS ALLOW":1}')` yields a
+   reason containing a literal newline — forged log lines if an operator logs
+   rejection reasons.
+3. **`m3-floor.mjs:41,46,118` — unbounded echo of untrusted input** into
+   `reason`. Measured: a 5 MB value → a 5,000,083-char reason (161 ms). No
+   ReDoS (`^P(\d+)(D|Y)$` is linear — 2 MB non-matching input, 77 ms), but a
+   rejected request costs a multi-megabyte log write.
+4. **Spec/profile do not bound duration magnitude.** `^P\d+(D|Y)$`
+   (`spec/carrier-attestation.yaml:78,83`) and rule 5 admit
+   `P99999999999999999999D`, which the gate rejects. A third-party
+   implementation following only the text, in any IEEE-754 language,
+   reintroduces the equality-collapse fail-open. For a standards repo an
+   invariant enforced only in the reference PoC is not enforced.
+5. **`poc/m3-check.mjs:71,87,114`** compare `effective` to `PUB` via
+   `JSON.stringify`, which is key-order sensitive. They coincide today;
+   reordering `AXES` — a legal refactor — would red three cases for a non-bug.
+
+**Validation state:** the 22/22 (M3), 19/19 (M1) and 10/10 (M2) counts in this
+entry are **agent-run**; user runs are pending. The standing user-validated M3
+record is 14/14 on the pre-review build.
+
+---
+
 ## 2026-08-15 — M3 review round 2: two in-process fail-opens closed, harness hardened, rule-5 reached the text
 
 Second adversarial `/code-review` over the M3 module + check + harness: **8

@@ -163,4 +163,46 @@ checkThrows('17 PUBLISHED TYPO THROWS NAMED',
       ok: getterVerdict.allowed === false && getterVerdict.reason === 'malformed floor' });
 }
 
+// 20 PROTOTYPE PUBLISHED THROWS — the other diagonal of case 18. Cases 18/19
+// pinned {published,non-enumerable} and {requested,prototype}; a mutant removing
+// the PUBLISHED prototype check survived the 19-case suite. It is a fail-open of
+// the worst kind: a floor carried on a prototype is stripped by the spread, so
+// `checkFloor(Object.create({swapAgeMin:'P90D'}), {swapAgeMin:'P1D'})` returned
+// ALLOWED with the operator's ENTIRE floor unenforced.
+checkThrows('20 PROTOTYPE PUBLISHED THROWS',
+  () => checkFloor(Object.create({ tenureMin: 'P2Y', swapAgeMin: 'P90D' }), { swapAgeMin: 'P1D' }),
+  ['not a plain object']);
+
+// 21 NON-ENUMERABLE REQUEST REJECTED — the fourth corner, and the untrusted-side
+// mirror of 18. A request carrying a demanded axis as a NON-ENUMERABLE own prop
+// passes the prototype check but vanishes in the spread: pre-fix this returned
+// `allowed:true` with the demanded constraint silently dropped. Wire input, so
+// it must REJECT cleanly — never throw.
+{
+  const r = { simType: 'voice+data' };
+  Object.defineProperty(r, 'swapAgeMin', { value: 'P180D', enumerable: false, configurable: true });
+  check('21 NON-ENUMERABLE REQUEST REJECTED', false, checkFloor(PUB, r), 'malformed floor');
+}
+
+// 22 PAST 2^53 REJECTED — pins the Number.isSafeInteger guard in durationDays.
+// Past 2^53 `Number()` collapses a strict ordering into equality, which the
+// strict `<` compare reads as "not below" — a marginally looser request would be
+// admitted. A mutant returning the unchecked day count survived the 19-case
+// suite. Both sides asserted in one case: the wire side REJECTS (never throws),
+// the operator's own config fails LOUD.
+{
+  const req = checkFloor(PUB, { swapAgeMin: 'P9007199254740993D' });
+  let pubVerdict;
+  try {
+    checkFloor({ swapAgeMin: 'P9007199254740993D' }, {});
+    pubVerdict = { threw: false, msg: 'did not throw' };
+  } catch (e) {
+    pubVerdict = { threw: true, msg: e.message };
+  }
+  check('22 PAST 2^53 REJECTED', false, req,
+    'invalid duration: swapAgeMin "P9007199254740993D" (use P<days>D or P<years>Y; months are ambiguous)',
+    { label: 'published side fails loud',
+      ok: pubVerdict.threw === true && pubVerdict.msg.includes('invalid duration') });
+}
+
 conclude();

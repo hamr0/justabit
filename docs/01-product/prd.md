@@ -144,14 +144,16 @@ Gate mapping: G1 = M1–M4 + M6 all user-validated; G2 = M5 user-validated live.
 Ladder status (2026-08-15): **M1 user-validated** (19/19 after the
 duplicate-key hardening; user ran 17/17 pre-hardening, 19/19 agent-run).
 **M2 10/10 green at the M2 gate session; dated user-run record missing —
-user re-run pending** (spike user-validated → build → review round, 5
+user validation pending** (spike user-validated → build → review round, 5
 findings fixed → runbook green). **M3 user-validated at 14/14 (pre-review
-build); two review rounds hardened the module and grew the check to 19
-cases — agent-run green, user re-run pending** (spec signed off with 3 user
-decisions → spike at the silent-widening traps → build → user ran
-`node poc/m3-check.mjs` 14/14 → 3 mutants killed → review round 1: 7
-warnings fixed, +3 canary cases → 17/17 → review round 2: 8 findings, +2
-canary cases → 19/19). M4–M6 not started.
+build); two review rounds plus a release-gate round hardened the module and
+grew the check to 22 cases — agent-run green, user run pending** (spec
+signed off with 3 user decisions → spike at the silent-widening traps →
+build → user ran `node poc/m3-check.mjs` 14/14 → 3 mutants killed → review
+round 1: 7 warnings fixed, +3 canary cases → 17/17 → review round 2: 8
+findings, +2 canary cases → 19/19 → release gate: 3 surviving mutants found
+on already-fixed guards, +3 cases → 22/22, plus 500k-iteration differential
+fuzz clean). M4–M6 not started.
 
 ### 4.5 POC-first discipline applied to each module
 
