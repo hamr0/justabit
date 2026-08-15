@@ -1,1 +1,9 @@
+# local session context and tool state stay local — scoped, so a future
+# .github/ (CI) or other deliverable dot-directory is not silently ignored
 .claude/
+.litectx/
+
+# secrets never enter the tree; only a value-less .env.example may be tracked
+.env
+*.env
+!.env.example

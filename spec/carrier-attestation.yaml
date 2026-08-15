@@ -4,7 +4,8 @@ info:
   description: >
     Pre-submission OpenAPI sketch of Mode A (attested query response) under the
     Attested Windowed Disclosure profile. Illustrative, not normative; the
-    profile document (docs/02-profile/) carries the rules.
+    profile document (docs/02-proposals/camara-attested-windowed-disclosure.md
+    §3) carries the rules.
   version: 0.0.1
   license:
     name: Apache 2.0
@@ -59,7 +60,10 @@ components:
           enum: [gte, eq, in]
         value:
           description: Threshold or set (e.g. "P90D", "voice+data", ["FR","BE"])
-          type: string
+          oneOf:
+            - type: string
+            - type: array
+              items: { type: string }
     Floor:
       type: object
       description: Consumer-agent reference floor; all fields optional, all only tightenable
@@ -69,12 +73,27 @@ components:
         swapAgeMin:   { type: string, example: P90D }
         class:        { type: string, enum: [postpaid] }
     AttestResponse:
+      description: >
+        Two parts, exactly as the reference verifier (poc/m1-attestation.mjs)
+        accepts them: `claims`, the signed payload — a CLOSED set
+        (additionalProperties: false is normative intent: any extra field is a
+        rejection, so a raw value can never ride alongside the bit) — and
+        `sig`, a detached signature over the exact claim bytes as transmitted
+        (sign-what-you-ship — no field-tuple reconstruction, no
+        canonicalization). Key-resolution metadata (`iss`) travels OUTSIDE the
+        signed claims: it only tells the verifier which trust-directory key to
+        try, and is authenticated by the signature verifying under that key.
       type: object
-      required: [result, nonce, exp, sig]
+      required: [claims, sig]
       properties:
-        result: { type: boolean, description: The bit. Nothing else, ever. }
-        nonce:  { type: string,  description: Echo of request nonce }
-        iat:    { type: string,  format: date-time }
-        exp:    { type: string,  format: date-time, description: Valid for the duration of the query where applicable }
+        claims:
+          type: object
+          required: [predicate, result, nonce, exp]
+          additionalProperties: false
+          properties:
+            predicate: { type: string, description: "Echo of the predicate asked, as its canonical string id — signed, so an answer can never be read as answering a different question" }
+            result: { type: boolean, description: "The bit. Nothing else, ever." }
+            nonce:  { type: string,  description: Echo of request nonce }
+            exp:    { type: integer, description: "Expiry, Unix epoch milliseconds — valid for the duration of the query" }
         iss:    { type: string,  description: Operator key id resolvable via the per-PLMN trust directory }
-        sig:    { type: string,  description: Signature over (result, nonce, iat, exp, iss) }
+        sig:    { type: string,  format: byte, description: Detached signature over the exact claim bytes as transmitted }

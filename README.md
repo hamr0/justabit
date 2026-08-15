@@ -11,6 +11,7 @@
 ```
 
 <p align="center">
+  <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fhamr0%2Fjustabit%2Fmain%2Frelease.json&query=%24.version&label=version&color=2a4f8c" alt="version (from release.json)">
   <img src="https://img.shields.io/badge/status-pre--submission%20draft-orange" alt="status: pre-submission draft">
   <img src="https://img.shields.io/badge/tracks-CAMARA%20%2B%20AAIF-2a4f8c" alt="tracks: CAMARA + AAIF">
   <img src="https://img.shields.io/badge/license-Apache%202.0-2a4f8c" alt="license: Apache 2.0">
@@ -67,20 +68,22 @@ conforming to profile mode:
 ```
 1. MUST return only the predicate result (boolean) or a declared band —
    never the underlying raw value (timestamp, country, number, address).
-2. MUST echo the requester's nonce inside the signed response and MUST
-   include an expiry; verifiers MUST reject replayed or expired responses.
+2. MUST echo the requester's nonce and the predicate being answered inside
+   the signed response and MUST include an expiry; verifiers MUST reject
+   wrong-predicate, replayed, or expired responses.
 3. MUST sign with a key resolvable through the operator trust directory.
 4. MUST NOT carry a subscriber identifier derivable from the access token.
 5. MUST treat floors as monotone — tightened downstream, never loosened.
 6. MUST be end-to-end encrypted requester↔operator through an aggregator;
-   the hub handles metering envelopes only and MUST NOT be able to read.
+   the hub handles metering envelopes only and MUST NOT be able to read —
+   envelopes MUST NOT expose payload size (fixed-length or padded).
 7. SHOULD offer banded responses only as a transition from raw values.
 8. Widening the window beyond one bit MUST be an explicit, distinct
    operation the consent flow can see — never a parameter default.
 ```
 
 Full text with definitions, the per-API adoption checklist, and the residuals stated
-honestly: [`docs/02-features/attested-windowed-disclosure.md`](docs/02-features/attested-windowed-disclosure.md).
+honestly: [`docs/02-proposals/camara-attested-windowed-disclosure.md`](docs/02-proposals/camara-attested-windowed-disclosure.md) §3.
 
 ## Why a profile, not one more API
 
@@ -119,36 +122,45 @@ this profile.
 ## Repo map
 
 ```
-docs/01-product/    carrier-attestation-proposal.md — the master proposal
-                    camara-plan.md, aaif-plan.md — per-body deliverables & process
-docs/02-features/   attested-windowed-disclosure.md — the horizontal profile
-                    (the actual standard: normative rules any API can adopt)
+docs/01-product/    prd.md — the PRD that leads everything: requirements,
+                    sequence, no-go list, decisions log
+docs/02-proposals/  camara-attested-windowed-disclosure.md — the CAMARA
+                    proposal, carrying the normative profile (the standard)
+                    aaif-agent-auth.md — the AAIF proposal (agent side only)
 spec/               carrier-attestation.yaml — OpenAPI sketch (CAMARA-style)
-poc/                Mode A demo against Orange Network APIs Playground
+poc/                Mode A demo: mock backend by default, Orange Network
+                    APIs Playground as a swappable live backend
 ```
 
 ## The two tracks
 
 Each track cites the other as its counterpart; neither depends on the other's approval.
 
-- **[CAMARA](docs/01-product/camara-plan.md)** — the operator/attestation side. What
-  the operator attests and how it travels. Profile to Commonalities, consent hooks to ICM,
-  adoption PRs to sim-swap and roaming-status, new-case proposal to APIBacklog.
-- **[AAIF](docs/01-product/aaif-plan.md)** — the agent/delegation side. What the agent
-  carries and how permissions flow: floor-gated SIM attestation, scoped monotone
+- **[CAMARA](docs/02-proposals/camara-attested-windowed-disclosure.md)** — the
+  operator/attestation side. What the operator attests and how it travels. Profile to
+  Commonalities, consent hooks to ICM, adoption PRs to sim-swap and roaming-status,
+  new-case proposal to APIBacklog (template pre-filled in §10).
+- **[AAIF](docs/02-proposals/aaif-agent-auth.md)** — the agent/delegation side. What the
+  agent carries and how permissions flow: floor-gated SIM attestation, scoped monotone
   delegations, A2A. Their Identity & Trust WG is the target.
 
 **They meet at the RFC 9421 header.**
 
 ## The PoC
 
-A Mode A demo on the Orange Network APIs Playground, proving four assertions: windowing
-(never a raw value on the wire), nonce + validity (replay fails, responses expire), blind
-hub (the hub's own log shown on screen — metering records only), and monotone floor
-(tighten live, looser queries rejected). Playground backstory flips the boolean live.
+A Mode A demo proving four assertions — each shown with its negative: windowing (never a
+raw value on the wire), nonce + validity (replay fails, responses expire), blind hub (the
+hub's own log shown on screen — metering records only, reads yield ciphertext), and
+monotone floor (looser queries rejected, never silently widened).
 
-Currently blocked on Playground credentials (free, instant). Setup steps and the stated
-caveats are in [`poc/README.md`](poc/README.md).
+**Status:** being rebuilt module-by-module (M1–M6). The attestation core and the blind
+envelope are built and runnable today — `node poc/m1-check.mjs` and `node poc/m2-check.mjs`,
+negatives first, exit code 0 only if every case holds. The one-command demo
+(`node poc/demo.mjs`, zero credentials against a built-in mock operator with scriptable
+backstories; `--backend orange` re-proves it live on the Network APIs Playground with a free
+Orange developer account) lands at M6. Requirements live in the
+[PRD §4](docs/01-product/prd.md); status, setup and caveats in
+[`poc/README.md`](poc/README.md).
 
 ## Lineage
 
