@@ -70,8 +70,12 @@ conforming to profile mode:
    never the underlying raw value (timestamp, country, number, address).
 2. MUST echo the requester's nonce and the predicate being answered inside
    the signed response and MUST include an expiry; verifiers MUST reject
-   wrong-predicate, replayed, or expired responses.
-3. MUST sign with a key resolvable through the operator trust directory.
+   wrong-predicate, replayed, or expired responses — and any payload with
+   a duplicate claim key (one signed blob must never read true to one
+   parser and false to another).
+3. MUST sign with a key resolvable through the operator trust directory;
+   verifiers MUST pin the expected operator key before verifying — an
+   unsigned hint must never choose which key to trust.
 4. MUST NOT carry a subscriber identifier derivable from the access token.
 5. MUST treat floors as monotone — tightened downstream, never loosened.
 6. MUST be end-to-end encrypted requester↔operator through an aggregator;

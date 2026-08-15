@@ -10,7 +10,7 @@ far, each runnable on its own (negatives first, exit 0 only if every case
 holds):
 
 ```
-node poc/m1-check.mjs   # M1 attestation core — 17 cases (user-validated)
+node poc/m1-check.mjs   # M1 attestation core — 19 cases (user-validated)
 node poc/m2-check.mjs   # M2 blind envelope — 10 cases (built; awaiting user validation)
 ```
 

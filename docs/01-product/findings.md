@@ -7,6 +7,28 @@ memory. A finding here is something that was RUN and OBSERVED, not reasoned.
 
 ---
 
+## 2026-08-15 — The two v0.0.3 security Mediums closed (duplicate keys + key pinning)
+
+Closed same-day on user decision ("fix both now"), not parked to M3.
+
+1. **Duplicate-key equivocation — RUN and OBSERVED, then fixed.** A signed
+   payload carrying `"result":true … "result":false` passed the full M1
+   verifier (V8 last-wins; the closed-set check can't see it — Object.keys
+   shows one `result`). With the new byte-level scan removed (mutation),
+   both new check cases print `expected REJECT, got ACCEPT — got 'ok'`;
+   with it, 19/19. The scan compares keys AFTER JSON escape decoding —
+   case 18 proves `\u0072esult` cannot impersonate a fresh key. Normative:
+   rule 2 sentence added (README copy synced, spec YAML description synced).
+2. **Key pinning — text-only today.** Rule 3 now requires the verifier to
+   pin the expected operator key BEFORE verification; unsigned `iss` is a
+   lookup hint only. The reference verifier already takes a caller-pinned
+   key, so no code change exists to test; the enforceable surface arrives
+   with the trust directory at M6.
+
+Regression: m1-check 19/19 exit 0 (2 new cases), m2-check 10/10 exit 0
+(E2E composes through the patched verifier), spec YAML parses with zero
+null-valued keys, mutated module restored byte-identical from backup.
+
 ## 2026-08-15 — Whole-branch release gates (code-review 8/8 fixed; security + diff-review)
 
 First review of the branch as a unit (each module had only per-build
