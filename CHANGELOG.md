@@ -1,5 +1,71 @@
 # Changelog
 
+## 0.1.0 — 2026-08-15
+
+- **M3 (floor gate) built under the §4.4 ladder — user-validated 14/14.**
+  `poc/m3-floor.mjs`: `checkFloor(published, requested)` — pure logic, zero
+  deps; closed 4-axis set (simType/tenureMin/swapAgeMin/class); strict
+  `P<n>D`/`P<n>Y` durations (1Y = 365D stated; months rejected as ambiguous
+  — user decision); no coercion (spike: `parseInt('3M')===3`,
+  `Number(null)===0` would admit every request); unknown/typo'd axis =
+  closed-set rejection (an ignored typo silently drops a constraint);
+  omitted axis inherits the published floor, visible via the returned
+  `effective`; broken PUBLISHED config throws loud, wire input never
+  throws. `poc/m3-check.mjs`: 17 cases negatives-first (14 at build + 3
+  review-round canaries). Mutation-proven: 5 mutants killed (rejection
+  disabled / unknown-axes ignored / string compare / 360-day year /
+  null-floor branch); check hardened to fail-clean (`?.`) after one mutant
+  first died as a stack trace — the M2 "no RESULT line" lesson re-applied.
+- **M3 review round (opus, adversarial + 200k-iteration differential fuzz
+  vs an independent BigInt oracle — 36,452 allow-verdicts, 0 violations on
+  wire-shaped input): 7 warnings fixed.** Non-plain published config (a
+  prototype chain or a flip-flopping getter) could slip past validation and
+  fail OPEN — closed by rejecting non-plain-prototype configs loud + a
+  own-props snapshot before validation (validate and compare now see the
+  same data); duration compare gained an explicit null guard (defense in
+  depth — `r < null` coerces to `r < 0` = allowed); day counts past 2^53
+  rejected (`Number()` can collapse strict-less into equal there, which
+  strict `<` reads as not-below); the declared 1Y=365D constant and the
+  null/absent-floor "wire never throws" branch each gained a
+  mutation-proven canary case; two doc lines the code contradicted
+  corrected (poc/README module status; findings.md 2^53 wording).
+- **M3 review round 2: 8 findings (harness verdict guard, a `checkThrows`
+  helper for the hand-rolled expect-throw cases, non-enumerable /
+  non-plain-prototype closures on BOTH the operator and the wire side, an
+  enum-mismatch guard, the rule-5 profile + spec sync, and the docs-honesty
+  rewording below).** Two in-process fail-opens closed: a non-enumerable
+  published axis passed the prototype check but vanished in the spread
+  (intended constraint silently unenforced), and a request floor carrying
+  its axes on the prototype came back ALLOWED with the demanded constraint
+  silently dropped — both now mutation-proven by check cases 18 and 19
+  (19 cases at that point). The three signed-off M3 rules (closed axis set,
+  `P<n>D`/`P<n>Y` only with 1Y = 365D, numeric-not-lexicographic compare)
+  reached the normative text at proposal rule 5 and the spec's Floor schema.
+- **M3 release round: three unpinned guards closed (19 → 22 cases).** A
+  release-gate mutation sweep found three *already-fixed* fail-opens with no
+  case that could catch their regression — mutants removing them survived
+  19/19 exit 0. Cases 18/19 pinned only one diagonal of
+  {published,requested} × {prototype,non-enumerable}; the other diagonal and
+  the 2^53 guard were uncovered. Added case 20 (published floor on a
+  prototype throws — the mutant admitted a P1D request against a P90D floor
+  with the operator's ENTIRE floor unenforced), case 21 (request carrying a
+  demanded axis as a non-enumerable own prop rejects `malformed floor`, not
+  ALLOWED-with-constraint-dropped), and case 22 (day counts past 2^53 —
+  wire side rejects, operator side fails loud). Each mutation-proven: guard
+  removed → that case alone red at 21/22 exit 1, restored → 22/22 exit 0.
+  Two independent differential fuzzes against BigInt oracles written from
+  the rule (not the code) — 200k and 300k iterations, ~156k allow-verdicts —
+  found **0 monotonicity violations**, with a rejection-disabled negative
+  control producing 6,200 violations (the fuzz can fail). Non-blocking items
+  left open and recorded in `findings.md`, not fixed here: an untrusted-side
+  `JSON.stringify` that can throw on BigInt/circular/throwing-`toJSON`
+  (unreachable via the current `JSON.parse` path, fails closed), an
+  unescaped key in one rejection reason (log injection), an unbounded reason
+  echo, and the spec `pattern` lacking a magnitude bound.
+  **User runs of this final 22/22 (M3), 19/19 (M1) and 10/10 (M2) state are
+  pending at merge time** — those counts are agent-run. The standing
+  user-validated M3 record remains 14/14 on the pre-review build.
+
 ## 0.0.4 — 2026-08-15
 
 - **Both v0.0.3 security Mediums closed (user decision: now, not M3).**
