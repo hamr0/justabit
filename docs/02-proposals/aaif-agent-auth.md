@@ -3,10 +3,10 @@
 ### Project proposal draft for the AAIF Identity & Trust Working Group — the agent/delegation side of attested windowed disclosure
 
 **Author:** Amr Hassan, independent telecom consultant (10 yrs wholesale roaming / signaling / SoR)
-**Status:** Draft v0.2 — pending AAIF process grounding (their submission
-process is not yet published on aaif.io; this draft is kept modular so it can
-be reshaped to whatever template the process requires)
-**Date:** 2026-08-14
+**Status:** Draft v0.2 — AAIF submission process grounded 2026-08-15
+(`github.com/aaif/project-proposals`, 4-step flow — see PRD §"process facts");
+template field mapping pending
+**Date:** 2026-08-15
 **Companion:** the operator/attestation side is proposed separately to CAMARA
 (`camara-attested-windowed-disclosure.md`). The two tracks meet at the
 RFC 9421 HTTP Message Signatures header; **neither depends on the other's
@@ -136,8 +136,9 @@ service, with a live demonstration that a downstream delegation attempting to
 
 ## 7. Open items
 
-- [ ] Ground AAIF's actual project-submission process (homepage doesn't
-      expose it; check /about, WG pages, GitHub org) — gates everything else.
+- [x] Ground AAIF's actual project-submission process — DONE 2026-08-15:
+      `github.com/aaif/project-proposals`, 4-step flow, recorded in the PRD.
+- [ ] Map §1–§6 of this draft onto the `project-proposal.yml` template fields.
 - [ ] Identify whether the Identity & Trust WG has existing delegation drafts
       to align with — attach the SIM-anchor tier to incumbent drafts rather
       than competing with them.

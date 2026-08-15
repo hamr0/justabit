@@ -7,7 +7,30 @@ memory. A finding here is something that was RUN and OBSERVED, not reasoned.
 
 ---
 
-## 2026-08-15 — M2 build + review round (6 findings, 5 fixed, 1 documented)
+## 2026-08-15 — Whole-branch release gates (code-review 8/8 fixed; security + diff-review)
+
+First review of the branch as a unit (each module had only per-build
+reviews). `/code-review medium`: 8 confirmed findings, all fixed and re-run
+green (m1 17/17 byte-identical output, m2 10/10) — headline items: README
+advertised a `demo.mjs` that doesn't exist yet (M6 target); two docs still
+said ECDH+AES-GCM after the RSA-OAEP decision; the spec sketch and the
+reference verifier were mutually unimplementable (iat/iss inside claims,
+ISO-string exp); 6 of 8 hub-blind key attempts crashed on key-type before
+any crypto (attack theater — reduced to the decryption-capable set);
+`.gitignore`'s `.*/` silently ignored `.github/`. **Supersedes M2 finding 6
+below:** the check-harness duplication WAS extracted
+(`poc/check-harness.mjs`) once the whole-branch view made it a third-copy
+risk; proven behavior-preserving by byte-identical m1 output.
+
+Release-gate round on top (fresh agents, read-only, mutation-proving):
+diff-review found the spec's unquoted inline YAML descriptions silently
+truncating (the epoch-ms `exp` detail — the parity fix's own point — was
+being dropped by any YAML parser), and that case 8's reason string had
+become derived-from-verdict (tautology) rather than observed — both fixed,
+observation restored. Security: nothing Critical/High; two Mediums are
+normative-text gaps (duplicate-JSON-key ambiguity under sign-what-you-ship;
+no rule pinning WHICH operator key a verifier expects) — WG-facing, held
+as open decisions for the submission round, not merge blockers.
 
 M2 built (`poc/m2-envelope.mjs` seal/open + `poc/m2-check.mjs`, 10 cases,
 10/10 exit 0; M1 regression-checked at 17/17). The review's orchestrator

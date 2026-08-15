@@ -11,6 +11,7 @@
 ```
 
 <p align="center">
+  <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fhamr0%2Fjustabit%2Fmain%2Frelease.json&query=%24.version&label=version&color=2a4f8c" alt="version (from release.json)">
   <img src="https://img.shields.io/badge/status-pre--submission%20draft-orange" alt="status: pre-submission draft">
   <img src="https://img.shields.io/badge/tracks-CAMARA%20%2B%20AAIF-2a4f8c" alt="tracks: CAMARA + AAIF">
   <img src="https://img.shields.io/badge/license-Apache%202.0-2a4f8c" alt="license: Apache 2.0">

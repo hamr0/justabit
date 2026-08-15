@@ -141,12 +141,14 @@ check('5 WRONG LENGTH CIPHERTEXT', false, open(operator.privateKey, randomBytes(
     (s) => requestCt.includes(Buffer.from(s, 'utf8')) || responseCt.includes(Buffer.from(s, 'utf8'))
   );
   for (const a of attempts) console.log(`     hub tried ${a.what} -> ${a.v.ok ? 'RECOVERED ' + a.v.payloadBytes.length + ' bytes' : 'rejected (' + a.v.reason + ')'}`);
-  // The reason reports the ACTUAL event: a recovery is the catastrophic outcome this case
-  // exists to catch, so it must not be printed as a taxonomy note about reason strings.
-  // The extra carries only the substring scan — `recovered.length === 0` is already the
-  // verdict condition, and duplicating it there would assert the same thing twice.
+  // The reason reports the ACTUAL event, observed from open()'s own reason strings —
+  // never derived from the verdict alone, so a module that starts failing for the
+  // wrong reason (e.g. 'malformed ciphertext' everywhere) turns this case red.
+  const allUndecryptable = attempts.every((a) => a.v.reason === 'undecryptable');
   check('8 HUB BLIND', false,
-    { ok: recovered.length > 0, reason: recovered.length ? 'recovered' : 'undecryptable' },
+    { ok: recovered.length > 0,
+      reason: recovered.length ? 'recovered'
+        : (allUndecryptable ? 'undecryptable' : `unexpected reasons: ${attempts.map((a) => a.v.reason).join(', ')}`) },
     'undecryptable',
     { label: `${attempts.length} attempts, ${recovered.length} recoveries, ${leaks.length} plaintext substring hits`, ok: leaks.length === 0 });
 }

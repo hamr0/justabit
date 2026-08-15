@@ -4,7 +4,7 @@
 
 **Author:** Amr Hassan, independent telecom consultant (10 yrs wholesale roaming / signaling / SoR)
 **Status:** Draft v0.2 — pre-submission (not yet filed; supporters not yet recruited)
-**Date:** 2026-08-14
+**Date:** 2026-08-15
 **Targets:** CAMARA Commonalities (profile as design guideline) · ICM (consent/auth hooks) · existing sub-projects (adoption PRs) · APIBacklog (CarrierAttestation new case — template mapping in §10)
 **Companion:** the agent/delegation side is proposed separately to AAIF (`aaif-agent-auth.md`); the two meet at the RFC 9421 header and neither depends on the other.
 
@@ -195,6 +195,9 @@ document-rooted principal layer above this profile.
   (Mode A).
 - The trust directory is the single centralization point; governance belongs
   with existing GSMA key-distribution rails (RAEX/IR.21-shaped) — see §9.9.
+- A blind aggregator still sees traffic metadata: message count, timing, and
+  the RP↔operator pairing (who queries whom, when). Rule 6 removes content,
+  not the fact of the query; measured and recorded in the PoC findings log.
 
 ## 4. Two consumption modes
 

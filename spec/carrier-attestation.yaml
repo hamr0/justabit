@@ -91,9 +91,9 @@ components:
           required: [predicate, result, nonce, exp]
           additionalProperties: false
           properties:
-            predicate: { type: string, description: Echo of the predicate asked, as its canonical string id — signed, so an answer can never be read as answering a different question }
-            result: { type: boolean, description: The bit. Nothing else, ever. }
+            predicate: { type: string, description: "Echo of the predicate asked, as its canonical string id — signed, so an answer can never be read as answering a different question" }
+            result: { type: boolean, description: "The bit. Nothing else, ever." }
             nonce:  { type: string,  description: Echo of request nonce }
-            exp:    { type: integer, description: Expiry, Unix epoch milliseconds — valid for the duration of the query }
+            exp:    { type: integer, description: "Expiry, Unix epoch milliseconds — valid for the duration of the query" }
         iss:    { type: string,  description: Operator key id resolvable via the per-PLMN trust directory }
         sig:    { type: string,  format: byte, description: Detached signature over the exact claim bytes as transmitted }

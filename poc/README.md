@@ -86,7 +86,9 @@ its findings below stand as evidence and shape M5.
 
 ## What the Playground actually does (measured, not doc-sourced)
 
-Grounded by `spike-orange.mjs` plus the adapter's own live runs (2026-08-15).
+Grounded by a throwaway Orange spike plus the adapter's own live runs
+(2026-08-15) — both rolled back out of the tree with the G0 rollback; the
+findings stand here as dated evidence.
 Everything below is captured behaviour; where it contradicts the docs, this wins.
 
 - **Token** — `POST https://api.orange.com/openidconnect/playground/v1.0/token`
