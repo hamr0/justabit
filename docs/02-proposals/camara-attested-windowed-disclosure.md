@@ -121,9 +121,19 @@ An API operation conforming to this profile:
    verifiers **MUST** reject responses whose predicate is not the one asked,
    and replayed or expired responses. Signature verification alone is
    stateless — replay rejection additionally requires single-use,
-   per-request nonces on the requester side.
+   per-request nonces on the requester side. Verifiers **MUST** reject a
+   signed payload containing a duplicate claim key (compared after JSON
+   escape decoding): RFC 8259 leaves duplicate names undefined, so one
+   signature-valid payload could otherwise read as *true* to a last-wins
+   parser and *false* to a first-wins parser — a signing operator's
+   equivocation channel.
 3. **MUST** sign responses with a key resolvable through the operator trust
-   directory (per-PLMN public keys).
+   directory (per-PLMN public keys). Verifiers **MUST** pin the expected
+   operator key (or issuer) *before* verification and **MUST NOT** let an
+   unsigned key-resolution hint (e.g. an `iss` field outside the signed
+   claims) select which directory key to trust — otherwise any
+   directory-listed operator, routed by an untrusted aggregator, could
+   answer a query addressed to a different operator.
 4. **MUST NOT** carry a subscriber identifier in the request where it is
    derivable from the access token (generalizes the existing 3-legged rule:
    `phoneNumber` "MUST NOT be included").

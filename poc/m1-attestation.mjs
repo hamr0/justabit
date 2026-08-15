@@ -12,6 +12,37 @@ export function attest(privateKey, claims) {
   return { payloadBytes, signature };
 }
 
+// Step 3.5 helper. Scans the EXACT payload text for a repeated top-level key.
+// JSON.parse is last-wins on duplicates (RFC 8259 leaves them undefined; other
+// parsers take first, or reject), so without this check one validly signed byte
+// string could read result:true to one verifier and result:false to another —
+// operator equivocation. Keys are DECODED before comparison (the escaped spelling
+// "\u0072esult" IS "result"). Only depth-1 keys matter: any nested value fails the
+// type checks anyway.
+function hasDuplicateTopLevelKey(text) {
+  const seen = new Set();
+  let depth = 0;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (c === '"') {
+      const start = i;
+      for (i++; i < text.length; i++) {
+        if (text[i] === '\\') i++;
+        else if (text[i] === '"') break;
+      }
+      let j = i + 1;
+      while (j < text.length && ' \t\n\r'.includes(text[j])) j++;
+      if (depth === 1 && text[j] === ':') {
+        const key = JSON.parse(text.slice(start, i + 1)); // safe: whole text already parsed
+        if (seen.has(key)) return true;
+        seen.add(key);
+      }
+    } else if (c === '{' || c === '[') depth++;
+    else if (c === '}' || c === ']') depth--;
+  }
+  return false;
+}
+
 // Requester side. `response` = { payloadBytes, signature } as returned by attest —
 // untrusted, straight off the wire, so nothing in it may throw.
 // `expected` = { predicate, nonce, nowMs } — the caller's OWN input, trusted.
@@ -51,6 +82,13 @@ export function verifyAttestation(trustedPublicKey, response, expected) {
   }
   if (typeof claims !== 'object' || claims === null || Array.isArray(claims)) {
     return { accepted: false, reason: 'malformed claims' };
+  }
+
+  // 3.5 Duplicate keys. `claims` above is V8's LAST-wins reading of the bytes; a
+  // first-wins parser reads the same signed bytes differently. Both readings verify,
+  // so the ambiguity itself is the attack — reject it at the byte level.
+  if (hasDuplicateTopLevelKey(response.payloadBytes.toString('utf8'))) {
+    return { accepted: false, reason: 'duplicate claim keys' };
   }
 
   // 4. Predicate. A missing predicate fails the typeof, so an unlabelled answer

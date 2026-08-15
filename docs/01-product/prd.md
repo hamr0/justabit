@@ -141,7 +141,8 @@ user runs each module's check themselves.
 
 Gate mapping: G1 = M1–M4 + M6 all user-validated; G2 = M5 user-validated live.
 
-Ladder status (2026-08-15): **M1 user-validated** (17/17). **M2 built**
+Ladder status (2026-08-15): **M1 user-validated** (19/19 after the
+duplicate-key hardening). **M2 built**
 (spike user-validated → build → review round, 5 findings fixed, 1
 documented) — awaiting user validation via `node poc/m2-check.mjs`.
 M3–M6 not started.
@@ -307,6 +308,16 @@ we manage here:
 
 Dated, append-only. Rationale in one line; details in the stash/history.
 
+- **2026-08-15 — Both v0.0.3 security Mediums closed now (user-decided:
+  "fix both now").** (1) Duplicate claim keys are a rejection — normative in
+  profile rule 2, implemented in the M1 verifier (byte-level scan, keys
+  compared after escape decoding; mutation-proven: guard off, one signed
+  blob reading true-to-last-wins/false-to-first-wins parsers is ACCEPTED;
+  guard on, 19/19). (2) Key pinning — normative in profile rule 3: the
+  verifier pins the expected operator key before verification; unsigned
+  `iss` is a lookup hint and must never select the trusted key (the
+  reference verifier already had this shape — text-only; code lands with
+  the trust directory at M6).
 - **2026-08-15 — Decisions round after the M2 gate (all user-decided).**
   (1) Profile rule 6 gains the size line: envelopes MUST NOT expose payload
   size to the aggregator (fixed-length or padded) — backed by the M2

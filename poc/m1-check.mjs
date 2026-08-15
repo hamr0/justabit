@@ -147,14 +147,37 @@ const { check, conclude } = makeHarness({ field: 'accepted', okWord: 'ACCEPT' })
   check('16 SMUGGLED RAW VALUE', false, verifyAttestation(operator.publicKey, r, { predicate: OK.predicate, nonce: n, nowMs: now }), 'unexpected fields: swapTimestamp');
 }
 
-// 17 HAPPY — right key, right predicate, right nonce, not expired. Payload fidelity
+// 17 DUPLICATE KEY — one signed blob carrying "result" twice (true then false).
+// JSON.parse is last-wins, other parsers are first-wins: without rejection a signing
+// operator can equivocate — the SAME signature-valid bytes read as YES by one
+// verifier and NO by another. Every other check passes (the closed set can't see it:
+// Object.keys shows one 'result'). Only the byte-level duplicate scan stops it.
+{
+  const n = nonce();
+  const payloadBytes = Buffer.from(
+    `{"predicate":"age_over_18","result":true,"nonce":"${n}","exp":${now + 60000},"result":false}`, 'utf8');
+  const signature = sign(null, payloadBytes, operator.privateKey);
+  check('17 DUPLICATE KEY', false, verifyAttestation(operator.publicKey, { payloadBytes, signature }, { predicate: OK.predicate, nonce: n, nowMs: now }), 'duplicate claim keys');
+}
+
+// 18 ESCAPED DUPLICATE KEY — same attack, second key spelled "\u0072esult": different
+// BYTES, same PARSED key. Detection must compare decoded keys, not raw text.
+{
+  const n = nonce();
+  const payloadBytes = Buffer.from(
+    `{"predicate":"age_over_18","result":true,"nonce":"${n}","exp":${now + 60000},"\\u0072esult":false}`, 'utf8');
+  const signature = sign(null, payloadBytes, operator.privateKey);
+  check('18 ESCAPED DUPLICATE KEY', false, verifyAttestation(operator.publicKey, { payloadBytes, signature }, { predicate: OK.predicate, nonce: n, nowMs: now }), 'duplicate claim keys');
+}
+
+// 19 HAPPY — right key, right predicate, right nonce, not expired. Payload fidelity
 // (what comes back out is what went in) is folded into this one verdict.
 {
   const n = nonce();
   const signed = { ...OK, nonce: n };
   const v = verifyAttestation(operator.publicKey, attest(operator.privateKey, signed), { predicate: OK.predicate, nonce: n, nowMs: now });
   const fidelity = v.accepted && v.claims?.result === signed.result && v.claims?.predicate === signed.predicate;
-  check('17 HAPPY', true, v, 'ok', { label: 'payload fidelity', ok: fidelity });
+  check('19 HAPPY', true, v, 'ok', { label: 'payload fidelity', ok: fidelity });
 }
 
 conclude();

@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.0.4 — 2026-08-15
+
+- **Both v0.0.3 security Mediums closed (user decision: now, not M3).**
+  (1) Duplicate-key equivocation: the M1 verifier rejects any signed payload
+  with a repeated top-level claim key (`duplicate claim keys`), keys compared
+  after JSON escape decoding; 2 new check cases (plain + `\u0072esult`
+  spelling), mutation-proven — guard off, the equivocating blob is ACCEPTED;
+  guard on, 19/19 exit 0, M2 regression 10/10. Normative rule 2 amended
+  (proposal + README copy + spec YAML). (2) Key pinning: rule 3 now requires
+  verifiers to pin the expected operator key before verification — unsigned
+  `iss` is a lookup hint, never the key selector (text-only; the reference
+  verifier already takes a caller-pinned key; enforceable surface lands with
+  the M6 trust directory).
+
 ## 0.0.3 — 2026-08-15
 
 - **Whole-branch release gates run before merge** — `/code-review medium`

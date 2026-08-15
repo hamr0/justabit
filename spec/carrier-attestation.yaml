@@ -80,9 +80,15 @@ components:
         rejection, so a raw value can never ride alongside the bit) — and
         `sig`, a detached signature over the exact claim bytes as transmitted
         (sign-what-you-ship — no field-tuple reconstruction, no
-        canonicalization). Key-resolution metadata (`iss`) travels OUTSIDE the
-        signed claims: it only tells the verifier which trust-directory key to
-        try, and is authenticated by the signature verifying under that key.
+        canonicalization). A payload with a DUPLICATE claim key (compared
+        after JSON escape decoding) is a rejection: RFC 8259 leaves duplicate
+        names undefined, so one signed blob could otherwise read differently
+        under first-wins vs last-wins parsers (profile rule 2). Key-resolution
+        metadata (`iss`) travels OUTSIDE the signed claims and is a lookup
+        HINT only: the verifier MUST pin the expected operator key before
+        verification and MUST NOT let `iss` choose which directory key to
+        trust (profile rule 3) — the signature authenticates iss→key, not
+        that this operator was the one entitled to answer.
       type: object
       required: [claims, sig]
       properties:
