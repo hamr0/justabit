@@ -67,13 +67,15 @@ conforming to profile mode:
 ```
 1. MUST return only the predicate result (boolean) or a declared band —
    never the underlying raw value (timestamp, country, number, address).
-2. MUST echo the requester's nonce inside the signed response and MUST
-   include an expiry; verifiers MUST reject replayed or expired responses.
+2. MUST echo the requester's nonce and the predicate being answered inside
+   the signed response and MUST include an expiry; verifiers MUST reject
+   wrong-predicate, replayed, or expired responses.
 3. MUST sign with a key resolvable through the operator trust directory.
 4. MUST NOT carry a subscriber identifier derivable from the access token.
 5. MUST treat floors as monotone — tightened downstream, never loosened.
 6. MUST be end-to-end encrypted requester↔operator through an aggregator;
-   the hub handles metering envelopes only and MUST NOT be able to read.
+   the hub handles metering envelopes only and MUST NOT be able to read —
+   envelopes MUST NOT expose payload size (fixed-length or padded).
 7. SHOULD offer banded responses only as a transition from raw values.
 8. Widening the window beyond one bit MUST be an explicit, distinct
    operation the consent flow can see — never a parameter default.
@@ -150,10 +152,13 @@ raw value on the wire), nonce + validity (replay fails, responses expire), blind
 hub's own log shown on screen — metering records only, reads yield ciphertext), and
 monotone floor (looser queries rejected, never silently widened).
 
-One command, zero credentials: `node poc/demo.mjs` runs against a built-in mock operator
-with scriptable backstories. Anyone with a free Orange developer account can flip
-`--backend orange` and re-prove the point live against the Network APIs Playground.
-Requirements live in the [PRD §4](docs/01-product/prd.md); setup and caveats in
+**Status:** being rebuilt module-by-module (M1–M6). The attestation core and the blind
+envelope are built and runnable today — `node poc/m1-check.mjs` and `node poc/m2-check.mjs`,
+negatives first, exit code 0 only if every case holds. The one-command demo
+(`node poc/demo.mjs`, zero credentials against a built-in mock operator with scriptable
+backstories; `--backend orange` re-proves it live on the Network APIs Playground with a free
+Orange developer account) lands at M6. Requirements live in the
+[PRD §4](docs/01-product/prd.md); status, setup and caveats in
 [`poc/README.md`](poc/README.md).
 
 ## Lineage

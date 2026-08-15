@@ -3,6 +3,7 @@
 // before the happy path.
 import { generateKeyPairSync, randomBytes, sign } from 'node:crypto';
 import { attest, verifyAttestation } from './m1-attestation.mjs';
+import { makeHarness } from './check-harness.mjs';
 
 const operator = generateKeyPairSync('ed25519');
 const impostor = generateKeyPairSync('ed25519');
@@ -10,25 +11,9 @@ const now = Date.now(); // captured once: no sleeps, no clock races
 const nonce = () => randomBytes(16).toString('hex');
 const OK = { predicate: 'age_over_18', result: true, exp: now + 60000 };
 
-// Every rejection reason is deterministic, so every case asserts the exact reason as well
-// as the verdict: a check that only asserts ACCEPT/REJECT passes even when the module
-// starts misreporting a plumbing fault as a forgery (or vice versa).
-// `extra` (optional) folds a case-specific extra condition into the SAME verdict, so each
-// case is exactly one entry in `results` and exactly one PASS/FAIL line.
-const results = [];
-function check(name, wantAccept, verdict, expectedReason, extra) {
-  const reasonOk = verdict.reason === expectedReason;
-  const extraOk = extra ? extra.ok : true;
-  const pass = verdict.accepted === wantAccept && reasonOk && extraOk;
-  results.push(pass);
-  const want = wantAccept ? 'ACCEPT' : 'REJECT';
-  const got = verdict.accepted ? 'ACCEPT' : 'REJECT';
-  const extraStr = extra ? `; ${extra.label}=${extra.ok}` : '';
-  console.log(
-    `${pass ? 'PASS' : 'FAIL'} ${name}: expected ${want}, got ${got}` +
-    ` — reason expected '${expectedReason}', got '${verdict.reason}' (match=${reasonOk})${extraStr}`
-  );
-}
+// Shared harness (see check-harness.mjs): exact-reason assertions, so the module
+// misreporting a plumbing fault as a forgery (or vice versa) is a FAIL.
+const { check, conclude } = makeHarness({ field: 'accepted', okWord: 'ACCEPT' });
 
 // 1 MALFORMED RESPONSE — payloadBytes absent. A plumbing fault needs its own reason,
 // not 'bad signature', which would read as an attack.
@@ -172,6 +157,4 @@ function check(name, wantAccept, verdict, expectedReason, extra) {
   check('17 HAPPY', true, v, 'ok', { label: 'payload fidelity', ok: fidelity });
 }
 
-const passed = results.filter(Boolean).length;
-console.log(`RESULT: ${passed}/${results.length}`);
-process.exit(passed === results.length ? 0 : 1);
+conclude();

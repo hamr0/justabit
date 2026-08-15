@@ -1,11 +1,20 @@
 # PoC — Mode A, four assertions, one command
 
 **Requirements & no-gos:** [`docs/01-product/prd.md`](../docs/01-product/prd.md) §4–§5.
-**Status:** NOT BUILT — a first build was **rolled back 2026-08-15** (it went
-monolith-then-integrate without per-module user validation; see PRD §4.4 and
-the decision log). Rebuild follows the module ladder M1–M6: each module is
-POC'd against its toughest assumption, built, proven end-to-end on its own,
-and **validated by the user before the next module starts**. The measured
+**Status:** REBUILDING on the module ladder M1–M6 — a first build was
+**rolled back 2026-08-15** (it went monolith-then-integrate without
+per-module user validation; see PRD §4.4 and the decision log). Each module
+is POC'd against its toughest assumption, built, proven end-to-end on its
+own, and **validated by the user before the next module starts**. Built so
+far, each runnable on its own (negatives first, exit 0 only if every case
+holds):
+
+```
+node poc/m1-check.mjs   # M1 attestation core — 17 cases (user-validated)
+node poc/m2-check.mjs   # M2 blind envelope — 10 cases (built; awaiting user validation)
+```
+
+M3–M6 are not started; `poc/demo.mjs` does not exist yet. The measured
 Playground findings below are kept — they are dated evidence and still bind
 the M5 design.
 
@@ -25,7 +34,8 @@ Exit code 0 only if all four assertions — including their negatives — hold;
 1 if any fails; 2 if the backend cannot start at all (e.g. `--backend orange`
 with no `ORANGE_BASIC_AUTH` — it prints the prereqs and exits 2).
 Node ≥ 20, zero dependencies, real crypto (`node:crypto`: Ed25519 signatures,
-ECDH + AES-GCM for the end-to-end leg past the hub).
+RSA-4096 OAEP-SHA256 envelopes for the end-to-end leg past the hub — one
+vetted primitive, per the PRD decision log).
 
 ## What it proves (four assertions, each shown failing too)
 

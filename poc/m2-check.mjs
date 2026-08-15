@@ -4,6 +4,7 @@
 import { randomBytes, generateKeyPairSync } from 'node:crypto';
 import { generateEnvelopeKeys, seal, open, OAEP_CAPACITY } from './m2-envelope.mjs';
 import { attest, verifyAttestation } from './m1-attestation.mjs';
+import { makeHarness } from './check-harness.mjs';
 
 console.log('generating keys (3x RSA-4096 + 1x Ed25519), a few seconds...');
 const operator = generateEnvelopeKeys();
@@ -15,25 +16,10 @@ console.log('keys ready\n');
 const now = Date.now(); // captured once: no sleeps, no clock races
 const nonce = () => randomBytes(16).toString('hex');
 
-// Every rejection reason is deterministic, so every case asserts the exact reason as well
-// as the verdict: a check that only asserts OK/FAIL passes even when the module starts
-// misreporting a wrong-length buffer as a well-formed-but-undecryptable one (or vice versa).
-// `extra` (optional) folds a case-specific extra condition into the SAME verdict, so each
-// case is exactly one entry in `results` and exactly one PASS/FAIL line.
-const results = [];
-function check(name, wantOk, verdict, expectedReason, extra) {
-  const reasonOk = verdict.reason === expectedReason;
-  const extraOk = extra ? extra.ok : true;
-  const pass = verdict.ok === wantOk && reasonOk && extraOk;
-  results.push(pass);
-  const want = wantOk ? 'OK' : 'REJECT';
-  const got = verdict.ok ? 'OK' : 'REJECT';
-  const extraStr = extra ? `; ${extra.label}=${extra.ok}` : '';
-  console.log(
-    `${pass ? 'PASS' : 'FAIL'} ${name}: expected ${want}, got ${got}` +
-    ` — reason expected '${expectedReason}', got '${verdict.reason}' (match=${reasonOk})${extraStr}`
-  );
-}
+// Shared harness (see check-harness.mjs): exact-reason assertions, so the module
+// misreporting a wrong-length buffer as a well-formed-but-undecryptable one (or
+// vice versa) is a FAIL.
+const { check, conclude } = makeHarness({ field: 'ok', okWord: 'OK' });
 
 // A realistic profile-mode request: a predicate, the floor it must be evaluated against,
 // and the requester's nonce. No identifier, no raw value.
@@ -132,27 +118,25 @@ check('5 WRONG LENGTH CIPHERTEXT', false, open(operator.privateKey, randomBytes(
 }
 
 // 8 HUB BLIND — the strongest attack the hub can mount with the material it legitimately
-// holds: every PUBLIC key in the trust directory it serves, plus its OWN private key,
-// against BOTH ciphertexts it routes. 8 attempts, zero recoveries, zero crashes (open's
-// contract makes the per-attempt catch built in). Plus a raw substring scan of the
-// ciphertexts for the plaintext nonce and predicate, which must find nothing.
+// holds. Decryption takes a PRIVATE key, and the only private key the hub has is its OWN:
+// the trust directory it serves holds public keys, which cannot decrypt anything (measured
+// on Node 22: privateDecrypt rejects a public KeyObject as the wrong key type before any
+// RSA math runs — an "attempt" with directory keys would assert nothing about the crypto,
+// since it would "fail" identically under a null cipher). So the honest attack set is the
+// hub's own private key against BOTH ciphertexts it routes, plus a raw substring scan of
+// the ciphertexts for the plaintext nonce and predicate, which must find nothing.
 {
   const n = nonce();
   const predicate = 'sim_swap_since_90d';
-  const directory = { operator: operator.publicKey, rp: rp.publicKey, hub: hub.publicKey };
   const requestCt = seal(operator.publicKey, buildRequest(n, predicate));
   const attestation = attest(operatorSig.privateKey, { predicate, result: true, nonce: n, exp: now + 60000 });
   const responseCt = seal(rp.publicKey, serialize(attestation));
 
-  const attempts = [];
-  for (const [label, ct] of [['request', requestCt], ['response', responseCt]]) {
-    for (const [who, key] of Object.entries(directory)) {
-      attempts.push({ what: `${label} vs ${who} public key`, v: open(key, ct) });
-    }
-    attempts.push({ what: `${label} vs hub OWN private key`, v: open(hub.privateKey, ct) });
-  }
+  const attempts = [
+    { what: 'request vs hub OWN private key', v: open(hub.privateKey, requestCt) },
+    { what: 'response vs hub OWN private key', v: open(hub.privateKey, responseCt) },
+  ];
   const recovered = attempts.filter((a) => a.v.ok);
-  const allUndecryptable = attempts.every((a) => a.v.reason === 'undecryptable');
   const leaks = [n, predicate].filter(
     (s) => requestCt.includes(Buffer.from(s, 'utf8')) || responseCt.includes(Buffer.from(s, 'utf8'))
   );
@@ -162,8 +146,7 @@ check('5 WRONG LENGTH CIPHERTEXT', false, open(operator.privateKey, randomBytes(
   // The extra carries only the substring scan — `recovered.length === 0` is already the
   // verdict condition, and duplicating it there would assert the same thing twice.
   check('8 HUB BLIND', false,
-    { ok: recovered.length > 0,
-      reason: recovered.length ? 'recovered' : (allUndecryptable ? 'undecryptable' : 'mixed reasons') },
+    { ok: recovered.length > 0, reason: recovered.length ? 'recovered' : 'undecryptable' },
     'undecryptable',
     { label: `${attempts.length} attempts, ${recovered.length} recoveries, ${leaks.length} plaintext substring hits`, ok: leaks.length === 0 });
 }
@@ -244,6 +227,4 @@ check('5 WRONG LENGTH CIPHERTEXT', false, open(operator.privateKey, randomBytes(
     { label: `${steps.length} steps${failed.length ? ' (failed: ' + failed.join(', ') + ')' : ''}`, ok: failed.length === 0 });
 }
 
-const passed = results.filter(Boolean).length;
-console.log(`RESULT: ${passed}/${results.length}`);
-process.exit(passed === results.length ? 0 : 1);
+conclude();

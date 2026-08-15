@@ -73,13 +73,27 @@ components:
         swapAgeMin:   { type: string, example: P90D }
         class:        { type: string, enum: [postpaid] }
     AttestResponse:
+      description: >
+        Two parts, exactly as the reference verifier (poc/m1-attestation.mjs)
+        accepts them: `claims`, the signed payload — a CLOSED set
+        (additionalProperties: false is normative intent: any extra field is a
+        rejection, so a raw value can never ride alongside the bit) — and
+        `sig`, a detached signature over the exact claim bytes as transmitted
+        (sign-what-you-ship — no field-tuple reconstruction, no
+        canonicalization). Key-resolution metadata (`iss`) travels OUTSIDE the
+        signed claims: it only tells the verifier which trust-directory key to
+        try, and is authenticated by the signature verifying under that key.
       type: object
-      required: [predicate, result, nonce, exp, sig]
+      required: [claims, sig]
       properties:
-        predicate: { type: string, description: Echo of the predicate asked — signed, so an answer can never be read as answering a different question }
-        result: { type: boolean, description: The bit. Nothing else, ever. }
-        nonce:  { type: string,  description: Echo of request nonce }
-        iat:    { type: string,  format: date-time }
-        exp:    { type: string,  format: date-time, description: Valid for the duration of the query where applicable }
+        claims:
+          type: object
+          required: [predicate, result, nonce, exp]
+          additionalProperties: false
+          properties:
+            predicate: { type: string, description: Echo of the predicate asked, as its canonical string id — signed, so an answer can never be read as answering a different question }
+            result: { type: boolean, description: The bit. Nothing else, ever. }
+            nonce:  { type: string,  description: Echo of request nonce }
+            exp:    { type: integer, description: Expiry, Unix epoch milliseconds — valid for the duration of the query }
         iss:    { type: string,  description: Operator key id resolvable via the per-PLMN trust directory }
-        sig:    { type: string,  description: Detached signature over the exact payload bytes as transmitted (sign-what-you-ship — no field-tuple reconstruction, no canonicalization) }
+        sig:    { type: string,  format: byte, description: Detached signature over the exact claim bytes as transmitted }
