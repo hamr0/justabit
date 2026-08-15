@@ -50,16 +50,52 @@ function invalidValue(axis, value) {
 // LOUD (throw), never fail closed-quietly or, worse, open: the spike showed a
 // coerced garbage floor compares as 0 days and lets EVERY request through.
 // (M2 precedent: seal() throws on the sender's own bad input; wire input never throws.)
+// Normalizes AND validates — the single owner of the plain-shape predicate —
+// and returns a plain own-props snapshot so validation and the compare see the
+// SAME data: a prototype-carried axis, a re-read getter, or a non-enumerable
+// own prop could otherwise put a value in front of the compare that validation
+// never saw (or drop an axis the operator intended to enforce).
 function validatePublished(published) {
   if (typeof published !== 'object' || published === null || Array.isArray(published)) {
     throw new Error('invalid published floor: not an object');
   }
-  for (const k of Object.keys(published)) {
+  const proto = Object.getPrototypeOf(published);
+  if (proto !== Object.prototype && proto !== null) {
+    throw new Error('invalid published floor: not a plain object');
+  }
+  // A non-enumerable own prop passes the prototype check but vanishes in the
+  // spread — the operator's intended axis would silently go UNENFORCED.
+  if (Object.getOwnPropertyNames(published).length !== Object.keys(published).length) {
+    throw new Error('invalid published floor: not a plain object');
+  }
+  const snapshot = { ...published }; // getters read exactly once, here
+  for (const k of Object.keys(snapshot)) {
     if (!Object.prototype.hasOwnProperty.call(AXES, k)) {
       throw new Error(`invalid published floor: unknown field ${k}`);
     }
-    const bad = invalidValue(k, published[k]);
+    const bad = invalidValue(k, snapshot[k]);
     if (bad) throw new Error(`invalid published floor: ${bad}`);
+  }
+  return snapshot;
+}
+
+// Untrusted-side mirror — NEVER throws. A request floor that is not a plain
+// data object (prototype-carried axes the spread would silently strip — i.e. a
+// demanded constraint dropped, same class as an ignored typo — or a getter
+// that throws mid-read) is rejected as malformed, not honored partially.
+// Returns the plain snapshot, {} for an absent/null floor (no extra
+// strictness demanded — the published floor applies in full, visibly), or
+// null meaning "malformed".
+function normalizeRequested(requested) {
+  if (requested === undefined || requested === null) return {};
+  if (typeof requested !== 'object' || Array.isArray(requested)) return null;
+  try {
+    const proto = Object.getPrototypeOf(requested);
+    if (proto !== Object.prototype && proto !== null) return null;
+    if (Object.getOwnPropertyNames(requested).length !== Object.keys(requested).length) return null;
+    return { ...requested }; // getters read exactly once; a throwing one lands in the catch
+  } catch {
+    return null;
   }
 }
 
@@ -71,32 +107,9 @@ function validatePublished(published) {
 //     axis inheriting the published value is VISIBLE, never hidden — or
 //   { allowed: false, reason }                     — first failure wins.
 export function checkFloor(published, requested) {
-  // Snapshot own enumerable props FIRST: validation iterates own keys, but the
-  // compare below reads `obj[axis]` — on a non-plain object that read walks the
-  // prototype chain (validatePublished sees no own keys, no throw, then a
-  // prototype value reaches the compare = fail OPEN) or re-invokes a getter
-  // (validated once, compared with a different value). Snapshotting makes
-  // validate and compare see the same plain data. Wire-shaped (JSON.parse'd)
-  // input was never affected — this closes the in-process object path M6 will use.
-  if (published !== null && typeof published === 'object' && !Array.isArray(published)) {
-    // A published floor with a non-trivial prototype must throw, not quietly
-    // act as an EMPTY config once the snapshot strips inherited values —
-    // "broken config fails loud" includes config built the wrong way.
-    const proto = Object.getPrototypeOf(published);
-    if (proto !== Object.prototype && proto !== null) {
-      throw new Error('invalid published floor: not a plain object');
-    }
-    published = { ...published };
-  }
-  validatePublished(published);
-
-  // An absent/null requested floor means "no extra strictness demanded": the
-  // published floor applies in full (and `effective` shows it) — fail-closed.
-  if (requested === undefined || requested === null) requested = {};
-  if (typeof requested !== 'object' || Array.isArray(requested)) {
-    return { allowed: false, reason: 'malformed floor' };
-  }
-  requested = { ...requested };
+  published = validatePublished(published);
+  requested = normalizeRequested(requested);
+  if (requested === null) return { allowed: false, reason: 'malformed floor' };
   // Validate every requested axis before comparing anything: unknown fields and
   // malformed values are named individually. (A JSON.parse'd "__proto__" arrives
   // as an own key and is caught here as unknown — same behavior M1 probes proved.)
@@ -124,9 +137,11 @@ export function checkFloor(published, requested) {
       if (r < p) return { allowed: false, reason: `below floor: ${axis} ${req} < ${pub}` };
       effective[axis] = r === p ? pub : req; // tie keeps the operator's spelling (P2Y over P730D)
     } else {
-      // Correct ONLY while each enum axis has exactly one legal value (so
-      // pub === req by validation). A second legal value would make two valid
-      // enums unordered — this line must then become an explicit compare.
+      // Unreachable today (each enum axis has exactly one legal value, so
+      // validation forces pub === req) — but if a second legal value is ever
+      // added, two valid enums are UNORDERED: reject, never silently report
+      // the published value as enforced (mirrors the duration branch's guard).
+      if (pub !== req) return { allowed: false, reason: `enum mismatch: ${axis}` };
       effective[axis] = pub;
     }
   }
