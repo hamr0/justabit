@@ -10,9 +10,9 @@ far, each runnable on its own (negatives first, exit 0 only if every case
 holds):
 
 ```
-node poc/m1-check.mjs   # M1 attestation core — 19 cases (user-validated)
-node poc/m2-check.mjs   # M2 blind envelope — 10 cases (user-validated)
-node poc/m3-check.mjs   # M3 floor gate — 17 cases (user-validated)
+node poc/m1-check.mjs   # M1 attestation core — 19 cases (user-validated at 17)
+node poc/m2-check.mjs   # M2 blind envelope — 10 cases (user re-run pending)
+node poc/m3-check.mjs   # M3 floor gate — 19 cases (user-validated at 14)
 ```
 
 M4–M6 are not started; `poc/demo.mjs` does not exist yet. The measured

@@ -7,6 +7,59 @@ memory. A finding here is something that was RUN and OBSERVED, not reasoned.
 
 ---
 
+## 2026-08-15 — M3 review round 2: two in-process fail-opens closed, harness hardened, rule-5 reached the text
+
+Second adversarial `/code-review` over the M3 module + check + harness: **8
+findings, 7 confirmed, 1 plausible**. The two that mattered were both
+*fail-opens* — the gate answering when it should have rejected:
+
+1. **Non-enumerable published axis went UNENFORCED.** A published floor
+   carrying an axis as a non-enumerable own property passes the plain-object
+   prototype check but VANISHES in the `{ ...published }` snapshot, so the
+   operator's intended constraint was simply not compared. Closed by
+   asserting the plain-object contract on own-property COUNT
+   (`getOwnPropertyNames` vs `keys`), not the prototype alone.
+2. **Requested prototype-carried axes were silently STRIPPED.** A request
+   floor built on a prototype (`Object.create({ swapAgeMin: 'P180D' })`) came
+   back `allowed: true` with the demanded constraint dropped — the same class
+   as an ignored typo, but arriving off the wire. Closed in the untrusted-side
+   mirror, which also catches a THROWING getter and returns `malformed floor`
+   rather than letting a raw `TypeError` escape ("wire input never throws").
+
+Mutation evidence (module restored byte-identical from a working-copy backup
+after each; `git checkout` is banned here — it reverts tracked files to HEAD
+and wipes the fix under test): removing the non-enumerable check → case 18
+red (`expected REJECT, got ALLOW — got 'did not throw'`); removing the
+prototype check in the requested-side normalizer → case 19 red (`expected
+REJECT, got ALLOW — reason 'ok'`, i.e. the pre-fix fail-open reproduced
+exactly). 19/19 exit 0 with both restored.
+
+Harness hardened: `check()` now defaults an absent verdict to `{}`. A
+regressed module returning `undefined` previously killed the whole suite as a
+`TypeError` with **no RESULT line** — proven by mutating one reject path to a
+bare `return;`: without the guard the run dies at case 4 (0 FAIL lines, no
+tally); with it the run prints FAIL lines and `RESULT: 15/17`, exit 1. The
+hand-rolled expect-throw blocks (cases 14/17) folded into a shared
+`checkThrows(name, fn, substrings)` so a throw with a useless message still
+fails.
+
+Rule-5 sync: the three signed-off M3 rules had never reached the normative
+text, breaking the repo's code+text precedent. Proposal rule 5 now states the
+closed axis set, the `P<n>D`/`P<n>Y`-only grammar with 1Y = 365D declared and
+months rejected as ambiguous, and numeric-not-lexicographic comparison; the
+spec's `Floor` schema gained `additionalProperties: false` and a
+`^P\d+(D|Y)$` pattern with quoted descriptions (unquoted commas in an inline
+YAML flow mapping silently truncate — a previously confirmed bug in this
+file). Verified: the spec parses and no key came back null-valued.
+
+Docs honesty: "user-validated" was overclaiming the current state. M3 was
+user-run at 14/14 on the pre-review build; the 17→19-case state is agent-run
+only. M1 was user-run at 17/17 pre-hardening, 19/19 agent-run. M2 has **no
+dated user-run record at all**. PRD ladder status, `poc/README.md` and the
+CHANGELOG now say so, with user re-runs marked pending.
+
+---
+
 ## 2026-08-15 — M3 floor gate: spike traps, build, mutation proofs (user-validated 14/14)
 
 Spike (throwaway, scratchpad) attacked the toughest assumption — "no silent

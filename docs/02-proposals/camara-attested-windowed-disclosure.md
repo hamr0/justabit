@@ -139,7 +139,21 @@ An API operation conforming to this profile:
    `phoneNumber` "MUST NOT be included").
 5. **MUST** treat floors as monotone: an intermediary or delegate may tighten,
    never widen; a request below the operator's published floor is rejected,
-   not silently answered.
+   not silently answered. Three properties make that check mean something on
+   the wire rather than in prose:
+   - Floor axes are a **CLOSED set**. An unknown or misspelled axis **MUST**
+     be a rejection, never ignored: an ignored typo silently drops the
+     constraint the requester believes is enforced — the same silent widening
+     the rule exists to forbid, arriving through a spelling mistake.
+   - Duration floor values **MUST** be expressed as `P<n>D` or `P<n>Y` only,
+     with 1 year = 365 days **declared** as the one stated approximation.
+     Month-denominated durations (`P3M`) **MUST** be rejected as ambiguous: a
+     month is 28–31 days, so "is `P3M` ≥ `P90D`?" has no honest single answer,
+     and answering it either way is a window the requester did not agree to.
+   - Verifier-side comparison **MUST** be numeric after parsing, never
+     lexicographic. `'P100D' < 'P90D'` is *true* as strings, so a string
+     compare rejects a genuinely tighter request while admitting others —
+     the ordering the rule depends on simply does not exist over the text.
 6. **MUST** be end-to-end encrypted between requester and operator when
    carried through an aggregator; the aggregator handles metering envelopes
    only (count, route, bill) — it **MUST NOT** be able to read identifiers,

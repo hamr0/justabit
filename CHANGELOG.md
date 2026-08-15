@@ -29,6 +29,20 @@
   null/absent-floor "wire never throws" branch each gained a
   mutation-proven canary case; two doc lines the code contradicted
   corrected (poc/README module status; findings.md 2^53 wording).
+- **M3 review round 2: 8 findings (harness verdict guard, a `checkThrows`
+  helper for the hand-rolled expect-throw cases, non-enumerable /
+  non-plain-prototype closures on BOTH the operator and the wire side, an
+  enum-mismatch guard, the rule-5 profile + spec sync, and the docs-honesty
+  rewording below).** Two in-process fail-opens closed: a non-enumerable
+  published axis passed the prototype check but vanished in the spread
+  (intended constraint silently unenforced), and a request floor carrying
+  its axes on the prototype came back ALLOWED with the demanded constraint
+  silently dropped — both now mutation-proven by check cases 18 and 19
+  (19 cases total). The three signed-off M3 rules (closed axis set,
+  `P<n>D`/`P<n>Y` only with 1Y = 365D, numeric-not-lexicographic compare)
+  reached the normative text at proposal rule 5 and the spec's Floor schema.
+  **User re-runs of this final 19/19 (M3), 19/19 (M1) and 10/10 (M2) state
+  are pending at merge time** — the counts above are agent-run.
 
 ## 0.0.4 — 2026-08-15
 

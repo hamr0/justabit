@@ -4,7 +4,7 @@
 import { checkFloor } from './m3-floor.mjs';
 import { makeHarness } from './check-harness.mjs';
 
-const { check, conclude } = makeHarness({ field: 'allowed', okWord: 'ALLOW' });
+const { check, checkThrows, conclude } = makeHarness({ field: 'allowed', okWord: 'ALLOW' });
 
 // The demo operator's published floor: the consumer-agent reference profile
 // (proposal §3.4). `class` deliberately omitted — it is optional tightening.
@@ -99,17 +99,8 @@ check('8 WRONG ENUM', false, checkFloor(PUB, { simType: 'data-only' }),
 // 14 BROKEN PUBLISHED FLOOR THROWS — the operator's OWN config carries P3M.
 // This must fail LOUD (throw naming the axis), never fail open: the spike
 // proved a coerced garbage floor compares as 0 days and admits every request.
-{
-  let verdict, extra = { label: 'error names the axis', ok: false };
-  try {
-    checkFloor({ tenureMin: 'P3M' }, {});
-    verdict = { allowed: true, reason: 'did not throw' };
-  } catch (e) {
-    verdict = { allowed: false, reason: 'threw' };
-    extra.ok = e.message.includes('tenureMin');
-  }
-  check('14 BROKEN PUBLISHED FLOOR THROWS', false, verdict, 'threw', extra);
-}
+checkThrows('14 BROKEN PUBLISHED FLOOR THROWS',
+  () => checkFloor({ tenureMin: 'P3M' }, {}), ['tenureMin']);
 
 // 15 NULL FLOOR — a wire request carrying `floor: null`. "Wire input never
 // throws" is the invariant: null means no extra strictness, the published
@@ -137,16 +128,39 @@ check('8 WRONG ENUM', false, checkFloor(PUB, { simType: 'data-only' }),
 // 17 PUBLISHED TYPO THROWS NAMED — the named diagnostic is the point of
 // validatePublished: a typo'd axis in the operator's OWN config must throw
 // an error that names the field, not an incidental TypeError later.
+checkThrows('17 PUBLISHED TYPO THROWS NAMED',
+  () => checkFloor({ swapAgemin: 'P90D' }, {}), ['swapAgemin']);
+
+// 18 NON-ENUMERABLE PUBLISHED THROWS — a non-enumerable own prop passes the
+// prototype check but VANISHES in the spread: the operator's intended axis
+// would silently go unenforced (reproduced as a fail-open before the fix).
+// The plain-object contract is asserted on own-property COUNT, not just proto.
 {
-  let verdict, extra = { label: 'error names the typo', ok: false };
+  const p = { simType: 'voice+data' };
+  Object.defineProperty(p, 'tenureMin', { value: 'P2Y' }); // non-enumerable by default
+  checkThrows('18 NON-ENUMERABLE PUBLISHED THROWS',
+    () => checkFloor(p, { tenureMin: 'P1D' }), ['not a plain object']);
+}
+
+// 19 NON-PLAIN REQUEST REJECTED — the untrusted-side mirror. A request floor
+// carrying its axes on the PROTOTYPE would be stripped by the spread: pre-fix
+// this came back ALLOWED with the demanded constraint silently dropped — the
+// same silent-widening class as an ignored typo, arriving from the wire.
+// The extra pins the other half of "wire input never throws": a throwing
+// getter is rejected as malformed, never escaping as a raw TypeError.
+{
+  const v = checkFloor(PUB, Object.create({ swapAgeMin: 'P180D' }));
+  let getterVerdict;
   try {
-    checkFloor({ swapAgemin: 'P90D' }, {});
-    verdict = { allowed: true, reason: 'did not throw' };
+    const o = {};
+    Object.defineProperty(o, 'swapAgeMin', { enumerable: true, get() { throw new Error('boom'); } });
+    getterVerdict = checkFloor(PUB, o);
   } catch (e) {
-    verdict = { allowed: false, reason: 'threw' };
-    extra.ok = e.message.includes('swapAgemin');
+    getterVerdict = { allowed: true, reason: `ESCAPED: ${e.message}` };
   }
-  check('17 PUBLISHED TYPO THROWS NAMED', false, verdict, 'threw', extra);
+  check('19 NON-PLAIN REQUEST REJECTED', false, v, 'malformed floor',
+    { label: 'throwing getter also malformed, never thrown',
+      ok: getterVerdict.allowed === false && getterVerdict.reason === 'malformed floor' });
 }
 
 conclude();

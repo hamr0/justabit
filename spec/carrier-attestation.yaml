@@ -67,10 +67,22 @@ components:
     Floor:
       type: object
       description: Consumer-agent reference floor; all fields optional, all only tightenable
+      # Closed axis set (profile rule 5): an unknown or misspelled axis is a
+      # rejection, never ignored — an ignored typo silently drops the constraint
+      # the requester believes is enforced.
+      additionalProperties: false
       properties:
         simType:      { type: string, enum: [voice+data] }
-        tenureMin:    { type: string, example: P2Y }
-        swapAgeMin:   { type: string, example: P90D }
+        tenureMin:
+          type: string
+          pattern: '^P\d+(D|Y)$'
+          example: P2Y
+          description: 'Days or years only. Months (P3M) are rejected as ambiguous: a month is 28-31 days, so the comparison has no honest single answer. 1Y = 365D, declared. Compared numerically after parsing, never lexicographically.'
+        swapAgeMin:
+          type: string
+          pattern: '^P\d+(D|Y)$'
+          example: P90D
+          description: 'Days or years only. Months (P3M) are rejected as ambiguous: a month is 28-31 days, so the comparison has no honest single answer. 1Y = 365D, declared. Compared numerically after parsing, never lexicographically.'
         class:        { type: string, enum: [postpaid] }
     AttestResponse:
       description: >
