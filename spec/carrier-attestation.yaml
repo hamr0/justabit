@@ -4,7 +4,8 @@ info:
   description: >
     Pre-submission OpenAPI sketch of Mode A (attested query response) under the
     Attested Windowed Disclosure profile. Illustrative, not normative; the
-    profile document (docs/02-profile/) carries the rules.
+    profile document (docs/02-proposals/camara-attested-windowed-disclosure.md
+    §3) carries the rules.
   version: 0.0.1
   license:
     name: Apache 2.0
@@ -59,7 +60,10 @@ components:
           enum: [gte, eq, in]
         value:
           description: Threshold or set (e.g. "P90D", "voice+data", ["FR","BE"])
-          type: string
+          oneOf:
+            - type: string
+            - type: array
+              items: { type: string }
     Floor:
       type: object
       description: Consumer-agent reference floor; all fields optional, all only tightenable
@@ -70,11 +74,12 @@ components:
         class:        { type: string, enum: [postpaid] }
     AttestResponse:
       type: object
-      required: [result, nonce, exp, sig]
+      required: [predicate, result, nonce, exp, sig]
       properties:
+        predicate: { type: string, description: Echo of the predicate asked — signed, so an answer can never be read as answering a different question }
         result: { type: boolean, description: The bit. Nothing else, ever. }
         nonce:  { type: string,  description: Echo of request nonce }
         iat:    { type: string,  format: date-time }
         exp:    { type: string,  format: date-time, description: Valid for the duration of the query where applicable }
         iss:    { type: string,  description: Operator key id resolvable via the per-PLMN trust directory }
-        sig:    { type: string,  description: Signature over (result, nonce, iat, exp, iss) }
+        sig:    { type: string,  description: Detached signature over the exact payload bytes as transmitted (sign-what-you-ship — no field-tuple reconstruction, no canonicalization) }

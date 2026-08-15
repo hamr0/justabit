@@ -80,7 +80,7 @@ conforming to profile mode:
 ```
 
 Full text with definitions, the per-API adoption checklist, and the residuals stated
-honestly: [`docs/02-features/attested-windowed-disclosure.md`](docs/02-features/attested-windowed-disclosure.md).
+honestly: [`docs/02-proposals/camara-attested-windowed-disclosure.md`](docs/02-proposals/camara-attested-windowed-disclosure.md) §3.
 
 ## Why a profile, not one more API
 
@@ -119,36 +119,42 @@ this profile.
 ## Repo map
 
 ```
-docs/01-product/    carrier-attestation-proposal.md — the master proposal
-                    camara-plan.md, aaif-plan.md — per-body deliverables & process
-docs/02-features/   attested-windowed-disclosure.md — the horizontal profile
-                    (the actual standard: normative rules any API can adopt)
+docs/01-product/    prd.md — the PRD that leads everything: requirements,
+                    sequence, no-go list, decisions log
+docs/02-proposals/  camara-attested-windowed-disclosure.md — the CAMARA
+                    proposal, carrying the normative profile (the standard)
+                    aaif-agent-auth.md — the AAIF proposal (agent side only)
 spec/               carrier-attestation.yaml — OpenAPI sketch (CAMARA-style)
-poc/                Mode A demo against Orange Network APIs Playground
+poc/                Mode A demo: mock backend by default, Orange Network
+                    APIs Playground as a swappable live backend
 ```
 
 ## The two tracks
 
 Each track cites the other as its counterpart; neither depends on the other's approval.
 
-- **[CAMARA](docs/01-product/camara-plan.md)** — the operator/attestation side. What
-  the operator attests and how it travels. Profile to Commonalities, consent hooks to ICM,
-  adoption PRs to sim-swap and roaming-status, new-case proposal to APIBacklog.
-- **[AAIF](docs/01-product/aaif-plan.md)** — the agent/delegation side. What the agent
-  carries and how permissions flow: floor-gated SIM attestation, scoped monotone
+- **[CAMARA](docs/02-proposals/camara-attested-windowed-disclosure.md)** — the
+  operator/attestation side. What the operator attests and how it travels. Profile to
+  Commonalities, consent hooks to ICM, adoption PRs to sim-swap and roaming-status,
+  new-case proposal to APIBacklog (template pre-filled in §10).
+- **[AAIF](docs/02-proposals/aaif-agent-auth.md)** — the agent/delegation side. What the
+  agent carries and how permissions flow: floor-gated SIM attestation, scoped monotone
   delegations, A2A. Their Identity & Trust WG is the target.
 
 **They meet at the RFC 9421 header.**
 
 ## The PoC
 
-A Mode A demo on the Orange Network APIs Playground, proving four assertions: windowing
-(never a raw value on the wire), nonce + validity (replay fails, responses expire), blind
-hub (the hub's own log shown on screen — metering records only), and monotone floor
-(tighten live, looser queries rejected). Playground backstory flips the boolean live.
+A Mode A demo proving four assertions — each shown with its negative: windowing (never a
+raw value on the wire), nonce + validity (replay fails, responses expire), blind hub (the
+hub's own log shown on screen — metering records only, reads yield ciphertext), and
+monotone floor (looser queries rejected, never silently widened).
 
-Currently blocked on Playground credentials (free, instant). Setup steps and the stated
-caveats are in [`poc/README.md`](poc/README.md).
+One command, zero credentials: `node poc/demo.mjs` runs against a built-in mock operator
+with scriptable backstories. Anyone with a free Orange developer account can flip
+`--backend orange` and re-prove the point live against the Network APIs Playground.
+Requirements live in the [PRD §4](docs/01-product/prd.md); setup and caveats in
+[`poc/README.md`](poc/README.md).
 
 ## Lineage
 

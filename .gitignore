@@ -1,1 +1,2 @@
-.claude/
+# any dot-directory stays local (session context, caches, tool state)
+.*/

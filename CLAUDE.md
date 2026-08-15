@@ -1,7 +1,7 @@
 # CLAUDE.md — agent doctrine for justabit
 
 Repo-only; for whoever is *building* this. Adopters read `README.md` and
-`docs/02-features/attested-windowed-disclosure.md`.
+`docs/02-proposals/camara-attested-windowed-disclosure.md`.
 
 This is a **standards repo**, not a software product. The deliverable is text
 that survives working-group scrutiny; the PoC exists to make the text
@@ -74,10 +74,23 @@ re-verification, retract it visibly — retractions build WG credibility.
 ## Where the reasoning lives
 
 ```
-docs/01-product/   carrier-attestation-proposal.md — master proposal (why + what)
-                   camara-plan.md / aaif-plan.md — per-body deliverables & sequence
-docs/02-features/  attested-windowed-disclosure.md — the normative profile (the standard)
+docs/01-product/   prd.md — THE leading doc: requirements, sequence, no-go list,
+                   decisions log. 3-doc inventory is a hard rule (PRD + 2 proposals);
+                   new design content folds in here, never into a side-doc.
+docs/02-proposals/ camara-attested-windowed-disclosure.md — CAMARA proposal, carries
+                   the normative profile (the standard) + APIBacklog template mapping
+                   aaif-agent-auth.md — AAIF proposal (agent/delegation side only)
 spec/              carrier-attestation.yaml — illustrative OpenAPI sketch, not normative
-poc/               Mode A demo plan; four assertions the demo must prove
+poc/               Mode A demo: mock backend default, Orange adapter swappable;
+                   four assertions (each with its negative), Node zero-dep, PRD §4
 .claude/           local session context (gitignored — never publish)
 ```
+<!-- MEMORY:START -->
+@.claude/remember/MEMORY.md
+<!-- MEMORY:END -->
+
+<!-- AGENT_RULES:START -->
+Consult when building something new or adding a feature — a standards guide, not hot
+context like MEMORY.md above:
+@.claude/remember/AGENT_RULES.md
+<!-- AGENT_RULES:END -->
