@@ -2,7 +2,7 @@
 
 ### with CarrierAttestation as the new-case proposal for what no existing API covers
 
-**Author:** [name], independent telecom consultant (10 yrs wholesale roaming / signaling / SoR)
+**Author:** Amr Hassan, independent telecom consultant (10 yrs wholesale roaming / signaling / SoR)
 **Status:** Draft v0.2 — pre-submission (not yet filed; supporters not yet recruited)
 **Date:** 2026-08-14
 **Targets:** CAMARA Commonalities (profile as design guideline) · ICM (consent/auth hooks) · existing sub-projects (adoption PRs) · APIBacklog (CarrierAttestation new case — template mapping in §10)
@@ -134,7 +134,10 @@ An API operation conforming to this profile:
    carried through an aggregator; the aggregator handles metering envelopes
    only (count, route, bill) — it **MUST NOT** be able to read identifiers,
    predicates, or answers. (The A2P lesson, §8.1: middle layers that can
-   read, eventually monetize.)
+   read, eventually monetize.) Envelopes **MUST NOT** expose payload size to
+   the aggregator: profile-mode envelopes are fixed-length or padded, so the
+   metering log carries no content signal (a length-tracking transport turns
+   the billing record itself into a side channel).
 7. **SHOULD** offer banded responses only as a transitional step from raw
    values (the `/retrieve-age-band` pattern); bands are a wider window than a
    predicate and need justification.

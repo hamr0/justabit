@@ -135,7 +135,7 @@ user runs each module's check themselves.
 | M3 floor gate | monotone floor check | below-floor is NEVER answered — no silent widening path exists |
 | M4 facts adapter (mock) | scriptable backstories behind one interface | flipping the backstory flips the bit; fixture can show the negative |
 | M5 facts adapter (orange) | same interface, live Playground | built-ins shadow writes (measured) — READ-verify is load-bearing |
-| M6 integration | one-command demo = the four assertions; RP issues single-use per-request nonces (completes rule-2 replay rejection) | the modules compose without weakening any single module's guarantee |
+| M6 integration | one-command demo = the four assertions; RP issues single-use per-request nonces (completes rule-2 replay rejection); RP signs requests, operator verifies via trust directory before answering (request authenticity — closes the M2 audit open item) | the modules compose without weakening any single module's guarantee |
 
 Gate mapping: G1 = M1–M4 + M6 all user-validated; G2 = M5 user-validated live.
 
@@ -268,10 +268,16 @@ Phases 1 and 3 can overlap; Phase 5 strictly follows G4.
   normative), KYC r2.2 (`kyc-match`, `kyc-fill-in`, `kyc-age-verification`).
   All Incubating. Open Gateway: 86 operator groups, 300+ networks. Full
   citations live in D2 §References.
-- **AAIF:** hosts community projects; Identity & Trust WG mandate matches D3
-  verbatim. Submission process NOT yet grounded (homepage doesn't expose it)
-  — grounding it is the first Phase A action; D3 stays "draft pending
-  process" until then.
+- **AAIF (grounded 2026-08-15):** hosts community projects; Identity & Trust
+  WG mandate matches D3 verbatim. Submission process verified from
+  `github.com/aaif/project-proposals` (README + issue template
+  `.github/ISSUE_TEMPLATE/project-proposal.yml`): (1) review eligibility
+  guidance → (2) submit a new issue via the proposal template, all required
+  sections complete → (3) backlog triage, scheduled before the Technical
+  Committee → (4) TC vote at a scheduled meeting, majority (>50%) advances
+  to the Governing Board. Declined proposals may reapply after 3 months
+  with demonstrated progress. Next: map D3's sections onto the template
+  fields (needs a logged-in view of the form or the raw template YAML).
 - **Orange PoC rail:** Network APIs Playground — free instant developer
   account, 15 built-in +990 test numbers plus 10 custom, Admin API scripts
   backstories. Lab tier (real lab numbers +40789103050–59) exists but may
@@ -289,8 +295,9 @@ we manage here:
    co-owner early; calendar the cadences; the repo itself shows activity.
 2. **Orange account is a user action** — PoC live tier (G2) blocks on it;
    mock tier (G1) does not. Don't let G2 block G3.
-3. **AAIF process unknown** — D3 could need reshaping to their template;
-   keep it modular (summary / proposal / seam sections survive any format).
+3. **AAIF template mapping pending** — process now grounded (§7); D3 still
+   needs mapping onto the proposal template's required fields; keep it
+   modular (summary / proposal / seam sections survive any format).
 4. **Scope leak from Mode B enthusiasm** — the no-go list (§5.5) is the
    guard; PoC reviews check against it.
 
@@ -298,6 +305,20 @@ we manage here:
 
 Dated, append-only. Rationale in one line; details in the stash/history.
 
+- **2026-08-15 — Decisions round after the M2 gate (all user-decided).**
+  (1) Profile rule 6 gains the size line: envelopes MUST NOT expose payload
+  size to the aggregator (fixed-length or padded) — backed by the M2
+  measurement that a length-tracking transport turns the billing log into a
+  side channel. (2) Request authenticity assigned to M6: the RP signs
+  requests, the operator verifies via the trust directory before answering
+  (closes the M2 audit open item). (3) Envelope replay to the operator =
+  documented honest limit (billing noise only; production API auth, rate
+  limits and billing reconciliation cover it) — no stateful nonce memory in
+  the demo. (4) Guardrails pre-tool hook wired locally (`.claude/`,
+  gitignored): denies secret-file writes and destructive shell, asks on
+  auth/CI/settings — armed before M5 touches Orange credentials. (5) Author
+  placeholders filled: Amr Hassan. (6) AAIF submission process grounded
+  (§7) from the aaif/project-proposals repo.
 - **2026-08-15 — M2 envelope shape settled.** One vetted stdlib primitive:
   RSA-4096 OAEP-SHA256 (`publicEncrypt`/`privateDecrypt`), keys exchanged
   via the trust directory — NEVER inside payloads (this is what makes the

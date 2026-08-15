@@ -2,7 +2,7 @@
 
 ### Project proposal draft for the AAIF Identity & Trust Working Group — the agent/delegation side of attested windowed disclosure
 
-**Author:** [name], independent telecom consultant (10 yrs wholesale roaming / signaling / SoR)
+**Author:** Amr Hassan, independent telecom consultant (10 yrs wholesale roaming / signaling / SoR)
 **Status:** Draft v0.2 — pending AAIF process grounding (their submission
 process is not yet published on aaif.io; this draft is kept modular so it can
 be reshaped to whatever template the process requires)
