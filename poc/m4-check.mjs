@@ -160,7 +160,7 @@ checkThrows('7 NON-BOOLEAN REACHABLE THROWS',
   });
 }
 
-// 11 BACKSTORY IS SNAPSHOTTED — the store keeps a frozen copy, not the caller's
+// 11 BACKSTORY IS SNAPSHOTTED — the store keeps its own copy, not the caller's
 // object. Storing the reference would let a caller rewrite history after the
 // fact: every later query would answer from an object the operator never
 // validated (and the validation would have been performed on different data).
@@ -371,4 +371,136 @@ check('14 WRONG OPERATOR REJECTED', false,
   });
 }
 
-conclude();
+// ====== 2026-08-16 review round: guards found unpinned by an independent sweep ======
+// The build's own mutation table reported 28 guards / 27 killed. An independent
+// selection re-run against this suite killed 20 of 28 and left EIGHT survivors.
+// Three of the eight are genuinely unreachable and stay unpinned on purpose
+// (recorded in the findings entry: the `Array.isArray` clause in plainSnapshot,
+// re-probed over 13 array shapes; `durationMs`'s 2^53 reject, which the fact
+// side's safe-integer check already covers; and the `+990` digit bound, whose
+// no-real-number job is carried by the prefix). The five below each turned a
+// removed guard into a WRONG ANSWER, so each gets a case.
+
+// 25 HOSTILE PREDICATE VALUE NEVER THROWS — the untrusted-side contract, and
+// the review round's one code defect. `describe()` guarded only two of its
+// three fallbacks: `Object.prototype.toString` reads a `Symbol.toStringTag`
+// GETTER, so a wire value that is circular (JSON.stringify throws) AND has a
+// throwing toString/valueOf/Symbol.toPrimitive (String throws) AND a throwing
+// toStringTag made the renderer throw — and evaluatePredicate threw with it,
+// from inside the diagnostic written to keep exactly that from happening.
+{
+  const hostile = {};
+  hostile.self = hostile;                                              // JSON.stringify throws
+  Object.defineProperty(hostile, 'toString', { value() { throw new Error('boom'); } });
+  Object.defineProperty(hostile, 'valueOf', { value() { throw new Error('boom'); } });
+  Object.defineProperty(hostile, Symbol.toPrimitive, { value() { throw new Error('boom'); } });
+  Object.defineProperty(hostile, Symbol.toStringTag, { get() { throw new Error('boom'); } });
+  const asValue = threws(() => evaluatePredicate({ swapAgeMs: 120 * DAY }, { ...P90, value: hostile }));
+  const asType = threws(() => evaluatePredicate({ swapAgeMs: 120 * DAY }, { ...P90, type: hostile }));
+  const asOperator = threws(() => evaluatePredicate({ swapAgeMs: 120 * DAY }, { ...P90, operator: hostile }));
+  // Captured through a catch, not called inline: this is the one case whose
+  // subject is a THROW, so calling it inline would kill the runner with no
+  // RESULT line and hide every other case — the failure mode check-harness
+  // guards against by defaulting a missing verdict rather than dereferencing it.
+  const verdict = asValue.threw ? { answered: false, reason: `THREW: ${asValue.msg}` }
+    : evaluatePredicate({ swapAgeMs: 120 * DAY }, { ...P90, value: hostile });
+  check('25 HOSTILE PREDICATE VALUE NEVER THROWS', false, verdict,
+    'invalid duration: [unrenderable] (use P<days>D or P<years>Y; months are ambiguous)',
+    { label: 'value + type + operator all rendered, none thrown, BigInt/circular still render as before',
+      ok: asValue.threw === false && asType.threw === false && asOperator.threw === false &&
+          evaluatePredicate({ swapAgeMs: 120 * DAY }, { ...P90, value: 10n }).reason ===
+            'invalid duration: 10 (use P<days>D or P<years>Y; months are ambiguous)' });
+}
+
+// 26 PROTOTYPE-KEY PREDICATE TYPE REJECTED — the closed-set gate is
+// `hasOwnProperty`, not a truthiness lookup. With a plain `PREDICATES[p.type]`
+// the inherited members of Object.prototype all answer truthy, and the measured
+// result was not merely a wrong reason: `{type:'toString', operator:undefined}`
+// came back `{answered:true, result:true}` — a signed AFFIRMATIVE to a
+// predicate type that does not exist. Case 12's 'tenure'/'simswapAge' fixtures
+// cannot see this, because neither is a prototype key.
+{
+  const f = { swapAgeMs: 120 * DAY, roamingCountry: null, reachable: true, undefined: true };
+  const keys = ['toString', 'constructor', '__proto__', 'valueOf', 'hasOwnProperty', 'isPrototypeOf'];
+  const all = keys.map((k) => evaluatePredicate(f, { type: k, operator: undefined, value: true }));
+  check('26 PROTOTYPE-KEY PREDICATE TYPE REJECTED', false,
+    evaluatePredicate(f, { type: 'toString', operator: undefined, value: true }),
+    'unknown predicate type: "toString"',
+    { label: `all ${keys.length} Object.prototype keys rejected, none answered`,
+      ok: all.every((r) => r.answered === false && !('result' in r) &&
+                          /^unknown predicate type: /.test(r.reason)) });
+}
+
+// 27 NON-STRING PREDICATE TYPE REJECTED — `typeof p.type !== 'string'` looks
+// redundant next to the hasOwn check and is NOT: a boxed String, a one-element
+// array and an object with a toString all coerce to a real key on lookup, and
+// with the clause removed each answered `{answered:true, result:true}` under
+// the simSwapAge predicate. A type that is not a string is not a question.
+{
+  const f = { swapAgeMs: 120 * DAY };
+  const coercers = [Object('simSwapAge'), ['simSwapAge'], { toString: () => 'simSwapAge' }];
+  const all = coercers.map((ty) => evaluatePredicate(f, { type: ty, operator: 'gte', value: 'P90D' }));
+  check('27 NON-STRING PREDICATE TYPE REJECTED', false,
+    evaluatePredicate(f, { type: ['simSwapAge'], operator: 'gte', value: 'P90D' }),
+    'unknown predicate type: ["simSwapAge"]',
+    { label: 'boxed String + array + toString-object all rejected, none answered',
+      ok: all.every((r) => r.answered === false && !('result' in r)) });
+}
+
+// 28 NEGATIVE AGE IS UNANSWERABLE — the other half of case 18. A missing fact
+// is caught by the safe-integer test, but a NEGATIVE one passes it: `-1 >= t`
+// is false, so a corrupt or clock-skewed age answers "this SIM is not old
+// enough" as a real bit. The mock cannot produce a negative age, but M5 differs
+// an operator-supplied `latestSimChange` against the injected now, where a
+// skewed clock does exactly this — the guard is for that seam.
+{
+  const p = P90;
+  const all = [-1, -DAY, -Number.MAX_SAFE_INTEGER].map((v) => evaluatePredicate({ swapAgeMs: v }, p));
+  check('28 NEGATIVE AGE IS UNANSWERABLE', false,
+    evaluatePredicate({ swapAgeMs: -1 }, p),
+    'fact unavailable: swapAgeMs',
+    { label: 'negative ages rejected, never compared to a false bit',
+      ok: all.every((r) => r.answered === false && r.reason === 'fact unavailable: swapAgeMs') });
+}
+
+// 29 NON-CANONICAL COUNTRY FACT IS UNANSWERABLE — the spike's lowercase trap
+// arriving from the FACT side rather than the predicate side. Case 17 pins
+// `['fr']` in the request; nothing pinned `roamingCountry: 'fr'` in the facts,
+// and with the canonical-case test removed it answered `{answered:true,
+// result:false}`: "not roaming in FR" about a subscriber who is roaming in FR.
+// That is the exact silent wrong answer the module's own comment cites.
+{
+  const roam = { type: 'roamingIn', operator: 'in', value: ['FR'] };
+  const all = ['fr', 'FRA', '', 'F', 42, true].map((v) => evaluatePredicate({ roamingCountry: v }, roam));
+  check('29 NON-CANONICAL COUNTRY FACT IS UNANSWERABLE', false,
+    evaluatePredicate({ roamingCountry: 'fr' }, roam),
+    'fact unavailable: roamingCountry',
+    { label: "'fr'/'FRA'/''/'F'/42/true all rejected, never a silent 'not roaming'",
+      ok: all.every((r) => r.answered === false && r.reason === 'fact unavailable: roamingCountry') });
+}
+
+// 30 NON-STRING NUMBER THROWS — `TEST_NUMBER.test(x)` COERCES, so without the
+// typeof clause an object whose toString spells a +990 number is accepted and
+// keyed by identity: measured, the store then answered for the object and threw
+// `unknown number` for the identical string, i.e. two different subscribers
+// wearing one number. The extra folds in the digit bound (case 8 only pins the
+// country code, so `{6,12}` was unpinned in both directions).
+{
+  const objNum = { toString: () => N };
+  const write = threws(() => createMockFacts().setBackstory(objNum, STORY));
+  const read = threws(() => createMockFacts().getFacts(objNum, NOW));
+  // Both sides of `\d{6,12}`: 0 and 5 digits are too short, 13 and 20 too long.
+  const bound = ['+990', '+99012345', '+9901234567890123', '+990' + '1'.repeat(20)]
+    .map((n) => threws(() => createMockFacts().setBackstory(n, STORY)));
+  checkThrew('30 NON-STRING NUMBER THROWS', write, {
+    label: 'object/array numbers refused on read + write, and the 6–12 digit bound holds both ways',
+    ok: write.msg.includes('+990 test range only') && read.threw &&
+        threws(() => createMockFacts().setBackstory([N], STORY)).threw &&
+        bound.every((r) => r.threw),
+  });
+}
+
+// The declared case count. A suite that silently loses the cases carrying its
+// guarantee still printed a green `RESULT: n/n` before this argument existed
+// (measured 2026-08-16: truncated to 18/18 exit 0, emptied to 0/0 exit 0).
+conclude(30);

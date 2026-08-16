@@ -7,6 +7,101 @@ memory. A finding here is something that was RUN and OBSERVED, not reasoned.
 
 ---
 
+## 2026-08-16 — M4 adversarial review round: 1 code defect, 5 unpinned guards, 2 harness fail-opens (24 → 30 cases)
+
+Independent review of the M4 build below, run against the challenge "did you fit
+to pass? what did you gloss over?". Every verdict by EXIT CODE; every mutation
+restored from a working-copy `cp` backup and verified byte-identical (sha256).
+**Agent-run 30/30 — the user gate is still the next step.**
+
+**Fit-to-pass probe (written BEFORE reading `poc/m4-check.mjs`).** A 19-case
+adversarial check was written from the PRD + the four signed-off decisions only,
+then run: **18/19**. One failure was the harness's own confound (the probe used
+`'ZW'` as both the subscriber's country and a requester-supplied predicate
+value, so the requester's echoed input read as a leak — requester-echoed values
+are acceptable, subscriber facts are not); corrected, it passed. The other was
+real (below). So the shipped suite was **not** shaped around a broken module —
+but it did leave guards unpinned, which an independent mutation set found.
+
+**The one code defect — `describe()` could throw, breaking "wire input never
+throws" from inside the message written to prevent it.** Three fallbacks, only
+two guarded: `Object.prototype.toString` reads a `Symbol.toStringTag` GETTER,
+and the last-resort call sat *inside* the previous `catch`, unprotected. With a
+wire value that is circular (`JSON.stringify` throws) AND carries a throwing
+`toString`/`valueOf`/`Symbol.toPrimitive` (`String` throws) AND a throwing
+`toStringTag`, `evaluatePredicate` **threw**. Fixed by guarding each fallback in
+turn with a constant floor (`[unrenderable]`); all previously-observed renderings
+are byte-identical (BigInt `10`, circular `[object Object]`, `Symbol(s)`, the
+60-char clamp). This means M3's release-gate open item 1 was only PARTIALLY
+closed by the build below — the correction is recorded rather than the claim
+quietly restated. Pinned by case 25.
+
+**Independent mutation sweep: 28 mutants of my own selection, 20 killed, EIGHT
+survived** — against the build's reported 27/28. The gap is the answer to "what
+did you gloss over": the 24-case suite left seven load-bearing-looking guards
+unpinned beyond the one it documented. Each survivor was then classified by
+PROBE against the mutated module, never by argument:
+
+| Survivor | Probe result | Verdict |
+|---|---|---|
+| `hasOwn(PREDICATES, p.type)` → truthiness lookup | `{type:'toString', operator:undefined, value:true}` returned **`{answered:true, result:true}`** — a signed AFFIRMATIVE to a predicate type that does not exist; 5 more `Object.prototype` keys the same | LOAD-BEARING → case 26 |
+| `typeof p.type !== 'string'` | a boxed `String`, `['simSwapAge']` and `{toString}` each coerced to a real key and answered **`{answered:true, result:true}`** — the clause is NOT redundant (predicted redundant, measured load-bearing) | LOAD-BEARING → case 27 |
+| `fact < 0` on `swapAgeMs` | a negative age answered **`{answered:true, result:false}`** — "not old enough" as a real bit. Unreachable via the mock, but M5 differences an operator-supplied `latestSimChange` against the injected now, where a skewed clock does exactly this | LOAD-BEARING → case 28 |
+| `COUNTRY.test(fact)` on `roamingCountry` | fact `'fr'` answered **`{answered:true, result:false}`** — "not roaming in FR" about a subscriber who IS. The spike's own lowercase trap, arriving from the FACT side; case 17 only pinned it on the request side | LOAD-BEARING → case 29 |
+| `typeof number !== 'string'` | `TEST_NUMBER.test()` COERCES, so `{toString:()=>'+990…'}` was accepted and keyed by identity: the store answered for the object and threw `unknown number` for the identical string — two subscribers wearing one number | LOAD-BEARING → case 30 |
+| `\d{6,12}` digit bound | admits `+990`, `+9901`, 20-digit numbers; but every real-format number (`+33…`, `+1…`, `+86…`) still threw — the no-real-number rule (no-go 13) is carried by the `+990` PREFIX, not the bound | well-formedness only → folded into case 30 |
+| `Array.isArray` in `plainSnapshot` | **the build's redundancy claim REPRODUCES** — re-probed over **13** array shapes (the build probed 8; added `arguments`, a typed array, a prototype-rewritten subclass, `new Array(3)`): 0 slipped past the remaining checks, in both the backstory and predicate directions | genuinely redundant, stays unpinned |
+| `durationMs` 2^53 reject | cannot produce a wrong answer: any fact large enough to collide with an unsafe threshold fails the fact side's own safe-integer test first, so the too-fresh SIM came back `fact unavailable`, not a false `true` | redundant (defence in depth), stays unpinned |
+
+Re-run after the six new cases: **26 of 28 killed**, the only survivors the two
+proven-unreachable clauses above, each new case red on exactly the mutant it was
+written for.
+
+**Two harness fail-opens, both proven with a deliberate break** (`poc/check-harness.mjs`,
+shared by all four modules):
+
+1. **`extra.ok` was read for truthiness, not truth.** Setting one case's
+   `extra.ok` to the string `'truthy-string'` printed **PASS** and the suite
+   exited **0** while asserting nothing. Now `extra.ok === true`. Guard-OFF/ON
+   negative control: same mistake, guard off → `30/30` exit 0; guard on → exit 1,
+   red on the case. (A *typo'd* key already failed safe — that direction was fine.)
+2. **A silently shrinking suite read as green.** Truncating `m4-check.mjs` to
+   drop its six assertion cases printed `RESULT: 18/18` and exited **0**;
+   emptying the tally entirely printed `RESULT: 0/0` and exited **0**. `conclude()`
+   now takes an optional declared count and fails the run when it does not match.
+   Guard-OFF/ON control with 12 cases cut: off → `18/18` exit 0; on → exit 1,
+   `FAIL CASE COUNT`. M4 declares `conclude(30)`; M1/M2/M3 keep the no-argument
+   form (unchanged behaviour — deliberately not re-opening modules the user has
+   already validated; their next touch is the place to declare a count).
+
+Both harness changes are behaviour-preserving for the already-validated modules,
+proven by **exact case-count parity**: M1 19/19, M2 10/10, M3 22/22, all exit 0
+before and after.
+
+**Leak audit (profile rule 2) — CLEAN.** A 200,000-round fuzz over
+`evaluatePredicate` returns, with subscriber facts drawn from a token alphabet
+DISJOINT from every requester-supplied input, found **0** leaks of swap age,
+swap timestamp, country or number — including through rejection `reason`
+strings. The fuzz was proven able to fail first: injecting `fact=${describe(fact)}`
+into one reason made it red within 1,623 rounds.
+
+**Spike-claims replay — all reproduce, no correction needed.** The naive adapter
+described in the entry below was rebuilt from scratch and all **13** claims
+reproduced exactly: the headline flip (120d→`true`, 1d→`false`), the negative
+control (setter stubbed → bit stays `true` from DEFAULTS), determinism
+(2020 vs 2099 both 120d), all six traps, and the `JSON.stringify`-renders-NaN-as-null
+harness artifact.
+
+**Cross-module regression:** M1 19/19, M2 10/10, M3 22/22, M4 30/30 — all exit 0.
+
+**Nits fixed:** the `reachable`-not-in-the-spec-enum note cross-referenced
+"findings 2026-08-15"; the entry carrying that open item is 2026-08-16. A
+same-file sweep found no other stale cross-reference (the two `Array.isArray`
+notes were already correct). Separately, `m4-check.mjs` case 11's comment claimed
+the store keeps a "frozen copy" — it keeps an unfrozen private snapshot (the
+snapshot, not the freezing, is the load-bearing property and is what the case
+actually tests); wording corrected rather than the code changed.
+
 ## 2026-08-16 — M4 mock facts adapter: spike traps, build, 28 mutants (27 killed, 1 provably redundant)
 
 Agent-run build of module M4. **Not user-validated** — the user gate is the

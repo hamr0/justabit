@@ -13,7 +13,7 @@ holds):
 node poc/m1-check.mjs   # M1 attestation core — 19 cases (user-validated 19/19)
 node poc/m2-check.mjs   # M2 blind envelope — 10 cases (user-validated 10/10)
 node poc/m3-check.mjs   # M3 floor gate — 22 cases (user-validated 22/22)
-node poc/m4-check.mjs   # M4 mock facts adapter — 24 cases (user validation pending)
+node poc/m4-check.mjs   # M4 mock facts adapter — 30 cases (agent-run 30/30; user re-run pending)
 ```
 
 M5–M6 are not started; `poc/demo.mjs` does not exist yet. The measured

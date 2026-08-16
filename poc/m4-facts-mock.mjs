@@ -60,7 +60,7 @@ const FIELDS = Object.freeze({
 // reads as safe depends entirely on the question's polarity, which is exactly
 // why it can never be an answer.
 // `reachable` has no counterpart in `spec/carrier-attestation.yaml`'s
-// illustrative Predicate enum (see findings 2026-08-15) — reachability is a
+// illustrative Predicate enum (see findings 2026-08-16) — reachability is a
 // required mock FACT (PRD FR5), and a fact no predicate can consume is dead
 // weight, so the type is carried here and flagged rather than minted silently.
 const PREDICATES = Object.freeze({
@@ -78,14 +78,26 @@ const hasOwn = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 // which would break "wire input never throws" from inside the error message.
 // Clamped because a diagnostic built from caller-supplied data can end up in a
 // log verbatim.
+// EVERY fallback is guarded in turn, because every one of them runs
+// caller-supplied code: `JSON.stringify` runs `toJSON`, `String` runs
+// `toString`/`valueOf`/`Symbol.toPrimitive`, and even `Object.prototype
+// .toString` reads a `Symbol.toStringTag` GETTER. The 2026-08-16 review round
+// measured the last one escaping — with all three hostile at once the renderer
+// threw, and `evaluatePredicate` threw with it, breaking "wire input never
+// throws" from inside the message written to prevent exactly that. The final
+// constant cannot throw, so the function now has a floor.
 function describe(value) {
   let s;
   try {
     s = JSON.stringify(value);
   } catch { /* BigInt / circular / throwing toJSON */ }
   if (s === undefined) {
-    try { s = String(value); } catch { s = Object.prototype.toString.call(value); }
+    try { s = String(value); } catch { /* throwing toString / valueOf / Symbol.toPrimitive */ }
   }
+  if (typeof s !== 'string') {
+    try { s = Object.prototype.toString.call(value); } catch { /* throwing Symbol.toStringTag */ }
+  }
+  if (typeof s !== 'string') s = '[unrenderable]';
   return s.length > 60 ? `${s.slice(0, 60)}…` : s;
 }
 

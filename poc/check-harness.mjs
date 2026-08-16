@@ -17,7 +17,12 @@ export function makeHarness({ field, okWord }) {
     // as a TypeError with no RESULT line, hiding every other case.
     verdict = verdict ?? {};
     const reasonOk = verdict.reason === expectedReason;
-    const extraOk = extra ? extra.ok : true;
+    // `=== true`, never truthiness: measured 2026-08-16 — an `extra.ok` that is
+    // a truthy NON-boolean (a string, an array, a stray object) made the case
+    // print PASS and the suite exit 0 while asserting nothing. Every extra in
+    // every m*-check is a boolean expression, so this only ever bites a
+    // mistake — which is the point.
+    const extraOk = extra ? extra.ok === true : true;
     const pass = verdict[field] === wantPass && reasonOk && extraOk;
     results.push(pass);
     const want = wantPass ? okWord : 'REJECT';
@@ -47,11 +52,22 @@ export function makeHarness({ field, okWord }) {
     }
     check(name, false, { [field]: true, reason: 'did not throw' }, 'threw');
   }
-  // Prints the tally and exits: 0 only if every case (including its extra) held.
-  function conclude() {
+  // Prints the tally and exits: 0 only if every case (including its extra) held
+  // AND — when the caller declares one — the suite still has the case count it
+  // is supposed to have. Measured 2026-08-16: truncating m4-check to drop its
+  // six assertion cases printed `RESULT: 18/18` and exited 0, and emptying the
+  // tally entirely printed `RESULT: 0/0` and exited 0. A suite that quietly
+  // loses the cases carrying its guarantee must not read as green, so a
+  // declared count is asserted like any other case.
+  function conclude(expected) {
     const passed = results.filter(Boolean).length;
+    const countOk = expected === undefined || results.length === expected;
+    if (!countOk) {
+      console.log(`FAIL CASE COUNT: expected ${expected} cases, ran ${results.length}` +
+        ' — the suite lost or gained cases; a shrinking suite is not a passing suite');
+    }
     console.log(`RESULT: ${passed}/${results.length}`);
-    process.exit(passed === results.length ? 0 : 1);
+    process.exit(passed === results.length && countOk ? 0 : 1);
   }
   return { check, checkThrows, conclude };
 }

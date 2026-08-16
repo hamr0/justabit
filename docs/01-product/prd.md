@@ -153,12 +153,19 @@ build → user ran `node poc/m3-check.mjs` 14/14 → 3 mutants killed → review
 round 1: 7 warnings fixed, +3 canary cases → 17/17 → review round 2: 8
 findings, +2 canary cases → 19/19 → release gate: 3 surviving mutants found
 on already-fixed guards, +3 cases → 22/22, plus 500k-iteration differential
-fuzz clean). **M4 built, agent-run green at 24/24 — USER VALIDATION
+fuzz clean). **M4 built, agent-run green at 30/30 — USER VALIDATION
 PENDING** (spec signed off with 4 user decisions → spike observed six
 fail-opens in the naive adapter incl. the headline flip with a working
 negative control → build → 24 cases → 28 guards mutation-tested, 27 killed,
-1 proven redundant by probe rather than left looking load-bearing; dated
-findings entry 2026-08-16). M5–M6 not started.
+1 proven redundant by probe rather than left looking load-bearing → adversarial
+review round: an independent 19-case check written from the spec alone before
+reading the suite, plus an independent 28-mutant sweep that left EIGHT
+survivors, closed 1 code defect (`describe()` could throw, breaking "wire input
+never throws" — so M3's release-gate open item 1 was only partially closed),
+5 unpinned load-bearing guards (+6 cases → 30) and 2 shared-harness fail-opens
+(truthy-non-boolean `extra.ok`; a silently shrinking suite reading as green);
+200k-round leak fuzz clean, all 13 spike claims reproduced; dated findings
+entries 2026-08-16). M5–M6 not started.
 
 ### 4.5 POC-first discipline applied to each module
 
