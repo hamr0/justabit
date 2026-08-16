@@ -14,8 +14,11 @@
 // Exit 0 only if every case holds; 1 if any fails; 2 if the prerequisites are
 // missing — never a silent pass and never a mock fallback.
 //
-// It costs live quota: it CREATEs and then DELETEs one slot for the trap case,
-// and leaves the custom slot re-scripted to a known state.
+// It costs live quota: it CREATEs and then DELETEs one of the app's 10
+// custom-number slots for the trap case, and leaves the custom slot re-scripted
+// to a known state. The slot is RECLAIMED before it is consumed (so a run
+// interrupted mid-trap does not leak one permanently), the count is printed at
+// both ends against the cap, and case 11 asserts it came back.
 import { createOrangeFacts } from './m5-facts-orange.mjs';
 import { evaluatePredicate } from './m4-facts-mock.mjs';
 import { makeHarness } from './check-harness.mjs';
@@ -74,7 +77,42 @@ async function rawAdmin(body) {
   return { status: res.status, text: await res.text() };
 }
 
+// ============================ QUOTA HYGIENE =================================
+// The app's custom-number quota is 10, and case 1 CONSUMES one: the adapter
+// CREATEs the built-in slot before it can discover the write is shadowed, and
+// gives it back immediately afterwards. A run that is INTERRUPTED between those
+// two points (Ctrl-C, a dropped connection, a machine going away) leaves that
+// slot consumed, and nothing in the previous version of this check reported it
+// — the cleanup DELETE's result was discarded, so repeated interrupted runs
+// could walk the quota to its cap silently and the next run would fail for a
+// reason nothing on screen explained.
+//
+// Three cheap measures, all of them observable in the output:
+//   * RECLAIM FIRST — the slot is deleted BEFORE it is consumed, so a leak from
+//     an earlier interrupted run is recovered rather than accumulated;
+//   * the count is PRINTED at both ends, against the cap; and
+//   * case 11 ASSERTS it came back to where it started.
+const QUOTA_CAP = 10;
+async function slotCount() {
+  const r = await rawAdmin({ action: 'LIST' });
+  try {
+    const arr = JSON.parse(r.text).phoneNumbers;
+    return Array.isArray(arr) ? arr.length : null;
+  } catch { return null; }
+}
+
 console.log(`live run against the Orange Playground, injected now = ${new Date(NOW).toISOString()}\n`);
+
+// Measured 2026-08-16: DELETE of a slot that is NOT held answers `400
+// BAD_REQUEST "PhoneNumber Not Found"` — i.e. "nothing to reclaim", which is
+// the normal case and not a fault. A `204` here means an earlier run really did
+// leak, and says so.
+const reclaimed = await rawAdmin({ action: 'DELETE', phoneNumber: BUILTIN });
+const startSlots = await slotCount();
+console.log(`quota: ${startSlots} of ${QUOTA_CAP} custom slots in use at start` +
+  (reclaimed.status === 204 ? '  (RECLAIMED a slot leaked by an earlier interrupted run)' : '') + '\n');
+
+let gaveBack = null;   // the trap case's cleanup DELETE, asserted by case 11
 
 // ===================== 1-2 THE WRITE TRAP, LIVE =============================
 
@@ -88,8 +126,10 @@ console.log(`live run against the Orange Playground, injected now = ${new Date(N
   threw('1 LIVE TRAP: built-in number write FAILS LOUD', r,
     r.threw && r.msg.includes('write verification FAILED') && r.msg.includes('Built-in numbers'),
     `names the shadowing: ${r.threw && r.msg.includes('Built-in numbers')}`);
-  // Give the consumed slot back — the app's custom-number quota is 10.
-  await rawAdmin({ action: 'DELETE', phoneNumber: BUILTIN });
+  // Give the consumed slot back — the app's custom-number quota is 10. The
+  // result is KEPT, not discarded: a cleanup whose failure nothing observes is
+  // how the quota drains without anyone noticing. Case 11 asserts on it.
+  gaveBack = await rawAdmin({ action: 'DELETE', phoneNumber: BUILTIN });
 }
 
 // 2 THE NEGATIVE CONTROL, LIVE. The identical call against a CUSTOM slot must
@@ -226,8 +266,24 @@ const P90 = { type: 'simSwapAge', operator: 'gte', value: 'P90D' };
     `raw body leaks client id=${leaks}, adapter message leaks=${r.threw && clientId !== '' && r.msg.includes(clientId)}`);
 }
 
+// 11 THE RUN GIVES ITS QUOTA BACK. Added by the 2026-08-16 review round. Case 1
+// CONSUMES one of the app's 10 custom-number slots and hands it back; before
+// this case the hand-back was unobserved, so a cleanup that silently failed
+// would have walked the quota toward its cap across runs and the eventual
+// failure would have named a number, not a quota. The COUNT is the assertion
+// because it is the authoritative observable; the DELETE's status is reported
+// alongside it and required only to be a success, not to be exactly `204`.
+{
+  const endSlots = await slotCount();
+  const deleted = gaveBack !== null && gaveBack.status >= 200 && gaveBack.status < 300;
+  ok('11 QUOTA RESTORED: the trap case gave its slot back',
+    startSlots !== null && endSlots !== null && endSlots === startSlots && endSlots < QUOTA_CAP && deleted,
+    `start=${startSlots} end=${endSlots} of ${QUOTA_CAP}, cleanup DELETE status=${gaveBack?.status}`);
+  console.log(`\nquota: ${endSlots} of ${QUOTA_CAP} custom slots in use at end (started at ${startSlots})`);
+}
+
 // Leave the slot in the demo's known state, so a re-run starts where this one did.
 await facts.setBackstory(CUSTOM, { swappedDaysAgo: 120, roamingCountry: null, reachable: true }, NOW);
-console.log(`\n${CUSTOM} left scripted: swapped 120 days ago, not roaming, reachable`);
+console.log(`${CUSTOM} left scripted: swapped 120 days ago, not roaming, reachable`);
 
-conclude(10);
+conclude(11);

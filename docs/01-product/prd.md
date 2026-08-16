@@ -194,16 +194,32 @@ spike also found the stored credential is already `Basic `-prefixed — a
 double-prefix that fails both token endpoints, and cost the spike's first
 round. Build: `poc/m5-facts-orange.mjs` (same interface, `evaluatePredicate`
 NOT reimplemented — M5 exports `createOrangeFacts` and nothing else, asserted
-by a case). **Offline `node poc/m5-check.mjs` 44/44 exit 0 with zero
+by a case). **Offline `node poc/m5-check.mjs` 47/47 exit 0 with zero
 credentials and zero network** (injected transport replaying the spike's
 captured bytes, so it runs on a clean clone); **live `node
-poc/m5-check-live.mjs` 10/10 exit 0**, including the FR1 negative on real
+poc/m5-check-live.mjs` 11/11 exit 0**, including the FR1 negative on real
 infrastructure and the write-trap defence firing on a real built-in with the
 custom-slot control succeeding; **32 mutations, 32 killed, 0 survivors.** The
 sweep found two defects in the CHECK itself — a redaction case that was
 vacuous (its body never reached a branch that quotes bodies, so it could not
 fail) and an assertion too crude to survive its own error text — both fixed.
-M6 not started.
+Then an **adversarial review round** (2026-08-16, dated findings entry) took
+the suites 44 → **47** and 10 → **11** on three confirmed issues, found by an
+independent 30-case check written from the spec BEFORE either shipped suite was
+opened plus an independent 18-mutant sweep: (1) the write-verification
+diagnostic — the message the module's most load-bearing guard produces — was
+the single throw path that skipped `redact()`, leaking a planted credential half
+and a planted bearer token, and it clamped AFTER serializing (measured 2354ms on
+a 2e8-char value, and a `RangeError` at V8's max string length that destroyed
+the loud message entirely); (2) a required mutant SURVIVED — "one token per
+surface" was unpinned because the check answered both token endpoints with the
+same fixture, though the two are measured non-interchangeable; (3) the live
+check's cleanup DELETE was unobserved, so an interrupted run leaked a custom
+slot toward the 10-cap silently. All three fixed and mutation-proven (18/18
+killed, 0 survivors); a 315-combination leak fuzz with a planted-leak control
+is clean, and M1–M4 are unchanged by exit code. **Every M5 count is AGENT-RUN —
+that was true of 44/10 and stays true of 47/11; G2 is NOT met until the user
+runs it.** M6 not started.
 
 **Every count above is from a run on the user's own machine**, except the M5
 line, which is explicitly marked agent-run and pending. At commit

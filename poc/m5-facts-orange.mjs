@@ -407,6 +407,28 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
       country: roamingCountry === null ? undefined : roamingCountry,
       reachabilityStatus: data.reachability.reachabilityStatus,
     };
+    // This diagnostic quotes values that came off the WIRE, so it is the one
+    // place a stored value could carry an echoed secret into a throw — and the
+    // one place an unbounded stored value could be serialized. Both are closed
+    // by composing the two helpers this file already has, in this order:
+    //
+    //   * a STRING goes through `redact()` FIRST, because the known-secret layer
+    //     is an EXACT match — clamping before redacting would leave a 48-char
+    //     FRAGMENT of a 110-char credential unmatched and therefore printed —
+    //     and `redact()` returns a ≤200-char result, which `brief()` can then
+    //     serialize safely;
+    //   * a NON-string goes to `brief()` DIRECTLY: no secret can hide in one,
+    //     and `redact()`'s `String(value)` coercion would run a wire-supplied
+    //     `toString` — `JSON.parse('{"toString":"x"}')` makes `String(v)` throw
+    //     a bare TypeError, which would replace this loud, actionable message
+    //     with an opaque one at exactly the moment it is needed.
+    //
+    // Measured 2026-08-16: the previous `JSON.stringify(String(v)).slice(0,60)`
+    // clamped AFTER serializing — 2354ms on a 2e8-char stored value, and a
+    // RangeError ("Invalid string length") at V8's max string length, which
+    // destroyed this message entirely. `brief()` bounds BEFORE it renders, which
+    // is the same lesson case 43 of the offline suite already states.
+    const show = (v) => (typeof v === 'string' ? brief(redact(v)) : brief(v));
     for (const axis of ['latestSimChange', 'roaming', 'reachabilityStatus', 'country']) {
       // `country` is only compared when one was written: a stale country left
       // alongside `roaming:false` is producible (measured) and is not a write
@@ -414,7 +436,7 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
       if (axis === 'country' && want.country === undefined) continue;
       if (got[axis] !== want[axis]) {
         throw new Error(
-          `write verification FAILED for ${number}: stored ${axis} is ${JSON.stringify(String(got[axis])).slice(0, 60)}, wrote ${JSON.stringify(String(want[axis])).slice(0, 60)}` +
+          `write verification FAILED for ${number}: stored ${axis} is ${show(got[axis])}, wrote ${show(want[axis])}` +
           ' — the Admin API echoed the write back with a 200 and did NOT store it.' +
           ' Built-in numbers (+990100000000-05) shadow every write: CREATE succeeds, UPDATE returns 200 echoing your payload, and READ/CAMARA keep serving the built-in dataset.' +
           ' Script a CUSTOM slot (e.g. +990100000099) instead.'

@@ -14,7 +14,7 @@ node poc/m1-check.mjs   # M1 attestation core — 19 cases (module user-validate
 node poc/m2-check.mjs   # M2 blind envelope — 10 cases (module user-validated 10/10)
 node poc/m3-check.mjs   # M3 floor gate — 22 cases (module user-validated 22/22)
 node poc/m4-check.mjs   # M4 mock facts adapter — 33 cases (user-validated 33/33)
-node poc/m5-check.mjs   # M5 orange facts adapter, OFFLINE — 44 cases (agent-run 44/44,
+node poc/m5-check.mjs   # M5 orange facts adapter, OFFLINE — 47 cases (agent-run 47/47,
                         #   user validation PENDING). Zero credentials, zero network:
                         #   an injected transport replays responses captured live on
                         #   2026-08-16, so it runs on a clean clone.
@@ -23,15 +23,21 @@ node poc/m5-check.mjs   # M5 orange facts adapter, OFFLINE — 44 cases (agent-r
 # `| head -1` because a `pass` entry is multi-line (secret on line 1, notes below).
 # The stored value is ALREADY `Basic <base64>`; the adapter normalizes either form.
 ORANGE_BASIC_AUTH="$(pass camara/orange_network | head -1)" node poc/m5-check-live.mjs
-                        # 10 cases (agent-run 10/10, user validation PENDING).
+                        # 11 cases (agent-run 11/11, user validation PENDING).
                         # exit 2 + printed prerequisites if the credential is absent —
                         # never a silent pass, never a mock fallback.
+                        # COSTS QUOTA: consumes and returns one of the app's 10 custom
+                        # slots. It reclaims the slot BEFORE consuming it (so an
+                        # interrupted run does not leak one), prints the count at both
+                        # ends, and case 11 asserts it came back.
 ```
 
 All four were run by the user on their own machine after the v0.2.0 release
 (main at `7c41c83`, tag `v0.2.0` — dated findings record, 2026-08-16): 19/19,
-10/10, 22/22, 33/33. **M5's two suites are agent-run only so far.** Each check
-declares its case count (`conclude(19|10|22|33|44|10)`) so a suite that
+10/10, 22/22, 33/33. **M5's two suites are agent-run only so far** — that was
+true of the 44/10 counts and stays true of the 47/11 counts an adversarial
+review round took them to on 2026-08-16 (see the dated findings entry). Each
+check declares its case count (`conclude(19|10|22|33|47|11)`) so a suite that
 silently loses cases exits 1 with
 `FAIL CASE COUNT` instead of printing a smaller green tally — mutation-proven
 per module.
@@ -46,7 +52,15 @@ only ever covered top-level values. Fixing them changed **two** files —
 cases; the three added cases pin exactly those guards, and the user run above
 covers them. Nothing is pending.
 
-**M5 is built and agent-run; user validation is pending (that IS gate G2).**
+**M5 is built, agent-run and review-hardened; user validation is pending (that
+IS gate G2).** An adversarial review round on 2026-08-16 took the offline suite
+44 → **47** and the live suite 10 → **11**, closing one real module defect (the
+write-verification diagnostic — the message the module's most load-bearing guard
+produces — was the single throw path that skipped `redact()`, and it also
+clamped after serializing rather than before), one unpinned invariant (one token
+per surface, which a required mutant survived), and one quota-hygiene gap (the
+live check's cleanup was unobserved, so an interrupted run leaked a slot
+silently).
 M6 is not started and `poc/demo.mjs` does not exist yet. The measured
 Playground findings below were **re-verified live on 2026-08-16** before M5 was
 written: seven held, **three changed**, one was not re-tested. Every change is

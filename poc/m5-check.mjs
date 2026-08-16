@@ -27,12 +27,21 @@ const SECRET = 'SECRET000000000000000000000000000000000000BB';
 const B64 = Buffer.from(`${CLIENT_ID}:${SECRET}`).toString('base64');
 const CRED = `Basic ${B64}`;                 // as the credential is actually stored
 const TOKEN = 'TOKEN.eyJmYWtlIjoidG9rZW4ifQ.SIGNATURE0000';
+const ADMIN_TOKEN = 'ADMINTOKEN.eyJmYWtlIjoiYWRtaW4ifQ.SIGNATURE1111';
+const TOKEN_URL_ADMIN = 'https://api.orange.com/oauth/v3/token';
 
 // ==================== CAPTURED responses (verbatim, 2026-08-16) =============
 // Only the client id inside the 403 body is substituted for the synthetic one;
 // every other byte is as received.
 const C = Object.freeze({
   token: `{"token_type":"Bearer","access_token":"${TOKEN}","expires_in":3600,"scope":"openid"}`,
+  // The ADMIN surface's token is a DIFFERENT string, because the two token
+  // endpoints are not interchangeable (measured 2026-08-16: the CAMARA token is
+  // refused by the Admin API with `401 UNAUTHENTICATED`, and the Admin token by
+  // sim-swap with `403 "Request must be authorized"`). A replay that answered
+  // both endpoints with the SAME token could not tell a per-surface cache from
+  // a shared one — see case 47.
+  tokenAdmin: `{"token_type":"Bearer","access_token":"${ADMIN_TOKEN}","expires_in":3600,"scope":"admin"}`,
   swap: '{"latestSimChange":"2026-04-01T12:00:00.000Z"}',
   roamFalse: '{"roaming":false}',
   roamFR: '{"roaming":true,"countryCode":208,"countryName":["FR"]}',
@@ -50,7 +59,13 @@ const C = Object.freeze({
   malformedBasic: '{"error":"invalid_client","error_description":"Basic authentication is malformed"}',
 });
 
-// A stored Admin dataset, as READ returns it.
+// A stored Admin dataset, as READ returns it. Unlike `C` above this is
+// CONSTRUCTED, not captured: the seven-key SHAPE is the measured one
+// (`location, reachability, roaming, simSwap, deviceSwap, tenure, kyc`) and the
+// three axes M5 reads carry real captured values, but the filler in the four
+// axes M5 never touches is arbitrary — `kyc.name` here is not the built-in
+// record's own value. Said explicitly so the "captured verbatim" claim above is
+// not over-read to cover this helper.
 const stored = ({ sim = '2026-04-01T12:00:00.000Z', roaming = { roaming: false }, reach = 'CONNECTED_DATA' } = {}) =>
   JSON.stringify({ data: { location: { available: true }, reachability: { reachabilityStatus: reach }, roaming, simSwap: { latestSimChange: sim }, deviceSwap: { latestDeviceChange: '2026-08-11T04:00:16.516Z' }, tenure: { contractType: 'PAYM' }, kyc: { name: 'Alice Arnaud' } } });
 
@@ -66,7 +81,11 @@ function transport(route) {
     if (!isToken && typeof opts?.body === 'string') { try { body = JSON.parse(opts.body); } catch { body = opts.body; } }
     const rec = { url, auth: opts?.headers?.Authorization, body, isToken };
     calls.push(rec);
-    const r = isToken ? { status: 200, text: C.token } : route(url, body, calls.length - 1, rec);
+    // Each token endpoint answers with ITS OWN token, so a case can prove the
+    // adapter keeps one per surface rather than sharing one across both.
+    const r = isToken
+      ? { status: 200, text: String(url) === TOKEN_URL_ADMIN ? C.tokenAdmin : C.token }
+      : route(url, body, calls.length - 1, rec);
     return { status: r.status, text: async () => r.text };
   };
   return { fetchImpl, calls };
@@ -591,4 +610,83 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
       ok: r.threw && r.msg.includes('not a plain object') && calls.length === 0 });
 }
 
-conclude(44);
+// ====== 45-47 added by the 2026-08-16 adversarial review round ==============
+// 45 and 46 close a defect an independent 30-case check found on ONE line — the
+// write-verification diagnostic, which is the message the module's most
+// load-bearing guard produces. 47 closes a required mutant the 44-case suite
+// could not kill.
+
+// 45 THE WRITE-VERIFY DIAGNOSTIC REDACTS. Every other throw in the module runs
+// its wire text through `redact()`; this one quoted the STORED value verbatim,
+// so a secret echoed back inside an Admin READ body rode straight into the
+// error — and this is the one error a demo run is most likely to print. Rule 3
+// of the module header says the credential, every token and the client id never
+// reach a string this module can print or throw; before this case, exactly one
+// path broke it. The stored value here is a real member of the redactor's known
+// set (the credential's own secret half).
+{
+  const { facts } = mk((url, body) => {
+    if (body?.action === 'UPDATE') return { status: 200, text: stored({ sim: SECRET }) };
+    if (body?.action === 'READ') return { status: 200, text: stored({ sim: SECRET }) };
+    return { status: 200, text: '{}' };
+  });
+  const r = await athrew(() => facts.setBackstory(N, { swappedDaysAgo: 1, roamingCountry: null, reachable: true }, NOW));
+  check('45 WRITE-VERIFY DIAGNOSTIC REDACTS THE STORED VALUE', false, { answered: !r.threw, reason: r.threw ? 'threw' : 'did not throw' }, 'threw',
+    { label: `no secret substring=${r.threw && !r.msg.includes(SECRET)}`,
+      ok: r.threw && r.msg.includes('write verification FAILED') && !r.msg.includes(SECRET) && r.msg.includes('[REDACTED]') });
+}
+
+// 46 …AND CLAMPS BEFORE IT RENDERS, exactly as case 43 requires of the other
+// diagnostics. The old line was `JSON.stringify(String(v)).slice(0, 60)`, which
+// serializes the WHOLE stored value and only then bounds the output: measured
+// 2354ms on a 2e8-char value, and a RangeError ("Invalid string length") at
+// V8's max string length — which replaced this loud, actionable message with an
+// opaque one at precisely the moment the operator needs it.
+//
+// The assertion is on the RENDERED SHAPE, not on elapsed time, so it is
+// deterministic rather than a timing race: `brief()` bounds first and therefore
+// always emits a properly closed, ellipsis-terminated string (`…"`), while a
+// clamp-AFTER regression emits a string sliced off mid-value with no closing
+// quote at all.
+{
+  const huge = 'z'.repeat(1e7);
+  const { facts } = mk((url, body) => {
+    if (body?.action === 'UPDATE') return { status: 200, text: stored({ sim: huge }) };
+    if (body?.action === 'READ') return { status: 200, text: stored({ sim: huge }) };
+    return { status: 200, text: '{}' };
+  });
+  const t0 = Date.now();
+  const r = await athrew(() => facts.setBackstory(N, { swappedDaysAgo: 1, roamingCountry: null, reachable: true }, NOW));
+  const ms = Date.now() - t0;
+  check('46 WRITE-VERIFY DIAGNOSTIC CLAMPED BEFORE RENDERING', false, { answered: !r.threw, reason: r.threw ? 'threw' : 'did not throw' }, 'threw',
+    { label: `len=${r.msg.length} ms=${ms} closed-and-elided=${r.threw && r.msg.includes('…"')}`,
+      ok: r.threw && r.msg.includes('write verification FAILED') && r.msg.includes('…"') && r.msg.length < 500 });
+}
+
+// 47 ONE TOKEN PER SURFACE — never a shared one. The two token endpoints are
+// NOT interchangeable (measured 2026-08-16: the CAMARA token on the Admin API
+// answers `401 UNAUTHENTICATED`, the Admin token on sim-swap answers `403
+// "Request must be authorized"`), so a cache that handed either surface
+// whichever token was minted FIRST would break whichever call happened to come
+// second — and the failure would surface as an auth fault far from its cause.
+// One adapter instance drives BOTH surfaces here, which is the only arrangement
+// that can tell a per-surface cache from a shared one.
+{
+  let written = null;
+  const { facts, calls } = mk((url, body) => {
+    if (body?.action === 'UPDATE') { written = body.data; return { status: 200, text: stored(written) }; }
+    if (body?.action === 'READ') return { status: 200, text: stored({ sim: written.simSwap.latestSimChange, roaming: written.roaming, reach: written.reachability.reachabilityStatus }) };
+    return reads()(url);
+  });
+  await facts.setBackstory(N, { swappedDaysAgo: 1, roamingCountry: null, reachable: true }, NOW);  // admin surface
+  await facts.getFacts(N, NOW);                                                                    // camara surface
+  const adminCalls = calls.filter((c) => !c.isToken && c.url.includes('/admin/'));
+  const camaraCalls = calls.filter((c) => !c.isToken && c.url.includes('/playground/api/'));
+  const adminOk = adminCalls.length > 0 && adminCalls.every((c) => c.auth === `Bearer ${ADMIN_TOKEN}`);
+  const camaraOk = camaraCalls.length > 0 && camaraCalls.every((c) => c.auth === `Bearer ${TOKEN}`);
+  check('47 ONE TOKEN PER SURFACE (never shared across surfaces)', true, { answered: true, reason: 'ok' }, 'ok',
+    { label: `admin ${adminCalls.length} calls all admin-token=${adminOk}, camara ${camaraCalls.length} calls all camara-token=${camaraOk}`,
+      ok: adminOk && camaraOk });
+}
+
+conclude(47);

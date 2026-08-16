@@ -7,6 +7,143 @@ memory. A finding here is something that was RUN and OBSERVED, not reasoned.
 
 ---
 
+## 2026-08-16 — M5 adversarial review round: 3 confirmed issues (44 → 47 offline, 10 → 11 live)
+
+A second agent re-attacked M5 against the challenge "what did you gloss over?
+what did you not validate but asserted or fit to pass?". Method, in this order:
+an INDEPENDENT 30-case check written from the PRD, M4's interface contract and
+the module source alone **before either shipped suite was opened**; then an
+independent 18-mutant sweep; then a leak fuzz; then the live legs. Every verdict
+below is from something that RAN.
+
+| # | Audit item | Verdict |
+|---|---|---|
+| 1 | Fit-to-pass probe (independent check, written blind) | **CONFIRMED ISSUE** — 27/30, three failures, all on ONE line |
+| 2 | Independent mutation sweep (≥12, incl. 8 named) | **CONFIRMED ISSUE** — 15/16 killed, 1 required mutant SURVIVED |
+| 3 | Redaction / leak audit | **CONFIRMED ISSUE** (same line as 1); otherwise clean — 315 combinations, 0 leaks |
+| 4 | Live-case can-fail audit | **CLEAN** — all 10 can genuinely fail; no sibling of the build round's vacuous case |
+| 5 | Quota / crash hygiene | **CONFIRMED ISSUE** — cleanup unobserved; fixed + new case 11 |
+| 6 | Cross-module regression + fixture honesty | **CLEAN** — M1–M4 unchanged by exit code; every fixture traces to a capture |
+| 7 | Live confirmation | **DONE** — 11/11, exit 0, quota restored 1 → 1 of 10 |
+
+**Issue 1 — the write-verification diagnostic was the one throw path that
+skipped `redact()`, and it clamped AFTER serializing.** Three distinct defects
+on one line (`write verification FAILED … stored ${axis} is
+${JSON.stringify(String(got[axis])).slice(0, 60)}`), and it is not an obscure
+line: it is the message the module's most load-bearing guard produces, the one a
+demo run is most likely to print.
+
+- **It bypassed `redact()`.** `got[axis]` comes off the WIRE. Measured: a
+  credential half, and an issued bearer token, each planted in an Admin `READ`
+  body, rode verbatim into the thrown message. Every other throw in the file
+  redacts; this one did not — so module rule 3 ("the credential, every token and
+  the client id never reach a string this module can print or throw") was false
+  on exactly one path. The offline suite's cases 5–8 all probe `getFacts` error
+  paths and none covered this one.
+- **It clamped after serializing.** `JSON.stringify(String(v)).slice(0, 60)`
+  builds the whole serialization and only then bounds it: measured **2354ms on a
+  2e8-char stored value vs 0ms** for the `brief()` ordering, and at V8's max
+  string length (536870888) `JSON.stringify` throws `RangeError: Invalid string
+  length` — which **destroys the loud, actionable trap message** at exactly the
+  moment it is needed. This is the same lesson the offline suite's own case 43
+  already states ("clamped BEFORE it is rendered, not after — bounding the OUTPUT
+  still serializes the whole input first"); the suite stated the principle and
+  never applied it to the one line that broke it.
+- **Fixed** by composing the two helpers the file already had, in an order that
+  matters: `const show = (v) => (typeof v === 'string' ? brief(redact(v)) :
+  brief(v))`. A STRING is redacted FIRST because the known-secret layer is an
+  EXACT match — clamping first would leave a 48-char FRAGMENT of a 110-char
+  credential unmatched and printed — and `redact()` returns ≤200 chars, which
+  `brief()` can then serialize safely. A NON-string goes to `brief()` directly:
+  no secret can hide in one, and `redact()`'s `String(v)` coercion would run a
+  wire-supplied `toString` (`JSON.parse('{"toString":"x"}')` makes `String(v)`
+  throw a bare TypeError — the same "opaque error replaces the loud one" failure
+  by another route). Pinned by new cases **45** and **46**.
+- **The residual, measured rather than waved away.** `redact()` still makes its
+  exact-match passes over the full string before clamping, which cannot be
+  reordered without reintroducing the fragment leak above. On a 5e7-char stored
+  value that is **318ms for five passes, against 1611ms** for the `JSON.parse`
+  of the same body that the module has ALREADY paid before this line is reached
+  — 0.20× work already done, not a new unbounded surface, and identical to the
+  exposure every other error path in the file already carries. Recorded as a
+  known residual rather than traded for a fragment leak.
+- **Case 46 asserts the rendered SHAPE, not elapsed time**, and that choice was
+  vindicated during the round: the independent probe's own 1000ms timing bound
+  flaked at 1176ms under concurrent load while the message stayed correctly
+  bounded at 443 chars. A clamp-BEFORE render always emits a closed,
+  ellipsis-terminated string (`…"`); a clamp-AFTER regression emits one sliced
+  off mid-value with no closing quote. Deterministic, and it kills the mutant
+  without racing the CPU.
+
+**Issue 2 — "one token per surface" was unpinned; the mutant survived.** The
+module is correct, but a mutant caching one token ACROSS both surfaces left the
+44-case suite fully green. The cause was in the CHECK: its replay transport
+answered BOTH token endpoints with the same fixture, so a shared cache and a
+per-surface cache were indistinguishable. This is a load-bearing invariant — the
+two endpoints are measured NOT interchangeable (CAMARA token on Admin → `401
+UNAUTHENTICATED`; Admin token on sim-swap → `403 "Request must be authorized"`)
+— so a regression would surface as an auth fault far from its cause. Fixed by
+giving the Admin endpoint its own fixture token and adding case **47**, which
+drives both surfaces from ONE adapter instance and asserts each call carried its
+own surface's bearer.
+
+**Issue 5 — the live check's cleanup was unobserved, so quota leaked silently.**
+Case 1 CONSUMES one of the app's 10 custom slots (the adapter CREATEs the
+built-in before it can discover the write is shadowed) and gave it back with a
+DELETE whose **result was discarded**. A run interrupted between those two
+points left the slot consumed with nothing on screen saying so; repeated
+interrupted runs would walk the quota to its cap and the eventual failure would
+name a phone number, not a quota. Fixed three cheap ways, all observable in the
+output: the slot is **reclaimed BEFORE it is consumed** (measured: `DELETE` of a
+slot not held answers `400 "PhoneNumber Not Found"` = nothing to reclaim, while
+`204` means an earlier run really did leak), the count is **printed at both
+ends** against the cap, and new case **11** asserts it came back. The count is
+the assertion because it is the authoritative observable; the DELETE status is
+reported alongside and required only to be a success, not to be exactly `204`.
+
+**What the review round could NOT fault:**
+
+- **The 10 live cases can all genuinely fail.** Each was traced to the
+  observable that would flip it. The build round's own catch (a case that
+  coerced an `undefined` token to the string `'undefined'`) has no surviving
+  sibling. Case 11 was held to the same bar and PROVED able to produce the
+  negative rather than assumed: a live probe confirmed the `LIST` count actually
+  MOVES (1 → 2 → 1 across a CREATE/DELETE pair, net-zero quota) — without that,
+  `endSlots === startSlots` would have been a tautology.
+- **Redaction is otherwise airtight.** A fuzz across every throw path × every
+  known secret (supplied credential, normalized, decoded pair, each half, each
+  issued token) × five embeddings (raw, JSON, URL-encoded, quoted, header-ish)
+  ran **315 throwing combinations with 0 leaks**. Its first run reported 62
+  leaks — every one a HARNESS artifact: it demanded redaction of a token the
+  adapter had never been issued, which is impossible by construction (a token
+  enters the known set at mint time). Debugged rather than believed, per the
+  standing rule about degenerate numbers. The probe carries a PLANTED-LEAK
+  control (47 hits) so a clean result cannot mean a blind probe, and re-run
+  against the PRE-fix line it goes red with exactly 10 leaks, all on
+  `write-verify mismatch`.
+- **Fixture honesty holds.** Every offline fixture traces to a shape recorded in
+  the spike entry above — including `countryCode:34`/`["Spain"]` on the built-in
+  and `208`/`["FR"]` on a scripted record, which the findings record in prose
+  rather than raw JSON. Nothing was edited to fit the code. One over-readable
+  claim was tightened rather than left: the `stored()` helper is CONSTRUCTED,
+  not captured (its seven-key shape is measured and the three axes M5 reads
+  carry captured values, but the filler in the four axes M5 never touches is
+  arbitrary), and now says so, so the file header's "captured verbatim" is not
+  over-read to cover it.
+- **M1–M4 are untouched**, verified by exit code: 19/19, 10/10, 22/22, 33/33.
+
+**Counts after the round: offline 47/47, live 11/11, 18/18 mutants killed, 0
+survivors.** The sweep's own harness gained a per-run timeout after the
+unbounded-401 mutant SPUN and wedged the first attempt — a hang must be scored
+as a kill, not left pegging a core. Restores were working-copy `cp` with a
+sha256 byte-identity assertion, never `git checkout`; one mid-sweep interruption
+did leave the module mutated and was caught and restored by that check.
+
+**Honesty marker, unchanged by this round: every M5 count is AGENT-RUN.** That
+was true of 44/10 before the review and is true of 47/11 after it. M5 has never
+been run by the user, so **G2 is still not met** — the round hardened the module
+and grew its evidence, it did not close the gate.
+
 ## 2026-08-16 — M5 live spike: the recorded Playground findings re-verified, three CHANGED
 
 A throwaway spike (6 rounds, scratchpad only) re-ran every recorded Playground
