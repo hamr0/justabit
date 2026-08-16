@@ -157,9 +157,10 @@ raw value on the wire), nonce + validity (replay fails, responses expire), blind
 hub's own log shown on screen — metering records only, reads yield ciphertext), and
 monotone floor (looser queries rejected, never silently widened).
 
-**Status:** being rebuilt module-by-module (M1–M6). The attestation core and the blind
-envelope are built and runnable today — `node poc/m1-check.mjs` and `node poc/m2-check.mjs`,
-negatives first, exit code 0 only if every case holds. The one-command demo
+**Status:** being rebuilt module-by-module (M1–M6). Four modules are built and runnable
+today — the attestation core, the blind envelope, the monotone floor gate and the mock
+facts adapter: `node poc/m1-check.mjs` (19 cases), `m2-check.mjs` (10), `m3-check.mjs` (22)
+and `m4-check.mjs` (33), negatives first, exit code 0 only if every case holds. The one-command demo
 (`node poc/demo.mjs`, zero credentials against a built-in mock operator with scriptable
 backstories; `--backend orange` re-proves it live on the Network APIs Playground with a free
 Orange developer account) lands at M6. Requirements live in the

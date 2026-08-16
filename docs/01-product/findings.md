@@ -7,6 +7,444 @@ memory. A finding here is something that was RUN and OBSERVED, not reasoned.
 
 ---
 
+## 2026-08-16 — v0.2.0 release gate: three unbounded-wire-work fail-opens, one of them process-fatal (30 → 33 cases)
+
+The release gate for 0.2.0 ran `/security` and `/diff-review` over
+`origin/main...HEAD` as independent passes. Between them they found **three**
+defects, all of one shape — **work reachable from wire input that no cap
+actually bounded** — and all three defeating a guard the module explicitly
+claimed, in-source and in the entry below. **None of the 30 cases could catch
+their regression.** Every one was reproduced against the unfixed file before it
+was accepted, and every fix was re-probed after.
+
+**1. The country-set cap was time-of-check/time-of-use — and it reached a
+SIGNED answer.** `countrySet()` tested `v.length` against `MAX_COUNTRIES = 300`
+and then re-read `v.length` on every loop iteration. `Array.isArray` passes
+straight through a Proxy, so a `length` trap could answer honestly for the cap
+test and enormously for the walk. Measured against the unfixed module: cap
+checked against **2**, loop then walked **5,000,000 indices in 6.5s**, and the
+predicate returned **`{answered: true}`** — an answer built from a set the cap
+exists to refuse. Fixed by capturing `const n = v.length` once and walking `n`.
+
+**2. `describe()` could kill the process — exit 134.** The renderer tried
+`JSON.stringify` → `String` → `Object.prototype.toString` in turn, each wrapped
+in a try/catch. **A try/catch bounds a THROW; it cannot bound an ALLOCATION.** A
+~40-byte predicate value whose `toJSON` returned `'x'.repeat(3e8)` produced a
+**fatal OOM inside V8's `JsonStringifier::Stringify` — SIGABRT, core dumped,
+exit 134**, which no `catch` can degrade. This is strictly worse than the throw
+the fallback chain was built to prevent: a dead process cannot return
+`{answered: false}`, so "wire input never throws" failed in the one way that
+leaves nothing behind to report it.
+
+**3. The input bound covered two shapes only.** The same entry below claimed
+"the input is bounded first". It bounded a **top-level** long string and an
+array's **length** — a long string one level down was still serialized in full.
+Measured with a control: a 50MB string **nested** in a one-element array cost
+**657ms**, the same string at **top level** (where the bound applied) **83ms**,
+and inside a plain object **527ms**.
+
+**The fix is one decision, not three patches: the renderer now invokes NOTHING
+caller-supplied.** Primitives render directly; arrays render at most 16 elements
+one level deep; an object is described by its **key names** via
+`getOwnPropertyNames`, which reads no accessor and calls no hook. There is no
+`toJSON`/`toString`/`toStringTag` path left to allocate down. `[unrenderable]`
+survives as the floor and is still reachable — by a **revoked Proxy**, where
+enumeration itself throws — so case 25 still pins it, via that shape now.
+
+**Two pinned messages changed, deliberately.** A circular object renders
+`{self}` instead of `[object Object]`, and case 25's hostile object renders
+`{self, toString, valueOf}` instead of `[unrenderable]`. Both old spellings were
+*products of the caller-invoking fallbacks that were removed* — the object is no
+longer "unrenderable", it is simply described without being asked anything. Both
+new spellings are strictly more informative. Post-fix cost: nested 657ms →
+**77.7ms**, object 527ms → **2.2ms** (both now at the cost of the harness's own
+string allocation, not the renderer's).
+
+**`DESC_MAX_STRING` was moved 64 → 48, below the 60-char output clamp.** At 64
+the per-string bound was real but **invisible**: the output clamp always cut
+first, so no assertion could distinguish a clamped string from an unclamped one
+and the bound could regress silently. Below the output clamp it shows in the
+rendered text, which is what makes case 33 able to fail at all.
+
+**Mutation-proven, by exit code — four mutations, each red on exactly its own
+case, each restored byte-identical by sha256 → 33/33 exit 0:**
+
+| Mutation | Result |
+|---|---|
+| `countrySet` re-reads `v.length` per iteration | case 31 red, **walked 100,000** indices; suite exit 1 |
+| object branch calls `JSON.stringify` again | case 32 red (`toJSON` invoked 1×), 4 cases red, exit 1 — **and the OOM probe returns to exit 134** |
+| array depth cap removed | case 33 red (`[[["deep"]]]` instead of `[[array of 1]]`), exit 1 |
+| per-string clamp removed | case 33 red (100000-char string rendered in full), exit 1 |
+
+The second row is the guard-off negative control that matters: **with the
+mutation the fatal-OOM probe exits 134, without it exits 0.** Three new cases
+carry these — 31 (cap survives a lying `length`), 32 (renderer never calls
+caller code), 33 (nested/oversized values bounded) — so the declared count goes
+**30 → 33**.
+
+**Deployed risk today was nil and is stated as such:** a predicate arriving
+through `JSON.parse` at the real M5/Orange wire cannot carry a Proxy or a
+`toJSON`. These are reachable in-process, which is exactly where the PoC's
+assertions run — and the artifact was making bounds claims that measurement
+falsified, which in a repo whose PoC exists to make the text undeniable is the
+defect regardless of deployment reach.
+
+**These three fixes are POST-user-validation.** The user validated the four
+suites at `5d5e8aa` (entry immediately below); the release gate then changed
+`poc/m4-facts-mock.mjs` and `poc/m4-check.mjs`. So **M4's 33/33 is agent-run and
+a user re-run is pending**, on the 0.1.0 precedent where the user closes that
+gap after the release. M1/M2/M3 are untouched by this round — no module source,
+no check file, and the shared harness is unchanged — so their user-validated
+19/19, 10/10 and 22/22 stand.
+
+## 2026-08-16 — user validation at `5d5e8aa`: all four suites green on the post-code-review tree
+
+The user personally re-ran the runbook on their own machine at commit `5d5e8aa`
+— the state produced by the `/code-review medium` round below — and reported all
+four suites clean: `node poc/m1-check.mjs` **19/19**, `node poc/m2-check.mjs`
+**10/10**, `node poc/m3-check.mjs` **22/22**, `node poc/m4-check.mjs` **30/30**.
+
+**This closed every "user re-run pending" the tree was carrying** — three
+separate markers, all settled by this one run: M4 at its post-review-fix state
+(the entry below had it user-validated only at the PRE-fix state); the shared
+harness and the spec sketch, both touched by that same round; and M1/M2/M3,
+whose module sources were never touched but whose check files gained
+`conclude(19|10|22)` post-validation on the shared harness.
+
+So at `5d5e8aa` the ladder read, with no asterisk: **M1 19/19, M2 10/10, M3
+22/22, M4 30/30 — all four user-validated at that tree state.** The release-gate
+round recorded above then moved M4 to 33 cases, which is agent-run.
+
+## 2026-08-16 — `/code-review medium` round on PR #4: 8 findings, all confirmed by execution, all fixed
+
+A second review pass over the M4 work already on PR #4 — the least-reviewed code
+in the repo is the previous round's own fix code. **Nothing was accepted as a
+finding on argument: every one was reproduced against the unfixed file by a
+probe, and every fix re-probed afterwards.** Agent-run result after the round:
+M1 **19/19**, M2 **10/10**, M3 **22/22**, M4 **30/30**, all exit 0; YAML
+re-parsed clean (exit 0). Case count stays a declared **30** — the new guards
+were folded into existing cases 16/17 rather than appended.
+
+**1. Wire-supplied country-set arrays ran CALLER-CONTROLLED CODE — three ways,
+one of them a signed answer.** `plainSnapshot` copies the predicate's TOP level
+only, so `p.value` stayed the requester's own array object, and the sibling
+`p.value.every(...)` / `p.value.includes(fact)` iterated *their* object:
+
+| Hostile set | Observed against the unfixed module |
+|---|---|
+| array with a throwing index GETTER | threw straight out of `evaluatePredicate` — "wire input never throws" broken |
+| `Proxy(['FR'])` with a throwing `includes` trap | threw AFTER validation passed — i.e. on the answer path, past every gate |
+| **sparse `new Array(5)`** | holes are not `undefined` own props, so the empty-set gate saw length 5 and `every` was VACUOUSLY true → **`{answered:true, result:false}`, SIGNED** — an answer to the malformed empty question case 17 exists to refuse |
+| `new Array(2 ** 32 - 1)` | the walk ran past a **60s** timeout — an unbounded stall reachable from the wire |
+
+Fixed by `countrySet()`: an index-walked defensive copy inside a `try/catch`
+(a hole reads `undefined` and is rejected, a throw is a rejection), a
+`MAX_COUNTRIES = 300` length cap (ISO 3166-1 has 249 codes; bigger is a
+malformed question, not a question), and the membership test now runs on OUR
+copy — `p.value` is never iterated again. A *transparent* Proxy still simply
+answers, which is correct: its reads pass through.
+
+**2. `plainSnapshot`'s `Array.isArray` line ran OUTSIDE its own try.** On a
+**revoked** Proxy even `Array.isArray` throws, so a revoked-proxy predicate
+escaped the "never throws" contract as a raw `TypeError` instead of coming back
+`malformed predicate`. The line moved inside the `try`. (Note the interaction
+with the settled decision above: that clause stays as documented redundancy for
+the *array* case, but its placement was a real defect.)
+
+**3. `describe()` bounded its OUTPUT but not its INPUT.** It clamps to 60
+chars — after fully serializing (or walking) whatever it was handed. A 100MB
+string or a `2**32`-element array was therefore paid for in full just to print
+60 characters. Now the input is bounded first: strings sliced to 64 chars,
+arrays over 16 elements rendered as `[array of N]`, both inside a `try` because
+`Array.isArray` can throw (finding 2). Post-fix: the 100MB-string reason
+returns in **168 ms** at **129 chars**; the `2**32-1` array returns in **0 ms**
+as `invalid country set: [array of 4294967295] …`.
+
+> **RETRACTED 2026-08-16 (same day, release gate) — "the input is bounded
+> first" was measurably false.** It bounded a top-level long string and an
+> array's length, and nothing else: a long string one level down was still
+> serialized in full (657ms nested vs 83ms top-level, same 50MB string). Worse,
+> guarding the fallbacks with try/catch bounded throws but not allocations — a
+> `toJSON` returning `'x'.repeat(3e8)` killed the process outright at exit 134.
+> Both are fixed and the whole fallback chain is gone; see the release-gate
+> entry at the top of this file. Left in place rather than edited: this log is
+> append-only, and a retraction is the record.
+
+**4. Two diagnostics skipped the clamp — both built from requester-chosen
+text.** (a) The unknown-backstory-field throw interpolated the caller's key
+RAW: a 5000-char key containing a newline rode verbatim into an `Error`
+message, which is both unbounded and **log-forgeable** (an embedded newline in
+a logged message fabricates a log line). (b) `unexpected predicate fields` did
+a bare `extra.join(', ')`: a predicate carrying 50 huge keys produced a
+**~100KB** `reason` — on the wire-facing return, not just a log. Fixed with
+`describeKey()` (verbatim only for short printable keys, so the common typo
+still reads exactly as typed) plus a 60-char clamp on the joined list. Post-fix
+the 50-huge-key reason is **90 chars** and the 5000-char-key message **112
+chars with no newline**. **Every pinned message in the suites stayed
+byte-identical** — the clamp only fires on input no honest caller sends.
+
+**5. The shared harness printed a GREEN line last on a failing run.**
+`conclude()` printed `FAIL CASE COUNT` *before* `RESULT: N/N`, so the final line
+of a count-failing run — the line the runbook and any `| tail -1` reads — was a
+green tally sitting directly below the failure it hid. Order swapped; the red
+line is last now. Exit code was always correct; this is the eyeball fail-open
+the count argument exists to close, reintroduced one line lower.
+
+**6. The spec sketch contradicted itself — introduced by the immediately
+preceding commit.** `reachable` was minted into the `Predicate` type enum, but
+`value` had no boolean branch in its `oneOf` (`string` | `array of string`) and
+the module rejects the string spelling `"true"`. So **no `reachable` request
+could be both schema-valid and answerable.** `- type: boolean` added to the
+`oneOf`; YAML re-parses clean.
+
+**7. Test hygiene, in the check file itself.** The `bit()` helper had no
+callers (dead code shipped in the previous round) — removed, along with an
+unused `number` parameter on `scripted()` and a stray `const p = P90` alias.
+More load-bearing: `threws()` discarded the callee's return value, so case 25
+re-ran the call by hand to get the verdict it asserted on — two calls, able to
+drift. `threws()` now returns `{threw, msg, value}` and case 25 asserts on the
+value of **the same call it probed**.
+
+**Mutation-proven, by exit code.** The new guards were folded into cases 16 and
+17 (declared count stays 30, so the seatbelt from the previous round still
+matches). Each fix reverted one at a time from a working-copy `cp` backup →
+suite exits **1**, red on exactly case 16 or case 17 as intended → restored →
+byte-identical by sha256 → **30/30 exit 0**.
+
+**SKIPPED, on record as open items rather than papered over:**
+
+1. **M3 carries the same `describe`-throw class, live and unfixed.**
+   `checkFloor({swapAgeMin:'P90D'}, {swapAgeMin: 10n})` throws a raw
+   `TypeError: Do not know how to serialize a BigInt` out of the UNTRUSTED-side
+   path (re-measured 2026-08-16; a circular value with a throwing `toString`
+   throws `Converting circular structure to JSON` the same way). This is
+   pre-existing, outside this diff, and already on record: the entry below
+   records M3's release-gate open item 1 as only PARTIALLY closed — M4 built the
+   throw-proof `describe()`, M3 was never retrofitted with it. Fixing it means
+   touching a user-validated module, so it waits for M3's next deliberate touch.
+2. **The spec sketch still over-promises relative to the code.** Its
+   `Predicate` enum lists seven types; the M4 module answers **three**
+   (`simSwapAge`, `roamingIn`, `reachable`). And `required: [type]` leaves
+   `operator` optional in the schema while the module rejects any predicate
+   whose operator does not match its type exactly. The sketch is illustrative,
+   not normative, and **M6 is the declared reconcile point** — restated here
+   because a schema looser than the reference implementation is exactly the
+   silent-widening shape the profile forbids, and it should not be discovered
+   fresh at M6.
+
+## 2026-08-16 — user validation: all four modules green at `1f92792`; two decisions settled; declared case counts extended to M1–M3
+
+The user personally ran the runbook on their own machine at commit `1f92792`
+and reported all four suites clean: `node poc/m1-check.mjs` **19/19**,
+`node poc/m2-check.mjs` **10/10**, `node poc/m3-check.mjs` **22/22**,
+`node poc/m4-check.mjs` **30/30**. This closes the M4 user gate the entry below
+left open and re-confirms M1–M3 at their post-release counts.
+
+**Two user decisions on the carried-forward open items:**
+
+1. **The three deliberately-unpinned redundant guards stay, settled.** The
+   `Array.isArray` clause in `plainSnapshot`, `durationMs`'s 2^53 reject, and
+   the `\d{6,12}` digit bound — each classified redundant by PROBE rather than
+   by argument in the entry below — remain as documented defence-in-depth,
+   marked in-source as not relied upon rather than deleted or left looking
+   load-bearing. Not to be re-litigated at M6.
+2. **`reachable` is minted into the spec sketch now, not deferred to M6.** The
+   illustrative `Predicate` enum in `spec/carrier-attestation.yaml` becomes
+   `[simSwapAge, tenure, simType, roamingIn, presentIn, numberMatch, reachable]`,
+   closing the open item the two entries below carry. YAML re-parsed clean
+   after the edit (exit 0). A grep of both proposals and `README.md` for a
+   predicate-type list found **no normative surface to sync**: the CAMARA
+   proposal's normative profile (rules 1–8) enumerates no predicate types at
+   all, and its only predicate list is Mode B prose (§5.3 presentment: "device
+   reachable within last hour"), which the addition agrees with rather than
+   contradicts. The sketch stays illustrative, not normative. The in-source
+   note in `m4-facts-mock.mjs` that flagged the type as deliberately un-minted
+   was corrected in the same change rather than left stale.
+
+**Declared case counts extended to M1/M2/M3 — and this change is
+POST-VALIDATION.** The shared harness's `conclude(expected)` seatbelt (a suite
+that silently loses the cases carrying its guarantee must not read green —
+measured below) protected only M4. `m1-check.mjs` now declares `conclude(19)`,
+`m2-check.mjs` `conclude(10)`, `m3-check.mjs` `conclude(22)`. Each
+mutation-proven: one case block removed → suite exits **1** printing
+`FAIL CASE COUNT: expected N cases, ran N−1` (18/19, 9/10, 21/22 respectively)
+→ restored from a working-copy `cp` backup, byte-identical by sha256 → **19/19,
+10/10, 22/22, all exit 0**. **Honesty note: the user validated the MODULES at
+these counts; these three check files were edited afterwards, so a user re-run
+of M1/M2/M3 is pending.** No module source was touched — one `conclude`
+argument and one comment per check file.
+
+## 2026-08-16 — M4 adversarial review round: 1 code defect, 5 unpinned guards, 2 harness fail-opens (24 → 30 cases)
+
+Independent review of the M4 build below, run against the challenge "did you fit
+to pass? what did you gloss over?". Every verdict by EXIT CODE; every mutation
+restored from a working-copy `cp` backup and verified byte-identical (sha256).
+**Agent-run 30/30 — the user gate is still the next step.**
+
+**Fit-to-pass probe (written BEFORE reading `poc/m4-check.mjs`).** A 19-case
+adversarial check was written from the PRD + the four signed-off decisions only,
+then run: **18/19**. One failure was the harness's own confound (the probe used
+`'ZW'` as both the subscriber's country and a requester-supplied predicate
+value, so the requester's echoed input read as a leak — requester-echoed values
+are acceptable, subscriber facts are not); corrected, it passed. The other was
+real (below). So the shipped suite was **not** shaped around a broken module —
+but it did leave guards unpinned, which an independent mutation set found.
+
+**The one code defect — `describe()` could throw, breaking "wire input never
+throws" from inside the message written to prevent it.** Three fallbacks, only
+two guarded: `Object.prototype.toString` reads a `Symbol.toStringTag` GETTER,
+and the last-resort call sat *inside* the previous `catch`, unprotected. With a
+wire value that is circular (`JSON.stringify` throws) AND carries a throwing
+`toString`/`valueOf`/`Symbol.toPrimitive` (`String` throws) AND a throwing
+`toStringTag`, `evaluatePredicate` **threw**. Fixed by guarding each fallback in
+turn with a constant floor (`[unrenderable]`); all previously-observed renderings
+are byte-identical (BigInt `10`, circular `[object Object]`, `Symbol(s)`, the
+60-char clamp). This means M3's release-gate open item 1 was only PARTIALLY
+closed by the build below — the correction is recorded rather than the claim
+quietly restated. Pinned by case 25.
+
+**Independent mutation sweep: 28 mutants of my own selection, 20 killed, EIGHT
+survived** — against the build's reported 27/28. The gap is the answer to "what
+did you gloss over": the 24-case suite left seven load-bearing-looking guards
+unpinned beyond the one it documented. Each survivor was then classified by
+PROBE against the mutated module, never by argument:
+
+| Survivor | Probe result | Verdict |
+|---|---|---|
+| `hasOwn(PREDICATES, p.type)` → truthiness lookup | `{type:'toString', operator:undefined, value:true}` returned **`{answered:true, result:true}`** — a signed AFFIRMATIVE to a predicate type that does not exist; 5 more `Object.prototype` keys the same | LOAD-BEARING → case 26 |
+| `typeof p.type !== 'string'` | a boxed `String`, `['simSwapAge']` and `{toString}` each coerced to a real key and answered **`{answered:true, result:true}`** — the clause is NOT redundant (predicted redundant, measured load-bearing) | LOAD-BEARING → case 27 |
+| `fact < 0` on `swapAgeMs` | a negative age answered **`{answered:true, result:false}`** — "not old enough" as a real bit. Unreachable via the mock, but M5 differences an operator-supplied `latestSimChange` against the injected now, where a skewed clock does exactly this | LOAD-BEARING → case 28 |
+| `COUNTRY.test(fact)` on `roamingCountry` | fact `'fr'` answered **`{answered:true, result:false}`** — "not roaming in FR" about a subscriber who IS. The spike's own lowercase trap, arriving from the FACT side; case 17 only pinned it on the request side | LOAD-BEARING → case 29 |
+| `typeof number !== 'string'` | `TEST_NUMBER.test()` COERCES, so `{toString:()=>'+990…'}` was accepted and keyed by identity: the store answered for the object and threw `unknown number` for the identical string — two subscribers wearing one number | LOAD-BEARING → case 30 |
+| `\d{6,12}` digit bound | admits `+990`, `+9901`, 20-digit numbers; but every real-format number (`+33…`, `+1…`, `+86…`) still threw — the no-real-number rule (no-go 13) is carried by the `+990` PREFIX, not the bound | well-formedness only → folded into case 30 |
+| `Array.isArray` in `plainSnapshot` | **the build's redundancy claim REPRODUCES** — re-probed over **13** array shapes (the build probed 8; added `arguments`, a typed array, a prototype-rewritten subclass, `new Array(3)`): 0 slipped past the remaining checks, in both the backstory and predicate directions | genuinely redundant, stays unpinned |
+| `durationMs` 2^53 reject | cannot produce a wrong answer: any fact large enough to collide with an unsafe threshold fails the fact side's own safe-integer test first, so the too-fresh SIM came back `fact unavailable`, not a false `true` | redundant (defence in depth), stays unpinned |
+
+Re-run after the six new cases: **26 of 28 killed**, the only survivors the two
+proven-unreachable clauses above, each new case red on exactly the mutant it was
+written for.
+
+**Two harness fail-opens, both proven with a deliberate break** (`poc/check-harness.mjs`,
+shared by all four modules):
+
+1. **`extra.ok` was read for truthiness, not truth.** Setting one case's
+   `extra.ok` to the string `'truthy-string'` printed **PASS** and the suite
+   exited **0** while asserting nothing. Now `extra.ok === true`. Guard-OFF/ON
+   negative control: same mistake, guard off → `30/30` exit 0; guard on → exit 1,
+   red on the case. (A *typo'd* key already failed safe — that direction was fine.)
+2. **A silently shrinking suite read as green.** Truncating `m4-check.mjs` to
+   drop its six assertion cases printed `RESULT: 18/18` and exited **0**;
+   emptying the tally entirely printed `RESULT: 0/0` and exited **0**. `conclude()`
+   now takes an optional declared count and fails the run when it does not match.
+   Guard-OFF/ON control with 12 cases cut: off → `18/18` exit 0; on → exit 1,
+   `FAIL CASE COUNT`. M4 declares `conclude(30)`; M1/M2/M3 keep the no-argument
+   form (unchanged behaviour — deliberately not re-opening modules the user has
+   already validated; their next touch is the place to declare a count).
+
+Both harness changes are behaviour-preserving for the already-validated modules,
+proven by **exact case-count parity**: M1 19/19, M2 10/10, M3 22/22, all exit 0
+before and after.
+
+**Leak audit (profile rule 2) — CLEAN.** A 200,000-round fuzz over
+`evaluatePredicate` returns, with subscriber facts drawn from a token alphabet
+DISJOINT from every requester-supplied input, found **0** leaks of swap age,
+swap timestamp, country or number — including through rejection `reason`
+strings. The fuzz was proven able to fail first: injecting `fact=${describe(fact)}`
+into one reason made it red within 1,623 rounds.
+
+**Spike-claims replay — all reproduce, no correction needed.** The naive adapter
+described in the entry below was rebuilt from scratch and all **13** claims
+reproduced exactly: the headline flip (120d→`true`, 1d→`false`), the negative
+control (setter stubbed → bit stays `true` from DEFAULTS), determinism
+(2020 vs 2099 both 120d), all six traps, and the `JSON.stringify`-renders-NaN-as-null
+harness artifact.
+
+**Cross-module regression:** M1 19/19, M2 10/10, M3 22/22, M4 30/30 — all exit 0.
+
+**Nits fixed:** the `reachable`-not-in-the-spec-enum note cross-referenced
+"findings 2026-08-15"; the entry carrying that open item is 2026-08-16. A
+same-file sweep found no other stale cross-reference (the two `Array.isArray`
+notes were already correct). Separately, `m4-check.mjs` case 11's comment claimed
+the store keeps a "frozen copy" — it keeps an unfrozen private snapshot (the
+snapshot, not the freezing, is the load-bearing property and is what the case
+actually tests); wording corrected rather than the code changed.
+
+## 2026-08-16 — M4 mock facts adapter: spike traps, build, 28 mutants (27 killed, 1 provably redundant)
+
+Agent-run build of module M4. **Not user-validated** — the user gate is the
+next step, exactly as the ladder requires.
+
+**The spike (throwaway, aimed at PRD §4.4's M4 assumption: "flipping the
+backstory flips the bit; the fixture can show the negative").** Written the
+NAIVE way on purpose — spread-merged defaults, coercing arithmetic, a
+"debuggable" evaluate return — so the traps would be OBSERVED rather than
+argued. The headline held: with the story scripted "swapped 120 days ago" the
+windowed answer was `true`, re-scripted to "yesterday" it was `false`. The
+negative control matters more than the result: stubbing the setter to a no-op
+left the bit at `true`, so the case can genuinely fail. Determinism held at
+both extremes — the same relative story evaluated at `now=2020` and `now=2099`
+gave 120 days both times.
+
+Then six fail-opens, each MEASURED, each ending in a confident, wrong,
+signable answer rather than an error:
+
+| Trap | Observed |
+|---|---|
+| `{...DEFAULTS, ...backstory}` merge + typo `swapedDaysAgo` | call looks accepted, fact comes from DEFAULTS (365d) — a scripted story silently never in force |
+| backstory axis on the PROTOTYPE / as a NON-ENUMERABLE own prop | spread drops it, adapter answers 365d from defaults (M3's lesson, re-measured on a new surface) |
+| unknown number via `store.get(n) ?? DEFAULTS` | confident 365-day-old SIM for a subscriber nobody scripted |
+| coerced day counts | `'120'` → 120d silently works; `null` → **0 days** (`Number(null)===0`, a confident "swapped today"); `true` → 1d; `'120d'` → NaN, and `NaN >= x` is false, so the bit is decided by a parse failure |
+| unknown / typo'd predicate type | naive evaluate answers a clean `false` — a signed "no" to a question never asked; whether "no" reads as safe depends entirely on the question's polarity |
+| "debuggable" return `{result, swapAgeMs}` | the raw age survives `JSON.stringify` — i.e. reaches the wire |
+
+One harness artifact worth naming so it is not re-discovered: printing the
+coercion probes via `JSON.stringify` rendered `NaN` as `null`. The assertions
+tested the real values (`Number.isNaN`), not the printed ones — the display was
+misleading, the verdict was not.
+
+**Build.** `poc/m4-facts-mock.mjs` + `poc/m4-check.mjs`, **24 cases, negatives
+first, 24/24 exit 0**. Design points the spike forced: no defaults anywhere and
+every backstory field REQUIRED with the call REPLACING the story (so a typo is
+both an unknown field and a missing one, and cannot be silent); the clock is a
+parameter, never read; facts and answers are separate steps — `getFacts` hands
+back raw facts, `evaluatePredicate` hands back `{answered, reason, result}` and
+nothing else. Case 20 asserts that answer contains **no digit at all** once
+serialized: no age, date, country or number can hide in it.
+
+**Mutation proof: 28 guards reverted one at a time, 27 killed.** Working-copy
+backups (`cp` to scratch), never `git checkout` — the module is untracked, so a
+checkout restore would delete it outright. Every verdict by EXIT CODE. Each
+mutant took the suite to exit 1 with the intended case red; each restore
+returned the file byte-identical and the suite to 24/24 exit 0. Three mutants
+killed two cases at once (the prototype and non-enumerable checks also cover the
+predicate path; the coercion ban also covers the overflow case) — collateral,
+not confusion.
+
+**The one survivor, deliberately kept.** Removing `Array.isArray(o)` from
+`plainSnapshot` left the suite at 24/24 exit 0. This is NOT a coverage gap: a
+probe over 8 array shapes — plain, empty, `JSON.parse`d, with named props,
+prototype-rewritten to `Object.prototype`, prototype-set to `null`, subclassed,
+sparse — showed **0 slipped past the remaining two checks**, because `length` is
+a non-enumerable own property, so the own-property-count check catches even an
+array wearing `Object.prototype`. The clause is unreachable by construction. It
+stays (it says "a list is not a record" out loud, and mirrors M3's shape) and is
+marked in-source as redundant and not relied upon, rather than being quietly
+left looking load-bearing.
+
+**Carried forward as an open item:** the predicate type `reachable` has no
+counterpart in `spec/carrier-attestation.yaml`'s illustrative `Predicate` enum
+(`simSwapAge, tenure, simType, roamingIn, presentIn, numberMatch`).
+Reachability is a required mock FACT (FR5, mirroring the Playground admin
+model), and a fact no predicate can consume is dead weight — so the type is
+carried in M4 and flagged here rather than minted silently into the sketch.
+The spec sketch is illustrative, not normative; M6 is the point to reconcile.
+
+Also closed here, one module early: M3's release-gate open item 1
+(`JSON.stringify` on an untrusted value can throw — BigInt, circular, throwing
+`toJSON`). M4 renders every diagnostic through a `describe()` that cannot throw
+and clamps at 60 chars; both properties are pinned by case 6 and both mutants
+were killed.
+
 ## 2026-08-15 — user validation run: all three modules green at post-release counts
 
 After the v0.1.0 merge, the user personally ran the full runbook on their own

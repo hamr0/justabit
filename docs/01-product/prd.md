@@ -141,7 +141,7 @@ user runs each module's check themselves.
 
 Gate mapping: G1 = M1–M4 + M6 all user-validated; G2 = M5 user-validated live.
 
-Ladder status (2026-08-15): **M1 user-validated 19/19** (user ran 17/17
+Ladder status (2026-08-16): **M1 user-validated 19/19** (user ran 17/17
 pre-hardening, then 19/19 post-release — dated findings entry).
 **M2 user-validated 10/10** (post-release user run, 2026-08-15 — the first
 dated user-run record for M2; spike user-validated → build → review round, 5
@@ -153,7 +153,58 @@ build → user ran `node poc/m3-check.mjs` 14/14 → 3 mutants killed → review
 round 1: 7 warnings fixed, +3 canary cases → 17/17 → review round 2: 8
 findings, +2 canary cases → 19/19 → release gate: 3 surviving mutants found
 on already-fixed guards, +3 cases → 22/22, plus 500k-iteration differential
-fuzz clean). M4–M6 not started.
+fuzz clean). **M4 user-validated 30/30 at `5d5e8aa`; current state agent-run
+33/33 after the release gate, user re-run pending** (spec signed off with 4 user
+decisions → spike observed six
+fail-opens in the naive adapter incl. the headline flip with a working
+negative control → build → 24 cases → 28 guards mutation-tested, 27 killed,
+1 proven redundant by probe rather than left looking load-bearing → adversarial
+review round: an independent 19-case check written from the spec alone before
+reading the suite, plus an independent 28-mutant sweep that left EIGHT
+survivors, closed 1 code defect (`describe()` could throw, breaking "wire input
+never throws" — so M3's release-gate open item 1 was only partially closed),
+5 unpinned load-bearing guards (+6 cases → 30) and 2 shared-harness fail-opens
+(truthy-non-boolean `extra.ok`; a silently shrinking suite reading as green);
+200k-round leak fuzz clean, all 13 spike claims reproduced; then a
+`/code-review medium` round on PR #4: 8 findings, all confirmed by execution,
+all fixed — wire-supplied country-set arrays running caller code (a sparse array
+reached a SIGNED answer), a revoked proxy escaping `plainSnapshot`, two
+unclamped diagnostics, an unbounded `describe()` input, a green last line on a
+failing run, and a self-contradicting spec sketch; case count unchanged at 30,
+mutation-proven; then the v0.2.0 **release gate**: 3 more fail-opens, all of one
+shape — unbounded wire-reachable work no cap actually bounded — incl. a
+TOCTOU `length` re-read that walked 5,000,000 indices to a SIGNED answer past
+the 300 cap, and a `describe()` fallback chain whose `toJSON` hook killed the
+process at **exit 134** (fatal OOM, uncatchable); renderer rewritten to invoke
+nothing caller-supplied, +3 cases → 33, four mutations each red on its own case
+incl. a guard-off control returning the OOM; dated findings entries 2026-08-16).
+M5–M6 not started.
+
+**M1/M2/M3's counts are from one user run on the user's own machine at commit
+`5d5e8aa`** (dated findings record, 2026-08-16): 19/19, 10/10, 22/22 — and
+30/30 for M4 at that commit. That run closed every re-run marker the tree was
+then carrying. Two open items had been settled by the user in an earlier pass —
+the three deliberately-unpinned redundant guards stay as documented
+defence-in-depth, and `reachable` was minted into the illustrative spec-sketch
+`Predicate` enum now rather than at M6 (no normative surface enumerates
+predicate types, so nothing else moved).
+
+**Honesty note — what has changed since that user run.** The v0.2.0 release
+gate landed after it and changed two files, `poc/m4-facts-mock.mjs` and
+`poc/m4-check.mjs`:
+
+- **M4 is user-validated at 30/30 on the `5d5e8aa` tree; its current 33/33 is
+  agent-run and a user re-run is pending** — the 0.1.0 precedent, where the
+  user closes that gap after the release.
+- **M1/M2/M3 are untouched by that round** — no module source, no check file,
+  and `poc/check-harness.mjs` is unchanged — so their user-validated 19/19,
+  10/10 and 22/22 stand at the current tree state.
+
+(For the record, an earlier version of this note said the `/code-review` round
+"changed exactly four files … verified by `git diff --stat`". `git show --stat
+5d5e8aa` reports **seven**: those four plus `findings.md`, `prd.md` and
+`poc/README.md`. The four were the code/spec files; the claim as written was
+checkable and did not check out, so it is corrected here rather than dropped.)
 
 ### 4.5 POC-first discipline applied to each module
 
@@ -316,6 +367,21 @@ we manage here:
 
 Dated, append-only. Rationale in one line; details in the stash/history.
 
+- **2026-08-16 — M4 facts-adapter spec signed off (4 user decisions).**
+  (1) **Fake clock:** backstories store RELATIVE time ("swapped N days ago")
+  and every evaluation takes an INJECTED `now` — deterministic forever, no
+  wall clock anywhere; relative→absolute conversion happens only at the
+  M5/Orange boundary. (2) **Setter calls:** `setBackstory(number, {…})` is
+  callable mid-run, mirroring the Playground Admin API — re-scripting a
+  number and re-asking is how the FR1 negative is shown. (3) **Raw facts
+  only:** the adapter returns raw facts (swap age, roaming country,
+  reachability) and NEVER a boolean; a separate `evaluatePredicate(facts,
+  predicate)` turns facts + predicate into the bit — this split is what
+  makes M5 a drop-in swap. (4) **Unknown number = loud error**, never a
+  default backstory (a silent default is fail-open — the trap family M3
+  closed, measured again here answering for subscribers who do not exist).
+  Trusted/untrusted follows M2/M3: operator input (backstories, numbers,
+  clock) throws; wire input (the predicate) never throws.
 - **2026-08-15 — Versioning scheme corrected (user-decided).** Module
   releases are features, not patches: this M3 release ships as **0.1.0**
   (not 0.0.5); each subsequent module bumps MINOR (M4→0.2.0 … M6→0.4.0);
