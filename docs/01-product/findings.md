@@ -7,6 +7,82 @@ memory. A finding here is something that was RUN and OBSERVED, not reasoned.
 
 ---
 
+## 2026-08-16 — M4 mock facts adapter: spike traps, build, 28 mutants (27 killed, 1 provably redundant)
+
+Agent-run build of module M4. **Not user-validated** — the user gate is the
+next step, exactly as the ladder requires.
+
+**The spike (throwaway, aimed at PRD §4.4's M4 assumption: "flipping the
+backstory flips the bit; the fixture can show the negative").** Written the
+NAIVE way on purpose — spread-merged defaults, coercing arithmetic, a
+"debuggable" evaluate return — so the traps would be OBSERVED rather than
+argued. The headline held: with the story scripted "swapped 120 days ago" the
+windowed answer was `true`, re-scripted to "yesterday" it was `false`. The
+negative control matters more than the result: stubbing the setter to a no-op
+left the bit at `true`, so the case can genuinely fail. Determinism held at
+both extremes — the same relative story evaluated at `now=2020` and `now=2099`
+gave 120 days both times.
+
+Then six fail-opens, each MEASURED, each ending in a confident, wrong,
+signable answer rather than an error:
+
+| Trap | Observed |
+|---|---|
+| `{...DEFAULTS, ...backstory}` merge + typo `swapedDaysAgo` | call looks accepted, fact comes from DEFAULTS (365d) — a scripted story silently never in force |
+| backstory axis on the PROTOTYPE / as a NON-ENUMERABLE own prop | spread drops it, adapter answers 365d from defaults (M3's lesson, re-measured on a new surface) |
+| unknown number via `store.get(n) ?? DEFAULTS` | confident 365-day-old SIM for a subscriber nobody scripted |
+| coerced day counts | `'120'` → 120d silently works; `null` → **0 days** (`Number(null)===0`, a confident "swapped today"); `true` → 1d; `'120d'` → NaN, and `NaN >= x` is false, so the bit is decided by a parse failure |
+| unknown / typo'd predicate type | naive evaluate answers a clean `false` — a signed "no" to a question never asked; whether "no" reads as safe depends entirely on the question's polarity |
+| "debuggable" return `{result, swapAgeMs}` | the raw age survives `JSON.stringify` — i.e. reaches the wire |
+
+One harness artifact worth naming so it is not re-discovered: printing the
+coercion probes via `JSON.stringify` rendered `NaN` as `null`. The assertions
+tested the real values (`Number.isNaN`), not the printed ones — the display was
+misleading, the verdict was not.
+
+**Build.** `poc/m4-facts-mock.mjs` + `poc/m4-check.mjs`, **24 cases, negatives
+first, 24/24 exit 0**. Design points the spike forced: no defaults anywhere and
+every backstory field REQUIRED with the call REPLACING the story (so a typo is
+both an unknown field and a missing one, and cannot be silent); the clock is a
+parameter, never read; facts and answers are separate steps — `getFacts` hands
+back raw facts, `evaluatePredicate` hands back `{answered, reason, result}` and
+nothing else. Case 20 asserts that answer contains **no digit at all** once
+serialized: no age, date, country or number can hide in it.
+
+**Mutation proof: 28 guards reverted one at a time, 27 killed.** Working-copy
+backups (`cp` to scratch), never `git checkout` — the module is untracked, so a
+checkout restore would delete it outright. Every verdict by EXIT CODE. Each
+mutant took the suite to exit 1 with the intended case red; each restore
+returned the file byte-identical and the suite to 24/24 exit 0. Three mutants
+killed two cases at once (the prototype and non-enumerable checks also cover the
+predicate path; the coercion ban also covers the overflow case) — collateral,
+not confusion.
+
+**The one survivor, deliberately kept.** Removing `Array.isArray(o)` from
+`plainSnapshot` left the suite at 24/24 exit 0. This is NOT a coverage gap: a
+probe over 8 array shapes — plain, empty, `JSON.parse`d, with named props,
+prototype-rewritten to `Object.prototype`, prototype-set to `null`, subclassed,
+sparse — showed **0 slipped past the remaining two checks**, because `length` is
+a non-enumerable own property, so the own-property-count check catches even an
+array wearing `Object.prototype`. The clause is unreachable by construction. It
+stays (it says "a list is not a record" out loud, and mirrors M3's shape) and is
+marked in-source as redundant and not relied upon, rather than being quietly
+left looking load-bearing.
+
+**Carried forward as an open item:** the predicate type `reachable` has no
+counterpart in `spec/carrier-attestation.yaml`'s illustrative `Predicate` enum
+(`simSwapAge, tenure, simType, roamingIn, presentIn, numberMatch`).
+Reachability is a required mock FACT (FR5, mirroring the Playground admin
+model), and a fact no predicate can consume is dead weight — so the type is
+carried in M4 and flagged here rather than minted silently into the sketch.
+The spec sketch is illustrative, not normative; M6 is the point to reconcile.
+
+Also closed here, one module early: M3's release-gate open item 1
+(`JSON.stringify` on an untrusted value can throw — BigInt, circular, throwing
+`toJSON`). M4 renders every diagnostic through a `describe()` that cannot throw
+and clamps at 60 chars; both properties are pinned by case 6 and both mutants
+were killed.
+
 ## 2026-08-15 — user validation run: all three modules green at post-release counts
 
 After the v0.1.0 merge, the user personally ran the full runbook on their own

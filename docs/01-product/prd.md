@@ -153,7 +153,12 @@ build → user ran `node poc/m3-check.mjs` 14/14 → 3 mutants killed → review
 round 1: 7 warnings fixed, +3 canary cases → 17/17 → review round 2: 8
 findings, +2 canary cases → 19/19 → release gate: 3 surviving mutants found
 on already-fixed guards, +3 cases → 22/22, plus 500k-iteration differential
-fuzz clean). M4–M6 not started.
+fuzz clean). **M4 built, agent-run green at 24/24 — USER VALIDATION
+PENDING** (spec signed off with 4 user decisions → spike observed six
+fail-opens in the naive adapter incl. the headline flip with a working
+negative control → build → 24 cases → 28 guards mutation-tested, 27 killed,
+1 proven redundant by probe rather than left looking load-bearing; dated
+findings entry 2026-08-16). M5–M6 not started.
 
 ### 4.5 POC-first discipline applied to each module
 
@@ -316,6 +321,21 @@ we manage here:
 
 Dated, append-only. Rationale in one line; details in the stash/history.
 
+- **2026-08-16 — M4 facts-adapter spec signed off (4 user decisions).**
+  (1) **Fake clock:** backstories store RELATIVE time ("swapped N days ago")
+  and every evaluation takes an INJECTED `now` — deterministic forever, no
+  wall clock anywhere; relative→absolute conversion happens only at the
+  M5/Orange boundary. (2) **Setter calls:** `setBackstory(number, {…})` is
+  callable mid-run, mirroring the Playground Admin API — re-scripting a
+  number and re-asking is how the FR1 negative is shown. (3) **Raw facts
+  only:** the adapter returns raw facts (swap age, roaming country,
+  reachability) and NEVER a boolean; a separate `evaluatePredicate(facts,
+  predicate)` turns facts + predicate into the bit — this split is what
+  makes M5 a drop-in swap. (4) **Unknown number = loud error**, never a
+  default backstory (a silent default is fail-open — the trap family M3
+  closed, measured again here answering for subscribers who do not exist).
+  Trusted/untrusted follows M2/M3: operator input (backstories, numbers,
+  clock) throws; wire input (the predicate) never throws.
 - **2026-08-15 — Versioning scheme corrected (user-decided).** Module
   releases are features, not patches: this M3 release ships as **0.1.0**
   (not 0.0.5); each subsequent module bumps MINOR (M4→0.2.0 … M6→0.4.0);
