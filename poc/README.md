@@ -14,8 +14,10 @@ node poc/m1-check.mjs   # M1 attestation core — 19 cases (module user-validate
 node poc/m2-check.mjs   # M2 blind envelope — 10 cases (module user-validated 10/10)
 node poc/m3-check.mjs   # M3 floor gate — 22 cases (module user-validated 22/22)
 node poc/m4-check.mjs   # M4 mock facts adapter — 33 cases (user-validated 33/33)
-node poc/m5-check.mjs   # M5 orange facts adapter, OFFLINE — 47 cases (agent-run 47/47,
-                        #   user validation PENDING). Zero credentials, zero network:
+node poc/m5-check.mjs   # M5 orange facts adapter, OFFLINE — 48 cases (user-validated
+                        #   47/47 at 69b6f2e; case 48 added by the v0.3.0 release
+                        #   gate, so 48/48 is agent-run — re-run PENDING).
+                        #   Zero credentials, zero network:
                         #   an injected transport replays responses captured live on
                         #   2026-08-16, so it runs on a clean clone.
 
@@ -23,7 +25,9 @@ node poc/m5-check.mjs   # M5 orange facts adapter, OFFLINE — 47 cases (agent-r
 # `| head -1` because a `pass` entry is multi-line (secret on line 1, notes below).
 # The stored value is ALREADY `Basic <base64>`; the adapter normalizes either form.
 ORANGE_BASIC_AUTH="$(pass camara/orange_network | head -1)" node poc/m5-check-live.mjs
-                        # 11 cases (agent-run 11/11, user validation PENDING).
+                        # 11 cases (user-validated 11/11 at 69b6f2e — G2 MET;
+                        # the quota case was fixed by the v0.3.0 release gate,
+                        # so the current 11/11 is agent-run — re-run PENDING).
                         # exit 2 + printed prerequisites if the credential is absent —
                         # never a silent pass, never a mock fallback.
                         # COSTS QUOTA: consumes and returns one of the app's 10 custom
@@ -34,10 +38,13 @@ ORANGE_BASIC_AUTH="$(pass camara/orange_network | head -1)" node poc/m5-check-li
 
 All four were run by the user on their own machine after the v0.2.0 release
 (main at `7c41c83`, tag `v0.2.0` — dated findings record, 2026-08-16): 19/19,
-10/10, 22/22, 33/33. **M5's two suites are agent-run only so far** — that was
-true of the 44/10 counts and stays true of the 47/11 counts an adversarial
-review round took them to on 2026-08-16 (see the dated findings entry). Each
-check declares its case count (`conclude(19|10|22|33|47|11)`) so a suite that
+10/10, 22/22, 33/33. **M5 was then user-validated too — 47/47 offline and
+11/11 LIVE at `69b6f2e`, which MET gate G2** (the first G2 validation in the
+project; dated findings entry). The v0.3.0 release gate found two more code
+defects after that run, taking the offline suite to **48** and fixing the live
+quota case, so **M5's current counts are agent-run and a user re-run is
+pending** — the same post-validation pattern M4 hit at v0.2.0. Each
+check declares its case count (`conclude(19|10|22|33|48|11)`) so a suite that
 silently loses cases exits 1 with
 `FAIL CASE COUNT` instead of printing a smaller green tally — mutation-proven
 per module.
@@ -52,8 +59,9 @@ only ever covered top-level values. Fixing them changed **two** files —
 cases; the three added cases pin exactly those guards, and the user run above
 covers them. Nothing is pending.
 
-**M5 is built, agent-run and review-hardened; user validation is pending (that
-IS gate G2).** An adversarial review round on 2026-08-16 took the offline suite
+**M5 is built, review-hardened, and was user-validated LIVE at `69b6f2e` —
+that IS gate G2, and it is MET.** An adversarial review round on 2026-08-16 took
+the offline suite
 44 → **47** and the live suite 10 → **11**, closing one real module defect (the
 write-verification diagnostic — the message the module's most load-bearing guard
 produces — was the single throw path that skipped `redact()`, and it also
@@ -61,6 +69,21 @@ clamped after serializing rather than before), one unpinned invariant (one token
 per surface, which a required mutant survived), and one quota-hygiene gap (the
 live check's cleanup was unobserved, so an interrupted run leaked a slot
 silently).
+
+The **v0.3.0 release gate** then found five more issues, two of them real code
+defects, which is why M5's counts are agent-run again pending a re-run. (1) The
+stored `countryName` list was joined with `Array.prototype.join`, which COERCES
+every element — a wire-supplied `{"toString":"x"}` therefore threw a bare
+40-char `TypeError` from the line that BUILDS the write-verify diagnostic,
+before the loud message could run at all (offline 47 → **48**; the same mismatch
+via a benign element gave 418 chars). (2) The live quota case compared
+`end === start` against a baseline taken BEFORE the custom demo slot existed, so
+a fresh account's first run went red and blamed the trap case's cleanup, which
+had actually succeeded — reproduced live at `start=0 end=1` (exit 1) and green
+on the identical condition after the fix. The other three were docs-honesty
+defects, including a catalog-mapping table in the CAMARA proposal whose
+illustrative response shape M1 would have rejected outright, under a sentence
+claiming the PoC produced it.
 M6 is not started and `poc/demo.mjs` does not exist yet. The measured
 Playground findings below were **re-verified live on 2026-08-16** before M5 was
 written: seven held, **three changed**, one was not re-tested. Every change is

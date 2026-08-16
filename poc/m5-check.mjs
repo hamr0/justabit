@@ -144,11 +144,9 @@ checkThrew('2 BLANK CREDENTIAL THROWS',
 
 // 4 A REJECTED CREDENTIAL FAILS LOUD, AND SAYS WHICH KNOB TO TURN.
 {
-  const t = transport(() => ({ status: 200, text: '{}' }));
   const bad = createOrangeFacts({ basicAuth: CRED, fetchImpl: async () => ({ status: 401, text: async () => C.malformedBasic }) });
   const r = await athrew(() => bad.getFacts(N, NOW));
   checkThrew('4 REJECTED CREDENTIAL FAILS LOUD', r, names(r, 'token rejected', 'ORANGE_BASIC_AUTH'));
-  void t;
 }
 
 // ===================== REDACTION: nothing secret can be printed =============
@@ -689,4 +687,48 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
       ok: adminOk && camaraOk });
 }
 
-conclude(47);
+// 48 THE STORED COUNTRY LIST IS JOINED WITHOUT COERCING IT. Added at the v0.3.0
+// release gate, and a direct sibling of 45/46: those closed the RENDER of the
+// write-verify diagnostic, this closes the line that BUILDS the value it
+// renders. `Array.prototype.join` calls `String()` on every element, so a
+// JSON-parsed `{"toString":"x"}` inside the stored `countryName` threw a bare
+// `TypeError: Cannot convert object to primitive value` from `got`'s
+// construction — BEFORE the comparison loop, so the loud message never ran at
+// all. Measured pre-fix: 40 chars, no "write verification FAILED"; the same
+// mismatch reached through a benign element gave 418. That is the module's most
+// load-bearing guard replaced by an opaque error at the moment it matters.
+//
+// The three legs matter together: a hostile element must still FAIL LOUD and
+// render as its kind, a legitimate one-element list must still COMPARE EQUAL
+// (a guard that broke `["FR"] === "FR"` would be worse than the bug), and an
+// over-long list must be bounded rather than walked.
+{
+  const sim = new Date(NOW - 1 * DAY).toISOString();
+  const mkCountry = (countryName) => mk((url, body) => {
+    const s = stored({ sim, roaming: { roaming: true, countryName }, reach: 'CONNECTED_DATA' });
+    if (body?.action === 'UPDATE' || body?.action === 'READ') return { status: 200, text: s };
+    return { status: 200, text: '{}' };
+  }).facts;
+
+  const hostile = await athrew(() => mkCountry([JSON.parse('{"toString":"x"}')])
+    .setBackstory(N, { swappedDaysAgo: 1, roamingCountry: 'FR', reachable: true }, NOW));
+  const benign = await athrew(() => mkCountry(['Spain'])
+    .setBackstory(N, { swappedDaysAgo: 1, roamingCountry: 'FR', reachable: true }, NOW));
+  const equal = await athrew(() => mkCountry(['FR'])
+    .setBackstory(N, { swappedDaysAgo: 1, roamingCountry: 'FR', reachable: true }, NOW));
+  const many = await athrew(() => mkCountry(Array.from({ length: 5000 }, () => 'FR'))
+    .setBackstory(N, { swappedDaysAgo: 1, roamingCountry: 'FR', reachable: true }, NOW));
+
+  const loud = (r) => r.threw && r.msg.includes('write verification FAILED');
+  check('48 STORED COUNTRY LIST JOINED WITHOUT COERCION', false,
+    { answered: !hostile.threw, reason: hostile.threw ? 'threw' : 'did not throw' }, 'threw',
+    { label: `hostile renders as kind=${loud(hostile) && hostile.msg.includes('[object]')}, `
+      + `benign loud=${loud(benign)}, legit ["FR"] still matches=${!equal.threw}, `
+      + `5000 elements bounded=${loud(many) && many.msg.length < 500}`,
+      ok: loud(hostile) && hostile.msg.includes('[object]')
+        && loud(benign) && benign.msg.includes('Spain')
+        && !equal.threw
+        && loud(many) && many.msg.length < 500 });
+}
+
+conclude(48);

@@ -120,6 +120,38 @@ function brief(value) {
   return '[object]';
 }
 
+// The stored `countryName` arrives off the WIRE, and joining it is a coercion:
+// `Array.prototype.join` calls `String()` on every element, so a JSON-parsed
+// `{"toString":"x"}` element makes the join throw a bare `TypeError: Cannot
+// convert object to primitive value` — which REPLACES the loud write-verify
+// message below with an opaque 40-char one at exactly the moment it is needed
+// (measured 2026-08-16, release gate round 2: 40 chars and no "write
+// verification FAILED", against 418 chars for the same mismatch reached with a
+// benign element). This is the sibling of the `show()` guard further down and
+// is fixed the same way — nothing caller-supplied is invoked:
+//   * a STRING is taken verbatim and clamped, NOT `brief()`-rendered: `brief()`
+//     would add JSON quotes and `"FR"` must still compare equal to `FR`. A
+//     canonical alpha-2 code is 2 chars, so the clamp cannot touch a legitimate
+//     one — it only bounds a hostile 2e7-char value (measured 691ms unclamped);
+//   * anything else renders as its KIND via `brief()`, which runs no user code
+//     and can never equal a canonical country, so the comparison still fails
+//     LOUD rather than silently.
+// `length` is read ONCE into `n` — re-reading it per iteration is the
+// time-of-check/time-of-use window M4 measured walking 5,000,000 indices.
+const MAX_STORED_COUNTRIES = 16;
+function joinStored(v) {
+  if (!Array.isArray(v)) return undefined;
+  const n = Math.min(v.length, MAX_STORED_COUNTRIES);
+  const parts = [];
+  for (let i = 0; i < n; i++) {
+    const el = v[i];
+    parts.push(typeof el === 'string'
+      ? (el.length > BRIEF_MAX ? `${el.slice(0, BRIEF_MAX)}…` : el)
+      : brief(el));
+  }
+  return parts.join(',');
+}
+
 // Plain own-data or nothing — the same bound M4 applies to a backstory, and
 // duplicated for the same reason (§4.4: each module works alone). Without it a
 // field carried on the PROTOTYPE is read by the destructuring below and USED,
@@ -175,10 +207,14 @@ function makeRedactor(supplied, normalized) {
     for (const s of [...secrets].sort((a, b) => b.length - a.length)) {
       out = out.split(s).join('[REDACTED]');
     }
-    // The client-id echo, defended a second way. The gap is bounded (`\S{0,80}`)
-    // rather than `.*` — an unbounded gap over a semi-trusted response body is
-    // the quadratic-blowup footgun, and the identifier is one token anyway.
-    out = out.replace(/does not exist for \S{0,80}/g, 'does not exist for [REDACTED]');
+    // The client-id echo, defended a second way. The gap stays BOUNDED rather
+    // than `.*` — an unbounded gap over a semi-trusted response body is the
+    // quadratic-blowup footgun — but 80 was tighter than the thing it redacts:
+    // an identifier longer than the bound would have the first 80 characters
+    // masked and the REMAINDER printed, which is a worse outcome than not
+    // matching at all. 256 is comfortably past any client id this API issues
+    // (the observed one is 32) while still a fixed, non-catastrophic bound.
+    out = out.replace(/does not exist for \S{0,256}/g, 'does not exist for [REDACTED]');
     return out.length > REDACT_MAX ? `${out.slice(0, REDACT_MAX)}…` : out;
   }
   return { add, redact };
@@ -264,10 +300,13 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
           headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
         });
+        // Reading the body is INSIDE the try on purpose: a stream that dies
+        // mid-response rejects here, not at `doFetch`, and its message can
+        // carry wire text. Outside the try that message escaped unredacted.
+        return { status: res.status, text: await res.text() };
       } catch (e) {
         throw new Error(`request failed (${url}): ${redact(e instanceof Error ? e.message : String(e))}`);
       }
-      return { status: res.status, text: await res.text() };
     };
     let out = await send(await tokenFor(surface));
     if (out.status === 401) {
@@ -398,7 +437,7 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
     const got = {
       latestSimChange: stored.simSwap?.latestSimChange,
       roaming: stored.roaming?.roaming,
-      country: Array.isArray(stored.roaming?.countryName) ? stored.roaming.countryName.join(',') : undefined,
+      country: joinStored(stored.roaming?.countryName),
       reachabilityStatus: stored.reachability?.reachabilityStatus,
     };
     const want = {

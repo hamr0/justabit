@@ -108,9 +108,22 @@ console.log(`live run against the Orange Playground, injected now = ${new Date(N
 // the normal case and not a fault. A `204` here means an earlier run really did
 // leak, and says so.
 const reclaimed = await rawAdmin({ action: 'DELETE', phoneNumber: BUILTIN });
+// The CUSTOM demo slot is made to EXIST before the baseline is taken, and that
+// ordering is the whole point. Case 2 writes to it, and on a FRESH account the
+// adapter's CREATE-if-`PhoneNumber Not Found` path creates it — a legitimate,
+// deliberate, permanent consumption (line ~290 leaves it scripted on purpose),
+// NOT a leak. Taking the baseline before that happened made `end === start`
+// false on a first run and reported it as "the trap case did not give its slot
+// back" — a red on a clean account, blaming the wrong case, found at the v0.3.0
+// release gate. Measuring after it exists keeps the assertion EXACT (`===`,
+// not a loosened `<=`) on a fresh account and a re-run alike, and a genuine
+// BUILTIN leak still fails it. CREATE on a slot already held is a harmless
+// no-op error, so this is idempotent.
+const ensured = await rawAdmin({ action: 'CREATE', phoneNumber: CUSTOM });
 const startSlots = await slotCount();
 console.log(`quota: ${startSlots} of ${QUOTA_CAP} custom slots in use at start` +
-  (reclaimed.status === 204 ? '  (RECLAIMED a slot leaked by an earlier interrupted run)' : '') + '\n');
+  (reclaimed.status === 204 ? '  (RECLAIMED a slot leaked by an earlier interrupted run)' : '') +
+  (ensured.status === 201 ? `  (CREATED ${CUSTOM}: first run on this app)` : '') + '\n');
 
 let gaveBack = null;   // the trap case's cleanup DELETE, asserted by case 11
 
@@ -273,6 +286,10 @@ const P90 = { type: 'simSwapAge', operator: 'gte', value: 'P90D' };
 // failure would have named a number, not a quota. The COUNT is the assertion
 // because it is the authoritative observable; the DELETE's status is reported
 // alongside it and required only to be a success, not to be exactly `204`.
+// The comparison is EXACT on purpose. It stays exact because the baseline above
+// is taken with the CUSTOM slot already in existence — the one legitimate
+// permanent consumption this run makes is therefore inside `startSlots` rather
+// than showing up here as phantom growth (v0.3.0 release gate).
 {
   const endSlots = await slotCount();
   const deleted = gaveBack !== null && gaveBack.status >= 200 && gaveBack.status < 300;

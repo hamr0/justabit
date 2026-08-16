@@ -7,14 +7,155 @@ memory. A finding here is something that was RUN and OBSERVED, not reasoned.
 
 ---
 
+## 2026-08-16 — G2 MET (user ran M5 live), then the v0.3.0 release gate found five more (47 → 48 offline)
+
+Two things happened in this order, and the order is the point: **the user
+validated M5 live and closed gate G2**, and then the release gate for v0.3.0
+found five issues in the tree that had just been validated. Both are recorded,
+because collapsing them would let the G2 record appear to cover code it never
+saw.
+
+### 1. G2 is met — the first G2 validation in the project
+
+The user personally ran M5 on their own machine at commit `69b6f2e` and
+reported both suites clean: `node poc/m5-check.mjs` **47/47** and the live
+`ORANGE_BASIC_AUTH=… node poc/m5-check-live.mjs` **11/11**.
+
+Gate mapping (PRD §4.4) is `G2 = M5 user-validated live`, so **G2 is MET**.
+This is the first time a live-operator module in this repo has been validated
+by anyone other than an agent.
+
+For completeness, the user had ALSO run the pre-review state clean at `2fd62ba`
+— **44/44 offline and 10/10 live** — a run that never got a dated record at the
+time. It is noted here rather than left as an undated memory; it is the same
+module one review round earlier, not a second validation of the current tree.
+
+The release gate re-ran the live check twice more at `69b6f2e` and got **11/11,
+exit 0** both times, with a leak self-check confirming the credential appeared
+in no output line. That corroborates the user's run; it does not substitute for
+it.
+
+### 2. The gate then found five issues — two of them real code defects
+
+`/security` returned **0 Critical, 0 High, 0 Medium** (three Lows, below).
+`/diff-review` returned no Critical but did NOT return clean: verdict "with
+fixes". Every finding below was reproduced against the unfixed tree before
+anything was touched.
+
+**(1) The stored country list was COERCED while being joined — the module's
+loudest guard replaced by an opaque error.** `Array.prototype.join` calls
+`String()` on every element, so a JSON-parsed `{"toString":"x"}` inside the
+Admin READ's `countryName` threw a bare `TypeError: Cannot convert object to
+primitive value` — and it threw from the line that BUILDS the write-verify
+comparison, i.e. before the loud message could run at all. Measured on the
+unfixed module:
+
+| Stored `countryName` | Result |
+|---|---|
+| `[{"toString":"x"}]` | `TypeError`, **40 chars**, no "write verification FAILED" |
+| `["Spain"]` (benign control) | correct loud message, **418 chars** |
+
+This is a direct sibling of the defect the previous review round closed 30 lines
+below, in the RENDER of the same diagnostic — the render was guarded, the line
+feeding it was not. Fixed with `joinStored()`: strings are taken verbatim and
+clamped (never `brief()`-rendered, because `brief()` adds JSON quotes and
+`"FR"` must still compare equal to `FR`), anything else renders as its KIND and
+can therefore never equal a canonical country, and `length` is read ONCE into a
+bound of 16 — the time-of-check/time-of-use lesson M4 paid for at v0.2.0.
+Pinned by new **case 48**, whose four legs are deliberately joint: hostile
+element still fails LOUD and renders `[object]`, benign element still names
+`Spain`, a legitimate `["FR"]` still MATCHES (a guard that broke this would be
+worse than the bug), and 5000 elements stay bounded.
+
+**(2) The live quota assertion went RED on a clean account, and blamed the wrong
+case.** Case 11 asserts `endSlots === startSlots`, but the baseline was taken
+before the CUSTOM demo slot existed. On a FRESH account the adapter's
+CREATE-if-missing path creates it during case 2 — a legitimate, deliberate,
+permanent consumption (the run leaves it scripted on purpose) — so the run ended
+one slot up and reported that the trap case had failed to give its slot back.
+**Reproduced live**, not argued: the custom slot was deleted to create the
+fresh-account condition, and the unfixed check ran `start=0 end=1`, **exit 1,
+10/11**, with `cleanup DELETE status=204` printed alongside — the cleanup had in
+fact succeeded. Fixed by making the baseline deterministic rather than loosening
+the assertion: the CUSTOM slot is brought into existence BEFORE the baseline is
+taken, so `===` still holds on a fresh account and a re-run alike, and a genuine
+built-in leak still fails. Re-run on the identical freshly-emptied account:
+**11/11, exit 0**, printing `(CREATED +990100000099: first run on this app)`.
+
+**(3) The CAMARA proposal's catalog table showed a shape M1 REJECTS, under a
+sentence claiming the PoC produced it.** §3.3.1 rendered profile-mode responses
+as a flat `{"predicate":…,"result":true,"nonce":"…","exp":"…","sig":"…"}` and
+then asserted "the shapes in it are the ones the PoC actually produces, not
+sketches". Both halves fail against this repo: M1's claim set is CLOSED to
+`{predicate, result, nonce, exp}`, so a `sig` inside `claims` returns
+`unexpected fields: sig`, and `spec/carrier-attestation.yaml` requires
+`[claims, sig]` as siblings with `exp` an **integer** (Unix ms), not a quoted
+string. This is the most consequential finding of the round despite being
+docs-only: it is the submission document, and a working-group reviewer
+falsifies it with one grep. Rows corrected to the real envelope; the overclaim
+replaced with what is actually true (the PoC produces the ENVELOPE; the
+predicate spellings are illustrative and the PoC answers three axes, not nine),
+with the retraction left visible.
+
+**(4) Two table rows were outside the verified baseline.** The §11 baseline
+covers SimSwap v2.1.0, NumberVerification v2.1.0 and KYC r2.2 — not
+`device-roaming-status` or `device-reachability-status`, whose shapes came from
+the Orange Playground sandbox, not a CAMARA spec surface. Marked `†` with the
+provenance stated, since grounding discipline requires the source, not just the
+shape.
+
+**(5) The mutant count contradicted itself.** The previous entry's intro called
+the sweep "18-mutant" while its own table row 2 recorded **15/16 killed, 1
+survived**. The 18 is the POST-fix total (16 plus 2 minted against the new
+guards); applying it to the pre-fix sweep made the entry disagree with itself.
+Corrected in both this log and PRD §4.4.
+
+**The three `/security` Lows** were all confirmed and all fixed, since each was
+trivial and local: `await res.text()` sat OUTSIDE the try that redacts (a stream
+dying mid-response rejects there, so its message escaped unredacted); the
+client-id pattern's bound of `\S{0,80}` was tighter than the thing it masks, so
+an over-long identifier would have had its first 80 characters redacted and the
+REMAINDER printed — worse than not matching — now 256, re-checked at 1ms on a
+200k-char pathological input to keep the ReDoS property; and operator-side
+timestamps in diagnostics were judged NOT a breach and deliberately left (they
+are operator-side by construction, never wire-reachable).
+
+### Proofs
+
+Both code fixes are mutation-proven, restores byte-identical by sha256, using
+working-copy `cp` backups rather than `git checkout` — the fixes were
+uncommitted, and a checkout would have wiped the thing under test.
+
+| Mutation | Suite | Exit | Verdict |
+|---|---|---|---|
+| revert `joinStored` → raw `.join(',')` | offline | **1** (47/48, case 48 only) | killed |
+| restore | offline | **0** (48/48) | green |
+| revert quota baseline, fresh account | **live** | **1** (10/11, `start=0 end=1`) | killed |
+| restore, same fresh account | **live** | **0** (11/11) | green |
+
+Three guards from the PREVIOUS round were also independently re-proven at this
+gate, in an isolated copy so the repo tree was never touched: stripping
+`redact()` from the write-verify diagnostic, sharing one token across surfaces,
+and clamp-after-serialize each turned the suite red (exit 1) and each restore
+went green. Separately, a 110-run flake sweep across all five offline suites
+returned **0 non-zero exits**, and the credential was confirmed absent from the
+working tree and from all 35 commits of history by literal-value match.
+
+**Honesty marker: the CURRENT counts (48 offline, 11 live) are AGENT-RUN.** G2
+was met at `69b6f2e`; these fixes landed after that run and touched
+`m5-facts-orange.mjs`, `m5-check.mjs` and `m5-check-live.mjs`. A user re-run is
+pending and re-establishes G2 at the final state — the same pattern M4 followed
+at v0.2.0, where the release gate's fixes landed after the user's run and the
+gap was closed by a re-run rather than by assuming it carried over.
+
 ## 2026-08-16 — M5 adversarial review round: 3 confirmed issues (44 → 47 offline, 10 → 11 live)
 
 A second agent re-attacked M5 against the challenge "what did you gloss over?
 what did you not validate but asserted or fit to pass?". Method, in this order:
 an INDEPENDENT 30-case check written from the PRD, M4's interface contract and
 the module source alone **before either shipped suite was opened**; then an
-independent 18-mutant sweep; then a leak fuzz; then the live legs. Every verdict
-below is from something that RAN.
+independent **16**-mutant sweep; then a leak fuzz; then the live legs. Every
+verdict below is from something that RAN.
 
 | # | Audit item | Verdict |
 |---|---|---|
@@ -133,7 +274,12 @@ reported alongside and required only to be a success, not to be exactly `204`.
 - **M1–M4 are untouched**, verified by exit code: 19/19, 10/10, 22/22, 33/33.
 
 **Counts after the round: offline 47/47, live 11/11, 18/18 mutants killed, 0
-survivors.** The sweep's own harness gained a per-run timeout after the
+survivors** — 16 in the sweep above plus 2 minted against the guards this round
+introduced. (The intro to this entry originally called the sweep itself
+"18-mutant", applying the post-fix total to the pre-fix sweep and contradicting
+the 15/16 in row 2 of the table. Corrected at the v0.3.0 release gate, which is
+where a reader spotted the two numbers disagreeing — recorded rather than
+quietly overwritten.) The sweep's own harness gained a per-run timeout after the
 unbounded-401 mutant SPUN and wedged the first attempt — a hang must be scored
 as a kill, not left pegging a core. Restores were working-copy `cp` with a
 sha256 byte-identity assertion, never `git checkout`; one mid-sweep interruption

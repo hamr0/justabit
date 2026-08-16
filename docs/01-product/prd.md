@@ -179,8 +179,9 @@ the 300 cap, and a `describe()` fallback chain whose `toJSON` hook killed the
 process at **exit 134** (fatal OOM, uncatchable); renderer rewritten to invoke
 nothing caller-supplied, +3 cases → 33, four mutations each red on its own case
 incl. a guard-off control returning the OOM; dated findings entries 2026-08-16).
-**M5 built and agent-run — USER VALIDATION PENDING (this is the G2 gate, and
-G2 is NOT met until the user runs it).** Spike first: six live rounds re-ran
+**M5 user-validated LIVE at `69b6f2e` — G2 MET (47/47 offline + 11/11 live on
+the user's machine), then re-opened by the v0.3.0 release gate: the current
+48/11 counts are agent-run and a user re-run is pending.** Spike first: six live rounds re-ran
 every recorded Playground finding before a line was written, because they were
 measured on 2026-08-14/15 and a sandbox can move. Seven findings held, **three
 changed** — `403 FORBIDDEN` no longer means "unknown number" on its own (a
@@ -206,7 +207,7 @@ fail) and an assertion too crude to survive its own error text — both fixed.
 Then an **adversarial review round** (2026-08-16, dated findings entry) took
 the suites 44 → **47** and 10 → **11** on three confirmed issues, found by an
 independent 30-case check written from the spec BEFORE either shipped suite was
-opened plus an independent 18-mutant sweep: (1) the write-verification
+opened plus an independent 16-mutant sweep: (1) the write-verification
 diagnostic — the message the module's most load-bearing guard produces — was
 the single throw path that skipped `redact()`, leaking a planted credential half
 and a planted bearer token, and it clamped AFTER serializing (measured 2354ms on
@@ -216,13 +217,33 @@ surface" was unpinned because the check answered both token endpoints with the
 same fixture, though the two are measured non-interchangeable; (3) the live
 check's cleanup DELETE was unobserved, so an interrupted run leaked a custom
 slot toward the 10-cap silently. All three fixed and mutation-proven (18/18
-killed, 0 survivors); a 315-combination leak fuzz with a planted-leak control
-is clean, and M1–M4 are unchanged by exit code. **Every M5 count is AGENT-RUN —
-that was true of 44/10 and stays true of 47/11; G2 is NOT met until the user
-runs it.** M6 not started.
+killed, 0 survivors — the 16 above plus 2 minted against the new guards); a
+315-combination leak fuzz with a planted-leak control is clean, and M1–M4 are
+unchanged by exit code.
 
-**Every count above is from a run on the user's own machine**, except the M5
-line, which is explicitly marked agent-run and pending. At commit
+**Then the user ran M5 on their own machine and G2 was MET** — `node
+poc/m5-check.mjs` **47/47** and the live `node poc/m5-check-live.mjs` **11/11**
+at commit `69b6f2e` (dated findings entry, 2026-08-16). That is the first G2
+validation in the project, and it stands as a record of that tree state.
+
+**The v0.3.0 release gate then found five more issues, so the CURRENT counts
+(48 offline / 11 live) are AGENT-RUN again and a user re-run is pending** — the
+same post-validation pattern v0.2.0 hit with M4, and recorded the same way
+rather than blurred into the line above. Two were real code defects: a stored
+`countryName` element was COERCED by `Array.prototype.join`, so a hostile
+element replaced the module's loudest guard with a bare 40-char `TypeError`
+(offline 47 → **48**); and the live quota assertion compared `end === start`
+against a baseline taken before the CUSTOM demo slot existed, so a FRESH
+account's first run went RED and blamed the trap case's cleanup, which had in
+fact succeeded — reproduced live (`start=0 end=1`, exit 1) and green on the
+identical condition after the fix. Three were docs-honesty defects, incl. a
+catalog-mapping table whose illustrative shape M1 would have REJECTED under a
+sentence claiming the PoC produced it. M6 not started.
+
+**Every count above is from a run on the user's own machine**, including M5's
+G2 record at `69b6f2e` — with the single exception of M5's CURRENT 48/11, which
+the v0.3.0 release gate produced after that run and which is marked agent-run
+and pending above. At commit
 `5d5e8aa` (dated findings record, 2026-08-16) the user ran 19/19, 10/10, 22/22
 and 30/30. The v0.2.0 release gate then changed two files —
 `poc/m4-facts-mock.mjs` and `poc/m4-check.mjs` — taking M4 to 33 cases, leaving
@@ -236,8 +257,12 @@ redundant guards stay as documented defence-in-depth, and `reachable` was minted
 into the illustrative spec-sketch `Predicate` enum now rather than at M6 (no
 normative surface enumerates predicate types, so nothing else moved).
 
-**Nothing is pending.** The ladder above carries no asterisk: M1–M4 are all
-user-validated at their current case counts on the current tree.
+**M1–M4 carry no asterisk** — all four are user-validated at their current case
+counts on the current tree. **M5 carries one**: G2 was met at `69b6f2e`, and the
+release-gate fixes that followed put its 48/11 counts back into agent-run until
+the user re-runs the two-line runbook. That asterisk is deliberate — the
+alternative was to ship the fixes unmentioned and let the earlier G2 record
+appear to cover code it never saw.
 
 (For the record, an earlier version of this note said the `/code-review` round
 "changed exactly four files … verified by `git diff --stat`". `git show --stat
