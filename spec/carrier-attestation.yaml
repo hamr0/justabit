@@ -59,11 +59,15 @@ components:
           type: string
           enum: [gte, eq, in]
         value:
-          description: Threshold or set (e.g. "P90D", "voice+data", ["FR","BE"])
+          description: Threshold, set, or flag (e.g. "P90D", "voice+data", ["FR","BE"], true)
           oneOf:
             - type: string
             - type: array
               items: { type: string }
+            # `reachable` takes a boolean — the reference module rejects the
+            # string spelling ("true"), so without this branch no reachable
+            # request could be both schema-valid and answerable.
+            - type: boolean
     Floor:
       type: object
       description: Consumer-agent reference floor; all fields optional, all only tightenable

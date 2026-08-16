@@ -62,11 +62,15 @@ export function makeHarness({ field, okWord }) {
   function conclude(expected) {
     const passed = results.filter(Boolean).length;
     const countOk = expected === undefined || results.length === expected;
+    console.log(`RESULT: ${passed}/${results.length}`);
+    // AFTER the tally, so the LAST line of a count-failing run is the red one:
+    // the runbook (and any `| tail -1`) reads the final line, and a green
+    // `RESULT: 18/18` printed last would bury the count failure it sits above —
+    // the exact eyeball fail-open this argument exists to close.
     if (!countOk) {
       console.log(`FAIL CASE COUNT: expected ${expected} cases, ran ${results.length}` +
         ' — the suite lost or gained cases; a shrinking suite is not a passing suite');
     }
-    console.log(`RESULT: ${passed}/${results.length}`);
     process.exit(passed === results.length && countOk ? 0 : 1);
   }
   return { check, checkThrows, conclude };

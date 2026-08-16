@@ -74,6 +74,13 @@ const PREDICATE_KEYS = Object.freeze(['type', 'operator', 'value']);
 
 const hasOwn = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 
+// A field/key NAME is caller-chosen text too: render it verbatim only when it
+// is short and printable (so the common typo reads exactly as typed), otherwise
+// through describe() — measured 2026-08-16, a 5000-char newline-bearing key
+// rode into a throw message raw, the one diagnostic on the path that skipped
+// the clamp (an embedded newline in a logged message can forge a log line).
+const describeKey = (k) => (/^[\x20-\x7e]{1,60}$/.test(k) ? k : describe(k));
+
 // A diagnostic rendering of an arbitrary value that CANNOT throw and CANNOT
 // run away. `JSON.stringify` alone does both (M3 release-gate open item 1:
 // BigInt, circular, and a throwing `toJSON` all escape as raw TypeErrors),
@@ -89,6 +96,15 @@ const hasOwn = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 // throws" from inside the message written to prevent exactly that. The final
 // constant cannot throw, so the function now has a floor.
 function describe(value) {
+  // Bound the INPUT before rendering, not just the output: a 100MB string or a
+  // 2^32-element array would be fully serialized (or walked) just to print 60
+  // chars — an unbounded stall on the wire side (measured 2026-08-16: a
+  // `new Array(2**32-1)` predicate value ran past a 60s timeout). Guarded,
+  // because even `Array.isArray` throws on a revoked Proxy.
+  try {
+    if (typeof value === 'string' && value.length > 64) value = value.slice(0, 64);
+    else if (Array.isArray(value) && value.length > 16) return `[array of ${value.length}]`;
+  } catch { /* revoked proxy — fall through to the guarded fallbacks */ }
   let s;
   try {
     s = JSON.stringify(value);
@@ -121,6 +137,37 @@ function durationMs(value) {
   return Number.isSafeInteger(ms) ? ms : null;
 }
 
+// Defensive copy of a wire-supplied country set, or null if it is not a valid
+// one. plainSnapshot copies the predicate's TOP level only, so `p.value` is
+// still the requester's own array object — and iterating it directly runs
+// caller-controlled code. Measured 2026-08-16, three ways the sibling
+// `.every(...)`/`.includes(...)` broke "wire input never throws" or worse:
+// a throwing index GETTER threw straight through; a Proxy with a throwing
+// `includes` trap threw after validation passed; and a SPARSE array
+// (`new Array(5)`) slid past both the empty-set gate and the vacuous `every`
+// to a SIGNED `{answered:true, result:false}` — an answer to the malformed
+// empty question case 17 exists to refuse. Index-walked copy inside a
+// try/catch: a hole reads as undefined and is rejected, a throw is a
+// rejection, and the later membership test runs on OUR array, never theirs.
+// The length cap bounds the walk (ISO 3166-1 has 249 codes; a 2^32-1-length
+// array stalled the evaluator past 60s) — far above any honest set, and a
+// bigger one is a malformed question, not a question.
+const MAX_COUNTRIES = 300;
+function countrySet(v) {
+  try {
+    if (!Array.isArray(v) || v.length === 0 || v.length > MAX_COUNTRIES) return null;
+    const copy = [];
+    for (let i = 0; i < v.length; i += 1) {
+      const c = v[i];
+      if (typeof c !== 'string' || !COUNTRY.test(c)) return null;
+      copy.push(c);
+    }
+    return copy;
+  } catch {
+    return null;
+  }
+}
+
 // Why `value` is invalid for backstory field `field`, or null if it is fine.
 // Every message names the coercion that is NOT happening, because the spike
 // showed each of these silently "working": '120' arithmetic-coerces to 120,
@@ -137,10 +184,16 @@ function invalidField(field, value) {
       return value === null || (typeof value === 'string' && COUNTRY.test(value))
         ? null
         : `invalid roamingCountry: ${describe(value)} (ISO-3166-1 alpha-2 uppercase, or null for not roaming)`;
-    default:
+    case 'boolean':
       return typeof value === 'boolean'
         ? null
-        : `invalid reachable: ${describe(value)} (boolean true or false, never a string)`;
+        : `invalid ${field}: ${describe(value)} (boolean true or false, never a string)`;
+    default:
+      // Unreachable while FIELDS is in sync with this switch. Named rather than
+      // folded into the boolean case: a future FIELDS axis with a new kind tag
+      // must not be silently validated as a boolean and reported as a fault in
+      // a field the caller never set ("every fault names the field").
+      return `internal: no validator for field ${field} (kind ${describe(FIELDS[field])})`;
   }
 }
 
@@ -158,8 +211,12 @@ function invalidField(field, value) {
 // stays because "a list is not a record" is worth saying out loud at the top,
 // and it mirrors M3; it is NOT relied upon. See findings 2026-08-16.
 function plainSnapshot(o) {
-  if (typeof o !== 'object' || o === null || Array.isArray(o)) return null;
   try {
+    // Inside the try, not before it: `Array.isArray` (and every later read)
+    // THROWS on a revoked Proxy, and this function's contract is "never throws"
+    // — measured 2026-08-16, a revoked-proxy predicate escaped as a TypeError
+    // instead of coming back `malformed predicate`.
+    if (typeof o !== 'object' || o === null || Array.isArray(o)) return null;
     const proto = Object.getPrototypeOf(o);
     if (proto !== Object.prototype && proto !== null) return null;
     if (Object.getOwnPropertyNames(o).length !== Object.keys(o).length) return null;
@@ -191,7 +248,7 @@ export function createMockFacts() {
     // Unknown before missing: a typo trips both, and naming the typo'd spelling
     // is the actionable half.
     for (const k of Object.keys(snapshot)) {
-      if (!hasOwn(FIELDS, k)) throw new Error(`invalid backstory for ${number}: unknown field ${k}`);
+      if (!hasOwn(FIELDS, k)) throw new Error(`invalid backstory for ${number}: unknown field ${describeKey(k)}`);
     }
     for (const k of Object.keys(FIELDS)) {
       if (!hasOwn(snapshot, k)) throw new Error(`invalid backstory for ${number}: missing field ${k} (all fields required — the mock has no defaults)`);
@@ -257,7 +314,12 @@ export function evaluatePredicate(facts, predicate) {
   // and is not — the silent-widening class, arriving on the predicate.
   const extra = Object.keys(p).filter((k) => !PREDICATE_KEYS.includes(k));
   if (extra.length > 0) {
-    return { answered: false, reason: `unexpected predicate fields: ${extra.join(', ')}` };
+    // Rendered and clamped like every other diagnostic: the keys are
+    // requester-chosen text, and a bare `join` was the one reason string built
+    // from wire input that skipped the 60-char clamp (measured 2026-08-16: a
+    // predicate with 50 huge keys produced a 100KB reason).
+    const list = extra.map(describeKey).join(', ');
+    return { answered: false, reason: `unexpected predicate fields: ${list.length > 60 ? `${list.slice(0, 60)}…` : list}` };
   }
   if (p.operator !== spec.operator) {
     return { answered: false, reason: `wrong operator for ${p.type}: ${describe(p.operator)} (expected ${JSON.stringify(spec.operator)})` };
@@ -278,10 +340,12 @@ export function evaluatePredicate(facts, predicate) {
     }
     result = fact >= threshold;
   } else if (spec.value === 'countries') {
-    if (!Array.isArray(p.value) || p.value.length === 0 ||
-        !p.value.every((c) => typeof c === 'string' && COUNTRY.test(c))) {
-      // An empty set is rejected rather than answered: it is false for every
-      // subscriber alive, so it is a malformed question, not a question.
+    // An empty set is rejected rather than answered: it is false for every
+    // subscriber alive, so it is a malformed question, not a question. The
+    // validated COPY (see countrySet) is what gets tested and searched —
+    // p.value stays the requester's object and is never iterated again.
+    const set = countrySet(p.value);
+    if (set === null) {
       return { answered: false, reason: `invalid country set: ${describe(p.value)} (ISO-3166-1 alpha-2 uppercase, at least one)` };
     }
     if (!(fact === null || (typeof fact === 'string' && COUNTRY.test(fact)))) {
@@ -289,7 +353,7 @@ export function evaluatePredicate(facts, predicate) {
     }
     // `null` = not roaming, so "in this set" is honestly false — a real answer,
     // not a fallback.
-    result = p.value.includes(fact);
+    result = set.includes(fact);
   } else {
     if (typeof p.value !== 'boolean') {
       return { answered: false, reason: `invalid ${p.type} value: ${describe(p.value)} (boolean true or false, never a string)` };

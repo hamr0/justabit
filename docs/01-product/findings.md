@@ -7,6 +7,113 @@ memory. A finding here is something that was RUN and OBSERVED, not reasoned.
 
 ---
 
+## 2026-08-16 — `/code-review medium` round on PR #4: 8 findings, all confirmed by execution, all fixed
+
+A second review pass over the M4 work already on PR #4 — the least-reviewed code
+in the repo is the previous round's own fix code. **Nothing was accepted as a
+finding on argument: every one was reproduced against the unfixed file by a
+probe, and every fix re-probed afterwards.** Agent-run result after the round:
+M1 **19/19**, M2 **10/10**, M3 **22/22**, M4 **30/30**, all exit 0; YAML
+re-parsed clean (exit 0). Case count stays a declared **30** — the new guards
+were folded into existing cases 16/17 rather than appended.
+
+**1. Wire-supplied country-set arrays ran CALLER-CONTROLLED CODE — three ways,
+one of them a signed answer.** `plainSnapshot` copies the predicate's TOP level
+only, so `p.value` stayed the requester's own array object, and the sibling
+`p.value.every(...)` / `p.value.includes(fact)` iterated *their* object:
+
+| Hostile set | Observed against the unfixed module |
+|---|---|
+| array with a throwing index GETTER | threw straight out of `evaluatePredicate` — "wire input never throws" broken |
+| `Proxy(['FR'])` with a throwing `includes` trap | threw AFTER validation passed — i.e. on the answer path, past every gate |
+| **sparse `new Array(5)`** | holes are not `undefined` own props, so the empty-set gate saw length 5 and `every` was VACUOUSLY true → **`{answered:true, result:false}`, SIGNED** — an answer to the malformed empty question case 17 exists to refuse |
+| `new Array(2 ** 32 - 1)` | the walk ran past a **60s** timeout — an unbounded stall reachable from the wire |
+
+Fixed by `countrySet()`: an index-walked defensive copy inside a `try/catch`
+(a hole reads `undefined` and is rejected, a throw is a rejection), a
+`MAX_COUNTRIES = 300` length cap (ISO 3166-1 has 249 codes; bigger is a
+malformed question, not a question), and the membership test now runs on OUR
+copy — `p.value` is never iterated again. A *transparent* Proxy still simply
+answers, which is correct: its reads pass through.
+
+**2. `plainSnapshot`'s `Array.isArray` line ran OUTSIDE its own try.** On a
+**revoked** Proxy even `Array.isArray` throws, so a revoked-proxy predicate
+escaped the "never throws" contract as a raw `TypeError` instead of coming back
+`malformed predicate`. The line moved inside the `try`. (Note the interaction
+with the settled decision above: that clause stays as documented redundancy for
+the *array* case, but its placement was a real defect.)
+
+**3. `describe()` bounded its OUTPUT but not its INPUT.** It clamps to 60
+chars — after fully serializing (or walking) whatever it was handed. A 100MB
+string or a `2**32`-element array was therefore paid for in full just to print
+60 characters. Now the input is bounded first: strings sliced to 64 chars,
+arrays over 16 elements rendered as `[array of N]`, both inside a `try` because
+`Array.isArray` can throw (finding 2). Post-fix: the 100MB-string reason
+returns in **168 ms** at **129 chars**; the `2**32-1` array returns in **0 ms**
+as `invalid country set: [array of 4294967295] …`.
+
+**4. Two diagnostics skipped the clamp — both built from requester-chosen
+text.** (a) The unknown-backstory-field throw interpolated the caller's key
+RAW: a 5000-char key containing a newline rode verbatim into an `Error`
+message, which is both unbounded and **log-forgeable** (an embedded newline in
+a logged message fabricates a log line). (b) `unexpected predicate fields` did
+a bare `extra.join(', ')`: a predicate carrying 50 huge keys produced a
+**~100KB** `reason` — on the wire-facing return, not just a log. Fixed with
+`describeKey()` (verbatim only for short printable keys, so the common typo
+still reads exactly as typed) plus a 60-char clamp on the joined list. Post-fix
+the 50-huge-key reason is **90 chars** and the 5000-char-key message **112
+chars with no newline**. **Every pinned message in the suites stayed
+byte-identical** — the clamp only fires on input no honest caller sends.
+
+**5. The shared harness printed a GREEN line last on a failing run.**
+`conclude()` printed `FAIL CASE COUNT` *before* `RESULT: N/N`, so the final line
+of a count-failing run — the line the runbook and any `| tail -1` reads — was a
+green tally sitting directly below the failure it hid. Order swapped; the red
+line is last now. Exit code was always correct; this is the eyeball fail-open
+the count argument exists to close, reintroduced one line lower.
+
+**6. The spec sketch contradicted itself — introduced by the immediately
+preceding commit.** `reachable` was minted into the `Predicate` type enum, but
+`value` had no boolean branch in its `oneOf` (`string` | `array of string`) and
+the module rejects the string spelling `"true"`. So **no `reachable` request
+could be both schema-valid and answerable.** `- type: boolean` added to the
+`oneOf`; YAML re-parses clean.
+
+**7. Test hygiene, in the check file itself.** The `bit()` helper had no
+callers (dead code shipped in the previous round) — removed, along with an
+unused `number` parameter on `scripted()` and a stray `const p = P90` alias.
+More load-bearing: `threws()` discarded the callee's return value, so case 25
+re-ran the call by hand to get the verdict it asserted on — two calls, able to
+drift. `threws()` now returns `{threw, msg, value}` and case 25 asserts on the
+value of **the same call it probed**.
+
+**Mutation-proven, by exit code.** The new guards were folded into cases 16 and
+17 (declared count stays 30, so the seatbelt from the previous round still
+matches). Each fix reverted one at a time from a working-copy `cp` backup →
+suite exits **1**, red on exactly case 16 or case 17 as intended → restored →
+byte-identical by sha256 → **30/30 exit 0**.
+
+**SKIPPED, on record as open items rather than papered over:**
+
+1. **M3 carries the same `describe`-throw class, live and unfixed.**
+   `checkFloor({swapAgeMin:'P90D'}, {swapAgeMin: 10n})` throws a raw
+   `TypeError: Do not know how to serialize a BigInt` out of the UNTRUSTED-side
+   path (re-measured 2026-08-16; a circular value with a throwing `toString`
+   throws `Converting circular structure to JSON` the same way). This is
+   pre-existing, outside this diff, and already on record: the entry below
+   records M3's release-gate open item 1 as only PARTIALLY closed — M4 built the
+   throw-proof `describe()`, M3 was never retrofitted with it. Fixing it means
+   touching a user-validated module, so it waits for M3's next deliberate touch.
+2. **The spec sketch still over-promises relative to the code.** Its
+   `Predicate` enum lists seven types; the M4 module answers **three**
+   (`simSwapAge`, `roamingIn`, `reachable`). And `required: [type]` leaves
+   `operator` optional in the schema while the module rejects any predicate
+   whose operator does not match its type exactly. The sketch is illustrative,
+   not normative, and **M6 is the declared reconcile point** — restated here
+   because a schema looser than the reference implementation is exactly the
+   silent-widening shape the profile forbids, and it should not be discovered
+   fresh at M6.
+
 ## 2026-08-16 — user validation: all four modules green at `1f92792`; two decisions settled; declared case counts extended to M1–M3
 
 The user personally ran the runbook on their own machine at commit `1f92792`

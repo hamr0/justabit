@@ -153,7 +153,8 @@ build → user ran `node poc/m3-check.mjs` 14/14 → 3 mutants killed → review
 round 1: 7 warnings fixed, +3 canary cases → 17/17 → review round 2: 8
 findings, +2 canary cases → 19/19 → release gate: 3 surviving mutants found
 on already-fixed guards, +3 cases → 22/22, plus 500k-iteration differential
-fuzz clean). **M4 user-validated 30/30** (spec signed off with 4 user
+fuzz clean). **M4 user-validated 30/30 at the PRE-review-fix state; current
+state agent-run 30/30, user re-run pending** (spec signed off with 4 user
 decisions → spike observed six
 fail-opens in the naive adapter incl. the headline flip with a working
 negative control → build → 24 cases → 28 guards mutation-tested, 27 killed,
@@ -164,8 +165,13 @@ survivors, closed 1 code defect (`describe()` could throw, breaking "wire input
 never throws" — so M3's release-gate open item 1 was only partially closed),
 5 unpinned load-bearing guards (+6 cases → 30) and 2 shared-harness fail-opens
 (truthy-non-boolean `extra.ok`; a silently shrinking suite reading as green);
-200k-round leak fuzz clean, all 13 spike claims reproduced; dated findings
-entries 2026-08-16). M5–M6 not started.
+200k-round leak fuzz clean, all 13 spike claims reproduced; then a
+`/code-review medium` round on PR #4: 8 findings, all confirmed by execution,
+all fixed — wire-supplied country-set arrays running caller code (a sparse array
+reached a SIGNED answer), a revoked proxy escaping `plainSnapshot`, two
+unclamped diagnostics, an unbounded `describe()` input, a green last line on a
+failing run, and a self-contradicting spec sketch; case count unchanged at 30,
+mutation-proven; dated findings entries 2026-08-16). M5–M6 not started.
 
 All four counts above are from **one user run on the user's own machine at
 commit `1f92792`** (dated findings record, 2026-08-16): 19/19, 10/10, 22/22,
@@ -173,11 +179,24 @@ commit `1f92792`** (dated findings record, 2026-08-16): 19/19, 10/10, 22/22,
 deliberately-unpinned redundant guards stay as documented defence-in-depth, and
 `reachable` was minted into the illustrative spec-sketch `Predicate` enum now
 rather than at M6 (no normative surface enumerates predicate types, so nothing
-else moved). **Honesty note:** `m1/m2/m3-check.mjs` were then given declared
-case counts (`conclude(19|10|22)`, each mutation-proven) — a change made AFTER
-that run. So the MODULES are user-validated at these counts; the post-change
-M1/M2/M3 check files are **user re-run pending**. M4's `conclude(30)` was
-already in place at `1f92792`.
+else moved).
+
+**Honesty note — what has changed since that user run.** Two rounds of edits
+landed after it, so the four counts above are not all equally warranted:
+
+- `m1/m2/m3-check.mjs` were given declared case counts
+  (`conclude(19|10|22)`, each mutation-proven) — check files only, no module
+  source touched. M4's `conclude(30)` was already in place at `1f92792`.
+- The `/code-review medium` round then changed exactly four files —
+  `poc/m4-facts-mock.mjs`, `poc/m4-check.mjs`, `poc/check-harness.mjs`,
+  `spec/carrier-attestation.yaml` (verified by `git diff --stat`).
+
+So: **M4 is user-validated at its PRE-review-fix state**; its current state is
+**agent-run 30/30, user re-run pending**, as are the shared harness and the
+spec sketch. **M1/M2/M3 module sources are unchanged this round**, so their
+user-validated status stands — but their check files were touched by the
+declared-count change (and all three consume the shared harness), so a user
+re-run of M1/M2/M3 is likewise pending at the current tree state.
 
 ### 4.5 POC-first discipline applied to each module
 

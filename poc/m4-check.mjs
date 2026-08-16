@@ -18,18 +18,20 @@ const P90 = { type: 'simSwapAge', operator: 'gte', value: 'P90D' };
 
 // A fresh operator with one scripted subscriber. Fresh per case: a shared
 // adapter would let one case's backstory decide another case's verdict.
-const scripted = (story = STORY, number = N) => {
+const scripted = (story = STORY) => {
   const facts = createMockFacts();
-  facts.setBackstory(number, story);
+  facts.setBackstory(N, story);
   return facts;
 };
-const bit = (facts, predicate = P90, now = NOW) => evaluatePredicate(facts.getFacts(N, now), predicate);
 
 // The harness's checkThrows takes exactly one function; these two fold a SECOND
 // angle on the same guard into the SAME tally entry (m3-check case 22 pattern),
-// so a guard pinned from two directions is still one PASS/FAIL line.
+// so a guard pinned from two directions is still one PASS/FAIL line. `value`
+// carries the callee's return when it did NOT throw, so a case whose subject is
+// a throw asserts the verdict of the SAME call it probed, never a hand-copied
+// second call that could drift.
 const threws = (fn) => {
-  try { fn(); return { threw: false, msg: 'did not throw' }; }
+  try { return { threw: false, msg: 'did not throw', value: fn() }; }
   catch (e) { return { threw: true, msg: e instanceof Error ? e.message : String(e) }; }
 };
 const checkThrew = (name, r, extra) =>
@@ -238,12 +240,20 @@ check('14 WRONG OPERATOR REJECTED', false,
     Object.defineProperty(p, 'value', { enumerable: true, get() { throw new Error('boom'); } });
     return evaluatePredicate({ swapAgeMs: 120 * DAY }, p);
   });
+  // A REVOKED Proxy is the corner where even `Array.isArray` throws — measured
+  // 2026-08-16 escaping plainSnapshot's pre-try first line as a raw TypeError.
+  const revoked = threws(() => {
+    const r = Proxy.revocable({ ...P90 }, {});
+    r.revoke();
+    return evaluatePredicate({ swapAgeMs: 120 * DAY }, r.proxy);
+  });
   check('16 MALFORMED PREDICATE REJECTED', false,
     evaluatePredicate({ swapAgeMs: 120 * DAY }, ['simSwapAge', 'gte', 'P90D']),
     'malformed predicate',
-    { label: 'prototype + non-enumerable + throwing getter all rejected, none thrown',
+    { label: 'prototype + non-enumerable + throwing getter + revoked proxy all rejected, none thrown',
       ok: proto.reason === 'malformed predicate' && nonEnum.reason === 'malformed predicate' &&
-          getter.threw === false && getter.msg === 'did not throw' });
+          getter.threw === false && getter.msg === 'did not throw' &&
+          revoked.threw === false && revoked.value.reason === 'malformed predicate' });
 }
 
 // 17 EMPTY COUNTRY SET REJECTED — an empty set is false for every subscriber
@@ -252,12 +262,34 @@ check('14 WRONG OPERATOR REJECTED', false,
 {
   const roam = { type: 'roamingIn', operator: 'in', value: [] };
   const lower = evaluatePredicate({ roamingCountry: 'FR' }, { ...roam, value: ['fr'] });
+  // The HOSTILE-array corners, measured 2026-08-16 against the pre-fix module:
+  // plainSnapshot copies the predicate's top level only, so p.value stayed the
+  // requester's own array — a SPARSE `new Array(5)` slid past the empty-set
+  // gate and the vacuous `every` to a SIGNED {answered:true, result:false}; a
+  // throwing index GETTER threw straight through "never throws"; and a
+  // 2^32-1-length array stalled the walk past 60s. All three must come back as
+  // rejections (the transparent Proxy simply answers — reads pass through).
+  const sparse = evaluatePredicate({ roamingCountry: 'FR' }, { ...roam, value: new Array(5) });
+  const getterArr = threws(() => {
+    const a = [];
+    Object.defineProperty(a, '0', { enumerable: true, get() { throw new Error('boom'); } });
+    a.length = 1;
+    return evaluatePredicate({ roamingCountry: 'FR' }, { ...roam, value: a });
+  });
+  const trap = threws(() => evaluatePredicate({ roamingCountry: 'FR' },
+    { ...roam, value: new Proxy(['FR'], { get(t, k) { if (k === 'includes') throw new Error('trap'); return Reflect.get(t, k); } }) }));
+  const huge = evaluatePredicate({ roamingCountry: 'FR' }, { ...roam, value: new Array(2 ** 32 - 1) });
   check('17 EMPTY COUNTRY SET REJECTED', false,
     evaluatePredicate({ roamingCountry: 'FR' }, roam),
     'invalid country set: [] (ISO-3166-1 alpha-2 uppercase, at least one)',
-    { label: "lowercase ['fr'] rejected, never silently 'not roaming'",
+    { label: "lowercase/sparse/getter/oversized sets rejected, proxy answered, none thrown, no stall",
       ok: lower.answered === false &&
-          lower.reason === 'invalid country set: ["fr"] (ISO-3166-1 alpha-2 uppercase, at least one)' });
+          lower.reason === 'invalid country set: ["fr"] (ISO-3166-1 alpha-2 uppercase, at least one)' &&
+          sparse.answered === false && sparse.reason.startsWith('invalid country set') &&
+          getterArr.threw === false && getterArr.value.answered === false &&
+          getterArr.value.reason.startsWith('invalid country set') &&
+          trap.threw === false && trap.value.answered === true && trap.value.result === true &&
+          huge.answered === false && huge.reason.startsWith('invalid country set') });
 }
 
 // 18 FACT UNAVAILABLE REJECTED — the fact the predicate needs is absent.
@@ -403,7 +435,7 @@ check('14 WRONG OPERATOR REJECTED', false,
   // RESULT line and hide every other case — the failure mode check-harness
   // guards against by defaulting a missing verdict rather than dereferencing it.
   const verdict = asValue.threw ? { answered: false, reason: `THREW: ${asValue.msg}` }
-    : evaluatePredicate({ swapAgeMs: 120 * DAY }, { ...P90, value: hostile });
+    : asValue.value;
   check('25 HOSTILE PREDICATE VALUE NEVER THROWS', false, verdict,
     'invalid duration: [unrenderable] (use P<days>D or P<years>Y; months are ambiguous)',
     { label: 'value + type + operator all rendered, none thrown, BigInt/circular still render as before',
@@ -454,10 +486,9 @@ check('14 WRONG OPERATOR REJECTED', false,
 // an operator-supplied `latestSimChange` against the injected now, where a
 // skewed clock does exactly this — the guard is for that seam.
 {
-  const p = P90;
-  const all = [-1, -DAY, -Number.MAX_SAFE_INTEGER].map((v) => evaluatePredicate({ swapAgeMs: v }, p));
+  const all = [-1, -DAY, -Number.MAX_SAFE_INTEGER].map((v) => evaluatePredicate({ swapAgeMs: v }, P90));
   check('28 NEGATIVE AGE IS UNANSWERABLE', false,
-    evaluatePredicate({ swapAgeMs: -1 }, p),
+    evaluatePredicate({ swapAgeMs: -1 }, P90),
     'fact unavailable: swapAgeMs',
     { label: 'negative ages rejected, never compared to a false bit',
       ok: all.every((r) => r.answered === false && r.reason === 'fact unavailable: swapAgeMs') });
