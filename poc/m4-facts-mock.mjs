@@ -82,41 +82,99 @@ const hasOwn = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const describeKey = (k) => (/^[\x20-\x7e]{1,60}$/.test(k) ? k : describe(k));
 
 // A diagnostic rendering of an arbitrary value that CANNOT throw and CANNOT
-// run away. `JSON.stringify` alone does both (M3 release-gate open item 1:
-// BigInt, circular, and a throwing `toJSON` all escape as raw TypeErrors),
-// which would break "wire input never throws" from inside the error message.
-// Clamped because a diagnostic built from caller-supplied data can end up in a
-// log verbatim.
-// EVERY fallback is guarded in turn, because every one of them runs
-// caller-supplied code: `JSON.stringify` runs `toJSON`, `String` runs
-// `toString`/`valueOf`/`Symbol.toPrimitive`, and even `Object.prototype
-// .toString` reads a `Symbol.toStringTag` GETTER. The 2026-08-16 review round
-// measured the last one escaping — with all three hostile at once the renderer
-// threw, and `evaluatePredicate` threw with it, breaking "wire input never
-// throws" from inside the message written to prevent exactly that. The final
-// constant cannot throw, so the function now has a floor.
+// run away. Clamped because a diagnostic built from caller-supplied data can
+// end up in a log verbatim.
+//
+// The 2026-08-16 REVIEW round built this out of three guarded fallbacks
+// (`JSON.stringify` → `String` → `Object.prototype.toString`), because each one
+// runs caller code — `toJSON`, `toString`/`valueOf`/`Symbol.toPrimitive`, and a
+// `Symbol.toStringTag` GETTER respectively — and with all three hostile at once
+// the renderer threw, taking `evaluatePredicate` with it.
+//
+// The 2026-08-16 RELEASE GATE showed that guarding those calls was never
+// enough, and the claim this comment used to make ("bound the INPUT before
+// rendering") was measurably false in two directions:
+//   * a try/catch bounds a THROW, not an ALLOCATION — a `toJSON` returning
+//     `'x'.repeat(3e8)` killed the process at exit 134 (SIGABRT, fatal OOM
+//     inside V8's JsonStringifier), which no catch can degrade; and
+//   * the input bound only ever covered a TOP-LEVEL long string and an array's
+//     LENGTH, so a long string one level down was still serialized in full
+//     (measured: 657ms nested vs 83ms for the same 50MB string at top level).
+// So the fallback chain is gone. Nothing caller-supplied is invoked at all now:
+// primitives render directly, arrays render at most DESC_MAX_ITEMS elements one
+// level deep, and an object is described by its KEY NAMES. The `[unrenderable]`
+// floor still cannot throw, and is still reachable — by a revoked Proxy, where
+// enumeration itself throws.
+const DESC_MAX_OUT = 60;      // the printed clamp
+// Per string, BEFORE it is rendered — and deliberately BELOW DESC_MAX_OUT. At
+// 64 the per-string clamp was real but invisible: the 60-char output clamp
+// always cut first, so no assertion could tell a clamped string from an
+// unclamped one and the bound could regress silently. Below the output clamp it
+// shows up in the rendered text, which is what makes case 33 able to fail.
+const DESC_MAX_STRING = 48;
+const DESC_MAX_ITEMS = 16;    // array elements rendered individually
+const DESC_MAX_KEYS = 8;      // object keys named individually
+
+// Render a value structurally, WITHOUT invoking a single caller-supplied
+// conversion. This is the shape the 2026-08-16 release gate forced, and the
+// reason is measured, not theoretical: the previous version reached for
+// `JSON.stringify` → `String` → `Object.prototype.toString` in turn, and every
+// one of those runs caller code (`toJSON`, `toString`/`valueOf`/
+// `Symbol.toPrimitive`, a `Symbol.toStringTag` getter). Guarding each with a
+// try/catch bounds a THROW; it cannot bound an ALLOCATION. A ~40-byte predicate
+// whose `toJSON` returned `'x'.repeat(3e8)` killed the process outright —
+// exit 134, SIGABRT, fatal OOM inside V8's `JsonStringifier::Stringify`, which
+// no `catch` can degrade. That is strictly worse than the throw this renderer
+// exists to prevent: a dead process cannot return `{answered: false}`.
+// So: primitives are rendered directly (bounded, no user code), arrays are
+// walked at most DESC_MAX_ITEMS deep-1, and an object is described by its KEY
+// NAMES only — never by its values, never through a conversion hook. The old
+// three-fallback chain also walked NESTED values in full (measured: a 50MB
+// string inside a one-element array cost 657ms against 83ms for the same string
+// at top level, where the input bound did apply); rendering each element
+// through the same clamp closes that too.
+function renderValue(value, depth) {
+  if (value === null) return 'null';
+  const t = typeof value;
+  // JSON.stringify on a STRING cannot run user code and cannot throw; the slice
+  // happens first, so what gets rendered is bounded whatever arrived.
+  if (t === 'string') {
+    return JSON.stringify(value.length > DESC_MAX_STRING
+      ? `${value.slice(0, DESC_MAX_STRING)}…`   // the marker rides INSIDE the quotes
+      : value);
+  }
+  // `String` on a primitive is the primitive's own spec-defined conversion —
+  // no caller code exists to run. NaN now prints as `NaN` rather than the
+  // `null` JSON.stringify used to give it, which is the honest spelling.
+  if (t === 'number' || t === 'boolean' || t === 'undefined' || t === 'bigint' || t === 'symbol') {
+    return String(value);
+  }
+  if (t === 'function') return '[function]';
+  if (Array.isArray(value)) {
+    const n = value.length;                       // captured once, as in countrySet
+    if (!Number.isSafeInteger(n) || n > DESC_MAX_ITEMS || depth <= 0) return `[array of ${n}]`;
+    const parts = [];
+    for (let i = 0; i < n; i += 1) parts.push(renderValue(value[i], depth - 1));
+    return `[${parts.join(',')}]`;
+  }
+  // Key NAMES only. `getOwnPropertyNames` reads no accessor and calls no hook,
+  // so a getter that would allocate a gigabyte never runs; depth is irrelevant
+  // because values are never visited. A hostile `ownKeys` trap can still throw
+  // (revoked Proxy) — that lands in describe()'s catch and the floor answers.
+  const names = Object.getOwnPropertyNames(value);
+  if (names.length > DESC_MAX_KEYS) return `{object with ${names.length} keys}`;
+  return `{${names.map(describeKey).join(', ')}}`;
+}
+
 function describe(value) {
-  // Bound the INPUT before rendering, not just the output: a 100MB string or a
-  // 2^32-element array would be fully serialized (or walked) just to print 60
-  // chars — an unbounded stall on the wire side (measured 2026-08-16: a
-  // `new Array(2**32-1)` predicate value ran past a 60s timeout). Guarded,
-  // because even `Array.isArray` throws on a revoked Proxy.
-  try {
-    if (typeof value === 'string' && value.length > 64) value = value.slice(0, 64);
-    else if (Array.isArray(value) && value.length > 16) return `[array of ${value.length}]`;
-  } catch { /* revoked proxy — fall through to the guarded fallbacks */ }
   let s;
   try {
-    s = JSON.stringify(value);
-  } catch { /* BigInt / circular / throwing toJSON */ }
-  if (s === undefined) {
-    try { s = String(value); } catch { /* throwing toString / valueOf / Symbol.toPrimitive */ }
-  }
-  if (typeof s !== 'string') {
-    try { s = Object.prototype.toString.call(value); } catch { /* throwing Symbol.toStringTag */ }
-  }
+    s = renderValue(value, 1);
+  } catch { /* revoked proxy: even Array.isArray / getOwnPropertyNames throw */ }
+  // The floor still cannot throw, and is still reachable — a revoked Proxy is
+  // now the shape that lands here.
   if (typeof s !== 'string') s = '[unrenderable]';
-  return s.length > 60 ? `${s.slice(0, 60)}…` : s;
+  return s.length > DESC_MAX_OUT ? `${s.slice(0, DESC_MAX_OUT)}…` : s;
 }
 
 // Strict ISO-8601 duration subset, byte-for-byte the same rule M3 applies to
@@ -155,9 +213,20 @@ function durationMs(value) {
 const MAX_COUNTRIES = 300;
 function countrySet(v) {
   try {
-    if (!Array.isArray(v) || v.length === 0 || v.length > MAX_COUNTRIES) return null;
+    if (!Array.isArray(v)) return null;
+    // `length` is CAPTURED ONCE, and the walk runs against the captured number.
+    // Re-reading it per iteration made the cap a time-of-check/time-of-use
+    // window: `Array.isArray` passes through a Proxy, so a `length` trap could
+    // answer 2 for the cap test and a huge number to the loop. Measured
+    // 2026-08-16 (release gate): the cap was checked against 2, the loop then
+    // walked 5,000,000 indices in 6.5s, and the predicate came back
+    // `{answered: true}` — i.e. a SIGNED answer built from a set the
+    // MAX_COUNTRIES cap exists to refuse. Capturing `n` bounds the walk at the
+    // cap no matter what the trap says afterwards.
+    const n = v.length;
+    if (!Number.isSafeInteger(n) || n === 0 || n > MAX_COUNTRIES) return null;
     const copy = [];
-    for (let i = 0; i < v.length; i += 1) {
+    for (let i = 0; i < n; i += 1) {
       const c = v[i];
       if (typeof c !== 'string' || !COUNTRY.test(c)) return null;
       copy.push(c);

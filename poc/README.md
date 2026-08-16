@@ -13,24 +13,27 @@ holds):
 node poc/m1-check.mjs   # M1 attestation core — 19 cases (module user-validated 19/19)
 node poc/m2-check.mjs   # M2 blind envelope — 10 cases (module user-validated 10/10)
 node poc/m3-check.mjs   # M3 floor gate — 22 cases (module user-validated 22/22)
-node poc/m4-check.mjs   # M4 mock facts adapter — 30 cases (user-validated pre-review-fix; now agent-run 30/30)
+node poc/m4-check.mjs   # M4 mock facts adapter — 33 cases (user-validated 30/30 at 5d5e8aa; now agent-run 33/33)
 ```
 
-All four were run by the user on their own machine at commit `1f92792`
-(dated findings record, 2026-08-16). Each check now declares its case count
-(`conclude(19|10|22|30)`) so a suite that silently loses cases exits 1 with
-`FAIL CASE COUNT` instead of printing a smaller green tally — mutation-proven
-per module.
+All four were run by the user on their own machine at commit `5d5e8aa`
+(dated findings record, 2026-08-16): 19/19, 10/10, 22/22, 30/30. Each check
+declares its case count (`conclude(19|10|22|33)`) so a suite that silently
+loses cases exits 1 with `FAIL CASE COUNT` instead of printing a smaller green
+tally — mutation-proven per module.
 
-**Honesty note — the tree has moved since that user run.** A `/code-review
-medium` round on PR #4 fixed 8 confirmed findings, changing exactly four files:
-`poc/m4-facts-mock.mjs`, `poc/m4-check.mjs`, `poc/check-harness.mjs`, and
-`spec/carrier-attestation.yaml`. So **M4, the shared harness, and the spec
-sketch are user re-run pending** — M4's current 30/30 is agent-run. The
-**M1/M2/M3 module sources are unchanged** this round, so their user-validated
-status stands; their *check* files were edited earlier for the declared count
-(and all three sit on the shared harness), so a user re-run of those is pending
-too. A re-run of the four commands above closes both.
+**Honesty note — the tree has moved since that user run.** The v0.2.0 release
+gate found three more fail-opens, all wire-reachable unbounded work: a
+time-of-check/time-of-use `length` re-read that walked 5,000,000 indices to a
+SIGNED answer past the 300-country cap, a diagnostic renderer whose `toJSON`
+hook could kill the process outright (exit 134, fatal OOM — a try/catch bounds
+a throw, not an allocation), and an input bound that only ever covered
+top-level values. Fixing them changed **two** files —
+`poc/m4-facts-mock.mjs` and `poc/m4-check.mjs` — and took M4 to **33** cases.
+So **M4 is user re-run pending**: its 33/33 is agent-run, mutation-proven by
+four reverts. **M1/M2/M3 are untouched by that round** (no module source, no
+check file, and `poc/check-harness.mjs` is unchanged), so their user-validated
+counts stand. Re-running `node poc/m4-check.mjs` closes the gap.
 
 M5–M6 are not started; `poc/demo.mjs` does not exist yet. The measured
 Playground findings below are kept — they are dated evidence and still bind

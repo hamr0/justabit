@@ -99,6 +99,11 @@ checkThrows('3 MISSING BACKSTORY FIELD THROWS',
 // caller-supplied value must not become its own fault: `JSON.stringify` throws
 // on a BigInt and on a circular object (M3's release-gate open item 1), and an
 // unclamped one can carry a 500-char value into whatever log sees it.
+// The circular object renders `{self}` — its KEY NAMES. It used to render
+// `[object Object]`, which came out of `Object.prototype.toString`, one of the
+// three caller-invoking fallbacks the 2026-08-16 release gate removed after a
+// `toJSON` was measured killing the process with a fatal OOM (exit 134). Naming
+// the key is also strictly more informative than `[object Object]`.
 {
   const bad = (v) => threws(() => createMockFacts().setBackstory(N, { ...STORY, roamingCountry: v }));
   const lower = bad('fr');
@@ -108,7 +113,7 @@ checkThrows('3 MISSING BACKSTORY FIELD THROWS',
     label: "names the value + 'FRA'/''/3/BigInt/circular throw cleanly + long value clamped",
     ok: lower.msg.includes('invalid roamingCountry: "fr"') &&
         ['FRA', '', 3, 10n].map(bad).every((r) => r.threw) &&
-        circular.threw && circular.msg.includes('[object Object]') &&
+        circular.threw && circular.msg.includes('{self}') &&
         long.threw && long.msg.includes('…') && long.msg.length < 200,
   });
 }
@@ -436,12 +441,24 @@ check('14 WRONG OPERATOR REJECTED', false,
   // guards against by defaulting a missing verdict rather than dereferencing it.
   const verdict = asValue.threw ? { answered: false, reason: `THREW: ${asValue.msg}` }
     : asValue.value;
+  // Post-2026-08-16 the hostile object renders as its KEY NAMES: the renderer
+  // no longer reaches for toJSON/toString/toStringTag at all, so none of this
+  // object's throwing hooks are ever called — it is not "unrenderable" any
+  // more, it is simply described without asking it anything. `[unrenderable]`
+  // is still the floor and still pinned, by the one shape that genuinely
+  // cannot be enumerated: a REVOKED Proxy, where `Array.isArray` and
+  // `getOwnPropertyNames` both throw.
+  const revoked = (() => { const r = Proxy.revocable({ a: 1 }, {}); r.revoke(); return r.proxy; })();
+  const asRevoked = threws(() => evaluatePredicate({ swapAgeMs: 120 * DAY }, { ...P90, value: revoked }));
   check('25 HOSTILE PREDICATE VALUE NEVER THROWS', false, verdict,
-    'invalid duration: [unrenderable] (use P<days>D or P<years>Y; months are ambiguous)',
-    { label: 'value + type + operator all rendered, none thrown, BigInt/circular still render as before',
+    'invalid duration: {self, toString, valueOf} (use P<days>D or P<years>Y; months are ambiguous)',
+    { label: 'value + type + operator all rendered, none thrown, BigInt renders, revoked proxy hits the [unrenderable] floor',
       ok: asValue.threw === false && asType.threw === false && asOperator.threw === false &&
           evaluatePredicate({ swapAgeMs: 120 * DAY }, { ...P90, value: 10n }).reason ===
-            'invalid duration: 10 (use P<days>D or P<years>Y; months are ambiguous)' });
+            'invalid duration: 10 (use P<days>D or P<years>Y; months are ambiguous)' &&
+          asRevoked.threw === false &&
+          asRevoked.value.reason ===
+            'invalid duration: [unrenderable] (use P<days>D or P<years>Y; months are ambiguous)' });
 }
 
 // 26 PROTOTYPE-KEY PREDICATE TYPE REJECTED — the closed-set gate is
@@ -531,7 +548,95 @@ check('14 WRONG OPERATOR REJECTED', false,
   });
 }
 
+// ===================== release gate 2026-08-16: unbounded wire work ==========
+// Three fail-opens found by the release-gate /security + /diff-review round.
+// All three shared one shape — work reachable from the wire that no cap
+// actually bounded — and none of the 30 cases above could catch their
+// regression, so each gets pinned here.
+
+// 31 COUNTRY-SET CAP SURVIVES A LYING length — `Array.isArray` passes straight
+// through a Proxy, so re-reading `v.length` per iteration made MAX_COUNTRIES a
+// time-of-check/time-of-use window. Measured against the unfixed module: the
+// cap was tested against a length of 2, the loop then walked 5,000,000 indices
+// in 6.5s, and the predicate came back `{answered: true}` — a SIGNED answer
+// built from a set the cap exists to refuse. `length` is captured once now, so
+// the walk cannot exceed the cap whatever the trap says next.
+{
+  let walked = 0;
+  let lengthReads = 0;
+  const liar = new Proxy(['FR', 'BE'], {
+    get(t, k, r) {
+      // Honest for the cap test, then enormous — exactly the window.
+      if (k === 'length') { lengthReads += 1; return lengthReads <= 1 ? 2 : 100000; }
+      if (typeof k === 'string' && /^[0-9]+$/.test(k)) { walked += 1; return 'FR'; }
+      return Reflect.get(t, k, r);
+    },
+  });
+  const v = evaluatePredicate({ swapAgeMs: 120 * DAY, roamingCountry: 'FR', reachable: true },
+    { type: 'roamingIn', operator: 'in', value: liar });
+  check('31 COUNTRY-SET CAP SURVIVES A LYING length', true, v, 'ok', {
+    // The bound is the assertion. A transparent 2-element proxy is a real
+    // question and is answered; what must never happen is the walk running to
+    // the length the trap invents AFTER the cap was checked.
+    label: `walked ${walked} indices (cap 300), not the 100000 the length trap claimed`,
+    ok: walked <= 300 && v.result === true,
+  });
+}
+
+// 32 THE RENDERER NEVER CALLS CALLER CODE — the fatal one. `describe()` used to
+// try `JSON.stringify` → `String` → `Object.prototype.toString` in turn, each
+// wrapped in a try/catch. A try/catch bounds a THROW; it cannot bound an
+// ALLOCATION. Measured: a ~40-byte predicate whose `toJSON` returned
+// `'x'.repeat(3e8)` killed the process — exit 134, SIGABRT, fatal OOM inside
+// V8's JsonStringifier, which no catch can degrade. A dead process cannot
+// return `{answered:false}`, so this was strictly worse than the throw the
+// fallback chain existed to prevent. The renderer now invokes NOTHING.
+{
+  let called = 0;
+  const hooks = {
+    toJSON() { called += 1; return 'x'.repeat(1000); },
+    get greedy() { called += 1; return 'x'.repeat(1000); },
+  };
+  const value = Object.create(Object.prototype, {
+    toJSON: { value: hooks.toJSON, enumerable: true },
+    greedy: { get: Object.getOwnPropertyDescriptor(hooks, 'greedy').get, enumerable: true },
+    plain: { value: 1, enumerable: true },
+  });
+  const v = evaluatePredicate({ swapAgeMs: 120 * DAY }, { ...P90, value });
+  check('32 THE RENDERER NEVER CALLS CALLER CODE', false, v,
+    'invalid duration: {toJSON, greedy, plain} (use P<days>D or P<years>Y; months are ambiguous)', {
+      label: `toJSON + getter invoked ${called} times (must be 0 — an invocation is an unbounded allocation the catch cannot reach)`,
+      ok: called === 0,
+    });
+}
+
+// 33 NESTED AND OVERSIZED VALUES ARE BOUNDED BEFORE RENDERING — the input bound
+// only ever covered a top-level long string and a long array's LENGTH, so a
+// long string one level down was still serialized in full: measured 657ms for a
+// 50MB string inside a one-element array against 83ms for the same string at
+// top level, where the bound did apply. Every value is rendered through the
+// same clamp now, and containers are described rather than walked.
+{
+  const nested = evaluatePredicate({ swapAgeMs: 120 * DAY }, { ...P90, value: ['A'.repeat(100000)] });
+  const wide = evaluatePredicate({ swapAgeMs: 120 * DAY }, { ...P90, value: new Array(2 ** 32 - 1) });
+  const manyKeys = evaluatePredicate({ swapAgeMs: 120 * DAY },
+    { ...P90, value: Object.fromEntries(Array.from({ length: 40 }, (_, i) => [`k${i}`, i])) });
+  const deep = evaluatePredicate({ swapAgeMs: 120 * DAY }, { ...P90, value: [[['deep']]] });
+  check('33 NESTED AND OVERSIZED VALUES ARE BOUNDED', false, nested,
+    // The NESTED string is clamped by the renderer itself (48 + marker, inside
+    // the quotes) and the whole thing then fits under the 60-char output clamp
+    // — so this pins the per-value bound, not the output bound. Unfixed, the
+    // 100000-char string was rendered in full and the output clamp cut it to a
+    // visibly different string.
+    `invalid duration: ["${'A'.repeat(48)}…"] (use P<days>D or P<years>Y; months are ambiguous)`, {
+      label: 'huge array described not walked, >8 keys counted not named, depth capped at one level',
+      ok: wide.reason === 'invalid duration: [array of 4294967295] (use P<days>D or P<years>Y; months are ambiguous)' &&
+          manyKeys.reason === 'invalid duration: {object with 40 keys} (use P<days>D or P<years>Y; months are ambiguous)' &&
+          deep.reason === 'invalid duration: [[array of 1]] (use P<days>D or P<years>Y; months are ambiguous)',
+    });
+}
+
 // The declared case count. A suite that silently loses the cases carrying its
 // guarantee still printed a green `RESULT: n/n` before this argument existed
 // (measured 2026-08-16: truncated to 18/18 exit 0, emptied to 0/0 exit 0).
-conclude(30);
+conclude(33);

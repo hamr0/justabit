@@ -1,5 +1,100 @@
 # Changelog
 
+## 0.2.0 — 2026-08-16
+
+- **M4 (mock facts adapter) built under the §4.4 ladder — user-validated
+  30/30 at `5d5e8aa`.** `poc/m4-facts-mock.mjs`: one facts interface with a
+  scriptable per-number backstory store mirroring the Playground admin model
+  (swap date, roaming country, reachability), an INJECTED clock (no ambient
+  `Date.now()` — a fixture that cannot be moved cannot show the negative), and
+  a hard split between `getFacts()` (raw facts, operator side only) and
+  `evaluatePredicate()` (the only step that may face the wire — it never
+  throws, and its success shape carries the boolean and NOTHING else). That
+  split is what makes M5 a drop-in: the backend swaps the facts source, the
+  evaluation step is unchanged. Closed sets everywhere and NO defaults: an
+  unknown predicate type, an unknown axis, a non-canonical country, a negative
+  age or a missing fact is `answered:false` — never a silent `false` bit that
+  reads as a real answer.
+- **The spike measured six fail-opens in the naive adapter before any code was
+  written** — headline: a missing fact compared against a threshold yields a
+  confident `false` and gets SIGNED (the negative control flips it, so the
+  fixture can show both). All 13 spike claims were reproduced against the built
+  module.
+- **Adversarial review round: 1 real defect + 5 unpinned guards (24 → 30
+  cases).** An independent 19-case check written from the spec alone (before
+  reading the suite) plus an independent 28-mutant sweep left EIGHT survivors.
+  Fixed: `describe()` could throw on hostile input, breaking "wire input never
+  throws" — so M3's release-gate open item 1 was only partially closed. Five
+  load-bearing guards had no case that could catch their regression; two
+  shared-harness fail-opens were closed with them (a truthy-non-boolean
+  `extra.ok` reading as a pass, and a silently shrinking suite printing a
+  smaller green tally — every suite now declares its case count,
+  `conclude(19|10|22|33)`, and exits 1 with `FAIL CASE COUNT`). 200k-round leak
+  fuzz clean.
+- **`/code-review medium` round on PR #4: 8 findings, all confirmed by
+  execution, all fixed.** Nothing was accepted on argument — each was reproduced
+  against the unfixed file and re-probed after. The headline: wire-supplied
+  country-set arrays ran CALLER-CONTROLLED code three ways, one of them past
+  every gate — a sparse `new Array(5)` made the empty-set gate see length 5 and
+  `every` vacuously true, producing a SIGNED `{answered:true, result:false}`
+  answer to the malformed question case 17 exists to refuse. Closed by an
+  index-walked defensive copy inside `try/catch` with a `MAX_COUNTRIES = 300`
+  cap. Also: a revoked Proxy escaping `plainSnapshot`, two unclamped
+  diagnostics, an unbounded `describe()` input, and a green last line printed on
+  a failing run.
+- **Release gate: 3 more fail-opens, one of them process-fatal (30 → 33
+  cases).** `/security` and `/diff-review` ran as independent passes over the
+  release diff and found three defects of one shape — **wire-reachable work no
+  cap actually bounded** — each defeating a guard the module explicitly claimed,
+  and none catchable by the 30 existing cases. (1) `countrySet()` re-read
+  `v.length` every iteration, so the 300-cap was a time-of-check/time-of-use
+  window: measured, the cap was tested against **2**, the loop then walked
+  **5,000,000 indices in 6.5s**, and the predicate returned **`{answered:true}`**
+  — an answer built from a set the cap exists to refuse. (2) `describe()`'s
+  guarded fallback chain could **kill the process**: a ~40-byte predicate whose
+  `toJSON` returned `'x'.repeat(3e8)` produced a fatal OOM inside V8's
+  `JsonStringifier` — **exit 134, SIGABRT** — because *a try/catch bounds a
+  throw, not an allocation*, and a dead process cannot return
+  `{answered:false}`. (3) The input bound covered only top-level values: the
+  same 50MB string cost **657ms nested** vs **83ms** at top level. Fixed by one
+  decision rather than three patches — **the renderer now invokes nothing
+  caller-supplied**: primitives render directly, arrays render ≤16 elements one
+  level deep, and an object is described by its KEY NAMES via
+  `getOwnPropertyNames`, which reads no accessor and calls no hook. Post-fix
+  657ms → 77.7ms and 527ms → 2.2ms. Four mutations, each red on exactly its own
+  new case and each restored byte-identical — including the guard-off negative
+  control that matters: **with the mutation the OOM probe exits 134, without it
+  exits 0**.
+- **Two pinned diagnostics changed, deliberately, and are recorded as such** —
+  a circular object now renders `{self}` instead of `[object Object]`, and case
+  25's hostile object `{self, toString, valueOf}` instead of `[unrenderable]`.
+  Both old spellings were products of the caller-invoking fallbacks that were
+  removed; `[unrenderable]` survives as the floor and is still pinned, by the
+  one shape that genuinely cannot be enumerated (a revoked Proxy). The claim
+  "the input is bounded first" from the review round is **visibly retracted** in
+  `findings.md` rather than edited away.
+- **Spec sketch: `reachable` minted into the `Predicate` enum and a boolean
+  value branch added.** The reference module rejects the string spelling
+  (`"true"`), so without the branch no `reachable` request could be both
+  schema-valid and answerable — a self-contradicting sketch. Illustrative only;
+  no normative surface enumerates predicate types.
+- **Ladder status: M1–M4 all built; M1/M2/M3 user-validated at the current tree
+  state.** The user re-ran all four suites at `5d5e8aa`: 19/19, 10/10, 22/22,
+  30/30 — closing every re-run marker 0.1.0 carried. The release-gate fixes
+  landed after that run and touched only `poc/m4-facts-mock.mjs` and
+  `poc/m4-check.mjs`, so **M4's 33/33 is agent-run and a user re-run is
+  pending** (the 0.1.0 precedent); M1/M2/M3 are untouched and stand. M5–M6 not
+  started.
+- **Open items carried, not cleaned up.** M3 still carries the `describe`-throw
+  class on its untrusted-side path (`checkFloor` with a BigInt throws a raw
+  TypeError) — pre-existing, fails closed, and deliberately not retrofitted
+  because it means touching a user-validated module. The spec sketch remains
+  looser than the reference module (seven predicate types listed, three
+  answered; `operator` optional in the schema, mandatory in the code), with
+  **M6 as the declared reconcile point** — restated because a schema looser
+  than the implementation is exactly the silent-widening shape the profile
+  forbids.
+
 ## 0.1.0 — 2026-08-15
 
 - **M3 (floor gate) built under the §4.4 ladder — user-validated 14/14.**

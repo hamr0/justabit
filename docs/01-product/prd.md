@@ -153,8 +153,8 @@ build → user ran `node poc/m3-check.mjs` 14/14 → 3 mutants killed → review
 round 1: 7 warnings fixed, +3 canary cases → 17/17 → review round 2: 8
 findings, +2 canary cases → 19/19 → release gate: 3 surviving mutants found
 on already-fixed guards, +3 cases → 22/22, plus 500k-iteration differential
-fuzz clean). **M4 user-validated 30/30 at the PRE-review-fix state; current
-state agent-run 30/30, user re-run pending** (spec signed off with 4 user
+fuzz clean). **M4 user-validated 30/30 at `5d5e8aa`; current state agent-run
+33/33 after the release gate, user re-run pending** (spec signed off with 4 user
 decisions → spike observed six
 fail-opens in the naive adapter incl. the headline flip with a working
 negative control → build → 24 cases → 28 guards mutation-tested, 27 killed,
@@ -171,32 +171,40 @@ all fixed — wire-supplied country-set arrays running caller code (a sparse arr
 reached a SIGNED answer), a revoked proxy escaping `plainSnapshot`, two
 unclamped diagnostics, an unbounded `describe()` input, a green last line on a
 failing run, and a self-contradicting spec sketch; case count unchanged at 30,
-mutation-proven; dated findings entries 2026-08-16). M5–M6 not started.
+mutation-proven; then the v0.2.0 **release gate**: 3 more fail-opens, all of one
+shape — unbounded wire-reachable work no cap actually bounded — incl. a
+TOCTOU `length` re-read that walked 5,000,000 indices to a SIGNED answer past
+the 300 cap, and a `describe()` fallback chain whose `toJSON` hook killed the
+process at **exit 134** (fatal OOM, uncatchable); renderer rewritten to invoke
+nothing caller-supplied, +3 cases → 33, four mutations each red on its own case
+incl. a guard-off control returning the OOM; dated findings entries 2026-08-16).
+M5–M6 not started.
 
-All four counts above are from **one user run on the user's own machine at
-commit `1f92792`** (dated findings record, 2026-08-16): 19/19, 10/10, 22/22,
-30/30. Two open items were settled by the user in the same pass — the three
-deliberately-unpinned redundant guards stay as documented defence-in-depth, and
-`reachable` was minted into the illustrative spec-sketch `Predicate` enum now
-rather than at M6 (no normative surface enumerates predicate types, so nothing
-else moved).
+**M1/M2/M3's counts are from one user run on the user's own machine at commit
+`5d5e8aa`** (dated findings record, 2026-08-16): 19/19, 10/10, 22/22 — and
+30/30 for M4 at that commit. That run closed every re-run marker the tree was
+then carrying. Two open items had been settled by the user in an earlier pass —
+the three deliberately-unpinned redundant guards stay as documented
+defence-in-depth, and `reachable` was minted into the illustrative spec-sketch
+`Predicate` enum now rather than at M6 (no normative surface enumerates
+predicate types, so nothing else moved).
 
-**Honesty note — what has changed since that user run.** Two rounds of edits
-landed after it, so the four counts above are not all equally warranted:
+**Honesty note — what has changed since that user run.** The v0.2.0 release
+gate landed after it and changed two files, `poc/m4-facts-mock.mjs` and
+`poc/m4-check.mjs`:
 
-- `m1/m2/m3-check.mjs` were given declared case counts
-  (`conclude(19|10|22)`, each mutation-proven) — check files only, no module
-  source touched. M4's `conclude(30)` was already in place at `1f92792`.
-- The `/code-review medium` round then changed exactly four files —
-  `poc/m4-facts-mock.mjs`, `poc/m4-check.mjs`, `poc/check-harness.mjs`,
-  `spec/carrier-attestation.yaml` (verified by `git diff --stat`).
+- **M4 is user-validated at 30/30 on the `5d5e8aa` tree; its current 33/33 is
+  agent-run and a user re-run is pending** — the 0.1.0 precedent, where the
+  user closes that gap after the release.
+- **M1/M2/M3 are untouched by that round** — no module source, no check file,
+  and `poc/check-harness.mjs` is unchanged — so their user-validated 19/19,
+  10/10 and 22/22 stand at the current tree state.
 
-So: **M4 is user-validated at its PRE-review-fix state**; its current state is
-**agent-run 30/30, user re-run pending**, as are the shared harness and the
-spec sketch. **M1/M2/M3 module sources are unchanged this round**, so their
-user-validated status stands — but their check files were touched by the
-declared-count change (and all three consume the shared harness), so a user
-re-run of M1/M2/M3 is likewise pending at the current tree state.
+(For the record, an earlier version of this note said the `/code-review` round
+"changed exactly four files … verified by `git diff --stat`". `git show --stat
+5d5e8aa` reports **seven**: those four plus `findings.md`, `prd.md` and
+`poc/README.md`. The four were the code/spec files; the claim as written was
+checkable and did not check out, so it is corrected here rather than dropped.)
 
 ### 4.5 POC-first discipline applied to each module
 

@@ -7,6 +7,114 @@ memory. A finding here is something that was RUN and OBSERVED, not reasoned.
 
 ---
 
+## 2026-08-16 — v0.2.0 release gate: three unbounded-wire-work fail-opens, one of them process-fatal (30 → 33 cases)
+
+The release gate for 0.2.0 ran `/security` and `/diff-review` over
+`origin/main...HEAD` as independent passes. Between them they found **three**
+defects, all of one shape — **work reachable from wire input that no cap
+actually bounded** — and all three defeating a guard the module explicitly
+claimed, in-source and in the entry below. **None of the 30 cases could catch
+their regression.** Every one was reproduced against the unfixed file before it
+was accepted, and every fix was re-probed after.
+
+**1. The country-set cap was time-of-check/time-of-use — and it reached a
+SIGNED answer.** `countrySet()` tested `v.length` against `MAX_COUNTRIES = 300`
+and then re-read `v.length` on every loop iteration. `Array.isArray` passes
+straight through a Proxy, so a `length` trap could answer honestly for the cap
+test and enormously for the walk. Measured against the unfixed module: cap
+checked against **2**, loop then walked **5,000,000 indices in 6.5s**, and the
+predicate returned **`{answered: true}`** — an answer built from a set the cap
+exists to refuse. Fixed by capturing `const n = v.length` once and walking `n`.
+
+**2. `describe()` could kill the process — exit 134.** The renderer tried
+`JSON.stringify` → `String` → `Object.prototype.toString` in turn, each wrapped
+in a try/catch. **A try/catch bounds a THROW; it cannot bound an ALLOCATION.** A
+~40-byte predicate value whose `toJSON` returned `'x'.repeat(3e8)` produced a
+**fatal OOM inside V8's `JsonStringifier::Stringify` — SIGABRT, core dumped,
+exit 134**, which no `catch` can degrade. This is strictly worse than the throw
+the fallback chain was built to prevent: a dead process cannot return
+`{answered: false}`, so "wire input never throws" failed in the one way that
+leaves nothing behind to report it.
+
+**3. The input bound covered two shapes only.** The same entry below claimed
+"the input is bounded first". It bounded a **top-level** long string and an
+array's **length** — a long string one level down was still serialized in full.
+Measured with a control: a 50MB string **nested** in a one-element array cost
+**657ms**, the same string at **top level** (where the bound applied) **83ms**,
+and inside a plain object **527ms**.
+
+**The fix is one decision, not three patches: the renderer now invokes NOTHING
+caller-supplied.** Primitives render directly; arrays render at most 16 elements
+one level deep; an object is described by its **key names** via
+`getOwnPropertyNames`, which reads no accessor and calls no hook. There is no
+`toJSON`/`toString`/`toStringTag` path left to allocate down. `[unrenderable]`
+survives as the floor and is still reachable — by a **revoked Proxy**, where
+enumeration itself throws — so case 25 still pins it, via that shape now.
+
+**Two pinned messages changed, deliberately.** A circular object renders
+`{self}` instead of `[object Object]`, and case 25's hostile object renders
+`{self, toString, valueOf}` instead of `[unrenderable]`. Both old spellings were
+*products of the caller-invoking fallbacks that were removed* — the object is no
+longer "unrenderable", it is simply described without being asked anything. Both
+new spellings are strictly more informative. Post-fix cost: nested 657ms →
+**77.7ms**, object 527ms → **2.2ms** (both now at the cost of the harness's own
+string allocation, not the renderer's).
+
+**`DESC_MAX_STRING` was moved 64 → 48, below the 60-char output clamp.** At 64
+the per-string bound was real but **invisible**: the output clamp always cut
+first, so no assertion could distinguish a clamped string from an unclamped one
+and the bound could regress silently. Below the output clamp it shows in the
+rendered text, which is what makes case 33 able to fail at all.
+
+**Mutation-proven, by exit code — four mutations, each red on exactly its own
+case, each restored byte-identical by sha256 → 33/33 exit 0:**
+
+| Mutation | Result |
+|---|---|
+| `countrySet` re-reads `v.length` per iteration | case 31 red, **walked 100,000** indices; suite exit 1 |
+| object branch calls `JSON.stringify` again | case 32 red (`toJSON` invoked 1×), 4 cases red, exit 1 — **and the OOM probe returns to exit 134** |
+| array depth cap removed | case 33 red (`[[["deep"]]]` instead of `[[array of 1]]`), exit 1 |
+| per-string clamp removed | case 33 red (100000-char string rendered in full), exit 1 |
+
+The second row is the guard-off negative control that matters: **with the
+mutation the fatal-OOM probe exits 134, without it exits 0.** Three new cases
+carry these — 31 (cap survives a lying `length`), 32 (renderer never calls
+caller code), 33 (nested/oversized values bounded) — so the declared count goes
+**30 → 33**.
+
+**Deployed risk today was nil and is stated as such:** a predicate arriving
+through `JSON.parse` at the real M5/Orange wire cannot carry a Proxy or a
+`toJSON`. These are reachable in-process, which is exactly where the PoC's
+assertions run — and the artifact was making bounds claims that measurement
+falsified, which in a repo whose PoC exists to make the text undeniable is the
+defect regardless of deployment reach.
+
+**These three fixes are POST-user-validation.** The user validated the four
+suites at `5d5e8aa` (entry immediately below); the release gate then changed
+`poc/m4-facts-mock.mjs` and `poc/m4-check.mjs`. So **M4's 33/33 is agent-run and
+a user re-run is pending**, on the 0.1.0 precedent where the user closes that
+gap after the release. M1/M2/M3 are untouched by this round — no module source,
+no check file, and the shared harness is unchanged — so their user-validated
+19/19, 10/10 and 22/22 stand.
+
+## 2026-08-16 — user validation at `5d5e8aa`: all four suites green on the post-code-review tree
+
+The user personally re-ran the runbook on their own machine at commit `5d5e8aa`
+— the state produced by the `/code-review medium` round below — and reported all
+four suites clean: `node poc/m1-check.mjs` **19/19**, `node poc/m2-check.mjs`
+**10/10**, `node poc/m3-check.mjs` **22/22**, `node poc/m4-check.mjs` **30/30**.
+
+**This closed every "user re-run pending" the tree was carrying** — three
+separate markers, all settled by this one run: M4 at its post-review-fix state
+(the entry below had it user-validated only at the PRE-fix state); the shared
+harness and the spec sketch, both touched by that same round; and M1/M2/M3,
+whose module sources were never touched but whose check files gained
+`conclude(19|10|22)` post-validation on the shared harness.
+
+So at `5d5e8aa` the ladder read, with no asterisk: **M1 19/19, M2 10/10, M3
+22/22, M4 30/30 — all four user-validated at that tree state.** The release-gate
+round recorded above then moved M4 to 33 cases, which is agent-run.
+
 ## 2026-08-16 — `/code-review medium` round on PR #4: 8 findings, all confirmed by execution, all fixed
 
 A second review pass over the M4 work already on PR #4 — the least-reviewed code
@@ -51,6 +159,16 @@ arrays over 16 elements rendered as `[array of N]`, both inside a `try` because
 `Array.isArray` can throw (finding 2). Post-fix: the 100MB-string reason
 returns in **168 ms** at **129 chars**; the `2**32-1` array returns in **0 ms**
 as `invalid country set: [array of 4294967295] …`.
+
+> **RETRACTED 2026-08-16 (same day, release gate) — "the input is bounded
+> first" was measurably false.** It bounded a top-level long string and an
+> array's length, and nothing else: a long string one level down was still
+> serialized in full (657ms nested vs 83ms top-level, same 50MB string). Worse,
+> guarding the fallbacks with try/catch bounded throws but not allocations — a
+> `toJSON` returning `'x'.repeat(3e8)` killed the process outright at exit 134.
+> Both are fixed and the whole fallback chain is gone; see the release-gate
+> entry at the top of this file. Left in place rather than edited: this log is
+> append-only, and a retraction is the record.
 
 **4. Two diagnostics skipped the clamp — both built from requester-chosen
 text.** (a) The unknown-backstory-field throw interpolated the caller's key
