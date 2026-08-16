@@ -54,7 +54,7 @@ components:
       properties:
         type:
           type: string
-          enum: [simSwapAge, tenure, simType, roamingIn, presentIn, numberMatch]
+          enum: [simSwapAge, tenure, simType, roamingIn, presentIn, numberMatch, reachable]
         operator:
           type: string
           enum: [gte, eq, in]

@@ -141,7 +141,7 @@ user runs each module's check themselves.
 
 Gate mapping: G1 = M1–M4 + M6 all user-validated; G2 = M5 user-validated live.
 
-Ladder status (2026-08-15): **M1 user-validated 19/19** (user ran 17/17
+Ladder status (2026-08-16): **M1 user-validated 19/19** (user ran 17/17
 pre-hardening, then 19/19 post-release — dated findings entry).
 **M2 user-validated 10/10** (post-release user run, 2026-08-15 — the first
 dated user-run record for M2; spike user-validated → build → review round, 5
@@ -153,8 +153,8 @@ build → user ran `node poc/m3-check.mjs` 14/14 → 3 mutants killed → review
 round 1: 7 warnings fixed, +3 canary cases → 17/17 → review round 2: 8
 findings, +2 canary cases → 19/19 → release gate: 3 surviving mutants found
 on already-fixed guards, +3 cases → 22/22, plus 500k-iteration differential
-fuzz clean). **M4 built, agent-run green at 30/30 — USER VALIDATION
-PENDING** (spec signed off with 4 user decisions → spike observed six
+fuzz clean). **M4 user-validated 30/30** (spec signed off with 4 user
+decisions → spike observed six
 fail-opens in the naive adapter incl. the headline flip with a working
 negative control → build → 24 cases → 28 guards mutation-tested, 27 killed,
 1 proven redundant by probe rather than left looking load-bearing → adversarial
@@ -166,6 +166,18 @@ never throws" — so M3's release-gate open item 1 was only partially closed),
 (truthy-non-boolean `extra.ok`; a silently shrinking suite reading as green);
 200k-round leak fuzz clean, all 13 spike claims reproduced; dated findings
 entries 2026-08-16). M5–M6 not started.
+
+All four counts above are from **one user run on the user's own machine at
+commit `1f92792`** (dated findings record, 2026-08-16): 19/19, 10/10, 22/22,
+30/30. Two open items were settled by the user in the same pass — the three
+deliberately-unpinned redundant guards stay as documented defence-in-depth, and
+`reachable` was minted into the illustrative spec-sketch `Predicate` enum now
+rather than at M6 (no normative surface enumerates predicate types, so nothing
+else moved). **Honesty note:** `m1/m2/m3-check.mjs` were then given declared
+case counts (`conclude(19|10|22)`, each mutation-proven) — a change made AFTER
+that run. So the MODULES are user-validated at these counts; the post-change
+M1/M2/M3 check files are **user re-run pending**. M4's `conclude(30)` was
+already in place at `1f92792`.
 
 ### 4.5 POC-first discipline applied to each module
 

@@ -7,6 +7,48 @@ memory. A finding here is something that was RUN and OBSERVED, not reasoned.
 
 ---
 
+## 2026-08-16 — user validation: all four modules green at `1f92792`; two decisions settled; declared case counts extended to M1–M3
+
+The user personally ran the runbook on their own machine at commit `1f92792`
+and reported all four suites clean: `node poc/m1-check.mjs` **19/19**,
+`node poc/m2-check.mjs` **10/10**, `node poc/m3-check.mjs` **22/22**,
+`node poc/m4-check.mjs` **30/30**. This closes the M4 user gate the entry below
+left open and re-confirms M1–M3 at their post-release counts.
+
+**Two user decisions on the carried-forward open items:**
+
+1. **The three deliberately-unpinned redundant guards stay, settled.** The
+   `Array.isArray` clause in `plainSnapshot`, `durationMs`'s 2^53 reject, and
+   the `\d{6,12}` digit bound — each classified redundant by PROBE rather than
+   by argument in the entry below — remain as documented defence-in-depth,
+   marked in-source as not relied upon rather than deleted or left looking
+   load-bearing. Not to be re-litigated at M6.
+2. **`reachable` is minted into the spec sketch now, not deferred to M6.** The
+   illustrative `Predicate` enum in `spec/carrier-attestation.yaml` becomes
+   `[simSwapAge, tenure, simType, roamingIn, presentIn, numberMatch, reachable]`,
+   closing the open item the two entries below carry. YAML re-parsed clean
+   after the edit (exit 0). A grep of both proposals and `README.md` for a
+   predicate-type list found **no normative surface to sync**: the CAMARA
+   proposal's normative profile (rules 1–8) enumerates no predicate types at
+   all, and its only predicate list is Mode B prose (§5.3 presentment: "device
+   reachable within last hour"), which the addition agrees with rather than
+   contradicts. The sketch stays illustrative, not normative. The in-source
+   note in `m4-facts-mock.mjs` that flagged the type as deliberately un-minted
+   was corrected in the same change rather than left stale.
+
+**Declared case counts extended to M1/M2/M3 — and this change is
+POST-VALIDATION.** The shared harness's `conclude(expected)` seatbelt (a suite
+that silently loses the cases carrying its guarantee must not read green —
+measured below) protected only M4. `m1-check.mjs` now declares `conclude(19)`,
+`m2-check.mjs` `conclude(10)`, `m3-check.mjs` `conclude(22)`. Each
+mutation-proven: one case block removed → suite exits **1** printing
+`FAIL CASE COUNT: expected N cases, ran N−1` (18/19, 9/10, 21/22 respectively)
+→ restored from a working-copy `cp` backup, byte-identical by sha256 → **19/19,
+10/10, 22/22, all exit 0**. **Honesty note: the user validated the MODULES at
+these counts; these three check files were edited afterwards, so a user re-run
+of M1/M2/M3 is pending.** No module source was touched — one `conclude`
+argument and one comment per check file.
+
 ## 2026-08-16 — M4 adversarial review round: 1 code defect, 5 unpinned guards, 2 harness fail-opens (24 → 30 cases)
 
 Independent review of the M4 build below, run against the challenge "did you fit

@@ -13,8 +13,17 @@ holds):
 node poc/m1-check.mjs   # M1 attestation core — 19 cases (user-validated 19/19)
 node poc/m2-check.mjs   # M2 blind envelope — 10 cases (user-validated 10/10)
 node poc/m3-check.mjs   # M3 floor gate — 22 cases (user-validated 22/22)
-node poc/m4-check.mjs   # M4 mock facts adapter — 30 cases (agent-run 30/30; user re-run pending)
+node poc/m4-check.mjs   # M4 mock facts adapter — 30 cases (user-validated 30/30)
 ```
+
+All four were run by the user on their own machine at commit `1f92792`
+(dated findings record, 2026-08-16). Each check now declares its case count
+(`conclude(19|10|22|30)`) so a suite that silently loses cases exits 1 with
+`FAIL CASE COUNT` instead of printing a smaller green tally — mutation-proven
+per module. **Honesty note:** the declared count was added to M1/M2/M3 *after*
+that user run, so the modules are user-validated at these counts but the
+post-change M1/M2/M3 check files are **user re-run pending**; M4 already
+declared its count at `1f92792`.
 
 M5–M6 are not started; `poc/demo.mjs` does not exist yet. The measured
 Playground findings below are kept — they are dated evidence and still bind

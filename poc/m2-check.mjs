@@ -229,4 +229,8 @@ check('5 WRONG LENGTH CIPHERTEXT', false, open(operator.privateKey, randomBytes(
     { label: `${steps.length} steps${failed.length ? ' (failed: ' + failed.join(', ') + ')' : ''}`, ok: failed.length === 0 });
 }
 
-conclude();
+// The declared case count. A suite that silently loses the cases carrying its
+// guarantee still printed a green `RESULT: n/n` before this argument existed
+// (measured 2026-08-16 on m4-check: truncated to 18/18 exit 0, emptied to 0/0
+// exit 0).
+conclude(10);

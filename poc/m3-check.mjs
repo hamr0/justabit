@@ -205,4 +205,8 @@ checkThrows('20 PROTOTYPE PUBLISHED THROWS',
       ok: pubVerdict.threw === true && pubVerdict.msg.includes('invalid duration') });
 }
 
-conclude();
+// The declared case count. A suite that silently loses the cases carrying its
+// guarantee still printed a green `RESULT: n/n` before this argument existed
+// (measured 2026-08-16 on m4-check: truncated to 18/18 exit 0, emptied to 0/0
+// exit 0).
+conclude(22);

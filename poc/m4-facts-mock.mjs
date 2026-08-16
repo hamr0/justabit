@@ -59,10 +59,12 @@ const FIELDS = Object.freeze({
 // `false`, i.e. a signed "no" to a question that was never asked. Whether that
 // reads as safe depends entirely on the question's polarity, which is exactly
 // why it can never be an answer.
-// `reachable` has no counterpart in `spec/carrier-attestation.yaml`'s
-// illustrative Predicate enum (see findings 2026-08-16) — reachability is a
-// required mock FACT (PRD FR5), and a fact no predicate can consume is dead
-// weight, so the type is carried here and flagged rather than minted silently.
+// `reachable` was carried here ahead of the spec sketch and flagged rather than
+// minted silently; on the user's decision (2026-08-16) it is now also in
+// `spec/carrier-attestation.yaml`'s illustrative Predicate enum. Reachability is
+// a required mock FACT (PRD FR5), and a fact no predicate can consume is dead
+// weight. The sketch is illustrative, not normative — the normative profile
+// (proposal rules 1–8) enumerates no predicate types, so nothing else moved.
 const PREDICATES = Object.freeze({
   simSwapAge: { operator: 'gte', value: 'duration', fact: 'swapAgeMs' },
   roamingIn: { operator: 'in', value: 'countries', fact: 'roamingCountry' },
