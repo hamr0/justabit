@@ -153,8 +153,9 @@ build → user ran `node poc/m3-check.mjs` 14/14 → 3 mutants killed → review
 round 1: 7 warnings fixed, +3 canary cases → 17/17 → review round 2: 8
 findings, +2 canary cases → 19/19 → release gate: 3 surviving mutants found
 on already-fixed guards, +3 cases → 22/22, plus 500k-iteration differential
-fuzz clean). **M4 user-validated 30/30 at `5d5e8aa`; current state agent-run
-33/33 after the release gate, user re-run pending** (spec signed off with 4 user
+fuzz clean). **M4 user-validated 33/33** (user ran 30/30 at `5d5e8aa`, then
+33/33 post-release at v0.2.0 after the release-gate round — dated findings
+entry) (spec signed off with 4 user
 decisions → spike observed six
 fail-opens in the naive adapter incl. the headline flip with a working
 negative control → build → 24 cases → 28 guards mutation-tested, 27 killed,
@@ -180,25 +181,22 @@ nothing caller-supplied, +3 cases → 33, four mutations each red on its own cas
 incl. a guard-off control returning the OOM; dated findings entries 2026-08-16).
 M5–M6 not started.
 
-**M1/M2/M3's counts are from one user run on the user's own machine at commit
-`5d5e8aa`** (dated findings record, 2026-08-16): 19/19, 10/10, 22/22 — and
-30/30 for M4 at that commit. That run closed every re-run marker the tree was
-then carrying. Two open items had been settled by the user in an earlier pass —
-the three deliberately-unpinned redundant guards stay as documented
-defence-in-depth, and `reachable` was minted into the illustrative spec-sketch
-`Predicate` enum now rather than at M6 (no normative surface enumerates
-predicate types, so nothing else moved).
+**Every count above is from a run on the user's own machine.** At commit
+`5d5e8aa` (dated findings record, 2026-08-16) the user ran 19/19, 10/10, 22/22
+and 30/30. The v0.2.0 release gate then changed two files —
+`poc/m4-facts-mock.mjs` and `poc/m4-check.mjs` — taking M4 to 33 cases, leaving
+M1/M2/M3 untouched (no module source, no check file, and `poc/check-harness.mjs`
+unchanged). **After the v0.2.0 merge (main at `7c41c83`, tag `v0.2.0`) the user
+re-ran all four and reported 19/19, 10/10, 22/22, 33/33** (dated findings record,
+2026-08-16) — closing the last "user re-run pending" marker, per the 0.1.0
+precedent where the user closes that gap after the release. Two open items had
+been settled by the user in an earlier pass — the three deliberately-unpinned
+redundant guards stay as documented defence-in-depth, and `reachable` was minted
+into the illustrative spec-sketch `Predicate` enum now rather than at M6 (no
+normative surface enumerates predicate types, so nothing else moved).
 
-**Honesty note — what has changed since that user run.** The v0.2.0 release
-gate landed after it and changed two files, `poc/m4-facts-mock.mjs` and
-`poc/m4-check.mjs`:
-
-- **M4 is user-validated at 30/30 on the `5d5e8aa` tree; its current 33/33 is
-  agent-run and a user re-run is pending** — the 0.1.0 precedent, where the
-  user closes that gap after the release.
-- **M1/M2/M3 are untouched by that round** — no module source, no check file,
-  and `poc/check-harness.mjs` is unchanged — so their user-validated 19/19,
-  10/10 and 22/22 stand at the current tree state.
+**Nothing is pending.** The ladder above carries no asterisk: M1–M4 are all
+user-validated at their current case counts on the current tree.
 
 (For the record, an earlier version of this note said the `/code-review` round
 "changed exactly four files … verified by `git diff --stat`". `git show --stat

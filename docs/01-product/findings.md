@@ -7,6 +7,24 @@ memory. A finding here is something that was RUN and OBSERVED, not reasoned.
 
 ---
 
+## 2026-08-16 — user validation at v0.2.0 (`7c41c83`): all four suites green, M4 at 33/33
+
+After the v0.2.0 release — main at merge commit `7c41c83`, tag `v0.2.0` — the
+user personally ran the full runbook on their own machine and reported all four
+suites clean: `node poc/m1-check.mjs` **19/19**, `node poc/m2-check.mjs`
+**10/10**, `node poc/m3-check.mjs` **22/22**, `node poc/m4-check.mjs` **33/33**.
+
+**This closes the release-gate round's "M4 user re-run pending"** — the one
+marker the tree was still carrying (recorded in the entry below and in PRD
+§4.4). M4's 33 cases include the three added by that round, which pin the
+TOCTOU `length` re-read, the process-fatal `toJSON` allocation, and the
+nested-input bound — so the guards found at the release gate are now
+user-validated, not just agent-run and mutation-proven.
+
+Ladder status: **all four modules user-validated at current counts — M1 19/19,
+M2 10/10, M3 22/22, M4 33/33 — with no asterisk and no pending re-run.**
+M5–M6 not started.
+
 ## 2026-08-16 — v0.2.0 release gate: three unbounded-wire-work fail-opens, one of them process-fatal (30 → 33 cases)
 
 The release gate for 0.2.0 ran `/security` and `/diff-review` over
