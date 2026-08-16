@@ -179,9 +179,34 @@ the 300 cap, and a `describe()` fallback chain whose `toJSON` hook killed the
 process at **exit 134** (fatal OOM, uncatchable); renderer rewritten to invoke
 nothing caller-supplied, +3 cases → 33, four mutations each red on its own case
 incl. a guard-off control returning the OOM; dated findings entries 2026-08-16).
-M5–M6 not started.
+**M5 built and agent-run — USER VALIDATION PENDING (this is the G2 gate, and
+G2 is NOT met until the user runs it).** Spike first: six live rounds re-ran
+every recorded Playground finding before a line was written, because they were
+measured on 2026-08-14/15 and a sandbox can move. Seven findings held, **three
+changed** — `403 FORBIDDEN` no longer means "unknown number" on its own (a
+wrong-surface token gives the same status with a different message), sim-swap
+is no longer the whole interface (roaming AND reachability are both live, so
+all three axes are wired and nothing is faked), and THE TRAP holds with a
+sharper mechanism (a bare `UPDATE` on an unclaimed built-in now fails loud with
+`400`, but the adapter's own CREATE-then-UPDATE path reproduces the echo-lies
+behaviour exactly: echo carried the written date, the next READ did not). The
+spike also found the stored credential is already `Basic `-prefixed — a
+double-prefix that fails both token endpoints, and cost the spike's first
+round. Build: `poc/m5-facts-orange.mjs` (same interface, `evaluatePredicate`
+NOT reimplemented — M5 exports `createOrangeFacts` and nothing else, asserted
+by a case). **Offline `node poc/m5-check.mjs` 44/44 exit 0 with zero
+credentials and zero network** (injected transport replaying the spike's
+captured bytes, so it runs on a clean clone); **live `node
+poc/m5-check-live.mjs` 10/10 exit 0**, including the FR1 negative on real
+infrastructure and the write-trap defence firing on a real built-in with the
+custom-slot control succeeding; **32 mutations, 32 killed, 0 survivors.** The
+sweep found two defects in the CHECK itself — a redaction case that was
+vacuous (its body never reached a branch that quotes bodies, so it could not
+fail) and an assertion too crude to survive its own error text — both fixed.
+M6 not started.
 
-**Every count above is from a run on the user's own machine.** At commit
+**Every count above is from a run on the user's own machine**, except the M5
+line, which is explicitly marked agent-run and pending. At commit
 `5d5e8aa` (dated findings record, 2026-08-16) the user ran 19/19, 10/10, 22/22
 and 30/30. The v0.2.0 release gate then changed two files —
 `poc/m4-facts-mock.mjs` and `poc/m4-check.mjs` — taking M4 to 33 cases, leaving

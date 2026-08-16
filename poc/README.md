@@ -14,12 +14,25 @@ node poc/m1-check.mjs   # M1 attestation core — 19 cases (module user-validate
 node poc/m2-check.mjs   # M2 blind envelope — 10 cases (module user-validated 10/10)
 node poc/m3-check.mjs   # M3 floor gate — 22 cases (module user-validated 22/22)
 node poc/m4-check.mjs   # M4 mock facts adapter — 33 cases (user-validated 33/33)
+node poc/m5-check.mjs   # M5 orange facts adapter, OFFLINE — 44 cases (agent-run 44/44,
+                        #   user validation PENDING). Zero credentials, zero network:
+                        #   an injected transport replays responses captured live on
+                        #   2026-08-16, so it runs on a clean clone.
+
+# M5 LIVE — the G2 gate. Talks to the real Orange Playground.
+# `| head -1` because a `pass` entry is multi-line (secret on line 1, notes below).
+# The stored value is ALREADY `Basic <base64>`; the adapter normalizes either form.
+ORANGE_BASIC_AUTH="$(pass camara/orange_network | head -1)" node poc/m5-check-live.mjs
+                        # 10 cases (agent-run 10/10, user validation PENDING).
+                        # exit 2 + printed prerequisites if the credential is absent —
+                        # never a silent pass, never a mock fallback.
 ```
 
 All four were run by the user on their own machine after the v0.2.0 release
 (main at `7c41c83`, tag `v0.2.0` — dated findings record, 2026-08-16): 19/19,
-10/10, 22/22, 33/33. Each check declares its case count
-(`conclude(19|10|22|33)`) so a suite that silently loses cases exits 1 with
+10/10, 22/22, 33/33. **M5's two suites are agent-run only so far.** Each check
+declares its case count (`conclude(19|10|22|33|44|10)`) so a suite that
+silently loses cases exits 1 with
 `FAIL CASE COUNT` instead of printing a smaller green tally — mutation-proven
 per module.
 
@@ -33,9 +46,12 @@ only ever covered top-level values. Fixing them changed **two** files —
 cases; the three added cases pin exactly those guards, and the user run above
 covers them. Nothing is pending.
 
-M5–M6 are not started; `poc/demo.mjs` does not exist yet. The measured
-Playground findings below are kept — they are dated evidence and still bind
-the M5 design.
+**M5 is built and agent-run; user validation is pending (that IS gate G2).**
+M6 is not started and `poc/demo.mjs` does not exist yet. The measured
+Playground findings below were **re-verified live on 2026-08-16** before M5 was
+written: seven held, **three changed**, one was not re-tested. Every change is
+flagged inline with **CHANGED 2026-08-16**; the full spike record (with the
+raw shapes) is the dated findings entry.
 
 Target UX once M6 lands (unchanged by the rollback):
 
@@ -84,7 +100,10 @@ One operator-facts adapter, two backends behind it:
 - **mock** (default): local stub with per-number scriptable backstories
   mirroring the Playground admin model (swap date, roaming country,
   reachability). Deterministic; runs on a clean clone.
-- **orange**: the Playground's sim-swap API; backstories set via its Admin API.
+- **orange**: the Playground's sim-swap, device-roaming-status and
+  device-reachability-status APIs — one live CAMARA read per fact axis, none
+  stubbed; backstories set via its Admin API, and every write READ back and
+  compared before it is trusted.
   Credential from the environment only (`ORANGE_BASIC_AUTH`, the Playground
   Basic Auth string) — never the tree, never logged: the credential, the
   client id Orange echoes back inside 403 bodies, and every bearer token are
@@ -107,13 +126,26 @@ its findings below stand as evidence and shape M5.
 
 Grounded by a throwaway Orange spike plus the adapter's own live runs
 (2026-08-15) — both rolled back out of the tree with the G0 rollback; the
-findings stand here as dated evidence.
+findings stand here as dated evidence. **Re-verified live 2026-08-16 before M5
+was built**; entries that changed are marked **CHANGED 2026-08-16** and the old
+claim is left visible rather than quietly rewritten.
 Everything below is captured behaviour; where it contradicts the docs, this wins.
 
 - **Token** — `POST https://api.orange.com/openidconnect/playground/v1.0/token`
   with `Authorization: Basic <cred>`, `Content-Type:
   application/x-www-form-urlencoded`, body `grant_type=client_credentials` →
-  `{access_token, expires_in: 3600}`. Cached and refreshed a minute early.
+  `{access_token, expires_in: 3600}`. **CHANGED 2026-08-16:** M5 caches the
+  token but does NOT refresh it on a timer — the old "refreshed a minute early"
+  needed a wall clock in a module whose clock is supposed to be injected.
+  Refresh is driven by the server's own `401` instead (invalidate, re-exchange
+  once, retry once, then fail loud), which also covers a token revoked before
+  it expires.
+- **NEW 2026-08-16: the stored credential is ALREADY `Basic `-prefixed.** Line
+  1 of the `pass` entry — exactly what the runbook's `| head -1` yields — is
+  `Basic <base64>`. A naive `Basic ${cred}` therefore sends `Basic Basic …`,
+  and BOTH token endpoints reject it (`400 invalid_request` /
+  `401 "Basic authentication is malformed"`). The adapter strips an optional
+  leading `Basic ` so either form works.
 - **Two token endpoints, NOT interchangeable.** The Admin API rejects the
   CAMARA playground token with `401 UNAUTHENTICATED`; it wants a token from
   `https://api.orange.com/oauth/v3/token` (same Basic credential, same grant).
@@ -121,14 +153,49 @@ Everything below is captured behaviour; where it contradicts the docs, this wins
   expiry — on it, re-exchange once and retry once, then fail.
 - **Sim-swap** — `POST .../camara/playground/api/sim-swap/v1/retrieve-date`
   with `{"phoneNumber":"+990…"}` → `{"latestSimChange":"<ISO-8601, ms>"}`.
-  That single call satisfies the whole facts interface.
+  ~~That single call satisfies the whole facts interface.~~ **CHANGED
+  2026-08-16: it does not, because it no longer has to.** All three fact axes
+  are WIRED on this app — `POST .../api/device-roaming-status/v1/retrieve` →
+  `{"roaming":bool, countryCode?, countryName?}` and `POST
+  .../api/device-reachability-status/v1/retrieve` →
+  `{"reachabilityStatus":"CONNECTED_DATA|CONNECTED_SMS|NOT_CONNECTED"}`, both
+  under the app's own token scopes. **Nothing in M5 is faked or stubbed.** Note
+  the shapes differ: sim-swap takes a bare `phoneNumber`, the two device-status
+  APIs take a `{"device":{"phoneNumber":…}}` WRAPPER (the bare form answers
+  `400 INVALID_ARGUMENT "phoneNumber is not allowed"` — which is how a real
+  endpoint was told apart from a missing one, `400 "unhandled path"`).
 - **`403 {"code":"FORBIDDEN"}` on sim-swap means UNKNOWN NUMBER**, not an auth
   failure — the adapter says so in as many words, because reading it as an
-  auth problem sends you debugging the wrong thing.
+  auth problem sends you debugging the wrong thing. **CHANGED 2026-08-16 —
+  NARROWED: the status alone is no longer enough.** Two different faults share
+  `403`, and only the MESSAGE separates them: `"+990… does not exist for
+  <client_id>"` is an unknown number, while a request carrying the WRONG
+  SURFACE's token answers `"Request must be authorized"`. Treating every 403 as
+  an unknown number puts you back in the exact wrong-thing-debugged failure
+  this finding exists to prevent, one layer in. M5 classifies on the message.
+- **NEW 2026-08-16: `roaming` has THREE states, and two of them are not the
+  same "no".** `{"roaming":false}` is an honest NOT ROAMING; `{"roaming":true,
+  "countryName":["FR"]}` is a country; **`{"roaming":true}` with no country is
+  ROAMING, COUNTRY UNKNOWN** — genuinely produced by the Playground. In the
+  facts shape the first is `roamingCountry: null` (a PRESENT key) and the third
+  is an ABSENT key, because folding the third into `null` answers "not roaming
+  in FR" about a subscriber who may be standing in France.
+- **NEW 2026-08-16: `countryName` is a NAME list and `countryCode` is
+  unusable.** The built-in records carry `["Spain"]`, not `["ES"]`; and the
+  codes are internally inconsistent (built-in Spain = `34`, the DIALLING code;
+  a scripted France = `208`, the MCC). M5 accepts a country only when it is a
+  single canonical ISO-3166-1 alpha-2 code, and reads/writes no `countryCode`
+  at all. `["Spain"]` and multi-country `["FR","MC"]` both leave the axis
+  unavailable rather than guessing.
+- **NEW 2026-08-16: an Admin `UPDATE` REPLACES a sub-object, it does not
+  merge.** Writing `{"reachability":{"reachabilityStatus":…}}` drops the
+  `lastStatusTime` that was there — so M5 writes all three axes in one call.
 - **`/check`'s `maxAge` is in HOURS, capped at 2400** (≈100 days) — measured,
   not clearly documented. A 90-day floor is `maxAge: 2160`. The adapter does
   not use `/check` (a floor above ~100 days would be uncomputable there);
-  it takes the date and windows it locally.
+  it takes the date and windows it locally. **NOT RE-TESTED 2026-08-16** —
+  unused by M5, so it is recorded as untested rather than carried forward as
+  though it had been re-verified.
 - **Backstories** — `POST .../camara/playground/admin/v1.0/action` with
   `LIST | CREATE | READ | UPDATE | DELETE`. `UPDATE {"data":{"simSwap":
   {"latestSimChange":"<ISO>"}}}` sets the swap date. `DELETE` answers `204`
@@ -137,7 +204,17 @@ Everything below is captured behaviour; where it contradicts the docs, this wins
   (`+990100000000`–`…05`) answers `CREATE`/`UPDATE` with `200`/`201` echoing
   your payload back, while the stored dataset never changes — sim-swap keeps
   returning the built-in date (and a `LIST`ed custom entry for such a number
-  is shadowed by the built-in). **The echo is never proof.** So the adapter
+  is shadowed by the built-in). **The echo is never proof.**
+  **CHANGED 2026-08-16 — HOLDS, mechanism sharper.** A bare `UPDATE` on a
+  built-in the app has never claimed now fails LOUD (`400 BAD_REQUEST
+  "PhoneNumber Not Found"`), which the original wording did not describe. But
+  the adapter's own path is CREATE-then-UPDATE, and that reproduces the trap
+  exactly: `CREATE` → `201` echoing a fabricated default template, `UPDATE` →
+  `200` echoing the date you wrote, and the very next `READ` → the built-in's
+  own dataset (`2020-03-15T10:00:00.000Z`, `"Bernard Blanc"`,
+  `countryName:["Spain"]`), with sim-swap agreeing with the READ. Replayed
+  2026-08-16 on `+990100000002`: **echo carried the write, READ did not**; the
+  same sequence on the custom slot had all three agree. So the adapter
   does a `READ` after every `UPDATE` and asserts the stored
   `simSwap.latestSimChange` equals what it wrote, failing loudly otherwise.
   The demo therefore scripts a **custom slot** (`+990100000099`), created on

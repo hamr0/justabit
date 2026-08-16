@@ -7,6 +7,205 @@ memory. A finding here is something that was RUN and OBSERVED, not reasoned.
 
 ---
 
+## 2026-08-16 — M5 live spike: the recorded Playground findings re-verified, three CHANGED
+
+A throwaway spike (6 rounds, scratchpad only) re-ran every recorded Playground
+finding against the live API before any M5 code was written, because the
+findings were measured on **2026-08-14/15** and a sandbox can move. Raw
+responses were captured (secrets redacted at capture time) and are the fixtures
+`poc/m5-check.mjs` replays. Verdict per finding:
+
+| Recorded finding (2026-08-14/15) | 2026-08-16 verdict |
+|---|---|
+| CAMARA token endpoint → `{access_token, expires_in:3600}` | **HOLDS** |
+| Two NON-interchangeable token endpoints | **HOLDS** — CAMARA token on Admin = `401 UNAUTHENTICATED` |
+| sim-swap `/retrieve-date` → `{latestSimChange}` | **HOLDS** |
+| Admin actions `LIST/CREATE/READ/UPDATE/DELETE` | **HOLDS** |
+| `DELETE` → `204`, empty `text/html` body | **HOLDS** |
+| Custom slot `+990100000099` honours writes | **HOLDS** |
+| Quota: 10 custom numbers | **HOLDS** |
+| **THE TRAP: built-ins `200/201`-echo writes while ignoring them** | **HOLDS — mechanism refined** (below) |
+| **`403 FORBIDDEN` on sim-swap means UNKNOWN NUMBER** | **CHANGED — narrowed** (below) |
+| **"That single [sim-swap] call satisfies the whole facts interface"** | **CHANGED — obsolete** (below) |
+| `/check` `maxAge` in HOURS, cap 2400 | **NOT RE-TESTED** — the adapter does not use `/check`; recorded as untested rather than assumed |
+
+**1. THE TRAP HOLDS, and the mechanism is sharper than recorded.** The original
+finding said a built-in answers `CREATE`/`UPDATE` with `200`/`201` echoing your
+payload. Measured today, it splits in two:
+
+- a bare `UPDATE` on a built-in the app has never claimed answers **`400
+  BAD_REQUEST "PhoneNumber Not Found"`** — i.e. it now fails LOUD, which the
+  recorded finding did not describe; but
+- the adapter's own path is CREATE-then-UPDATE, and *that* reproduces the trap
+  exactly. Replayed on `+990100000002`: `CREATE` → `201` echoing a **fabricated
+  default template**; `UPDATE {"simSwap":{"latestSimChange":"2001-02-03…"}}` →
+  **`200` echoing that very date back**; the next `READ` → the built-in's own
+  dataset (`2020-03-15T10:00:00.000Z`, `kyc.name "Bernard Blanc"`,
+  `countryName:["Spain"]`); sim-swap → `2020-03-15T10:00:00.000Z`, unchanged.
+  **Echo carried the write: true. READ carried it: false.** The negative
+  control — the identical sequence on the custom slot — had echo, READ and
+  sim-swap all agree. So READ-after-write is load-bearing, and the test that
+  says so can fail.
+
+**2. `403 FORBIDDEN` no longer means unknown number on its own.** It is the
+MESSAGE that discriminates, and two different faults share the status:
+`{"code":"FORBIDDEN","message":"+990100000077 does not exist for <client_id>"}`
+is an unknown number, while a request carrying the **wrong surface's token**
+answers `{"code":"FORBIDDEN","message":"Request must be authorized"}`.
+Collapsing the two puts you back in the failure the original finding exists to
+prevent — debugging a backstory when the fault is the token — one layer in.
+M5 therefore classifies on the message, and the offline suite pins both
+directions (a mutation making *every* 403 an unknown number, and one making
+*no* 403 an unknown number, are each killed by their own case).
+
+**3. Sim-swap is no longer the whole interface — all three axes are WIRED.**
+The recorded claim that one sim-swap call satisfies the facts interface is
+obsolete: the app's own token scopes include `device-roaming-status:read` and
+`device-reachability-status:read`, and both endpoints answer live at
+`.../api/device-roaming-status/v1/retrieve` and
+`.../api/device-reachability-status/v1/retrieve`. **Nothing in M5 is faked or
+stubbed and no axis is unavailable on this app.** Note the two request shapes:
+sim-swap takes a bare `phoneNumber`, the two device-status APIs take a `device`
+wrapper — sending the bare form answers `400 INVALID_ARGUMENT "phoneNumber is
+not allowed"`, which is how a real-but-differently-shaped endpoint was told
+apart from a non-existent one (`400 BAD_REQUEST "unhandled path"`).
+
+**NEW findings the spike produced:**
+
+- **The credential is already scheme-prefixed.** Line 1 of the stored entry —
+  the exact value `poc/README.md`'s runbook line yields — is `Basic <base64>`.
+  Sending `Basic ${that}` double-prefixes and BOTH token endpoints reject it
+  (`400 invalid_request` / `401 "Basic authentication is malformed"`). This
+  cost the spike's first round and is now normalized in the adapter and pinned
+  by a case that reads the header actually sent.
+- **The Admin data model is much wider than "swap date, roaming, reachability"**
+  — `location`, `reachability`, `roaming`, `simSwap`, `deviceSwap`, `tenure`,
+  `kyc`. M5 touches three of the seven; the rest are untouched, not unnoticed.
+- **The `roaming` axis has THREE distinct states, and they are the reason the
+  null-vs-absent distinction is not academic.** Measured: `roaming:false` →
+  `{"roaming":false}`; `roaming:true` + a country → `{"roaming":true,
+  "countryCode":208,"countryName":["FR"]}`; **`roaming:true` with NO country →
+  `{"roaming":true}`.** The third is the fail-open: the subscriber IS roaming
+  and the country is UNKNOWN, and folding it into "not roaming" answers "not in
+  FR" about someone who may be in France.
+- **`countryName` is a NAME list, not a code list.** The Playground's own
+  built-in records carry `["Spain"]`; an admin-scripted record accepts `["FR"]`
+  because that is what was written. So a country is accepted only when it is a
+  single canonical ISO-3166-1 alpha-2 code; `["Spain"]` and multi-country
+  `["FR","MC"]` (both producible) leave the axis unavailable.
+- **`countryCode` is internally inconsistent and therefore unusable.** The
+  built-in Spain record carries `34` (the DIALLING code); an admin-scripted
+  French record takes `208` (the MCC). M5 reads neither and writes neither —
+  `countryName` alone round-trips, verified live.
+- **`roaming:false` WITH a stale country is producible** (`{"roaming":false,
+  "countryCode":208,"countryName":["FR"]}`). The `roaming` flag is the
+  authoritative half; this is "not roaming", not a country.
+- **Reachability is a closed enum**: `CONNECTED_DATA | CONNECTED_SMS |
+  NOT_CONNECTED`. Anything else is refused by the Admin API with a `400` naming
+  the allowed values, and the rejected write does NOT take effect.
+- **An Admin `UPDATE` REPLACES a sub-object rather than merging it** — writing
+  `{"reachability":{"reachabilityStatus":…}}` drops the `lastStatusTime` that
+  was there. M5 writes all three axes in one call for that reason.
+- **`READ` on a built-in the app never claimed** answers `400 "PhoneNumber Not
+  Found"`, and a claimed one is SHADOWED: it appears in `LIST` while `READ` and
+  the CAMARA reads keep serving the built-in dataset.
+
+Nothing in the spike contradicted the M5 adapter shape, so the build proceeded.
+Quota was left exactly as found (1 of 10 custom numbers).
+
+## 2026-08-16 — M5 built: live Orange facts adapter, 44 offline + 10 live cases, 32/32 mutants killed
+
+`poc/m5-facts-orange.mjs` — the same `setBackstory` / `getFacts` interface as
+M4's mock with a real operator behind it. **`evaluatePredicate` is not
+reimplemented**: M5 exports `createOrangeFacts` and nothing else, and the check
+asserts that, because swapping the facts SOURCE must not touch the step where
+the profile invariant lives. `setBackstory`/`getFacts` are async here (there is
+a network); the clock stays INJECTED, and the relative→absolute conversion M4
+only simulates happens at this boundary for real.
+
+**What was measured, not asserted:**
+
+- **Offline suite: 44/44, exit 0, zero credentials, zero network**
+  (`node poc/m5-check.mjs`). The transport is injected and replays the spike's
+  CAPTURED bytes, so it runs on a clean clone.
+- **Live suite: 10/10, exit 0** (`node poc/m5-check-live.mjs`) against the real
+  Playground. It proves the FR1 negative live (a 120-day-old SIM answers `true`
+  to `simSwapAge ≥ P90D`; the SAME number re-scripted to 1 day answers `false`,
+  same code, same predicate), that the write-trap defence fires on a real
+  built-in **with the custom-slot control succeeding**, that all three axes
+  serve real values, and that an unavailable axis refuses.
+- **32 mutations, 32 killed, 0 survivors.** Including the two that matter most:
+  removing READ-after-write entirely, and comparing against the ECHO instead of
+  the stored state — each turns the suite red on its own case. Backups were
+  working-copy `cp`, never `git checkout`.
+
+**Two defects the mutation sweep found in the check itself**, both fixed:
+
+1. **A VACUOUS redaction case.** Case 8 (client id redacted when no client id
+   can be derived from a non-base64 credential) used a `403` body — but a body
+   containing "does not exist for" routes to the unknown-number branch, whose
+   message is built from the NUMBER and never quotes the body. The client id
+   could not have leaked however the redactor behaved: the case could not fail.
+   Caught because deleting the redactor's pattern layer left the suite green.
+   Re-aimed at a `500`, which reaches the branch that does quote the body.
+2. **A too-crude assertion.** Case 11 asserted the auth-403 message does not
+   contain "unknown number" — but the message legitimately explains that it is
+   "not an unknown number". Tightened to the classification itself
+   (`/^unknown number:/`), which still catches a branch regression.
+
+**The live redaction case demonstrates its own precondition.** Case 10 fetches
+the RAW `403` for the same call and confirms the body genuinely contains the
+client id (`true`), THEN asserts the adapter's error does not. Without that
+half it would pass against a Playground that had simply stopped echoing it — a
+redaction proof with nothing to redact.
+
+**The security pass ran AFTER the build, and found three real defects** (a fix
+round is the least-reviewed code there is, and this one was no exception). All
+three are the same class M4's release gate found, carried across rather than
+re-learned:
+
+1. **Diagnostics invoked caller-supplied conversions.** `assertTestNumber` and
+   `assertNow` rendered their argument with `String(value)` / `JSON.stringify(
+   String(value))`, which runs a caller's `toString`/`valueOf`. Replaced with a
+   `brief()` renderer that invokes nothing caller-supplied and clamps a string
+   BEFORE serializing it. **Pre-registered expectation for the guard-off
+   control was exit 134** (M4's fatal OOM); **measured exit 1** — `String()` on
+   a 3e8-char return allocates fine here, so the case catches the regression
+   cleanly instead of the process dying. Recorded as a clean kill, and M4's
+   process-fatal claim deliberately NOT carried over: that one came through
+   `JSON.stringify`'s JsonStringifier, a different path.
+2. **A backstory field carried on the PROTOTYPE was used but never checked.**
+   Destructuring reads a prototype-borne `swappedDaysAgo`, while `Object.keys`
+   never sees it — so the unknown-field check that catches a typo'd axis passed
+   straight over it. M4 measured the mirror image (a prototype-borne axis
+   DROPPED and defaults used); either direction is a scripted story that is not
+   the story in force. Now refused by an `isPlainData` bound matching M4's.
+3. **A live-check assertion could pass with nothing to compare.**
+   `msg.includes(tok)` coerces an `undefined` token to the string
+   `'undefined'`, so a failed token exchange would have satisfied the redaction
+   case. Now gated on the token actually being one.
+
+Fixes took the offline suite 41 → 44 cases and the sweep 29 → 32 mutations,
+all killed; the live suite was **re-run after the fix round** (10/10, exit 0)
+rather than reusing the pre-fix run. Credential and client id confirmed absent
+from the tracked tree AND from all 33 commits of history.
+
+**Honest limits, recorded rather than cleaned up:**
+
+- The live check costs quota: it CREATEs and DELETEs one slot for the trap case.
+  Verified restored (`LIST` = 1 of 10) after every run.
+- Token caching has NO time-based expiry, deliberately — refresh is driven by
+  the server's own `401` (one retry, then loud failure), which keeps this
+  module free of any wall-clock read. A revoked-but-unexpired token is handled
+  by the same path; a token that expires mid-`getFacts` costs one extra round
+  trip, not a failure.
+- `/check`'s `maxAge` behaviour was not re-tested (unused by M5), and is
+  recorded above as untested rather than carried forward as verified.
+- "Unwired axis" could not be demonstrated by an axis being missing — all three
+  are wired. It is demonstrated instead by a state the Playground genuinely
+  produces and the adapter genuinely cannot answer from (`{"roaming":true}`,
+  no country), which is the honest version of the same proof.
+
 ## 2026-08-16 — user validation at v0.2.0 (`7c41c83`): all four suites green, M4 at 33/33
 
 After the v0.2.0 release — main at merge commit `7c41c83`, tag `v0.2.0` — the
