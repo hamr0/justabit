@@ -179,6 +179,73 @@ An API operation conforming to this profile:
 | location-verification | already predicate-shaped; add nonce+expiry, drop retrieval variant |
 | kyc | `kyc-age-verification` conforms; `kyc-match` conforms (scores are bands); `kyc-fill-in` excluded |
 
+#### 3.3.1 What that looks like on the wire (illustrative, non-normative)
+
+**This table is an EXAMPLE of adoption, not a rule.** It adds nothing to §3.2 —
+the normative profile enumerates no predicate types and mandates no field
+names. It exists because "conforms with nonce+expiry added" is abstract until
+you see the same subscriber fact in both shapes, and because reviewers
+consistently ask what a catalog API *returns* under the profile.
+
+| Catalog API | Retrieval shape today | Profile-mode shape (illustrative) |
+|---|---|---|
+| sim-swap `/retrieve-date` | `{"latestSimChange":"2026-04-18T00:00:00Z"}` | excluded from profile mode; the question becomes ↓ |
+| sim-swap `/check` | `{"swapped": true}` over a `maxAge` window | `{"claims":{"predicate":"simSwapAge≥P90D","result":true,"nonce":"…","exp":1786060800000},"iss":"…","sig":"…"}` |
+| number-verification `/verify` | `{"devicePhoneNumberVerified":true}` | same, plus nonce+expiry binding and a signature over the closed claim set |
+| number-verification `/device-phone-number` | `{"devicePhoneNumber":"+33…"}` | excluded from profile mode (returns the identifier itself) |
+| kyc `kyc-age-verification` | `{"ageCheck":"true"}` | `{"claims":{"predicate":"age≥18","result":true,…},"sig":"…"}` |
+| kyc `kyc-match` | per-attribute match scores | conforms as-is — scores are already bands (rule 7) |
+| kyc `kyc-fill-in` | attribute values | excluded from profile mode |
+| device-roaming-status † | `{"roaming":true,"countryName":["FR"]}` | `{"claims":{"predicate":"roamingIn[FR,DE]","result":true,…},"sig":"…"}` — country in, boolean out |
+| device-reachability-status † | `{"reachabilityStatus":"CONNECTED_DATA"}` | `{"claims":{"predicate":"reachable=true","result":true,…},"sig":"…"}` |
+
+Three things the table is meant to make concrete:
+
+1. **The window is in the QUESTION, and only the answer crosses.** The
+   requester names the threshold it needs (`P90D`); the operator returns the
+   bit. The date, the country and the status stay operator-side — rule 2 is a
+   property of the response shape, not a promise in prose.
+2. **"Excluded" is not "deprecated".** `/retrieve-date` and
+   `/device-phone-number` remain exactly as they are for the three-legged and
+   consented flows they already serve. Profile mode is an additional mode, and
+   §3.2 rule 8 keeps a widening back to retrieval an explicit, consent-visible
+   operation rather than a silent one.
+3. **A fact the operator cannot supply must be REFUSED, not defaulted.** The
+   right-hand column has no "unknown" row on purpose: an unanswerable predicate
+   returns *no answer*, never `result:false`. A missing fact rendered as a
+   confident negative is indistinguishable on the wire from a real one, and it
+   is signed. This is the one row of the table with teeth, and it is the
+   failure the PoC's M5 module measured against a live operator sandbox: the
+   Orange Playground genuinely returns "roaming, country unknown", and folding
+   that into "not roaming" answers "not in FR" about a subscriber who may be
+   standing in France.
+
+The middle column reflects current catalog responses (baseline verified
+2026-08-14; see §11). The right-hand column is this profile applied to them.
+
+Two limits on that, stated rather than glossed:
+
+- **† The two `device-*` rows are NOT covered by the §11 baseline.** That
+  baseline re-verified SimSwap v2.1.0, NumberVerification v2.1.0 and KYC r2.2
+  only. The roaming and reachability shapes in the middle column are what the
+  **Orange Network APIs Playground** returned when the PoC's M5 module read them
+  live (2026-08-16) — a vendor sandbox, not a CAMARA spec surface. They are
+  included because the PoC exercises them; they carry the sandbox's authority,
+  not the catalog's, and they get re-verified against the catalog before this
+  document is submitted.
+- **The right-hand column is the profile's envelope, and the PoC produces that
+  envelope — it does not produce these specific predicates.** The PoC (M1)
+  signs the closed claim set `{predicate, result, nonce, exp}` and carries `sig`
+  as a SIBLING of `claims`, with `exp` as Unix epoch milliseconds — which is
+  what the rows above show, and what `spec/carrier-attestation.yaml` requires.
+  Predicate *ids* like `roamingIn[FR,DE]` are illustrative spellings; the
+  normative profile enumerates no predicate types (§3.2) and the PoC answers
+  three axes, not nine. An earlier version of this paragraph claimed "the shapes
+  in it are the ones the PoC actually produces" while the rows showed `sig`
+  INSIDE the claims and a quoted `exp` — a shape M1 rejects outright
+  (`unexpected fields: sig`). The claim was checkable and did not check out, so
+  it is corrected here rather than dropped.
+
 ### 3.4 Agent-grade floor (reference profile)
 
 Agents are the "why now" (§7.2). Consumer-agent floor, only tightenable:

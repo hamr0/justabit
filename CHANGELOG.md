@@ -1,5 +1,160 @@
 # Changelog
 
+## 0.3.0 — 2026-08-17
+
+- **M5 (live Orange facts adapter) built under the §4.4 ladder —
+  user-validated 48/48 offline + 11/11 LIVE at `8e842c3`, the shipped state,
+  which MEETS gate G2 (`G2 = M5 user-validated live`) with no asterisk and
+  nothing pending. M5's G2 is the first G2 in the project — first met at
+  `69b6f2e` (47/47 + 11/11), re-established at `4ac60e9`, and re-closed at
+  `8e842c3` after the post-gate review round below changed all three M5
+  files. Each round of fixes re-opened the gate and each was closed by a run,
+  never by assuming an earlier run carried over.**
+  `poc/m5-facts-orange.mjs` exports `createOrangeFacts` and nothing else —
+  `evaluatePredicate` is deliberately NOT reimplemented, so the M4 split
+  (raw facts operator-side; one closed-answer evaluation step facing the wire)
+  is what makes the backend a drop-in swap rather than a second code path.
+- **The spike re-ran every recorded Playground finding before a line was
+  written** — they were measured on 2026-08-14/15 and a sandbox can move.
+  **Seven held, three changed.** (1) `403 FORBIDDEN` no longer means "unknown
+  number" on its own — a wrong-surface token returns the same status with a
+  different body, so the adapter now splits the two by body text rather than
+  status. (2) Sim-swap is no longer the whole interface: roaming AND
+  reachability are both live, so **all three axes are wired to real endpoints
+  and nothing is faked**. (3) THE TRAP holds with a sharper mechanism — a bare
+  `UPDATE` on an unclaimed built-in now fails loud with `400`, but the
+  adapter's own CREATE-then-UPDATE path reproduces the echo-lies behaviour
+  exactly: the echo carried the written date, the next READ did not. The spike
+  also found the stored credential is **already `Basic `-prefixed** — a
+  double-prefix that fails both token endpoints, and it cost the spike's first
+  round.
+- **READ-after-write is load-bearing, not belt-and-braces.** Because a write
+  can be echoed back and silently discarded, every backstory write is verified
+  by a subsequent READ; the mismatch path produces the module's loudest
+  diagnostic. Two separate review findings landed on that one message, which is
+  what a load-bearing guard attracts.
+- **`null`-vs-absent roaming semantics are distinguished, not collapsed.** A
+  device that is not roaming returns the key **PRESENT and `null`**; an
+  unavailable axis returns the key **ABSENT**. The first is a real answer
+  (`answered:false` for a country predicate, because there is no country), the
+  second is a refusal (`fact unavailable: roamingCountry`). Collapsing them
+  would turn "we cannot know" into a signed bit.
+- **Three-layer redaction** over everything that can reach a diagnostic: exact
+  known-secret match, pattern match, and a length clamp — composed in an order
+  that matters (a string is redacted BEFORE it is clamped, or a clamp leaves an
+  unmatched FRAGMENT of the credential printed).
+- **Offline suite runs on a clean clone: 48 cases, zero credentials, zero
+  network** — an injected transport replays bytes captured live, so the fixture
+  can still show the negative. **Live suite: 11 cases with quota hygiene** — it
+  consumes and returns one of the app's 10 custom slots, reclaims the slot
+  BEFORE consuming it (so an interrupted run does not leak one), prints the
+  count at both ends, and case 11 asserts it came back.
+- **Adversarial review round: 3 confirmed issues, all fixed (44 → 47 offline,
+  10 → 11 live).** Found by an independent 30-case check written from the spec
+  BEFORE either shipped suite was opened, plus an independent 16-mutant sweep.
+  (1) The write-verification diagnostic — the message the module's most
+  load-bearing guard produces — was the **single throw path that skipped
+  `redact()`**, leaking a planted credential half and a planted bearer token,
+  and it clamped AFTER serializing (measured **2354ms** on a 2e8-char value,
+  and a `RangeError` at V8's max string length that destroyed the loud message
+  entirely). (2) A required mutant **SURVIVED**: "one token per surface" was
+  unpinned because the check answered both token endpoints with the same
+  fixture, though the two are measured non-interchangeable. (3) The live
+  check's cleanup DELETE was unobserved, so an interrupted run leaked a slot
+  toward the 10-cap silently. 18/18 mutants killed after the fixes; a
+  315-combination leak fuzz with a planted-leak control is clean.
+- **Release gate: five more findings, two of them real code defects (47 → 48
+  offline).** `/security` returned 0 Critical / 0 High / 0 Medium; `/diff-review`
+  returned "with fixes". Each was reproduced against the unfixed tree first.
+  (1) **The stored country list was COERCED while being joined** —
+  `Array.prototype.join` calls `String()` on every element, so a JSON-parsed
+  `{"toString":"x"}` threw a bare **40-char `TypeError`** from the line that
+  BUILDS the write-verify comparison, replacing the module's loudest guard
+  before it could run (the benign control gave the correct **418-char**
+  message). Closed by `joinStored()`. This is a direct sibling of the defect the
+  previous round closed 30 lines below, in the RENDER of the same diagnostic —
+  the render was guarded, the line feeding it was not. (2) **The live quota
+  assertion used a baseline taken before the CUSTOM slot existed**, so a FRESH
+  account's first run went red and blamed the trap case's cleanup, which had in
+  fact succeeded — reproduced live at `start=0 end=1`, exit 1, with
+  `cleanup DELETE status=204` printed alongside. Fixed by making the baseline
+  deterministic rather than by loosening the assertion. Three were docs-honesty
+  defects: the CAMARA proposal's catalog table **showed a response shape M1
+  REJECTS** under a sentence claiming the PoC produced it (corrected to the real
+  envelope, overclaim replaced, retraction left visible); two rows sat outside
+  the §11 verified baseline (marked `†` with provenance); and a mutant count
+  contradicted itself (18 was the POST-fix total, the pre-fix sweep was 15/16).
+- **The three `/security` Lows were all confirmed and fixed**, each trivial and
+  local: `await res.text()` sat OUTSIDE the try that redacts (a stream dying
+  mid-response rejects there, so its message escaped unredacted) — now inside;
+  the client-id pattern's `\S{0,80}` bound was **tighter than the thing it
+  masks**, so an over-long identifier had its first 80 characters redacted and
+  the REMAINDER printed — worse than not matching — now **256**, re-checked at
+  1ms on a 200k-char pathological input to keep the ReDoS property. Operator-side
+  timestamps in diagnostics were judged NOT a breach and deliberately left (they
+  are operator-side by construction, never wire-reachable).
+- **Both release-gate code fixes are mutation-proven**, restores byte-identical
+  by sha256: reverting `joinStored` takes the offline suite to exit **1** (47/48,
+  case 48 only) and restoring it to exit **0**; reverting the quota baseline on a
+  freshly-emptied account takes the LIVE suite to exit **1** (10/11,
+  `start=0 end=1`) and restoring it to exit **0** on the identical condition.
+  A 110-run flake sweep across all five offline suites returned **0 non-zero
+  exits**, and the credential was confirmed absent from the working tree and
+  from all 35 commits of history by literal-value match.
+- **A catalog-mapping table was added to the CAMARA proposal, labelled
+  illustrative.** It maps the profile onto the existing catalog surfaces; the
+  PoC produces the ENVELOPE, while the predicate spellings are illustrative and
+  the PoC answers three axes, not nine. That distinction is stated in the
+  document rather than left for a reviewer to find.
+- **Ladder status: M1–M5 user-validated at their current case counts on the
+  shipped tree — no module carries an asterisk.** M1 19/19, M2 10/10, M3 22/22,
+  M4 33/33, M5 48/48 offline + 11/11 live. M5's G2 was first met at `69b6f2e`
+  (47/47 + 11/11), RE-OPENED when the release gate's fixes touched all three M5
+  files and re-established by a user run at `4ac60e9`, then RE-OPENED again by
+  the post-gate review round below and re-closed by a user run at `8e842c3` —
+  the shipped state. Each gap was closed by a run rather than assumed to carry
+  over. An earlier 44/44 + 10/10 user run at `2fd62ba`, undated at the time, is
+  recorded in the findings log for completeness. **M6 not started**, and
+  `poc/demo.mjs` does not exist yet.
+- **Post-gate code review round (2026-08-17): two more adapter defects, both
+  redaction-order siblings, plus a third adjudicated after the round and three
+  live-check hardenings — counts unchanged (48 offline / 11 live). This
+  RE-OPENED G2, and the user re-ran the two-line runbook on the fixed tree the
+  same day and reported both clean, re-closing it at `8e842c3`.** (1) `joinStored()`
+  clamped stored `countryName` strings to 48 chars BEFORE `redact()` ever saw
+  them — the exact clamp-before-redact fragment leak the `show()` comment
+  warns about, one step upstream of it: a >48-char credential echoed inside
+  `countryName` rode a 48-char un-redactable fragment into the write-verify
+  diagnostic (reproduced red: fragment printed, no `[REDACTED]`; green after
+  redact-first — the 44-char fixture secret planted in the sim axis could
+  never catch it). (2) `tokenFor()`'s `await res.text()` sat OUTSIDE the try
+  that redacts — the same /security Low fixed in `post()`'s send survived at
+  this sibling site; a token stream dying mid-body escaped unredacted
+  (reproduced: planted secret printed raw; wrapped and redacted after). (3)
+  Adjudicated after the round rather than during it: `assertNow()` admitted a
+  safe integer past `Date`'s representable range, so `9e15` cleared every check
+  and then `toISOString()` threw a bare `RangeError: Invalid time value` — the
+  same opaque-error-replaces-the-loud-one class — now bounded at `MAX_EPOCH_MS`
+  (mutation-proven, no suite case added, 48/48 unchanged).
+  Live-check hardenings: the raw admin token bootstrap now checks status and
+  token shape before caching (a 401 JSON body used to cache
+  `access_token: undefined`, and `undefined === null` never refetches — every
+  later call sent `Bearer undefined` and case 11 blamed QUOTA for an AUTH
+  fault; a non-JSON body threw a raw SyntaxError quoting the wire body); the
+  courtesy re-script after case 11 is guarded (a transient failure there
+  killed an all-green run before the tally printed); and case 11 no longer
+  conjoins `endSlots < QUOTA_CAP` (at-cap is a separate warning, not a red
+  blaming a cleanup that succeeded). Comment fixes: case 48's "three legs" now
+  says four (it asserts four); the root README status lists all five modules.
+- **Open items carried, not cleaned up.** M3 still carries the `describe`-throw
+  class on its untrusted-side path (`checkFloor` with a BigInt throws a raw
+  TypeError) — pre-existing, fails closed, and deliberately not retrofitted
+  because it means touching a user-validated module; **M6 is the declared fix
+  point**. The spec sketch still lists predicate types the PoC does not wire
+  (seven listed, three answered), with **M6 as the declared wire-or-trim
+  point** — restated because a schema looser than the implementation is exactly
+  the silent-widening shape the profile exists to forbid.
+
 ## 0.2.0 — 2026-08-16
 
 - **M4 (mock facts adapter) built under the §4.4 ladder — user-validated
