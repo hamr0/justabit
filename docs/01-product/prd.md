@@ -297,7 +297,8 @@ adversarial probe of the finished, green `demo.mjs` showed the top-level REQUEST
 field set was still open, so a request carrying `floors` — one letter off — had
 its floor silently dropped and got a signed answer under the operator's own
 `P90D` while the requester believed it demanded `P365D` (decision log entry
-above). Closing it took the demo to 22 assertions and the check to 27 cases.
+above). Closing it took the demo to 22 assertions and the check to 27 cases (28
+after the exit-code fix logged above).
 The lesson is worth more than the fix: **a closed-set discipline is only as good
 as its outermost layer, and the composition owns a layer none of the modules
 do** — which is exactly the failure class M6's own POC gate was aimed at, found
