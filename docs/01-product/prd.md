@@ -179,9 +179,16 @@ the 300 cap, and a `describe()` fallback chain whose `toJSON` hook killed the
 process at **exit 134** (fatal OOM, uncatchable); renderer rewritten to invoke
 nothing caller-supplied, +3 cases → 33, four mutations each red on its own case
 incl. a guard-off control returning the OOM; dated findings entries 2026-08-16).
-**M5 user-validated LIVE at `69b6f2e` — G2 MET (47/47 offline + 11/11 live on
-the user's machine), then re-opened by the v0.3.0 release gate: the current
-48/11 counts are agent-run and a user re-run is pending.** Spike first: six live rounds re-ran
+**M5 user-validated LIVE 48/48 + 11/11 at `8e842c3`, the shipped v0.3.0 state
+— G2 MET, no asterisk, nothing pending.** (User ran 47/47 + 11/11 at
+`69b6f2e`, which met G2 first; the release gate then changed all three M5
+files, so the user re-ran at `4ac60e9` clean; a post-gate code review round
+(2026-08-17) fixed two more adapter redaction-order defects, an `assertNow`
+range bound and three live-check faults — again all three M5 files — so the
+user re-ran once more at `8e842c3` clean. Counts were unchanged (48/11)
+throughout; each gap was closed by a run, not assumed to carry over. An earlier
+44/44 + 10/10 user run at `2fd62ba`, undated at the time, is recorded in the
+findings log for completeness.) Spike first: six live rounds re-ran
 every recorded Playground finding before a line was written, because they were
 measured on 2026-08-14/15 and a sandbox can move. Seven findings held, **three
 changed** — `403 FORBIDDEN` no longer means "unknown number" on its own (a
@@ -226,10 +233,9 @@ poc/m5-check.mjs` **47/47** and the live `node poc/m5-check-live.mjs` **11/11**
 at commit `69b6f2e` (dated findings entry, 2026-08-16). That is the first G2
 validation in the project, and it stands as a record of that tree state.
 
-**The v0.3.0 release gate then found five more issues, so the CURRENT counts
-(48 offline / 11 live) are AGENT-RUN again and a user re-run is pending** — the
-same post-validation pattern v0.2.0 hit with M4, and recorded the same way
-rather than blurred into the line above. Two were real code defects: a stored
+**The v0.3.0 release gate then found five more issues, which re-opened the
+gate** — the same post-validation pattern v0.2.0 hit with M4, and recorded the
+same way rather than blurred into the line above. Two were real code defects: a stored
 `countryName` element was COERCED by `Array.prototype.join`, so a hostile
 element replaced the module's loudest guard with a bare 40-char `TypeError`
 (offline 47 → **48**); and the live quota assertion compared `end === start`
@@ -238,12 +244,26 @@ account's first run went RED and blamed the trap case's cleanup, which had in
 fact succeeded — reproduced live (`start=0 end=1`, exit 1) and green on the
 identical condition after the fix. Three were docs-honesty defects, incl. a
 catalog-mapping table whose illustrative shape M1 would have REJECTED under a
-sentence claiming the PoC produced it. M6 not started.
+sentence claiming the PoC produced it. **The user then re-ran the fixed tree at
+`4ac60e9` and reported 48/48 offline + 11/11 live**, re-establishing G2 at that
+state (dated findings entry, 2026-08-16). A post-gate code review round
+(2026-08-17) then found and fixed two more adapter defects — `joinStored()`
+clamped stored `countryName` strings BEFORE `redact()` saw them, so a >48-char
+credential echoed off the wire rode an un-redactable 48-char fragment into the
+write-verify diagnostic (the exact clamp-before-redact leak the `show()`
+comment warns about, one step upstream of it); and `tokenFor()`'s body read sat
+outside the try that redacts, the unfixed sibling of the `post()` /security
+Low — plus three live-check faults (an unguarded raw-admin token bootstrap
+that cached `undefined` and made case 11 blame quota for auth, an unguarded
+courtesy re-script that could kill an all-green run before the tally, and case
+11's at-cap conjunct blaming a successful cleanup), plus an `assertNow()` bound
+at `MAX_EPOCH_MS` (a safe integer past `Date`'s range replaced the module's
+loud message with a bare `RangeError`). Counts unchanged (48/11) — **and the
+user re-ran the two-line runbook on the fixed tree the same day and reported
+both clean, re-closing G2 at `8e842c3`**. M6 not started.
 
-**Every count above is from a run on the user's own machine**, including M5's
-G2 record at `69b6f2e` — with the single exception of M5's CURRENT 48/11, which
-the v0.3.0 release gate produced after that run and which is marked agent-run
-and pending above. At commit
+**Every count above is from a run on the user's own machine**, M5's shipped
+48/11 included. At commit
 `5d5e8aa` (dated findings record, 2026-08-16) the user ran 19/19, 10/10, 22/22
 and 30/30. The v0.2.0 release gate then changed two files —
 `poc/m4-facts-mock.mjs` and `poc/m4-check.mjs` — taking M4 to 33 cases, leaving
@@ -257,11 +277,13 @@ redundant guards stay as documented defence-in-depth, and `reachable` was minted
 into the illustrative spec-sketch `Predicate` enum now rather than at M6 (no
 normative surface enumerates predicate types, so nothing else moved).
 
-**M1–M4 carry no asterisk** — all four are user-validated at their current case
-counts on the current tree. **M5 carries one**: G2 was met at `69b6f2e`, and the
-release-gate fixes that followed put its 48/11 counts back into agent-run until
-the user re-runs the two-line runbook. That asterisk is deliberate — the
-alternative was to ship the fixes unmentioned and let the earlier G2 record
+**No module carries an asterisk** — all five are user-validated at their
+current case counts on the shipped tree. M5's asterisk was raised twice and
+retired twice by runs, not by argument: G2 was met at `69b6f2e`, re-opened by
+the release-gate fixes and re-established at `4ac60e9`, re-opened again by the
+2026-08-17 post-gate review round (all three M5 files touched) and re-closed at
+`8e842c3`. Keeping the asterisk visible until a run retires it is deliberate —
+the alternative is to ship fixes unmentioned and let an earlier G2 record
 appear to cover code it never saw.
 
 (For the record, an earlier version of this note said the `/code-review` round

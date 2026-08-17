@@ -7,6 +7,191 @@ memory. A finding here is something that was RUN and OBSERVED, not reasoned.
 
 ---
 
+## 2026-08-17 — G2 RE-CLOSED at the final v0.3.0 state: user re-ran M5 clean at `8e842c3` (48/48 offline + 11/11 live)
+
+**This closes the post-gate review round's "user re-run pending"** — the last
+pending marker the tree was carrying, and the entry immediately below is the
+round that opened it. That round's fixes touched all three M5 files, so the
+`4ac60e9` run recorded further down no longer covered the code. The gap is
+closed by a run, not by assuming it carried over.
+
+The user personally ran M5 on their own machine on the working tree that
+became commit `8e842c3` — the v0.3.0 release state, every review-round fix in,
+the code shipping unchanged from there — and reported both suites clean:
+`node poc/m5-check.mjs` **48/48** and the live
+`ORANGE_BASIC_AUTH=… node poc/m5-check-live.mjs` **11/11**.
+
+**M5 is therefore user-validated LIVE at the shipped state, and G2 (PRD §4.4:
+`G2 = M5 user-validated live`) is MET with no asterisk and nothing pending.**
+
+### The full user-run record for M5, in order
+
+Four user runs exist for this module. They are listed separately rather than
+collapsed, because each covers a different tree state and only the last one
+covers what ships:
+
+| # | Commit | Offline | Live | What it covers |
+|---|---|---|---|---|
+| 1 | `2fd62ba` | 44/44 | 10/10 | pre-review state; **undated at the time** — recorded later for completeness |
+| 2 | `69b6f2e` | 47/47 | 11/11 | post-adversarial-review; **the first G2 in the project** |
+| 3 | `4ac60e9` | 48/48 | 11/11 | post-release-gate; G2 re-established there |
+| 4 | `8e842c3` | **48/48** | **11/11** | post-review-round — **the shipped v0.3.0 state** |
+
+Runs 1–3 are history: the same module at earlier tree states, each superseded
+by a round of fixes that changed code they had already covered. Run 4 is the
+one the release rests on. Nothing about M5 is pending.
+
+### Release-gate corroboration at `8e842c3`
+
+The v0.3.0 release gate re-ran the offline ladder independently at the
+committed state. This corroborates the user's run; it does not substitute for
+it — the G2 record is run 4 above. The live suite was NOT re-run by the agent
+(it costs Playground quota and the user's run was clean).
+
+| Check | Exit | Result |
+|---|---|---|
+| `node poc/m1-check.mjs` | **0** | 19/19 |
+| `node poc/m2-check.mjs` | **0** | 10/10 |
+| `node poc/m3-check.mjs` | **0** | 22/22 |
+| `node poc/m4-check.mjs` | **0** | 33/33 |
+| `node poc/m5-check.mjs` | **0** | 48/48 |
+| secret scan of the review-round diff | — | clean; the only matches are the offline suite's declared SYNTHETIC fixture credential and `ORANGE_BASIC_AUTH` env references |
+
+Every count above is by **exit code**, not by reading a printed tally.
+
+### Open items carried into M6 (unchanged by this run)
+
+Nothing about M5 is pending. Two items remain open and are carried honestly
+rather than closed by this release: the M3 `describe()`-throw class, and the
+spec-sketch predicate types that are not wired to the PoC (M6 wires or trims
+them).
+
+## 2026-08-17 — Post-gate code review round: two adapter redaction-order defects reproduced red and fixed green; G2 re-opened, then re-closed by the user run above
+
+An 8-angle review of the M5 branch diff found and fixed five code defects.
+The two adapter defects were **reproduced against the unfixed tree first**
+(a scripted repro with an injected transport, exit 1 pre-fix / exit 0
+post-fix; the offline suite stayed 48/48 exit 0 throughout):
+
+1. **`joinStored()` clamped before redacting.** A 78-char known secret planted
+   in a stored `countryName` echo produced a `write verification FAILED`
+   message carrying the secret's first 48 chars verbatim and no `[REDACTED]`
+   (observed: `fragment leaked=true, [REDACTED] present=false`). The exact
+   clamp-before-redact fragment leak the `show()` comment documents, one step
+   upstream of it — structurally invisible to the suite because the fixture
+   secret is 44 chars (< BRIEF_MAX 48) and planted in the sim axis, which
+   never passes through `joinStored`. Fixed by redacting each string element
+   before the clamp; post-fix the same repro prints `[REDACTED]`, no fragment.
+2. **`tokenFor()`'s `await res.text()` sat outside the try that redacts.** A
+   token stream dying mid-body rejected there and the planted secret printed
+   raw (observed: `secret leaked=true`); the identical /security Low was fixed
+   in `post()`'s send only. Post-fix: `token response read failed (camara):
+   … [REDACTED]`.
+
+Three live-check faults were fixed by inspection (verified by verifier agents
+against the code paths, not run live): the raw admin token bootstrap cached
+`access_token: undefined` off a 401 JSON body and `undefined === null` never
+refetches — every later call sent `Bearer undefined` and case 11 blamed QUOTA
+for an AUTH fault (a non-JSON body additionally threw a raw SyntaxError
+quoting the wire body); the courtesy re-script between case 11 and
+`conclude(11)` was unguarded, so a transient failure there killed an all-green
+run before the tally printed; and case 11's `endSlots < QUOTA_CAP` conjunct
+made an at-cap account red under a name blaming a cleanup that succeeded
+(now a separate warning).
+
+One further adapter defect, from a review candidate adjudicated AFTER the round
+above rather than during it, was fixed the same way:
+
+- **`assertNow()` admitted a safe integer past `Date`'s range.** `9e15` cleared
+  the safe-integer and `swappedAtMs < 0` checks, then
+  `new Date(swappedAtMs).toISOString()` threw a bare `RangeError: Invalid time
+  value` at the caller — the same "opaque error replaces the loud one" class as
+  the `joinStored`/`show` fixes above. Bounded at `MAX_EPOCH_MS`
+  (8640000000000000), which covers both `setBackstory` and `getFacts` from the
+  one check. Mutation-proven: repro exit 1 with the bound reverted (bare
+  `RangeError`), exit 0 with it restored (`invalid now: 9000000000000000
+  (beyond Date's representable range …)`); no suite case added, 48/48 exit 0
+  unchanged.
+
+**Consequence: all three M5 files changed, so the `4ac60e9` user run no longer
+covered the tree — G2 was re-opened, counts unchanged (48/48 + 11/11
+expected), user re-run of the two-line runbook pending. The user re-ran it the
+same day and reported both clean, which re-closed G2 at `8e842c3` — see the
+entry above.** Docs-honesty fixes in the same
+round: the CHANGELOG headline attributed "the first G2" to the `4ac60e9` run
+(the run table below says `69b6f2e`); the root README still said "four modules"
+with M5 absent at v0.3.0; case 48's comment said "three legs" while the case
+asserts four.
+
+## 2026-08-16 — G2 RE-ESTABLISHED: user re-ran M5 clean at `4ac60e9` (48/48 + 11/11 live)
+
+> **SUPERSEDED as a statement about what ships, 2026-08-17.** The run below is
+> confirmed and stands as the record of that tree state. What it no longer is,
+> is the *final* state: the 2026-08-17 post-gate review round changed all three
+> M5 files after it, so `4ac60e9` became run 3 of 4 and G2 was re-opened and
+> then re-closed by the user's run at `8e842c3`. Read "final release state" in
+> this entry as "final state as of 2026-08-16". Nothing else here changed.
+
+**This closed the release-gate round's "M5 user re-run pending"** — the last
+pending marker the tree was carrying that day. The entry below records G2 being met at
+`69b6f2e` and then deliberately re-opened, because the gate's fixes landed
+after that run and touched all three M5 files. That gap is now closed by a
+run, not by assuming it carried over.
+
+The user personally ran M5 on their own machine at commit `4ac60e9` — the
+final release state, with every gate fix in — and reported both suites clean:
+`node poc/m5-check.mjs` **48/48** and the live
+`ORANGE_BASIC_AUTH=… node poc/m5-check-live.mjs` **11/11**.
+
+**M5 is therefore user-validated LIVE at the final state, and G2 (PRD §4.4:
+`G2 = M5 user-validated live`) is MET with no asterisk and nothing pending.**
+
+### The full user-run record for M5, in order
+
+Three user runs existed for this module as of this entry. They are listed
+separately rather than collapsed, because each covers a different tree state:
+
+| # | Commit | Offline | Live | What it covers |
+|---|---|---|---|---|
+| 1 | `2fd62ba` | 44/44 | 10/10 | pre-review state; **undated at the time** — noted here rather than left as an undated memory |
+| 2 | `69b6f2e` | 47/47 | 11/11 | post-adversarial-review; **the first G2 in the project** |
+| 3 | `4ac60e9` | **48/48** | **11/11** | post-release-gate — the final state *as of 2026-08-16* |
+
+Run 1 was never given a dated record when it happened; it is recorded now for
+completeness. It is the same module two review rounds earlier, so it is
+history, not a second validation of the current tree. Run 3 was the one the
+release rested on when this was written; a fourth run at `8e842c3` supersedes
+it (2026-08-17 entry above).
+
+### Release-gate corroboration at `4ac60e9`
+
+The v0.3.0 release gate re-verified the same commit independently. This
+corroborates the user's run; it does not substitute for it — the G2 record is
+run 3 above.
+
+| Check | Exit | Result |
+|---|---|---|
+| `node poc/m1-check.mjs` | **0** | 19/19 |
+| `node poc/m2-check.mjs` | **0** | 10/10 |
+| `node poc/m3-check.mjs` | **0** | 22/22 |
+| `node poc/m4-check.mjs` | **0** | 33/33 |
+| `node poc/m5-check.mjs` | **0** | 48/48 |
+| `node poc/m5-check-live.mjs` (LIVE) | **0** | 11/11, quota restored 1 → 1 of 10 |
+| `spec/carrier-attestation.yaml` parses | **0** | OpenAPI 3.0.3, 1 path |
+| secret scan of `origin/main...HEAD` | — | clean; the one match is the suite's declared SYNTHETIC fixture credential, commented as such |
+
+Every count above is by **exit code**, not by reading a printed tally. The
+first live invocation lost its exit code to a shell mistake (`PIPESTATUS` read
+in a later command), so it was re-run capturing the status directly rather
+than trusting the `RESULT: 11/11` line — a printed tally is not a pass.
+
+### Open items carried into M6 (unchanged by this run)
+
+Nothing about M5 is pending. Two items remain open and are carried honestly
+rather than closed by this release: the M3 `describe()`-throw class, and the
+spec-sketch predicate types that are not wired to the PoC (M6 wires or trims
+them).
+
 ## 2026-08-16 — G2 MET (user ran M5 live), then the v0.3.0 release gate found five more (47 → 48 offline)
 
 Two things happened in this order, and the order is the point: **the user
