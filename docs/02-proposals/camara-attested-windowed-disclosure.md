@@ -306,6 +306,52 @@ document-rooted principal layer above this profile.
   the RP↔operator pairing (who queries whom, when). Rule 6 removes content,
   not the fact of the query; measured and recorded in the PoC findings log.
 
+**The repeated-query oracle — measured, and only partly closed.** Every
+individual profile-mode response is a windowed bit and leaks nothing beyond it.
+A *sequence* of them is a different object. Rule 1 deliberately puts the window
+in the QUESTION, which leaves the threshold to the requester; so a requester
+willing to pay for N queries can binary-search the underlying value out of N
+individually clean booleans. This is measured, not hypothetical: the PoC's M6
+composition spike recovered a subscriber's exact SIM-swap age — 137 days — in
+**nine** signed, nonce-bound, expiring, end-to-end-encrypted, fully metered
+queries, every one of which passed every rule in §3.2 and left the raw value
+nowhere on the wire. No rule is violated and no module is wrong; the leak is the
+sequence, not any response, and floors do not reach it (a floor constrains the
+*profile* demanded, not the threshold asked). Three mitigations were weighed:
+
+1. **Quantised thresholds — ADOPTED in the reference implementation.** The
+   operator publishes a coarse menu of legal thresholds next to its floor
+   (`P30D | P90D | P180D | P365D` in the PoC) and **refuses** anything off it.
+   It refuses rather than rounds: rounding to the nearest bucket answers a
+   question nobody asked, and silently widens or tightens the window the
+   requester agreed to. This **caps** the oracle's resolution at the bucket —
+   roughly two bits over a year — it does **not** close it, and it is stated as
+   a cap rather than a fix. Only *ordered* thresholds get a menu: a
+   set-membership predicate has no ordering to bisect, and a boolean predicate
+   is already at full resolution.
+2. **Per-subject rate limits and per-query billing — ADOPTED as the economic
+   backstop.** Mode A's commercial rail is also its defence: every rung of a
+   walk is a separately metered, separately billed query against one subject,
+   visible in the operator's own query log (which Mode A retains anyway, first
+   bullet above). A walk is therefore expensive, rate-limitable and *auditable*
+   — which is a different and weaker claim than "prevented", and is meant as one.
+3. **A monotone tighten-only repeat rule — CONSIDERED, NOT ADOPTED.** Requiring
+   each subsequent question about the same subject to be at least as tight as
+   the last defeats bisection and leaves only a one-directional walk: for the
+   subscriber above that is one query per step, 137 instead of 9 — about 15×
+   the cost, and still a complete recovery. It buys a constant factor, not a
+   property. It also makes a legitimate second question about the same
+   subscriber depend on the first, and the profile has no way to scope, share
+   or expire that state across requesters. Recorded here as considered and
+   declined rather than left unmentioned.
+
+Quantisation is a property of the reference implementation and of an operator's
+published policy, **not** a normative rule: §3.2 enumerates no predicate types
+and no thresholds, and the right place to settle a menu is per-API adoption
+(§3.3). It is stated here because the alternative — presenting per-response
+windowing as if it bounded a requester's total knowledge — is the kind of claim
+WG scrutiny should catch, and it is better caught by the author.
+
 ## 4. Two consumption modes
 
 **Mode A — attested query response (primary; the adoption wedge).** The

@@ -2,6 +2,55 @@
 
 ## Unreleased (0.4.0 — M6)
 
+- **M6 built: `poc/demo.mjs`, the one-command reader-facing demo, and
+  `poc/m6-check.mjs`, 25 cases. AGENT-RUN 20/20 and 25/25 by exit code; USER
+  VALIDATION PENDING, so gate G1 is NOT yet met.** `node poc/demo.mjs` needs no
+  credentials and touches no network; `--backend orange` swaps in M5 reading
+  `ORANGE_BASIC_AUTH` from the environment and exits **2** with printed
+  prerequisites if the credential is absent or the Playground is unreachable —
+  never a silent fallback to the mock. Exit 0 only if all 20 assertions hold, 1
+  if any fails.
+- **The demo prints in plain language**, because it is the surface a CAMARA/AAIF
+  reader sees: a `Q:` with the scripted backstory, the `A:` bit, then
+  `negative flip → PASS`. Each of PRD §4.1's four assertions is followed by a
+  control that disables that ONE guard and shows the same input being accepted —
+  a guard never disabled has not been proven load-bearing.
+- **The repeated-query oracle, found by the M6 composition spike and only partly
+  closed.** Every individual response is a clean windowed bit; the SEQUENCE is
+  not. Nine legal, signed, sealed, metered queries binary-searched the
+  subscriber's exact swap age (137 days, recovered exactly) with every response
+  passing every check. No module is wrong — M3 gates FLOORS, not predicate
+  thresholds, and profile rule 1 hands the threshold to the requester. The demo
+  operator now publishes a **coarse threshold menu** next to its floor
+  (`P30D | P90D | P180D | P365D`) and REFUSES anything off it — refuses, never
+  rounds. That CAPS the oracle at the bucket (≈2 bits/year); it does not close
+  it, and it is written down as a cap in the CAMARA proposal §3.5 alongside the
+  two other mitigations (rate limits + per-query billing, adopted; a
+  tighten-only repeat rule, considered and declined — it costs the attacker ~15×
+  and still recovers the value).
+- **Duplicate-key REQUESTS are refused outright**, using M1's newly exported
+  scanner (above): no partial acceptance, and never a pick between the two
+  values. **Refusals are SIGNED and nonce-bound** past authentication, so the
+  blind hub cannot forge a denial; before authentication they are deliberately
+  unsigned, because an operator cannot sign a refusal to a party it cannot name.
+- **M6 owns exactly four things no module owns**, each one load-bearing and each
+  one pinned: the transport frame `{iss, payload, sig}`; the **injective**
+  canonical predicate string (a mutation dropping the threshold left the whole
+  spike green while the operator answered `gte P1D` to a `gte P90D` question);
+  the single-use nonce store (M1's nonce check is stateless BINDING and says so,
+  so replay rejection lives entirely here); and the reason clamp (M3 builds
+  reasons from wire input unbounded, and M2's `seal()` THROWS above capacity, so
+  an unclamped refusal crashes the operator instead of refusing).
+- **`poc/m6-check.mjs` is offline in BOTH backend modes.** The `--backend
+  orange` seam runs through an injected transport replaying captured Playground
+  bytes, and with the keys and the nonce held fixed the two backends produce a
+  **byte-identical signed frame** — signature included, since Ed25519 is
+  deterministic. That is the strongest form FR5's "only the facts source swaps"
+  claim can take. The suite also runs the demo itself and asserts its exit code,
+  its 20/20 tally, and **claims discipline**: every mention of zero-knowledge in
+  the output must be a negation.
+- **16 mutations against M6's own guards, 16 killed, 0 survivors** (plus 5
+  against the M1/M3 changes below).
 - **Spec sketch `Predicate` enum trimmed 7 → 3.**
   `spec/carrier-attestation.yaml` now lists only what the PoC wires end to end —
   `simSwapAge`, `roamingIn`, `reachable` (the boolean `value` branch stays;

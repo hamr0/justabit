@@ -7,6 +7,141 @@ memory. A finding here is something that was RUN and OBSERVED, not reasoned.
 
 ---
 
+## 2026-08-17 — M6 built: one-command demo + 25-case check, 16/16 mutants killed (AGENT-RUN; user validation PENDING)
+
+Every number in this entry is **AGENT-RUN by exit code on this machine**. No
+user has run M6, and no network call was made in either backend mode. G1 (PRD
+§4.4: `G1 = M1–M4 + M6 all user-validated`) is therefore **NOT met**.
+
+### The spike came first, and it found five things — before a line was written
+
+A throwaway composition spike outside the tree (mock only, zero credentials,
+zero network) attacked the ladder's stated toughest assumption for M6: *the
+modules compose without weakening any single module's guarantee*. It ran every
+negative as a PAIR — guard ON must reject, and the same scenario with that guard
+OFF must ACCEPT — so a control that could not accept failed the spike too.
+41 cases, exit 0, 13 of its own mutations killed. Five findings shaped the
+build:
+
+1. **The repeated-query oracle (the headline, and the only one no module could
+   have caught).** Each response is a clean windowed bit; the SEQUENCE is not.
+   With a free-choice threshold, **9** signed, nonce-bound, expiring,
+   end-to-end-encrypted, fully metered queries binary-searched the subscriber's
+   exact swap age — **137 days, recovered exactly**, implied swap date
+   `2026-04-02T00:00:00.000Z`. All 9 responses passed the same raw-value scan
+   that assertion 1 uses, and all 9 verified. No module is wrong: M3 gates the
+   *profile floor*, not the predicate threshold, and profile rule 1 hands the
+   threshold to the requester on purpose. → decision #1 (quantised menu) and the
+   honest-limit paragraph in CAMARA proposal §3.5.
+2. **The hand-rolled request verifier had no duplicate-key defence.** M1's
+   scanner was module-private and `verifyAttestation` cannot be reused on a
+   request (it demands the closed ANSWER set). The spike signed request bytes
+   carrying `floor` TWICE and the operator answered: V8 read `P90D`, a first-wins
+   parser reads `P365D` — one signature, two agreements. → decision #2.
+3. **`checkFloor` throws on a non-JSON value.** `JSON.stringify` in the
+   rejection-message builder throws on a BigInt and runs a caller-supplied
+   `toJSON`, so a bare `TypeError` escaped in the rejection path. Recorded by the
+   spike as OBSERVED-not-fixed; fixed at the module (M3 22 → 23).
+4. **The obvious canonical-predicate mapping is NOT injective.** A mutation
+   dropping the threshold from the string left the whole spike GREEN while the
+   operator answered `gte P1D` to a `gte P90D` question — both sides derived the
+   same lossy string, so M1's "an answer can never answer a different question"
+   quietly stopped holding. Separately, `roamingIn in [FR,BE]` rendered
+   identically for `['FR','BE']` and the single-element set `['FR,BE']`; M4
+   happened to reject the second, which is luck, not a defence.
+5. **M3's unclamped, wire-derived reasons can exceed M2's envelope capacity,
+   where `seal()` THROWS** — an unclamped refusal crashes the operator instead of
+   refusing. Measured honestly at the spike: the worst reason a single 446-byte
+   request envelope can actually provoke still FITS, so the clamp is insurance
+   rather than a live bug — but that margin is a coincidence of two
+   independently chosen constants (M2's cap and M3's reason prefix), not a
+   property either module guarantees.
+
+### The build
+
+`poc/demo.mjs` (813 lines, 249 comment / 487 code) and `poc/m6-check.mjs`
+(25 cases). The spike was read as the composition reference and **rewritten, not
+shipped** (AGENT_RULES: never ship the POC). M6 owns exactly four things no
+module owns — the transport frame `{iss, payload, sig}`, the injective canonical
+predicate string, the single-use nonce store, and the reason clamp — and each is
+pinned by a case and killed by a mutation.
+
+Two properties the spike did not have, added during the build:
+
+- **Refusals past authentication are SIGNED and nonce-bound**, so the blind hub
+  cannot forge a denial-of-service by inventing rejections. Before
+  authentication they are deliberately UNSIGNED and the requester must treat
+  them as hearsay: an operator cannot sign a refusal to a party it cannot name.
+- **The off-menu refusal and the floor rejection both run BEFORE any fact is
+  read.** A computed-then-discarded answer is still an oracle query.
+
+### Runs (all AGENT-RUN, exit code checked, never string-matched)
+
+```
+node poc/demo.mjs        RESULT: 20/20   exit 0   (~5.4s; RSA-4096 keygen dominates)
+node poc/m6-check.mjs    RESULT: 25/25   exit 0   (~13s)
+node poc/demo.mjs --backend orange   (no credential)   exit 2 + prerequisites
+node poc/demo.mjs --oops / --backend sqlite            exit 2 + usage
+node poc/m1-check.mjs 20/20 · m2 10/10 · m3 23/23 · m4 33/33 · m5 48/48   all exit 0
+```
+
+`m5-check-live.mjs` was NOT run — it needs a credential and the network, and
+this round made no live calls at all.
+
+### Mutation sweep — 21 mutants, 21 killed, 0 survivors
+
+Working-copy `cp` backups, never `git checkout` (which would have reverted
+tracked files to HEAD and silently wiped the uncommitted fix under test).
+
+M6 (16/16, each red on `m6-check.mjs`): dup-key scan off · menu check off ·
+floor gate off · request auth off · directory accepts any `iss` · nonce store
+off · nonce never consumed · `iss` hint picks the key · canonical string drops
+the threshold · canonical string joins arrays with `,` · reason clamp off ·
+`getFacts` throw uncaught · unanswerable predicate not refused · refusal
+signature unchecked · needles lose `swapAgeMs` · refusals sent unsigned.
+
+M1/M3 (5/5): M3 renders with `JSON.stringify` again · M3 `[unrenderable]` guard
+removed · M1 scanner blind · M1 compares raw instead of decoded keys · M1
+`export` removed (a loud `SyntaxError`, no green tally — which is the correct
+failure for a missing export).
+
+### The check is offline in BOTH backend modes, and the seam claim is byte-exact
+
+`--backend orange` runs M5 through an INJECTED transport replaying captured
+Playground shapes, the same technique `m5-check.mjs` uses. With the key set and
+the nonce held fixed, the two backends produce a **byte-identical signed frame**
+— signature included, since Ed25519 is deterministic:
+
+```
+{"predicate":"simSwapAge gte \"P90D\"","result":true,"nonce":"a1b2c3…","exp":1786924860000}
+```
+
+That is the strongest form FR5's "only the facts source swaps" claim can take
+offline. It does not and cannot prove the Playground still answers today — that
+is the live `--backend orange` run, and it is the user's.
+
+### One deliberate deviation from the frozen build order
+
+The specified operator pipeline put the duplicate-key scan inside the
+signature-verification step, before the parse. It runs **after** the parse
+instead, because M1's exported scanner carries a stated precondition — the text
+must already have parsed as JSON, or the key slice it takes can itself throw on
+malformed bytes. That is M1's own internal order (signature → parse → scan) and
+matching it was preferred to hardening a user-validated module further. The
+guarantee is unchanged: nothing from the request is acted on until both the
+signature and the scan have passed.
+
+### What is NOT claimed
+
+- No user run. No live Orange call. G1 not met.
+- Quantisation CAPS the oracle at ≈2 bits; it does not close it, and the
+  proposal says so in those words.
+- `poc/demo.mjs` is over §4.3's "a few hundred lines" bound if the whole file is
+  counted (813 total, 487 code, roughly half of that the reader-facing
+  narrative). Recorded rather than trimmed.
+
+---
+
 ## 2026-08-17 — G2 RE-CLOSED at the final v0.3.0 state: user re-ran M5 clean at `8e842c3` (48/48 offline + 11/11 live)
 
 **This closes the post-gate review round's "user re-run pending"** — the last

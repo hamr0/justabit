@@ -275,6 +275,43 @@ are **AGENT-RUN 20/20 and 23/23 by exit code; a user re-run is PENDING.** The
 user's 19/19 and 22/22 records stand for the trees they were run on and are not
 transferred to these — same rule the M4 and M5 rounds followed.
 
+**M6 BUILT (2026-08-17) — `poc/demo.mjs` + `poc/m6-check.mjs`. AGENT-RUN 20/20
+(demo) and 25/25 (check) by exit code; USER VALIDATION PENDING, so G1 is NOT
+yet met.** POC first: a throwaway composition spike outside the tree attacked
+"the modules compose without weakening any single module's guarantee" and came
+back with five findings that shaped the build rather than being discovered
+during it — (1) the repeated-query oracle (decision #1 above), (2) the
+hand-rolled request verifier had no duplicate-key defence because M1's scanner
+was module-private (decision #2), (3) M3's rejection-message builder threw on a
+non-JSON value (the fix point, above), (4) the obvious canonical-predicate
+spelling is NOT injective — a mutation dropping the threshold left the whole
+spike green while the operator answered `gte P1D` to a `gte P90D` question, and
+`[FR,BE]` collided with the single-element set `['FR,BE']` — and (5) M3's
+unclamped, wire-derived reasons can exceed M2's envelope capacity, where `seal()`
+THROWS, so an unclamped refusal crashes the operator instead of refusing it.
+M6 therefore owns exactly four things no module owns: the transport frame
+`{iss, payload, sig}`, the injective canonical predicate string, the single-use
+nonce store (M1's nonce check is stateless BINDING and says so), and the reason
+clamp. Beyond the four assertions the demo also shows the request-path guards —
+off-menu refusal, duplicate-key refusal, response key pinning — each with its
+own disabled-guard control, and signs its refusals so the blind hub cannot forge
+a denial. The check is offline in both modes: `--backend orange` is exercised
+through an injected transport replaying captured Playground bytes, and with the
+keys and nonce held fixed the two backends produce a **byte-identical signed
+frame** — the strongest form the FR5 "only the facts source swaps" claim can
+take. **16 mutations against M6's own guards, all killed** (plus 5 against the
+M1/M3 changes above). The live `--backend orange` run is the user's, in the
+runbook — nothing in this round touched the network.
+
+On §4.3's simplicity bound, honestly: `poc/demo.mjs` is 813 lines, of which 249
+are comment and 487 are code — and roughly half of that code is the narrative
+PRINTING the reader asked for (the `Q:`/`A:`/negative-flip transcript), not
+composition machinery, which is closer to 200 lines. That is over "a few hundred
+lines" if the whole file is counted and inside it if the explanation is counted
+as prose, which it largely is. Recorded rather than trimmed: the comments and
+the narrative are the deliverable for a WG reader, and cutting them to hit a
+line count would optimise the wrong thing.
+
 **Every count above is from a run on the user's own machine**, M5's shipped
 48/11 included. At commit
 `5d5e8aa` (dated findings record, 2026-08-16) the user ran 19/19, 10/10, 22/22
@@ -466,6 +503,35 @@ we manage here:
 
 Dated, append-only. Rationale in one line; details in the stash/history.
 
+- **2026-08-17 — Predicate thresholds are QUANTISED to a published menu (M6
+  decision #1, user-signed), and the repeated-query oracle is recorded as an
+  honest limit.** The M6 composition spike found the one hole no single module
+  can see: every individual response is a clean windowed bit, but the SEQUENCE
+  is not. Because profile rule 1 puts the window in the QUESTION and hands the
+  threshold to the requester, **nine** legal, signed, sealed, metered queries
+  binary-searched the subscriber's exact swap age (137 days, recovered exactly)
+  — with every response passing every check and the raw value nowhere on the
+  wire. Floors do not reach it: M3 gates the *profile* demanded, not the
+  threshold asked. The demo operator therefore publishes a coarse menu next to
+  its floor (`P30D | P90D | P180D | P365D`) and **refuses** anything off it —
+  refuses, never rounds, because rounding answers a question nobody asked. This
+  CAPS resolution at the bucket (≈2 bits/year); it does not close the oracle,
+  and it is written down as a cap. Only ORDERED thresholds get a menu (a set has
+  no ordering to bisect; a boolean is already full resolution). Two further
+  mitigations: per-subject rate limits + per-query billing are the economic
+  backstop (ADOPTED — Mode A's commercial rail is also its defence); a monotone
+  tighten-only repeat rule was CONSIDERED and NOT adopted (it defeats bisection
+  but leaves a one-directional walk — 137 queries instead of 9, ~15× cost and
+  still a complete recovery: a constant factor, not a property; and it makes a
+  second legitimate question depend on the first with no way to scope or expire
+  that state). Written up in the CAMARA proposal §3.5.
+- **2026-08-17 — The subscriber number rides INSIDE the sealed, signed request
+  (M6, user-signed).** The hub therefore never sees it, which is what FR3
+  requires. But it IS in the request, and that is a demo stand-in for
+  token-derived identity, stated in the demo output and here rather than
+  glossed: a real 3-legged deployment derives the subject from the access token
+  and omits the identifier entirely — NumberVerification already makes that
+  omission normative, and profile rule 4 generalises it catalog-wide.
 - **2026-08-17 — Spec sketch `Predicate` enum trimmed 7 → 3 (M6,
   user-signed).** `spec/carrier-attestation.yaml` now lists only the types the
   PoC wires end to end — `simSwapAge`, `roamingIn`, `reachable` (the boolean

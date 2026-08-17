@@ -1,13 +1,15 @@
 # PoC — Mode A, four assertions, one command
 
 **Requirements & no-gos:** [`docs/01-product/prd.md`](../docs/01-product/prd.md) §4–§5.
-**Status:** REBUILDING on the module ladder M1–M6 — a first build was
+**Status:** all six modules M1–M6 are BUILT — a first build was
 **rolled back 2026-08-15** (it went monolith-then-integrate without
-per-module user validation; see PRD §4.4 and the decision log). Each module
-is POC'd against its toughest assumption, built, proven end-to-end on its
-own, and **validated by the user before the next module starts**. Built so
-far, each runnable on its own (negatives first, exit 0 only if every case
-holds):
+per-module user validation; see PRD §4.4 and the decision log) and the ladder
+since then has held: each module is POC'd against its toughest assumption,
+built, proven end-to-end on its own, and **validated by the user before the
+next module starts**. M1–M5 are user-validated; **M6 is AGENT-RUN only and its
+user validation is PENDING**, so gate G1 (M1–M4 + M6 all user-validated) is
+NOT yet met. Every check runs on its own (negatives first, exit 0 only if
+every case holds):
 
 ```
 node poc/m1-check.mjs   # M1 attestation core — 20 cases (user-validated 19/19 at the
@@ -37,7 +39,43 @@ ORANGE_BASIC_AUTH="$(pass camara/orange_network | head -1)" node poc/m5-check-li
                         # slots. It reclaims the slot BEFORE consuming it (so an
                         # interrupted run does not leak one), prints the count at both
                         # ends, and case 11 asserts it came back.
+
+node poc/m6-check.mjs   # M6 integration — 25 cases (AGENT-RUN 25/25, user run
+                        #   PENDING). Zero credentials, zero network in BOTH
+                        #   backend modes: the `--backend orange` seam runs
+                        #   through an injected transport replaying captured
+                        #   Playground bytes, exactly like m5-check. It also runs
+                        #   the demo itself and asserts its exit code, its 20/20
+                        #   tally, and claims discipline (every mention of
+                        #   zero-knowledge in the output must be a negation).
+                        #   Takes ~15s — RSA-4096 keygen dominates.
 ```
+
+## The demo — `node poc/demo.mjs`
+
+```
+node poc/demo.mjs                    # mock backend: zero credentials, zero network
+
+# live: Orange Network APIs Playground. `| head -1` because a `pass` entry is
+# multi-line (secret on line 1, notes below) — the adapter also defends itself
+# by using line 1 only, but a whole entry in a header makes fetch throw a string
+# quoting the notes.
+ORANGE_BASIC_AUTH="$(pass camara/orange_network | head -1)" node poc/demo.mjs --backend orange
+```
+
+It prints the four assertions in plain language — a `Q:` with the scripted
+backstory, the `A:` bit, then the negative flip — plus the request-path guards
+(off-menu threshold, duplicate keys, response key pinning), each with a control
+that disables that one guard and shows the SAME input being accepted. **Exit 0
+only if all 20 hold; 1 if any fails; 2 if the backend cannot start** (e.g.
+`--backend orange` with no `ORANGE_BASIC_AUTH` — it prints the prerequisites and
+exits 2, and there is deliberately no silent fallback to the mock).
+
+The mock run is **AGENT-RUN 20/20 exit 0; the user run is PENDING.** The live
+`--backend orange` run has not happened at all — it is the user's, and it is the
+only thing that makes the FR5 claim a live one rather than a replayed one.
+`poc/m6-check.mjs` proves the seam offline; it cannot prove the Playground still
+answers today.
 
 The **M6 round (2026-08-17)** then changed two of those modules, so two counts
 moved: M1 gained case 20 (its duplicate-key scanner is now EXPORTED, so a signed
@@ -59,7 +97,7 @@ re-establishing G2 at that state. A post-gate code review round (2026-08-17)
 then fixed three more adapter defects and three live-check faults (counts
 unchanged), so **the user re-ran once more at `8e842c3` — the shipped v0.3.0
 state — and reported both clean. Nothing is pending.** Each
-check declares its case count (`conclude(19|10|22|33|48|11)`) so a suite that
+check declares its case count (`conclude(20|10|23|33|48|11|25)`) so a suite that
 silently loses cases exits 1 with
 `FAIL CASE COUNT` instead of printing a smaller green tally — mutation-proven
 per module.
@@ -116,30 +154,17 @@ adapter defect, adjudicated after the round, bounded `assertNow()` at
 `MAX_EPOCH_MS` — a safe integer past `Date`'s range replaced the module's loud
 named-input message with a bare `RangeError`. Counts are unchanged (48/11);
 these fixes are why the user re-ran the runbook a second time, at `8e842c3`.
-M6 is not started and `poc/demo.mjs` does not exist yet. The measured
+**M6 is BUILT (2026-08-17)** — `poc/demo.mjs` and `poc/m6-check.mjs`; see the
+demo section above. The measured
 Playground findings below were **re-verified live on 2026-08-16** before M5 was
 written: seven held, **three changed**, one was not re-tested. Every change is
 flagged inline with **CHANGED 2026-08-16**; the full spike record (with the
 raw shapes) is the dated findings entry.
 
-Target UX once M6 lands (unchanged by the rollback):
-
-```
-node poc/demo.mjs                    # mock backend: zero credentials, zero network
-
-# live: Orange Network APIs Playground. `| head -1` because a `pass` entry is
-# multi-line (secret on line 1, notes below) — the adapter also defends itself
-# by using line 1 only, but a whole entry in a header makes fetch throw a string
-# quoting the notes.
-ORANGE_BASIC_AUTH="$(pass camara/orange_network | head -1)" node poc/demo.mjs --backend orange
-```
-
-Exit code 0 only if all four assertions — including their negatives — hold;
-1 if any fails; 2 if the backend cannot start at all (e.g. `--backend orange`
-with no `ORANGE_BASIC_AUTH` — it prints the prereqs and exits 2).
 Node ≥ 20, zero dependencies, real crypto (`node:crypto`: Ed25519 signatures,
 RSA-4096 OAEP-SHA256 envelopes for the end-to-end leg past the hub — one
-vetted primitive, per the PRD decision log).
+vetted primitive, per the PRD decision log). The runbook is the demo section
+above.
 
 ## What it proves (four assertions, each shown failing too)
 
