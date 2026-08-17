@@ -1,5 +1,33 @@
 # Changelog
 
+## Unreleased (0.4.0 — M6)
+
+- **M1 exports its duplicate-top-level-key scanner
+  (`hasDuplicateTopLevelKey`).** A signed REQUEST is signed bytes too, and the
+  equivocation is symmetric: one signature over bytes carrying `floor` twice
+  lets the operator enforce `P90D` while the requester believes it demanded
+  `P365D`. Verifying a request cannot reuse `verifyAttestation` (that demands
+  the closed ANSWER set `{predicate, result, nonce, exp}`), so M6 borrows the
+  byte-level scan rather than keeping a second, divergent copy of it — the copy
+  that would face the wire first. The export carries a stated precondition (the
+  text must already have parsed as JSON) and M6 calls it in M1's own order:
+  signature → parse → scan. **M1's declared case count 19 → 20** (the new case
+  pins the bare function directly, including a duplicated `floor` in a
+  request-shaped payload, and that a depth-2 duplicate is not a top-level one).
+- **M3 fix point closed: `checkFloor` no longer throws on wire input.** The
+  rejection-message builder rendered the offending value with `JSON.stringify`,
+  which THROWS on a BigInt and RUNS a caller-supplied `toJSON` — either way a
+  bare `TypeError` escaped `checkFloor` and replaced the module's loud
+  named-input rejection, breaking "wire input never throws" *in the rejection
+  path itself*. Found by the M6 composition spike and recorded there as
+  OBSERVED-not-fixed; fixed here. The renderer now invokes nothing
+  caller-supplied (M4's post-release-gate `describe()` shape), and keeps the
+  `[unrenderable]` floor because `Array.isArray` itself throws on a revoked
+  Proxy. Neither shape survives a JSON round trip, so the envelope's transit is
+  what kept this unreachable in the demo — a transport accident, not a contract.
+  **M3's declared case count 22 → 23**; every previously pinned reason string is
+  byte-identical.
+
 ## 0.3.0 — 2026-08-17
 
 - **M5 (live Orange facts adapter) built under the §4.4 ladder —

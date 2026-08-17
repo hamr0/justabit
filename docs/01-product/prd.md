@@ -260,7 +260,20 @@ courtesy re-script that could kill an all-green run before the tally, and case
 at `MAX_EPOCH_MS` (a safe integer past `Date`'s range replaced the module's
 loud message with a bare `RangeError`). Counts unchanged (48/11) — **and the
 user re-ran the two-line runbook on the fixed tree the same day and reported
-both clean, re-closing G2 at `8e842c3`**. M6 not started.
+both clean, re-closing G2 at `8e842c3`**.
+
+**M6 round (2026-08-17) — two user-validated modules changed, so two counts
+moved.** The M6 composition spike attacked "the modules compose without
+weakening any single module's guarantee" and came back with two module-level
+asks, both user-signed and both built surgically: M1 now **exports** its
+duplicate-top-level-key scanner so a signed REQUEST can be checked for the same
+equivocation (**19 → 20 cases**), and M3's declared fix point is closed — its
+rejection-message builder threw a bare `TypeError` on a BigInt or a
+throwing-`toJSON` value instead of producing the loud named-input rejection
+(**22 → 23 cases**, every previously pinned reason byte-identical). Both counts
+are **AGENT-RUN 20/20 and 23/23 by exit code; a user re-run is PENDING.** The
+user's 19/19 and 22/22 records stand for the trees they were run on and are not
+transferred to these — same rule the M4 and M5 rounds followed.
 
 **Every count above is from a run on the user's own machine**, M5's shipped
 48/11 included. At commit
@@ -453,6 +466,30 @@ we manage here:
 
 Dated, append-only. Rationale in one line; details in the stash/history.
 
+- **2026-08-17 — M1 exports its duplicate-key scanner; duplicate-key REQUESTS
+  are rejected outright (M6 decision #2, user-signed).** A signed request is
+  signed bytes too and the equivocation is symmetric — one signature over bytes
+  carrying `floor` twice lets the operator enforce `P90D` while the requester
+  believes it demanded `P365D`. `verifyAttestation` cannot be reused for a
+  request (it demands the closed ANSWER set), so M1 exports
+  `hasDuplicateTopLevelKey` and M6 borrows it rather than keeping a second,
+  divergent copy — the copy that would face the wire first. The export states
+  its precondition (the text must already have parsed as JSON) and M6 calls it
+  in M1's own order: signature → parse → scan. The RP's remedy is a clean
+  re-request: **no partial acceptance, and never a pick between the two
+  values.** M1: 19 → 20 cases.
+- **2026-08-17 — M3 fix point closed: `checkFloor` never throws on wire
+  input.** The rejection-message builder used `JSON.stringify` on the offending
+  value, which throws on a BigInt and runs a caller-supplied `toJSON`; either
+  way a bare `TypeError` escaped and replaced the module's loud named-input
+  rejection — in the rejection path itself. The renderer now invokes nothing
+  caller-supplied (M4's post-release-gate `describe()` shape), with an
+  `[unrenderable]` floor because `Array.isArray` throws on a revoked Proxy.
+  Neither shape survives a JSON round trip, so the envelope's transit was what
+  kept it unreachable — a transport accident, not a contract, which is why it
+  is fixed at the module rather than documented at the composition. Reason
+  length stays unclamped here on purpose: the clamp belongs on the side that
+  knows the envelope capacity, i.e. M6. M3: 22 → 23 cases.
 - **2026-08-16 — M4 facts-adapter spec signed off (4 user decisions).**
   (1) **Fake clock:** backstories store RELATIVE time ("swapped N days ago")
   and every evaluation takes an INJECTED `now` — deterministic forever, no

@@ -205,8 +205,35 @@ checkThrows('20 PROTOTYPE PUBLISHED THROWS',
       ok: pubVerdict.threw === true && pubVerdict.msg.includes('invalid duration') });
 }
 
+// 23 NON-JSON VALUE REJECTED, NEVER THROWN — the module's declared fix point
+// (2026-08-17, found by the M6 composition spike). The rejection-message builder
+// used `JSON.stringify` on the requested value, which THROWS on a BigInt and
+// RUNS a caller-supplied `toJSON`. Either way a bare TypeError escaped
+// `checkFloor` and replaced the loud named-input rejection — breaking "wire
+// input never throws" in the rejection path itself, i.e. exactly when the caller
+// most needs the reason. Three shapes, one defect: a BigInt (stringify throws), a
+// throwing `toJSON` (stringify runs caller code), and a revoked Proxy (where the
+// structural fallback's own `Array.isArray` throws). None survives a JSON round
+// trip — which is precisely the point: the envelope's transit is what kept this
+// unreachable in the demo, and a transport accident is not a contract.
+{
+  const guard = (requested) => {
+    try { return checkFloor(PUB, requested); }
+    catch (e) { return { allowed: true, reason: `ESCAPED: ${e.constructor.name}` }; }
+  };
+  const evil = guard({ swapAgeMin: { toJSON() { throw new Error('boom'); } } });
+  const { proxy, revoke } = Proxy.revocable({}, {});
+  revoke();
+  const revoked = guard({ swapAgeMin: proxy });
+  const dur = (rendered) => `invalid duration: swapAgeMin ${rendered} (use P<days>D or P<years>Y; months are ambiguous)`;
+  check('23 NON-JSON VALUE REJECTED', false, guard({ swapAgeMin: 10n }), dur('10n'),
+    { label: 'throwing toJSON + revoked proxy also rejected, never thrown',
+      ok: evil.allowed === false && evil.reason === dur('object')
+        && revoked.allowed === false && revoked.reason === dur('[unrenderable]') });
+}
+
 // The declared case count. A suite that silently loses the cases carrying its
 // guarantee still printed a green `RESULT: n/n` before this argument existed
 // (measured 2026-08-16 on m4-check: truncated to 18/18 exit 0, emptied to 0/0
 // exit 0).
-conclude(22);
+conclude(23);

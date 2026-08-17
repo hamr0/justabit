@@ -2,7 +2,7 @@
 // Negatives first: each attack and each malformed input is shown being rejected
 // before the happy path.
 import { generateKeyPairSync, randomBytes, sign } from 'node:crypto';
-import { attest, verifyAttestation } from './m1-attestation.mjs';
+import { attest, verifyAttestation, hasDuplicateTopLevelKey } from './m1-attestation.mjs';
 import { makeHarness } from './check-harness.mjs';
 
 const operator = generateKeyPairSync('ed25519');
@@ -180,8 +180,35 @@ const { check, conclude } = makeHarness({ field: 'accepted', okWord: 'ACCEPT' })
   check('19 HAPPY', true, v, 'ok', { label: 'payload fidelity', ok: fidelity });
 }
 
+// 20 EXPORTED DUPLICATE SCANNER — cases 17/18 reach the byte-level scan through
+// verifyAttestation; from 2026-08-17 the scan is EXPORTED as well, because M6
+// must run it over a signed REQUEST and a request has no
+// {predicate,result,nonce,exp} for verifyAttestation to check against. Pinned on
+// the bare function so the export cannot rot into a second, divergent copy:
+// the same two attacks (raw and escape-spelled) are caught, a clean payload is
+// not, a depth-2 duplicate is NOT a top-level duplicate — and the half that only
+// matters for a request, a duplicated `floor`, is caught even though nothing in
+// that payload looks like a claim (one signature, two readings: the operator can
+// enforce P90D while the requester believes it demanded P365D).
+{
+  const dupClaim = '{"predicate":"p","result":true,"result":false}';
+  const dupEscaped = '{"predicate":"p","\\u0072esult":true,"result":false}';
+  const dupFloor = '{"number":"+990100000099","floor":{"swapAgeMin":"P365D"},"floor":{"swapAgeMin":"P90D"},"nonce":"n"}';
+  const clean = '{"predicate":"p","result":true,"nonce":"n","exp":1}';
+  const nested = '{"predicate":"p","floor":{"a":1,"a":2},"nonce":"n"}';
+  const v = hasDuplicateTopLevelKey(dupFloor)
+    ? { accepted: false, reason: 'duplicate claim keys' }
+    : { accepted: true, reason: 'scanner missed a duplicated floor' };
+  check('20 EXPORTED DUPLICATE SCANNER', false, v, 'duplicate claim keys',
+    { label: 'claim + escaped dups caught; clean and depth-2 payloads pass',
+      ok: hasDuplicateTopLevelKey(dupClaim) === true
+        && hasDuplicateTopLevelKey(dupEscaped) === true
+        && hasDuplicateTopLevelKey(clean) === false
+        && hasDuplicateTopLevelKey(nested) === false });
+}
+
 // The declared case count. A suite that silently loses the cases carrying its
 // guarantee still printed a green `RESULT: n/n` before this argument existed
 // (measured 2026-08-16 on m4-check: truncated to 18/18 exit 0, emptied to 0/0
 // exit 0).
-conclude(19);
+conclude(20);

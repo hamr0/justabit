@@ -10,9 +10,13 @@ far, each runnable on its own (negatives first, exit 0 only if every case
 holds):
 
 ```
-node poc/m1-check.mjs   # M1 attestation core — 19 cases (module user-validated 19/19)
+node poc/m1-check.mjs   # M1 attestation core — 20 cases (user-validated 19/19 at the
+                        #   19-case tree; case 20 added by the M6 round —
+                        #   AGENT-RUN 20/20, user re-run PENDING)
 node poc/m2-check.mjs   # M2 blind envelope — 10 cases (module user-validated 10/10)
-node poc/m3-check.mjs   # M3 floor gate — 22 cases (module user-validated 22/22)
+node poc/m3-check.mjs   # M3 floor gate — 23 cases (user-validated 22/22 at the
+                        #   22-case tree; case 23 added by the M6 round —
+                        #   AGENT-RUN 23/23, user re-run PENDING)
 node poc/m4-check.mjs   # M4 mock facts adapter — 33 cases (user-validated 33/33)
 node poc/m5-check.mjs   # M5 orange facts adapter, OFFLINE — 48 cases (user-validated
                         #   48/48 at 8e842c3, the shipped v0.3.0 state — nothing
@@ -34,6 +38,14 @@ ORANGE_BASIC_AUTH="$(pass camara/orange_network | head -1)" node poc/m5-check-li
                         # interrupted run does not leak one), prints the count at both
                         # ends, and case 11 asserts it came back.
 ```
+
+The **M6 round (2026-08-17)** then changed two of those modules, so two counts
+moved: M1 gained case 20 (its duplicate-key scanner is now EXPORTED, so a signed
+REQUEST can be checked for the same equivocation) and M3 gained case 23 (its
+declared fix point — the rejection-message builder threw a bare `TypeError`
+instead of producing the loud named-input rejection). Both are **AGENT-RUN by
+exit code and PENDING a user re-run**; the user records below stand for the trees
+they were run on and are not transferred forward.
 
 All four were run by the user on their own machine after the v0.2.0 release
 (main at `7c41c83`, tag `v0.2.0` — dated findings record, 2026-08-16): 19/19,
