@@ -3,12 +3,12 @@
 ## Unreleased (0.4.0 — M6)
 
 - **M6 built: `poc/demo.mjs`, the one-command reader-facing demo, and
-  `poc/m6-check.mjs`, 25 cases. AGENT-RUN 20/20 and 25/25 by exit code; USER
+  `poc/m6-check.mjs`, 27 cases. AGENT-RUN 22/22 and 27/27 by exit code; USER
   VALIDATION PENDING, so gate G1 is NOT yet met.** `node poc/demo.mjs` needs no
   credentials and touches no network; `--backend orange` swaps in M5 reading
   `ORANGE_BASIC_AUTH` from the environment and exits **2** with printed
   prerequisites if the credential is absent or the Playground is unreachable —
-  never a silent fallback to the mock. Exit 0 only if all 20 assertions hold, 1
+  never a silent fallback to the mock. Exit 0 only if all 22 assertions hold, 1
   if any fails.
 - **The demo prints in plain language**, because it is the surface a CAMARA/AAIF
   reader sees: a `Q:` with the scripted backstory, the `A:` bit, then
@@ -33,23 +33,38 @@
   values. **Refusals are SIGNED and nonce-bound** past authentication, so the
   blind hub cannot forge a denial; before authentication they are deliberately
   unsigned, because an operator cannot sign a refusal to a party it cannot name.
-- **M6 owns exactly four things no module owns**, each one load-bearing and each
-  one pinned: the transport frame `{iss, payload, sig}`; the **injective**
-  canonical predicate string (a mutation dropping the threshold left the whole
-  spike green while the operator answered `gte P1D` to a `gte P90D` question);
-  the single-use nonce store (M1's nonce check is stateless BINDING and says so,
-  so replay rejection lives entirely here); and the reason clamp (M3 builds
-  reasons from wire input unbounded, and M2's `seal()` THROWS above capacity, so
-  an unclamped refusal crashes the operator instead of refusing).
+- **M6 owns five things no module owns**, each one load-bearing and each one
+  pinned: the transport frame `{iss, payload, sig}`; the **injective** canonical
+  predicate string (a mutation dropping the threshold left the whole spike green
+  while the operator answered `gte P1D` to a `gte P90D` question); the
+  single-use nonce store (M1's nonce check is stateless BINDING and says so, so
+  replay rejection lives entirely here); the reason clamp (M3 builds reasons
+  from wire input unbounded, and M2's `seal()` THROWS above capacity, so an
+  unclamped refusal crashes the operator instead of refusing); and the closed
+  top-level request field set (below — the fifth was not in the plan, it was
+  found by probing the finished file).
 - **`poc/m6-check.mjs` is offline in BOTH backend modes.** The `--backend
   orange` seam runs through an injected transport replaying captured Playground
   bytes, and with the keys and the nonce held fixed the two backends produce a
   **byte-identical signed frame** — signature included, since Ed25519 is
   deterministic. That is the strongest form FR5's "only the facts source swaps"
   claim can take. The suite also runs the demo itself and asserts its exit code,
-  its 20/20 tally, and **claims discipline**: every mention of zero-knowledge in
+  its 22/22 tally, and **claims discipline**: every mention of zero-knowledge in
   the output must be a negation.
-- **16 mutations against M6's own guards, 16 killed, 0 survivors** (plus 5
+- **The top-level REQUEST field set is CLOSED — a defect found in M6's own code
+  by an adversarial probe AFTER it was written and green, not a planned
+  feature.** Every layer underneath was already closed (M1's claims, M3's axes,
+  M4's predicate fields); the outermost envelope, which no module owns, was not.
+  A request carrying `floors` — one letter off — had its floor silently DROPPED:
+  `checkFloor` saw no requested floor, applied the operator's own `P90D`, and
+  signed an answer while the requester believed it had demanded `P365D`. That is
+  silent widening arriving through a spelling mistake — M3's closed-axis
+  argument, one level further out. Unknown fields are now refused BY NAME (the
+  misspelling is the actionable half), with the name rendered only while short
+  and printable so an embedded newline cannot forge a log line. The general
+  lesson, recorded in PRD §9: **a closed-set discipline is only as good as its
+  outermost layer, and the composition owns a layer none of the modules do.**
+- **18 mutations against M6's own guards, 18 killed, 0 survivors** (plus 5
   against the M1/M3 changes below).
 - **Spec sketch `Predicate` enum trimmed 7 → 3.**
   `spec/carrier-attestation.yaml` now lists only what the PoC wires end to end —

@@ -275,8 +275,8 @@ are **AGENT-RUN 20/20 and 23/23 by exit code; a user re-run is PENDING.** The
 user's 19/19 and 22/22 records stand for the trees they were run on and are not
 transferred to these — same rule the M4 and M5 rounds followed.
 
-**M6 BUILT (2026-08-17) — `poc/demo.mjs` + `poc/m6-check.mjs`. AGENT-RUN 20/20
-(demo) and 25/25 (check) by exit code; USER VALIDATION PENDING, so G1 is NOT
+**M6 BUILT (2026-08-17) — `poc/demo.mjs` + `poc/m6-check.mjs`. AGENT-RUN 22/22
+(demo) and 27/27 (check) by exit code; USER VALIDATION PENDING, so G1 is NOT
 yet met.** POC first: a throwaway composition spike outside the tree attacked
 "the modules compose without weakening any single module's guarantee" and came
 back with five findings that shaped the build rather than being discovered
@@ -289,22 +289,31 @@ spike green while the operator answered `gte P1D` to a `gte P90D` question, and
 `[FR,BE]` collided with the single-element set `['FR,BE']` — and (5) M3's
 unclamped, wire-derived reasons can exceed M2's envelope capacity, where `seal()`
 THROWS, so an unclamped refusal crashes the operator instead of refusing it.
-M6 therefore owns exactly four things no module owns: the transport frame
+M6 therefore owns four things no module owns: the transport frame
 `{iss, payload, sig}`, the injective canonical predicate string, the single-use
 nonce store (M1's nonce check is stateless BINDING and says so), and the reason
-clamp. Beyond the four assertions the demo also shows the request-path guards —
+clamp. A FIFTH was not in the plan and is the round's own finding: an
+adversarial probe of the finished, green `demo.mjs` showed the top-level REQUEST
+field set was still open, so a request carrying `floors` — one letter off — had
+its floor silently dropped and got a signed answer under the operator's own
+`P90D` while the requester believed it demanded `P365D` (decision log entry
+above). Closing it took the demo to 22 assertions and the check to 27 cases.
+The lesson is worth more than the fix: **a closed-set discipline is only as good
+as its outermost layer, and the composition owns a layer none of the modules
+do** — which is exactly the failure class M6's own POC gate was aimed at, found
+one level above where the spike was looking. Beyond the four assertions the demo also shows the request-path guards —
 off-menu refusal, duplicate-key refusal, response key pinning — each with its
 own disabled-guard control, and signs its refusals so the blind hub cannot forge
 a denial. The check is offline in both modes: `--backend orange` is exercised
 through an injected transport replaying captured Playground bytes, and with the
 keys and nonce held fixed the two backends produce a **byte-identical signed
 frame** — the strongest form the FR5 "only the facts source swaps" claim can
-take. **16 mutations against M6's own guards, all killed** (plus 5 against the
+take. **18 mutations against M6's own guards, all killed** (plus 5 against the
 M1/M3 changes above). The live `--backend orange` run is the user's, in the
 runbook — nothing in this round touched the network.
 
-On §4.3's simplicity bound, honestly: `poc/demo.mjs` is 813 lines, of which 249
-are comment and 487 are code — and roughly half of that code is the narrative
+On §4.3's simplicity bound, honestly: `poc/demo.mjs` is 873 lines, of which 282
+are comment and 509 are code — and roughly half of that code is the narrative
 PRINTING the reader asked for (the `Q:`/`A:`/negative-flip transcript), not
 composition machinery, which is closer to 200 lines. That is over "a few hundred
 lines" if the whole file is counted and inside it if the explanation is counted
@@ -525,6 +534,19 @@ Dated, append-only. Rationale in one line; details in the stash/history.
   still a complete recovery: a constant factor, not a property; and it makes a
   second legitimate question depend on the first with no way to scope or expire
   that state). Written up in the CAMARA proposal §3.5.
+- **2026-08-17 — The top-level REQUEST field set is CLOSED (M6).** Not a
+  planned decision — a defect found by an adversarial probe of `poc/demo.mjs`
+  *after* it was written and green. Every layer under it was already closed (M1's
+  claims, M3's axes, M4's predicate fields) and the outermost envelope, which no
+  module owns, was not: a request carrying `floors` — one letter off — had its
+  floor silently DROPPED, so `checkFloor` saw no requested floor, applied the
+  operator's own `P90D`, and signed an answer while the requester believed it
+  had demanded `P365D`. Silent widening arriving through a spelling mistake,
+  which is M3's closed-axis argument one level further out. Unknown fields are
+  now refused by name (the misspelling is the actionable half), with the name
+  rendered only while short and printable so an embedded newline cannot forge a
+  log line. The lesson generalises: **a closed-set discipline is only as good as
+  its outermost layer, and the composition owns a layer none of the modules do.**
 - **2026-08-17 — The subscriber number rides INSIDE the sealed, signed request
   (M6, user-signed).** The hub therefore never sees it, which is what FR3
   requires. But it IS in the request, and that is a demo stand-in for

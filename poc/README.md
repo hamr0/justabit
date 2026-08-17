@@ -40,12 +40,12 @@ ORANGE_BASIC_AUTH="$(pass camara/orange_network | head -1)" node poc/m5-check-li
                         # interrupted run does not leak one), prints the count at both
                         # ends, and case 11 asserts it came back.
 
-node poc/m6-check.mjs   # M6 integration — 25 cases (AGENT-RUN 25/25, user run
+node poc/m6-check.mjs   # M6 integration — 27 cases (AGENT-RUN 27/27, user run
                         #   PENDING). Zero credentials, zero network in BOTH
                         #   backend modes: the `--backend orange` seam runs
                         #   through an injected transport replaying captured
                         #   Playground bytes, exactly like m5-check. It also runs
-                        #   the demo itself and asserts its exit code, its 20/20
+                        #   the demo itself and asserts its exit code, its 22/22
                         #   tally, and claims discipline (every mention of
                         #   zero-knowledge in the output must be a negation).
                         #   Takes ~15s — RSA-4096 keygen dominates.
@@ -67,11 +67,11 @@ It prints the four assertions in plain language — a `Q:` with the scripted
 backstory, the `A:` bit, then the negative flip — plus the request-path guards
 (off-menu threshold, duplicate keys, response key pinning), each with a control
 that disables that one guard and shows the SAME input being accepted. **Exit 0
-only if all 20 hold; 1 if any fails; 2 if the backend cannot start** (e.g.
+only if all 22 hold; 1 if any fails; 2 if the backend cannot start** (e.g.
 `--backend orange` with no `ORANGE_BASIC_AUTH` — it prints the prerequisites and
 exits 2, and there is deliberately no silent fallback to the mock).
 
-The mock run is **AGENT-RUN 20/20 exit 0; the user run is PENDING.** The live
+The mock run is **AGENT-RUN 22/22 exit 0; the user run is PENDING.** The live
 `--backend orange` run has not happened at all — it is the user's, and it is the
 only thing that makes the FR5 claim a live one rather than a replayed one.
 `poc/m6-check.mjs` proves the seam offline; it cannot prove the Playground still
@@ -97,7 +97,7 @@ re-establishing G2 at that state. A post-gate code review round (2026-08-17)
 then fixed three more adapter defects and three live-check faults (counts
 unchanged), so **the user re-ran once more at `8e842c3` — the shipped v0.3.0
 state — and reported both clean. Nothing is pending.** Each
-check declares its case count (`conclude(20|10|23|33|48|11|25)`) so a suite that
+check declares its case count (`conclude(20|10|23|33|48|11|27)`) so a suite that
 silently loses cases exits 1 with
 `FAIL CASE COUNT` instead of printing a smaller green tally — mutation-proven
 per module.

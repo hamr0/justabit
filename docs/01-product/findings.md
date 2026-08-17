@@ -7,7 +7,7 @@ memory. A finding here is something that was RUN and OBSERVED, not reasoned.
 
 ---
 
-## 2026-08-17 — M6 built: one-command demo + 25-case check, 16/16 mutants killed (AGENT-RUN; user validation PENDING)
+## 2026-08-17 — M6 built: one-command demo + 27-case check, 18/18 mutants killed, and one defect found by probing the finished file (AGENT-RUN; user validation PENDING)
 
 Every number in this entry is **AGENT-RUN by exit code on this machine**. No
 user has run M6, and no network call was made in either backend mode. G1 (PRD
@@ -57,10 +57,55 @@ build:
    independently chosen constants (M2's cap and M3's reason prefix), not a
    property either module guarantees.
 
+### And then a sixth finding, from probing the finished file
+
+The build was written, green at 20/20 and 25/25, and mutation-clean at 16/16
+before this was found — which is the point of recording it. An adversarial probe
+sent hostile shapes at the operator's wire path directly (rather than through the
+RP, which an attacker would not use) and turned up a **silent widening at the one
+layer nobody had closed.**
+
+Every layer underneath was already a closed set, each for the same stated reason:
+M1's claims, M3's floor axes, M4's predicate fields. The outermost envelope — the
+request object itself — was not, because no module owns it. Reproduced:
+
+```
+request : {"number":"+990100000099","predicate":{…},"floors":{"swapAgeMin":"P365D"},"nonce":"typo-1"}
+verdict : answer
+claims  : {"predicate":"simSwapAge gte \"P90D\"","result":true,…}
+enforced: {"simType":"voice+data","tenureMin":"P2Y","swapAgeMin":"P90D"}   <- the OPERATOR floor
+demanded: {"swapAgeMin":"P365D"}                                          <- what the requester believed
+```
+
+One letter (`floors`), the demanded floor silently dropped, `checkFloor` handed
+`undefined`, the operator's own `P90D` applied, and a **signed** answer returned
+with no error anywhere — the exact silent-widening-through-a-typo path M3's
+closed axis set exists to kill, arriving one level further out where M3 cannot
+see it. Fixed by closing the top-level request field set and refusing unknown
+fields BY NAME (naming the misspelling is the actionable half; the name is
+rendered only while short and printable, so an embedded newline cannot forge a
+line in whatever log the reason reaches). Demo 20 → 22 assertions, check 25 → 27
+cases, mutants 16 → 18.
+
+Also probed and CLEAN in the same pass, recorded so they are not re-tried: ten
+hostile predicate shapes off the wire (`null`, missing, array, string, number,
+object `type`, object `value`, `['FR',null]`, `[]`, boolean) — none threw, none
+was answered, every reason inside the clamp; a JSON-parsed `__proto__` key does
+not pollute `Object.prototype`; a `floor` that is an array is `malformed floor`;
+a numeric `nonce` is `missing nonce`. The RP's `buildRequest` DOES throw on a
+malformed predicate — that is its own caller's input, so throwing is the M2/M3
+rule working as written, and it means a requester's malformed question fails at
+its own desk instead of burning a metered query.
+
+**The general lesson, which is why this is in the log rather than only in the
+diff: a closed-set discipline is only as good as its outermost layer, and the
+composition owns a layer none of the modules do.** M6's POC gate was aimed at
+exactly this failure class and the spike still looked one level too low.
+
 ### The build
 
-`poc/demo.mjs` (813 lines, 249 comment / 487 code) and `poc/m6-check.mjs`
-(25 cases). The spike was read as the composition reference and **rewritten, not
+`poc/demo.mjs` (873 lines, 282 comment / 509 code) and `poc/m6-check.mjs`
+(27 cases). The spike was read as the composition reference and **rewritten, not
 shipped** (AGENT_RULES: never ship the POC). M6 owns exactly four things no
 module owns — the transport frame `{iss, payload, sig}`, the injective canonical
 predicate string, the single-use nonce store, and the reason clamp — and each is
@@ -78,8 +123,8 @@ Two properties the spike did not have, added during the build:
 ### Runs (all AGENT-RUN, exit code checked, never string-matched)
 
 ```
-node poc/demo.mjs        RESULT: 20/20   exit 0   (~5.4s; RSA-4096 keygen dominates)
-node poc/m6-check.mjs    RESULT: 25/25   exit 0   (~13s)
+node poc/demo.mjs        RESULT: 22/22   exit 0   (~5.4s; RSA-4096 keygen dominates)
+node poc/m6-check.mjs    RESULT: 27/27   exit 0   (~15s)
 node poc/demo.mjs --backend orange   (no credential)   exit 2 + prerequisites
 node poc/demo.mjs --oops / --backend sqlite            exit 2 + usage
 node poc/m1-check.mjs 20/20 · m2 10/10 · m3 23/23 · m4 33/33 · m5 48/48   all exit 0
@@ -88,17 +133,18 @@ node poc/m1-check.mjs 20/20 · m2 10/10 · m3 23/23 · m4 33/33 · m5 48/48   al
 `m5-check-live.mjs` was NOT run — it needs a credential and the network, and
 this round made no live calls at all.
 
-### Mutation sweep — 21 mutants, 21 killed, 0 survivors
+### Mutation sweep — 23 mutants, 23 killed, 0 survivors
 
 Working-copy `cp` backups, never `git checkout` (which would have reverted
 tracked files to HEAD and silently wiped the uncommitted fix under test).
 
-M6 (16/16, each red on `m6-check.mjs`): dup-key scan off · menu check off ·
+M6 (18/18, each red on `m6-check.mjs`): dup-key scan off · menu check off ·
 floor gate off · request auth off · directory accepts any `iss` · nonce store
 off · nonce never consumed · `iss` hint picks the key · canonical string drops
 the threshold · canonical string joins arrays with `,` · reason clamp off ·
 `getFacts` throw uncaught · unanswerable predicate not refused · refusal
-signature unchecked · needles lose `swapAgeMs` · refusals sent unsigned.
+signature unchecked · needles lose `swapAgeMs` · refusals sent unsigned ·
+closed request field set off · field name echoed raw.
 
 M1/M3 (5/5): M3 renders with `JSON.stringify` again · M3 `[unrenderable]` guard
 removed · M1 scanner blind · M1 compares raw instead of decoded keys · M1
@@ -137,7 +183,7 @@ signature and the scan have passed.
 - Quantisation CAPS the oracle at ≈2 bits; it does not close it, and the
   proposal says so in those words.
 - `poc/demo.mjs` is over §4.3's "a few hundred lines" bound if the whole file is
-  counted (813 total, 487 code, roughly half of that the reader-facing
+  counted (873 total, 509 code, roughly half of that the reader-facing
   narrative). Recorded rather than trimmed.
 
 ---

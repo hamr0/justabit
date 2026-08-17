@@ -10,7 +10,7 @@
 // a prerequisite failure is not a test result, and it is never a silent
 // fallback to the mock.
 //
-// M6 owns exactly four things no module owns, and each one is load-bearing:
+// M6 owns five things no module owns, and each one is load-bearing:
 //   1. the transport frame `{iss, payload, sig}` (M1 emits Buffers, M2 carries
 //      one Buffer, nothing in between named the encoding);
 //   2. the CANONICAL PREDICATE STRING both sides must derive byte-identically
@@ -20,7 +20,16 @@
 //      rejection is the requester's job, by M1's own documented limit);
 //   4. the REASON CLAMP (M3 builds rejection reasons from wire input and does
 //      not bound them; M2's seal() THROWS above the envelope capacity — so an
-//      unclamped refusal would crash the operator instead of refusing).
+//      unclamped refusal would crash the operator instead of refusing);
+//   5. the CLOSED TOP-LEVEL REQUEST FIELD SET. The fifth was not in the plan —
+//      it was found by probing this file after it was written, green and
+//      mutation-clean, and it is the most useful thing here: every layer
+//      underneath was already a closed set (M1's claims, M3's axes, M4's
+//      predicate fields) and the OUTERMOST envelope was not, because no module
+//      owns it. A request carrying `floors` — one letter off — had its floor
+//      silently dropped and got a SIGNED answer under the operator's own P90D
+//      while the requester believed it demanded P365D. A closed-set discipline
+//      is only as good as its outermost layer. See step 7 of the operator.
 //
 // Claims discipline (repo invariant): Mode A is ATTESTED WINDOWED DISCLOSURE.
 // Nothing here is zero-knowledge and nothing here says it is.
@@ -148,6 +157,20 @@ export function clampReason(r) {
   return r.length > WIRE_REASON_MAX ? `${r.slice(0, WIRE_REASON_MAX)}…` : r;
 }
 
+// ──────────────────────── M6-owned: the closed request set ───────────────────
+// The outermost envelope, closed for the reason every layer under it is closed:
+// an IGNORED field is a constraint the requester believes is enforced and is
+// not. See the long note at step 7 of the operator for the exact widening this
+// found.
+export const REQUEST_FIELDS = Object.freeze(['number', 'predicate', 'floor', 'nonce']);
+
+// A field NAME is requester-chosen text. Rendered verbatim while it is short and
+// printable, so the common typo reads exactly as typed — naming the misspelling
+// is the actionable half (M4's lesson) — and replaced otherwise, so an embedded
+// newline cannot forge a line in whatever log this reason lands in. `clampReason`
+// bounds the assembled reason before it is sealed either way.
+const fieldName = (k) => (/^[\x20-\x7e]{1,40}$/.test(k) ? k : '(unprintable field name)');
+
 // ══════════════════════════════ the three actors ═════════════════════════════
 
 // ── the blind hub ────────────────────────────────────────────────────────────
@@ -239,8 +262,28 @@ export function createOperator({ keys, directory, backend, floor = PUBLISHED_FLO
       return transportReject('duplicate top-level key in request (ambiguous bytes — re-request cleanly)');
     }
 
-    // 7. Shape. A nonce is required before any refusal can be signed and bound.
+    // 7. Shape. A nonce is required before any refusal can be signed and bound —
+    //    a refusal the requester cannot authenticate is one the hub could have
+    //    written, so everything past this line is signed.
     if (typeof req.nonce !== 'string') return transportReject('missing nonce');
+
+    //    ...and the top-level request field set is CLOSED, for the same reason
+    //    M1 closes its claims, M3 its axes and M4 its predicate fields: an
+    //    IGNORED field is a constraint the requester believes is enforced and
+    //    is not. This was the OUTERMOST layer and the last one left open —
+    //    found by an adversarial probe of this file after it was first written,
+    //    not reasoned about in advance. A request carrying `floors` (one letter
+    //    off) had its floor silently DROPPED: `checkFloor` saw no requested
+    //    floor, applied the operator's own P90D, and signed an answer while the
+    //    requester believed it had demanded P365D. That is silent widening
+    //    arriving through a spelling mistake — precisely the path M3's closed
+    //    axis set exists to kill, one level further out, and invisible to every
+    //    module because no module owns this envelope.
+    const unknown = Object.keys(req).filter((k) => !REQUEST_FIELDS.includes(k));
+    if (!controls.skipRequestFields && unknown.length > 0) {
+      return signedReject(`unexpected request fields: ${unknown.map(fieldName).join(', ')}`, req.nonce);
+    }
+
     if (typeof req.number !== 'string') return signedReject('missing subscriber', req.nonce);
 
     // 8. M3 — the monotone floor gate, BEFORE any fact is touched.
@@ -672,6 +715,23 @@ export async function runDemo(backend) {
   flip('with the gate disabled, the SAME below-floor request is ANSWERED',
     r4c.out.kind === 'answer' && r4c.verdict.accepted === true,
     `signed claims=${JSON.stringify(r4c.out.claims)} — that is the silent widening, and it is one missing call away`);
+
+  out('');
+  step('and the same widening has a quieter door: a MISSPELLED field. The request');
+  step('field set is CLOSED, so `floors` is refused rather than ignored — an ignored');
+  step('field is a constraint the requester believes is enforced and is not.');
+  const typo = { number: DEMO_NUMBER, predicate: PREDICATE, floors: { swapAgeMin: 'P365D' }, nonce: 'typo-nonce-01' };
+  const typoBytes = Buffer.from(JSON.stringify(typo), 'utf8');
+  const typoSealed = seal(keys.opEnc.publicKey,
+    packSigned({ payloadBytes: typoBytes, signature: edSign(null, typoBytes, keys.rpSig.privateKey) }, keys.rpIss));
+  const typoOut = await world.operator.handle(hub.route(keys.rpIss, keys.opIss, typoSealed));
+  assert('a misspelled request field is refused, not ignored',
+    typoOut.kind === 'reject' && typoOut.reason === 'unexpected request fields: floors',
+    `reason='${typoOut.reason}'`);
+  const typoCtrl = await world.operator.handle(hub.route(keys.rpIss, keys.opIss, typoSealed), { operator: {}, skipRequestFields: true });
+  flip('with the set left open, the typo silently DROPS the demanded floor',
+    typoCtrl.kind === 'answer',
+    `answered under the operator's own ${PUBLISHED_FLOOR.swapAgeMin} while the requester believed it demanded ${typo.floors.swapAgeMin} — no error anywhere`);
 
   // ─────────────────────────────────────────── guards on the request path
   section('Guards on the request path (the two M6 decisions, 2026-08-17)');

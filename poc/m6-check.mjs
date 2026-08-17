@@ -16,7 +16,7 @@ import { checkFloor } from './m3-floor.mjs';
 import { makeHarness } from './check-harness.mjs';
 import * as M5 from './m5-facts-orange.mjs';
 import {
-  NOW, VALIDITY_MS, DEMO_NUMBER, PUBLISHED_FLOOR, PUBLISHED_THRESHOLD_MENU, WIRE_REASON_MAX,
+  NOW, VALIDITY_MS, DEMO_NUMBER, PUBLISHED_FLOOR, PUBLISHED_THRESHOLD_MENU, WIRE_REASON_MAX, REQUEST_FIELDS,
   packSigned, unpackSigned, canonicalPredicate, clampReason, rawNeedles, scan,
   createBackend, createWorld, createHub, generateKeys, roundTrip, parseArgs, main, runDemo,
 } from './demo.mjs';
@@ -432,12 +432,66 @@ ok('23 ONE EVALUATION STEP', Object.keys(M5).sort().join(',') === 'createOrangeF
   const zk = lines.filter((l) => /zero.knowledge|\bZK\b/i.test(l));
   const allNegated = zk.length > 0 && zk.every((l) => /never|not |NOT |reserved for Mode B/.test(l));
   const result = lines.find((l) => l.startsWith('RESULT: '));
-  ok('25 THE DEMO ITSELF', code === 0 && result === 'RESULT: 20/20',
+  ok('25 THE DEMO ITSELF', code === 0 && result === 'RESULT: 22/22',
     { label: `${zk.length} ZK mentions, all negations=${allNegated}; ${result}`, ok: allNegated });
+}
+
+// 26 CLOSED REQUEST FIELD SET — the outermost layer, and the last one that was
+// left open. Found by an adversarial probe of demo.mjs AFTER it was first
+// written and green: a request carrying `floors` (one letter off) had its floor
+// silently DROPPED, so the operator applied its own P90D and signed an answer
+// while the requester believed it had demanded P365D. Silent widening through a
+// spelling mistake — M3's closed-axis argument, one level further out, and
+// invisible to every module because no module owns this envelope. The control
+// reproduces the widening exactly.
+{
+  const w = await mockWorld();
+  const typo = { number: DEMO_NUMBER, predicate: PREDICATE, floors: { swapAgeMin: 'P365D' }, nonce: 'typo-1' };
+  const bytes = Buffer.from(JSON.stringify(typo), 'utf8');
+  const sealed = seal(w.keys.opEnc.publicKey, packSigned({ payloadBytes: bytes, signature: edSign(null, bytes, w.keys.rpSig.privateKey) }, w.keys.rpIss));
+  const r = await w.operator.handle(sealed);
+  const c = await w.operator.handle(sealed, { skipRequestFields: true });
+  // A field NAME is requester-chosen text: an unprintable one must not ride into
+  // the reason verbatim, where an embedded newline could forge a log line.
+  const nasty = { number: DEMO_NUMBER, predicate: PREDICATE, floor: {}, nonce: 'typo-2', ['a\nb\u0000']: 1 };
+  const nastyBytes = Buffer.from(JSON.stringify(nasty), 'utf8');
+  const nastyOut = await w.operator.handle(seal(w.keys.opEnc.publicKey,
+    packSigned({ payloadBytes: nastyBytes, signature: edSign(null, nastyBytes, w.keys.rpSig.privateKey) }, w.keys.rpIss)));
+  check('26 CLOSED REQUEST FIELD SET', false, { ok: r.kind === 'answer', reason: r.reason }, 'unexpected request fields: floors',
+    { label: 'set-open control reproduces the silent widening; unprintable names are not echoed',
+      ok: c.kind === 'answer' && c.claims.result === true
+        && JSON.stringify(REQUEST_FIELDS) === '["number","predicate","floor","nonce"]'
+        && nastyOut.reason === 'unexpected request fields: (unprintable field name)' });
+}
+
+// 27 HOSTILE PREDICATE NEVER THROWS — the composition's own "wire input never
+// throws" contract, which each module states for itself and nobody had stated
+// for the seam between them. Every shape here arrives through a real JSON
+// transit and must come back as a verdict, not an exception: the operator is
+// reachable by anyone who has its public envelope key.
+{
+  const w = await mockWorld();
+  const send = async (predicate, nonce) => {
+    const req = { number: DEMO_NUMBER, predicate, floor: { swapAgeMin: 'P180D' }, nonce };
+    const sealed = seal(w.keys.opEnc.publicKey, packSigned(attest(w.keys.rpSig.privateKey, req), w.keys.rpIss));
+    try { return await w.operator.handle(sealed); } catch (e) { return { kind: 'THREW', reason: `${e.constructor.name}: ${e.message}` }; }
+  };
+  const shapes = [null, undefined, ['simSwapAge'], 'simSwapAge gte P90D', 7, true,
+    { type: { a: 1 }, operator: 'gte', value: 'P90D' },
+    { type: 'simSwapAge', operator: 'gte', value: { a: 1 } },
+    { type: 'roamingIn', operator: 'in', value: ['FR', null] },
+    { type: 'roamingIn', operator: 'in', value: [] }];
+  const outs = [];
+  for (let i = 0; i < shapes.length; i++) outs.push(await send(shapes[i], `hostile-${i}`));
+  const threw = outs.filter((o) => o.kind === 'THREW');
+  const answered = outs.filter((o) => o.kind === 'answer');
+  ok('27 HOSTILE PREDICATE NEVER THROWS', threw.length === 0 && answered.length === 0,
+    { label: `${outs.length} shapes, ${threw.length} threw, ${answered.length} answered${threw.length ? `: ${threw[0].reason}` : ''}`,
+      ok: outs.every((o) => typeof o.reason === 'string' && o.reason.length <= WIRE_REASON_MAX + 1) });
 }
 
 // The declared case count. A suite that silently loses the cases carrying its
 // guarantee still printed a green `RESULT: n/n` before this argument existed
 // (measured 2026-08-16 on m4-check: truncated to 18/18 exit 0, emptied to 0/0
 // exit 0).
-conclude(25);
+conclude(27);
