@@ -83,6 +83,25 @@ access token; **(c)** `kyc-age-verification` proves the boolean-predicate
 pattern is already accepted in production. What is missing is the query-path
 and retention discipline around them.
 
+*A note on the reference PoC, since it reads the non-conforming surface.* The
+PoC's operator adapter calls `POST /retrieve-date` and windows the timestamp
+locally into the signed boolean. That is deliberate and it is not a
+counter-example to the profile, for three reasons worth stating plainly. First,
+**the profile governs what crosses the wire to the requester, not what the
+operator holds** — the operator's own subscriber data includes the raw date, and
+windowing is precisely what it does *to* that value; the PoC proves the point by
+scanning the sealed response bytes for the raw needles and finding only the bit.
+Second, `POST /check` is unusable for this profile for a **measured** reason: its
+`maxAge` is expressed in hours with a cap of 2400 (≈100 days, measured against
+the Orange Network APIs Playground 2026-08-14), so it cannot express the PoC
+operator's published `P180D` or `P365D` windows at all. Third,
+`POST /retrieve-age-band` is the surface that *would* fit — it is
+provider-optional, and **its availability on that Playground is unverified: it
+was never probed, and is recorded as untested rather than assumed in either
+direction.** This is exactly the gap §3 asks CAMARA to close catalog-wide: a
+conforming coarse surface should be a profile obligation, not a per-provider
+option an integrator may find missing.
+
 Privacy is currently handled procedurally: ICM's OIDC consent profile (a
 `purpose` parameter on the query), aggregator DPAs (the middleman still sees
 every query), and the "responses are minimal" argument (true only for

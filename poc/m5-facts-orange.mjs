@@ -79,6 +79,29 @@ const ADMIN_URL = 'https://api.orange.com/camara/playground/admin/v1.0/action';
 // answers `400 INVALID_ARGUMENT "phoneNumber is not allowed"` — which is how
 // the spike told a real-but-differently-shaped endpoint apart from a
 // non-existent one (`400 BAD_REQUEST "unhandled path"`).
+//
+// WHY `/retrieve-date`, when the proposal itself lists it as the NON-conforming
+// SimSwap surface. A fair question, and the answer is not a walk-back:
+//
+//   1. The invariant governs the WIRE, not the operator. The operator
+//      legitimately holds the raw value — it is its own subscriber data, and
+//      windowing is something the operator does TO that value. What must never
+//      happen is the value reaching the REQUESTER, and that is what the demo's
+//      wire-byte scan proves: it hunts the raw needles in the sealed payload
+//      and finds only the bit. An adapter reading a precise date and emitting a
+//      windowed boolean is the profile working, not the profile being bypassed.
+//   2. `/check` is not used for a MEASURED reason, not a preference. Its
+//      `maxAge` is in HOURS, capped at 2400 (≈100 days, measured 2026-08-14 —
+//      see poc/README.md). The published threshold menu runs to `P180D` and
+//      `P365D`, which that cap cannot express at all, so `/check` cannot serve
+//      this profile as specified. NOT re-tested 2026-08-16: unused here, so it
+//      is recorded as untested rather than carried forward as re-verified.
+//   3. `/retrieve-age-band` is the surface that WOULD fit — coarse by
+//      construction, and the proposal's own precedent (a). It is
+//      PROVIDER-OPTIONAL, and **its availability on this Playground is
+//      UNVERIFIED: never probed, never 404'd, recorded as untested rather than
+//      assumed either way.** Probing it is the obvious next spike; until then
+//      no claim is made about it in either direction.
 const READS = Object.freeze({
   simSwap: { url: `${API}/sim-swap/v1/retrieve-date`, body: (n) => ({ phoneNumber: n }) },
   roaming: { url: `${API}/device-roaming-status/v1/retrieve`, body: (n) => ({ device: { phoneNumber: n } }) },

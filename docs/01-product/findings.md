@@ -7,6 +7,95 @@ memory. A finding here is something that was RUN and OBSERVED, not reasoned.
 
 ---
 
+## 2026-08-17 (later) — Exit 2 was hiding a real regression; six spec deviations recorded (AGENT-RUN; user validation PENDING)
+
+Every number here is **AGENT-RUN by exit code on this machine.** The earlier
+2026-08-17 entry below is left exactly as it was recorded — its `27/27` was true
+of the tree it was run on, and this round moved the count to 28.
+
+**The defect, reproduced before it was fixed.** `main()` mapped ANY mid-run
+throw to exit 2. Exit 2 is the signed contract for *the chosen backend could not
+run* — but `--backend mock` has no prerequisites at all: no credential, no
+network, nothing that can be unavailable. So a mock run that STARTED and then
+threw could only be a code regression, and it reported itself as a skip.
+
+```
+# a genuine regression, injected as a throwing mock setBackstory:
+node poc/demo.mjs      exit 2      <- BEFORE (reads as "prerequisite missing")
+node poc/demo.mjs      exit 1      <- AFTER  (reads as "a run that failed")
+```
+
+A CI gate that treats 2 as skip-on-prerequisite — which is the correct reading
+of the contract — would have swallowed that regression in silence. Same family
+as the closed-field-set defect below: **the composition owns a boundary no
+module owns, and an under-modelled boundary rounds optimistically toward
+"fine".** Under `--backend orange` a mid-run throw stays 2, because there an
+unreachable live operator genuinely IS a prerequisite failure.
+
+Pinned by new case 28, which drives the REAL `main()` with a backend that starts
+clean and throws on first use (the shape a regression has, and not the shape
+case 24's could-not-start leg covers), and asserts the clean mock run alongside
+so the case cannot pass by making every mock run exit 1.
+
+**Mutation-proved** (revert → red → restore → green), not merely re-run:
+
+```
+fix reverted   node poc/m6-check.mjs   FAIL 28 … mock mid-run throw=2   RESULT: 27/28   exit 1
+fix restored   node poc/m6-check.mjs   PASS 28 … mock mid-run throw=1   RESULT: 28/28   exit 0
+```
+
+**The exit-code contract, observed end to end, not asserted:**
+
+```
+clean mock run                                exit 0
+--backend orange, credential deleted          exit 2   (+ printed prerequisites)
+--oops                                        exit 2   (+ usage)
+mock, backend starts then throws mid-run      exit 1   (orange, same throw: 2)
+```
+
+### Runs (all AGENT-RUN, exit code checked, never string-matched)
+
+```
+node poc/demo.mjs        RESULT: 22/22   exit 0
+node poc/m6-check.mjs    RESULT: 28/28   exit 0
+node poc/m1-check.mjs 20/20 · m2 10/10 · m3 23/23 · m4 33/33 · m5 48/48   all exit 0
+spec/carrier-attestation.yaml parses; Predicate enum still the 3 wired types
+```
+
+**Two smaller items closed.** The closed-field-set control passed
+`{ operator: {}, skipRequestFields: true }` to `operator.handle`, which reads
+FLAT controls — `operator: {}` was dead copy-paste residue from `roundTrip`'s
+nested shape, in the one file readers study line by line. And the RP nonce store
+only ever GROWS (a request that never receives a response leaves its entry
+resident forever); recorded as an honest limit at the store, in the demo's own
+notes, and in `poc/README.md`. **Not built** — exercising a TTL would mean faking
+elapsed time, and a stated limit beats an untested one.
+
+**Six deviations from the frozen M6 spec, all now recorded, none left silent.**
+Four were ALREADY in the decisions log and were not duplicated: the
+parse-then-scan ordering of the duplicate-key scan, `findings.md`'s own
+creation, the menu covering only ordered thresholds, and M3's reason length
+staying unclamped. The 20 → 22 assertion delta was recorded outside §9 and its
+entry now carries the count its siblings all carry. The dependency-injection
+seams were **unrecorded anywhere** and got a new entry — with the honest note
+that guard-disabling is a SEPARATE, deliberately published `controls` seam
+(those really are `if` branches in production functions, and that is the point:
+a guard never shown disabled has not been proven load-bearing).
+
+**Why the PoC reads a precise SIM-swap date** is now stated where a reader hits
+it (M5 source, CAMARA proposal §2.1, PRD §9) rather than left to be noticed as a
+contradiction. The invariant governs the WIRE — the operator legitimately holds
+the raw value, and the wire-byte scan is what proves only the bit crosses.
+`/check` is unusable here for a MEASURED reason, not a preference: its `maxAge`
+is in hours capped at 2400 (≈100 days, measured 2026-08-14), which cannot
+express the published menu's `P180D` or `P365D` buckets at all. And
+`/retrieve-age-band` — the surface that WOULD fit — is provider-optional and
+**was never probed on the Playground: recorded as UNTESTED, not assumed
+available and not assumed missing.** Probing it is the obvious next spike.
+Documentation only this round: which endpoint M5 calls is unchanged.
+
+---
+
 ## 2026-08-17 — M6 built: one-command demo + 27-case check, 18/18 mutants killed, and one defect found by probing the finished file (AGENT-RUN; user validation PENDING)
 
 Every number in this entry is **AGENT-RUN by exit code on this machine**. No

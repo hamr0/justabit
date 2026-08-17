@@ -40,7 +40,7 @@ ORANGE_BASIC_AUTH="$(pass camara/orange_network | head -1)" node poc/m5-check-li
                         # interrupted run does not leak one), prints the count at both
                         # ends, and case 11 asserts it came back.
 
-node poc/m6-check.mjs   # M6 integration — 27 cases (AGENT-RUN 27/27, user run
+node poc/m6-check.mjs   # M6 integration — 28 cases (AGENT-RUN 28/28, user run
                         #   PENDING). Zero credentials, zero network in BOTH
                         #   backend modes: the `--backend orange` seam runs
                         #   through an injected transport replaying captured
@@ -67,9 +67,24 @@ It prints the four assertions in plain language — a `Q:` with the scripted
 backstory, the `A:` bit, then the negative flip — plus the request-path guards
 (off-menu threshold, duplicate keys, response key pinning), each with a control
 that disables that one guard and shows the SAME input being accepted. **Exit 0
-only if all 22 hold; 1 if any fails; 2 if the backend cannot start** (e.g.
+only if all 22 hold; 1 if any fails; 2 if the backend cannot RUN** (e.g.
 `--backend orange` with no `ORANGE_BASIC_AUTH` — it prints the prerequisites and
 exits 2, and there is deliberately no silent fallback to the mock).
+
+Exit 2 means the backend could not run, and it is reserved for when that is
+actually true. Under `--backend mock` there are no prerequisites at all, so a
+mid-run crash there is a **code regression and exits 1, never 2** — a gate that
+skips on 2 must not be able to swallow a regression. Under `--backend orange`
+the same mid-run throw stays 2, because an unreachable live operator genuinely
+is a prerequisite failure. (Fixed 2026-08-17; it used to be 2 either way.)
+
+**Honest limit — the RP nonce store only grows.** A nonce is deleted when its
+response is verified, so a request that never receives one (rejected by the hub,
+dropped in transit, answered after the requester gave up) leaves its entry
+resident forever. Harmless across a handful of demo requests, unbounded in
+anything real; a deployment evicts on expiry, since the answer's validity window
+is already the natural TTL. Stated rather than built — exercising a TTL would
+mean faking elapsed time, and a stated limit beats an untested one.
 
 The mock run is **AGENT-RUN 22/22 exit 0; the user run is PENDING.** The live
 `--backend orange` run has not happened at all — it is the user's, and it is the

@@ -164,7 +164,7 @@ Network APIs Playground with a free Orange developer account. Each module also h
 check, negatives first, exit code 0 only if every case holds: `m1-check.mjs` (20 cases),
 `m2-check.mjs` (10), `m3-check.mjs` (23), `m4-check.mjs` (33), `m5-check.mjs` (48, an
 offline replay of live-captured responses; `m5-check-live.mjs` re-proves 11 cases against
-the real Playground) and `m6-check.mjs` (27, offline in both backend modes).
+the real Playground) and `m6-check.mjs` (28, offline in both backend modes).
 M1–M5 are validated by runs on the maintainer's own machine; **M6 is not yet — its
 counts are agent-run, and that is marked as pending rather than rounded up.**
 Requirements live in the [PRD §4](docs/01-product/prd.md); status, setup and caveats in

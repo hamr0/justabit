@@ -3,13 +3,45 @@
 ## Unreleased (0.4.0 — M6)
 
 - **M6 built: `poc/demo.mjs`, the one-command reader-facing demo, and
-  `poc/m6-check.mjs`, 27 cases. AGENT-RUN 22/22 and 27/27 by exit code; USER
+  `poc/m6-check.mjs`, 28 cases. AGENT-RUN 22/22 and 28/28 by exit code; USER
   VALIDATION PENDING, so gate G1 is NOT yet met.** `node poc/demo.mjs` needs no
   credentials and touches no network; `--backend orange` swaps in M5 reading
   `ORANGE_BASIC_AUTH` from the environment and exits **2** with printed
   prerequisites if the credential is absent or the Playground is unreachable —
   never a silent fallback to the mock. Exit 0 only if all 22 assertions hold, 1
   if any fails.
+- **Fixed — a crashed mock run was reported as a skipped prerequisite.**
+  `main()` mapped ANY mid-run throw to exit 2, but exit 2 means *the chosen
+  backend could not run*, and `--backend mock` has no prerequisites at all: no
+  credential, no network, nothing that can be unavailable. So a backend that
+  STARTED and then threw could only be a code regression, and a CI gate that
+  correctly treats 2 as skip-on-prerequisite would have swallowed it in silence.
+  Reproduced with a throwing `setBackstory` (exit 2 before, 1 after); mutation-
+  proved by case 28, which reds at 27/28 with the fix reverted. Under
+  `--backend orange` a mid-run throw stays 2 — an unreachable live operator
+  genuinely IS a prerequisite failure. The in-code comment asserted the opposite
+  rule and has been corrected. **M6 check: 27 → 28 cases.**
+- **The RP nonce store's unbounded growth is now stated** (at the store and in
+  the demo's own notes): a request that never receives a response leaves its
+  nonce resident forever, and a real deployment evicts on expiry. Documented,
+  deliberately not built — the demo would have to fake elapsed time to exercise
+  a TTL, and a stated limit beats an untested one.
+- **Why the PoC reads a precise SIM-swap date is now written down** where a
+  reader hits it (M5 source, CAMARA proposal §2.1, PRD §9): the invariant
+  governs the WIRE and the operator legitimately holds the raw value; `/check`
+  is unusable for a **measured** reason (its `maxAge` is in hours, capped at
+  2400 ≈ 100 days, which cannot express the published `P180D`/`P365D` buckets);
+  and `/retrieve-age-band` — the surface that would fit — is provider-optional
+  with **availability on the Playground UNVERIFIED, recorded as untested rather
+  than assumed.** Documentation only: which endpoint M5 calls is unchanged.
+- **Six deviations from the frozen M6 spec are now all recorded**, none left as
+  a silent difference. Four were already in the decisions log (the parse-then-
+  scan ordering, `findings.md`'s creation, the menu's ordered-thresholds-only
+  scope, M3's reason length staying unclamped); the 20 → 22 assertion delta was
+  recorded outside §9 and its entry now carries the count its siblings do; the
+  three (now four) dependency-injection seams were unrecorded anywhere and have
+  a new entry — including the honest note that guard-disabling is a separate,
+  deliberately published `controls` seam.
 - **The demo prints in plain language**, because it is the surface a CAMARA/AAIF
   reader sees: a `Q:` with the scripted backstory, the `A:` bit, then
   `negative flip → PASS`. Each of PRD §4.1's four assertions is followed by a

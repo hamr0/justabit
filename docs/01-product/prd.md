@@ -276,7 +276,7 @@ user's 19/19 and 22/22 records stand for the trees they were run on and are not
 transferred to these — same rule the M4 and M5 rounds followed.
 
 **M6 BUILT (2026-08-17) — `poc/demo.mjs` + `poc/m6-check.mjs`. AGENT-RUN 22/22
-(demo) and 27/27 (check) by exit code; USER VALIDATION PENDING, so G1 is NOT
+(demo) and 28/28 (check) by exit code; USER VALIDATION PENDING, so G1 is NOT
 yet met.** POC first: a throwaway composition spike outside the tree attacked
 "the modules compose without weakening any single module's guarantee" and came
 back with five findings that shaped the build rather than being discovered
@@ -512,6 +512,62 @@ we manage here:
 
 Dated, append-only. Rationale in one line; details in the stash/history.
 
+- **2026-08-17 — Exit 2 is reserved for a backend that COULD NOT RUN; a
+  crashed mock run is a FAILURE (M6).** Not a planned decision — a defect found
+  by asking what a genuine regression looks like to a CI gate. `main()` mapped
+  any mid-run throw to 2, but `--backend mock` has no prerequisites at all (no
+  credential, no network, nothing that can be unavailable), so a backend that
+  STARTED and then threw can only be a code regression. A gate that correctly
+  treats 2 as skip-on-prerequisite would therefore have swallowed a real
+  regression in silence. Reproduced with a throwing `setBackstory`: 2 before, 1
+  after. Under `--backend orange` a mid-run throw stays 2 — there an unreachable
+  live operator genuinely IS a prerequisite failure. The in-code comment had the
+  direction backwards ("reporting it as a failed assertion would be the more
+  flattering lie"); the flattering lie is the other one. Same family as the
+  closed-field-set defect below: **the composition owns a boundary no module
+  owns, and an under-modelled boundary rounds optimistically toward "fine".**
+  M6: 27 → 28 cases.
+- **2026-08-17 — The RP nonce store's unbounded growth is DOCUMENTED, not
+  built (M6).** The single-use store deletes a nonce when its response is
+  verified, so a request that never receives one — rejected by the hub, dropped
+  in transit, answered after the requester gave up — leaves its entry resident
+  forever. Harmless in a demo issuing a handful of requests against an injected
+  clock; unbounded memory in anything real. A deployment evicts on EXPIRY (the
+  answer's validity window is already the natural TTL). NOT built here: the demo
+  would have to fake elapsed time to exercise it, and **a stated limit beats an
+  untested one** — the same rule the rest of this repo's honest limits follow.
+- **2026-08-17 — Four DEPENDENCY-INJECTION seams, one code path each (M6).**
+  Recorded because they are a deviation from the frozen shape and would
+  otherwise read as test scaffolding in production code. `createWorld({keys})`
+  (RSA-4096 keygen is ~2.7s/key and the check builds a world per case),
+  `buildRequest({number, nonce})` (a byte-reproducible transcript is how the two
+  backends are proved to emit IDENTICAL signed claim bytes),
+  `createBackend(mode, {basicAuth, fetchImpl})` (replays captured Playground
+  bytes offline; the `mode` branch is FR5, the user-facing `--backend`, not a
+  test flag), and `main(argv, {createBackendImpl})` (added 2026-08-17 to drive a
+  started-then-crashing backend through the real entry point). Each is a default
+  parameter: no `if (test)`, no `NODE_ENV`, no branch that exists only for a
+  suite. **Stated honestly:** guard-disabling is a SEPARATE seam — the `controls`
+  flags on `hub.route` / `operator.handle` / `rp.verifyResponse` ARE `if` branches
+  in production functions, and that is deliberate and published, because a guard
+  never shown disabled has not been proven load-bearing. A reader running the
+  demo passes none of them.
+- **2026-08-17 — Why the PoC reads a PRECISE SIM-swap date, and what that does
+  and does not say (M5/M6, documentation only).** The question is fair: the
+  profile's own argument favours coarse surfaces, and `/retrieve-date` is the
+  surface the proposal itself lists as NON-conforming. Three things, none of them
+  a walk-back. (1) The invariant governs the WIRE. The operator legitimately
+  holds the raw value — it is the operator's own subscriber data, and windowing
+  is something it does TO that value; what must never happen is the value
+  reaching the requester, which the wire-byte scan proves by looking for the raw
+  needles in the sealed payload and finding only the bit. (2) `/check` is not
+  used for a MEASURED reason, not a preference: its `maxAge` is expressed in
+  HOURS with a cap of 2400 (≈100 days, measured 2026-08-14), so it cannot
+  express the published menu's `P180D` or `P365D` buckets at all — it cannot
+  serve the profile as specified. (3) `/retrieve-age-band` is the surface that
+  WOULD fit, and it is provider-optional; **its availability on the Orange
+  Playground is UNVERIFIED — never probed, recorded as untested rather than
+  assumed either way.** Which endpoint M5 calls is unchanged this round.
 - **2026-08-17 — Predicate thresholds are QUANTISED to a published menu (M6
   decision #1, user-signed), and the repeated-query oracle is recorded as an
   honest limit.** The M6 composition spike found the one hole no single module
@@ -525,8 +581,11 @@ Dated, append-only. Rationale in one line; details in the stash/history.
   its floor (`P30D | P90D | P180D | P365D`) and **refuses** anything off it —
   refuses, never rounds, because rounding answers a question nobody asked. This
   CAPS resolution at the bucket (≈2 bits/year); it does not close the oracle,
-  and it is written down as a cap. Only ORDERED thresholds get a menu (a set has
-  no ordering to bisect; a boolean is already full resolution). Two further
+  and it is written down as a cap. Only ORDERED thresholds get a menu, which
+  after the enum trim means exactly one type — `simSwapAge`; `roamingIn` takes a
+  set, which has no ordering to bisect, and `reachable` is already a single bit
+  at full resolution, so the menu's scope is a statement, not an oversight.
+  Two further
   mitigations: per-subject rate limits + per-query billing are the economic
   backstop (ADOPTED — Mode A's commercial rail is also its defence); a monotone
   tighten-only repeat rule was CONSIDERED and NOT adopted (it defeats bisection
@@ -547,6 +606,7 @@ Dated, append-only. Rationale in one line; details in the stash/history.
   rendered only while short and printable so an embedded newline cannot forge a
   log line. The lesson generalises: **a closed-set discipline is only as good as
   its outermost layer, and the composition owns a layer none of the modules do.**
+  Demo: 20 → 22 assertions (the guard and its control); check: 25 → 27 cases.
 - **2026-08-17 — The subscriber number rides INSIDE the sealed, signed request
   (M6, user-signed).** The hub therefore never sees it, which is what FR3
   requires. But it IS in the request, and that is a demo stand-in for
