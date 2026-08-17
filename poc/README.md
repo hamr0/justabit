@@ -16,15 +16,16 @@ node poc/m1-check.mjs   # M1 attestation core — 20 cases (user-validated 19/19
                         #   19-case tree; case 20 added by the M6 round —
                         #   AGENT-RUN 20/20, user re-run PENDING)
 node poc/m2-check.mjs   # M2 blind envelope — 10 cases (module user-validated 10/10)
-node poc/m3-check.mjs   # M3 floor gate — 23 cases (user-validated 22/22 at the
-                        #   22-case tree; case 23 added by the M6 round —
-                        #   AGENT-RUN 23/23, user re-run PENDING)
-node poc/m4-check.mjs   # M4 mock facts adapter — 36 cases (user-validated 33/33 at the
-                        #   33-case tree; cases 34-36 added by the 3 -> 6 predicate
-                        #   round — AGENT-RUN 36/36, user re-run PENDING)
-node poc/m5-check.mjs   # M5 orange facts adapter, OFFLINE — 52 cases (user-validated
-                        #   48/48 at 8e842c3, the shipped v0.3.0 state; cases 49-52
-                        #   added by the 3 -> 6 predicate round — AGENT-RUN 52/52,
+node poc/m3-check.mjs   # M3 floor gate — 25 cases (user-validated 22/22 at the
+                        #   22-case tree; cases 23-25 added by the M6 and
+                        #   3 -> 6 predicate rounds — AGENT-RUN 25/25,
+                        #   user re-run PENDING)
+node poc/m4-check.mjs   # M4 mock facts adapter — 38 cases (user-validated 33/33 at the
+                        #   33-case tree; cases 34-38 added by the 3 -> 6 predicate
+                        #   round — AGENT-RUN 38/38, user re-run PENDING)
+node poc/m5-check.mjs   # M5 orange facts adapter, OFFLINE — 54 cases (user-validated
+                        #   48/48 at 8e842c3, the shipped v0.3.0 state; cases 49-54
+                        #   added by the 3 -> 6 predicate round — AGENT-RUN 54/54,
                         #   user re-run PENDING).
                         #   Zero credentials, zero network:
                         #   an injected transport replays responses captured live on
@@ -43,12 +44,12 @@ ORANGE_BASIC_AUTH="$(pass camara/orange_network | head -1)" node poc/m5-check-li
                         # interrupted run does not leak one), prints the count at both
                         # ends, and case 11 asserts it came back.
 
-node poc/m6-check.mjs   # M6 integration — 40 cases (AGENT-RUN 40/40, user run
+node poc/m6-check.mjs   # M6 integration — 43 cases (AGENT-RUN 43/43, user run
                         #   PENDING). Zero credentials, zero network in BOTH
                         #   backend modes: the `--backend orange` seam runs
                         #   through an injected transport replaying captured
                         #   Playground bytes, exactly like m5-check. It also runs
-                        #   the demo itself and asserts its exit code, its 27/27
+                        #   the demo itself and asserts its exit code, its 30/30
                         #   tally, and claims discipline (every mention of
                         #   zero-knowledge in the output must be a negation).
                         #   Takes ~15s — RSA-4096 keygen dominates.
@@ -72,7 +73,7 @@ backstory, the `A:` bit, then the negative flip — then the WIRED PREDICATE SET
 request-path guards (off-menu threshold, duplicate keys, response key pinning),
 each with a control that disables that one guard and shows the SAME input being
 accepted. **Exit 0
-only if all 27 hold; 1 if any fails; 2 if the backend cannot RUN** (e.g.
+only if all 30 hold; 1 if any fails; 2 if the backend cannot RUN** (e.g.
 `--backend orange` with no `ORANGE_BASIC_AUTH` — it prints the prerequisites and
 exits 2, and there is deliberately no silent fallback to the mock).
 
@@ -91,7 +92,7 @@ anything real; a deployment evicts on expiry, since the answer's validity window
 is already the natural TTL. Stated rather than built — exercising a TTL would
 mean faking elapsed time, and a stated limit beats an untested one.
 
-The mock run is **AGENT-RUN 27/27 exit 0; the user run is PENDING.** The live
+The mock run is **AGENT-RUN 30/30 exit 0; the user run is PENDING.** The live
 `--backend orange` run has not happened at all — it is the user's, and it is the
 only thing that makes the FR5 claim a live one rather than a replayed one.
 `poc/m6-check.mjs` proves the seam offline; it cannot prove the Playground still
@@ -117,7 +118,7 @@ re-establishing G2 at that state. A post-gate code review round (2026-08-17)
 then fixed three more adapter defects and three live-check faults (counts
 unchanged), so **the user re-ran once more at `8e842c3` — the shipped v0.3.0
 state — and reported both clean. Nothing is pending.** Each
-check declares its case count (`conclude(20|10|24|36|52|11|40)`) so a suite that
+check declares its case count (`conclude(20|10|25|38|54|11|43)`) so a suite that
 silently loses cases exits 1 with
 `FAIL CASE COUNT` instead of printing a smaller green tally — mutation-proven
 per module.
@@ -220,8 +221,11 @@ One operator-facts adapter, two backends behind it:
   stubbed; backstories set via its Admin API, and every write READ back and
   compared before it is trusted. **Two shapes are ASSUMED rather than measured**
   and are flagged as such in the code: the Admin write shape for the `deviceSwap`
-  axis, and the `{phoneNumber, maxAge}` body of the two `/check` routes (both
-  mirrored from measured siblings). Read-after-write verification is what makes a
+  axis, the Admin write shape for the `location` axis (the weaker of the two —
+  that axis was only ever observed EXISTING), and the `{phoneNumber, maxAge}` body
+  of the two `/check` routes, plus the `{device, area}` body of
+  `location-verification/v1/verify` (all mirrored from measured siblings or from
+  CAMARA's own spelling). Read-after-write verification is what makes a
   wrong guess fail LOUD instead of silently scripting a history that never took
   effect — the live run is what settles them.
   Credential from the environment only (`ORANGE_BASIC_AUTH`, the Playground

@@ -82,7 +82,7 @@ components:
       properties:
         type:
           type: string
-          enum: [simSwapAge, deviceSwapAge, roamingIn, reachable]
+          enum: [simSwapAge, deviceSwapAge, roamingIn, presentIn, reachable]
         operator:
           type: string
           enum: [gte, eq, in]
@@ -92,11 +92,23 @@ components:
           # `simType` is not a predicate type any more. One example per wired
           # type instead, so every spelling shown is one the reference operator
           # can actually answer.
-          description: Threshold, set, or flag — one per wired type (simSwapAge/deviceSwapAge "P90D", roamingIn ["FR","BE"], reachable true)
+          description: Threshold, set, area, or flag — one per wired type (simSwapAge/deviceSwapAge "P90D", roamingIn ["FR","BE"], presentIn {lat, long, radiusM}, reachable true)
           oneOf:
             - type: string
             - type: array
               items: { type: string }
+            # `presentIn` takes an AREA. A closed object, like every other layer:
+            # an ignored extra key is a constraint the requester believes is
+            # enforced and is not. The reference operator also renders this value
+            # into the signed predicate string with SORTED keys, so the same
+            # circle spelled in a different key order is the same question.
+            - type: object
+              required: [lat, long, radiusM]
+              additionalProperties: false
+              properties:
+                lat:     { type: number, minimum: -90, maximum: 90 }
+                long:    { type: number, minimum: -180, maximum: 180 }
+                radiusM: { type: integer, minimum: 1, maximum: 200000, description: 'Metres. CAMARA location-verification specifies a 2000 m minimum; the reference implementation accepts less so the operator PARTIAL state stays reachable, and refuses that state rather than rounding it.' }
             # `reachable` takes a boolean — the reference module rejects the
             # string spelling ("true"), so without this branch no reachable
             # request could be both schema-valid and answerable.
@@ -121,6 +133,12 @@ components:
           example: P90D
           description: 'Days or years only. Months (P3M) are rejected as ambiguous: a month is 28-31 days, so the comparison has no honest single answer. 1Y = 365D, declared. Compared numerically after parsing, never lexicographically.'
         class:        { type: string, enum: [postpaid] }
+        # The operator's policy for location-verification's third state. Only
+        # tightenable, like every other axis: `refuse` is the only legal value, so
+        # a request asking to have PARTIAL ROUNDED for it is a LOOSENING and is
+        # rejected. A rounded PARTIAL is signed and indistinguishable on the wire
+        # from a real answer.
+        partialPolicy: { type: string, enum: [refuse] }
     AttestResponse:
       description: >
         Two parts, exactly as the reference verifier (poc/m1-attestation.mjs)

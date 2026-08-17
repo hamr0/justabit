@@ -240,7 +240,7 @@ consistently ask what a catalog API *returns* under the profile.
 | device-roaming-status † | `{"roaming":true,"countryName":["FR"]}` | `{"claims":{"predicate":"roamingIn[FR,DE]","result":true,…},"sig":"…"}` — country in, boolean out |
 | device-reachability-status † | `{"reachabilityStatus":"CONNECTED_DATA"}` | `{"claims":{"predicate":"reachable=true","result":true,…},"sig":"…"}` |
 | device-swap `/check`, `/retrieve-date` † | `{"swapped":true}` / `{"latestDeviceChange":"2026-08-11T…"}` | `{"claims":{"predicate":"deviceSwapAge≥P90D",…},"sig":"…"}` — identical shape to `simSwapAge`, same bucket menu; **wired in the PoC 2026-08-17** |
-| location-verification `/verify` † | `{"verificationResult":"TRUE\|FALSE\|PARTIAL","lastLocationTime":"2026-08-11T…"}` | `{"claims":{"predicate":"presentIn[area]","result":true,…},"sig":"…"}` — **`PARTIAL` refuses, it is not rounded**; `lastLocationTime` stays operator-side |
+| location-verification `/verify` † | `{"verificationResult":"TRUE\|FALSE\|PARTIAL","lastLocationTime":"2026-08-11T…"}` | `{"claims":{"predicate":"presentIn in {\"lat\":48.86,\"long\":2.35,\"radiusM\":10000}","result":true,…},"sig":"…"}` — **`PARTIAL` refuses, it is not rounded**; `lastLocationTime` stays operator-side; **wired in the PoC 2026-08-17** |
 
 Three things the table is meant to make concrete:
 
@@ -342,6 +342,35 @@ Two limits and one deferral on that, stated rather than glossed:
   the one place a catalog surface already does what §3.2 rule 1 asks for.
   `presentIn` and `numberMatch` follow in the same round.
 
+  **Built, 2026-08-17 — `presentIn` is wired, and the third state is the whole
+  point.** `location-verification/v1/verify` answers `TRUE`, `FALSE` and
+  `PARTIAL`, and under this profile `PARTIAL` produces a signed REFUSAL carrying
+  no bit — never a rounded `true` or `false`, because a rounded answer is signed
+  and indistinguishable on the wire from a real one. Three things the build
+  settled:
+  - **The policy is PUBLISHED and tighten-only, using rule 5's existing floor
+    machinery rather than a new mechanism.** `partialPolicy` is a floor axis with
+    one legal value (`refuse`), so a request asking to have `PARTIAL` rounded for
+    it is a LOOSENING and dies at the floor gate before any fact is read. There is
+    no parameter anywhere that turns the rounding on.
+  - **The area is the QUESTION, and it is canonicalised by key, not by typing
+    order.** `JSON.stringify` serialises an object in insertion order, which for a
+    parsed request is whatever the requester typed — two requesters asking about
+    the same circle would otherwise derive two different signed predicate strings,
+    and one would get its own correct answer back as a predicate mismatch.
+  - **`lastLocationTime` is never read.** Not filtered on the way out: there is no
+    line that reads it, so there is nothing to filter. This is what §3.5's
+    "profile mode constrains what an operator forwards, not only which endpoint it
+    calls" looks like in code.
+
+  One honest residual the build makes concrete rather than removes: an AREA is a
+  dial (centre plus radius) and a requester willing to pay for queries can walk it
+  toward a position, exactly as a duration threshold can be bisected. `presentIn`
+  gets no quantisation menu — the signed decision does not give it one — so the
+  cap here is the operator's own resolution (below which the answer is a refusal,
+  not a finer bit) plus the rate-limit and per-query-billing backstop of §3.5.
+  Stated as a residual rather than closed.
+
 ### 3.4 Agent-grade floor (reference profile)
 
 Agents are the "why now" (§7.2). Consumer-agent floor, only tightenable:
@@ -442,13 +471,26 @@ sequence, not any response, and floors do not reach it (a floor constrains the
    unwithheld score is hill-climbable to the registered value — see the
    retraction in §3.3.
 
-   *And one axis where the honest answer is to refuse.* `location-verification`
-   returns a third state, `PARTIAL`, when the asked-for radius is finer than the
-   operator can resolve. Under this profile `PARTIAL` is **not rounded** to
-   `true` or `false`: it refuses, exactly as a straddling band or a missing fact
-   does, because a rounded answer is signed and indistinguishable on the wire
-   from a real one. The operator publishes its `PARTIAL` policy alongside its
-   floor and a requester may only tighten it (rule 5) — no new mechanism.
+   *And one axis where the honest answer is to refuse — BUILT 2026-08-17.*
+   `location-verification` returns a third state, `PARTIAL`, when the asked-for
+   radius is finer than the operator can resolve. Under this profile `PARTIAL` is
+   **not rounded** to `true` or `false`: it refuses, exactly as a straddling band
+   or a missing fact does, because a rounded answer is signed and
+   indistinguishable on the wire from a real one. The operator publishes its
+   `PARTIAL` policy alongside its floor and a requester may only tighten it
+   (rule 5) — no new mechanism, and in the reference implementation that is
+   literally true: `partialPolicy` is a floor AXIS with one legal value, so a
+   request asking for rounding is refused by the same gate that refuses a
+   below-floor window, before any fact is read.
+
+   *And one residual this axis adds, stated rather than glossed.* An area is a
+   dial — centre plus radius — so a requester willing to pay for queries can walk
+   it toward a position exactly as a duration threshold can be bisected.
+   `presentIn` gets no bucket menu (there is no natural coarse set of circles the
+   way there is of durations), so the cap here is the operator's own resolution,
+   below which the answer is a refusal rather than a finer bit, plus mitigation 2
+   below. That is weaker than the duration menu and is not presented as equal to
+   it.
 2. **Per-subject rate limits and per-query billing — ADOPTED as the economic
    backstop.** Mode A's commercial rail is also its defence: every rung of a
    walk is a separately metered, separately billed query against one subject,

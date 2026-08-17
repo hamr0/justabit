@@ -58,6 +58,13 @@ const FIELDS = Object.freeze({
   deviceSwappedDaysAgo: 'dayCount',
   roamingCountry: 'countryOrNull',
   reachable: 'boolean',
+  // ADDED 2026-08-17 (predicate set 3 → 6). The subscriber's own position, or
+  // `null` for "the operator cannot place this subscriber" — a PRESENT key with a
+  // null value, the same spelling `roamingCountry` uses for the honest negative,
+  // and the same reason: an absent axis and a known-unavailable one are different
+  // answers. It is never returned as a fact; only a VERDICT about an area the
+  // requester asked about is (see `presentVerdict`).
+  location: 'geoOrNull',
 });
 
 // The predicate types this adapter's facts can answer — closed, one fact and
@@ -93,6 +100,7 @@ const PREDICATES = Object.freeze({
     atLeastFact: 'deviceSwapAgeAtLeast', atLeastMsFact: 'deviceSwapAgeAtLeastMs', queryKey: 'deviceSwapAgeThresholdMs',
   },
   roamingIn: { operator: 'in', value: 'countries', fact: 'roamingCountry' },
+  presentIn: { operator: 'in', value: 'area', fact: 'presentVerdict', queryKey: 'area' },
   reachable: { operator: 'eq', value: 'boolean', fact: 'reachable' },
 });
 const PREDICATE_KEYS = Object.freeze(['type', 'operator', 'value']);
@@ -220,6 +228,41 @@ function durationMs(value) {
   return Number.isSafeInteger(ms) ? ms : null;
 }
 
+// An AREA, validated into a frozen plain copy of three primitives, or null. Two
+// callers depend on this being exact: `factQuery` sends it to a live operator,
+// and `evaluatePredicate` renders it into the canonical predicate string that
+// both sides must derive byte-identically.
+//
+// The bounds are not decoration. A latitude past ±90 or a longitude past ±180 is
+// not a place, and `NaN`/`Infinity` compare `false` against every bound, so an
+// unguarded pair would travel to a live endpoint as garbage and come back as a
+// confident verdict about nowhere. The radius is bounded at 200 km (CAMARA's
+// location-verification maximum) and at 1 m below, because a zero or negative
+// radius is a question with no answer rather than a small one.
+//
+// NOTE on the LOWER bound, stated because it is a deviation: CAMARA's
+// location-verification also specifies a MINIMUM radius of 2000 m, and this
+// accepts less. That is deliberate and measured — the Playground answered a 100 m
+// request with `PARTIAL`, which is the exact state this round exists to refuse,
+// and enforcing the catalog minimum here would make the third state unreachable
+// in the reference implementation. A deployment that enforces 2000 m loses
+// nothing: the refusal is what a sub-resolution question gets either way.
+const MAX_RADIUS_M = 200000;
+const AREA_KEYS = Object.freeze(['lat', 'long', 'radiusM']);
+const inRange = (v, lo, hi) => typeof v === 'number' && Number.isFinite(v) && v >= lo && v <= hi;
+function areaOf(v) {
+  const a = plainSnapshot(v);
+  if (a === null) return null;
+  const keys = Object.keys(a).sort();
+  if (keys.length !== AREA_KEYS.length || keys.join(',') !== [...AREA_KEYS].sort().join(',')) return null;
+  if (!inRange(a.lat, -90, 90) || !inRange(a.long, -180, 180)) return null;
+  if (!Number.isSafeInteger(a.radiusM) || a.radiusM < 1 || a.radiusM > MAX_RADIUS_M) return null;
+  // Rebuilt in a FIXED key order rather than copied: `canonicalPredicate` renders
+  // this object, and two requesters spelling the same area with their keys in a
+  // different order must not produce two different signed predicate strings.
+  return Object.freeze({ lat: a.lat, long: a.long, radiusM: a.radiusM });
+}
+
 // Defensive copy of a wire-supplied country set, or null if it is not a valid
 // one. plainSnapshot copies the predicate's TOP level only, so `p.value` is
 // still the requester's own array object — and iterating it directly runs
@@ -282,6 +325,13 @@ function invalidField(field, value) {
       return value === null || (typeof value === 'string' && COUNTRY.test(value))
         ? null
         : `invalid roamingCountry: ${describe(value)} (ISO-3166-1 alpha-2 uppercase, or null for not roaming)`;
+    case 'geoOrNull': {
+      if (value === null) return null;
+      const g = plainSnapshot(value);
+      const ok = g !== null && Object.keys(g).sort().join(',') === 'lat,long'
+        && inRange(g.lat, -90, 90) && inRange(g.long, -180, 180);
+      return ok ? null : `invalid location: ${describe(value)} ({lat, long} as finite degrees within ±90/±180, or null for a subscriber the operator cannot place)`;
+    }
     case 'boolean':
       return typeof value === 'boolean'
         ? null
@@ -333,7 +383,37 @@ function assertTestNumber(number) {
 // The adapter. One instance = one operator's scriptable subscriber base.
 // `setBackstory` is callable mid-run, mirroring the Playground's Admin API:
 // re-scripting a number and re-asking is exactly how the FR1 negative is shown.
-export function createMockFacts() {
+// Great-circle distance in metres. Six lines of arithmetic with no dependency and
+// no caller-supplied anything; the mean-Earth-radius approximation is DECLARED
+// (WGS-84 varies ~0.3% pole to equator) and is far inside any radius this PoC
+// answers. It exists so the mock can produce a real TRUE/FALSE about a real area
+// rather than a scripted verdict — a scripted one would make the demo's location
+// assertion unable to fail for the right reason.
+const EARTH_RADIUS_M = 6371000;
+const rad = (d) => (d * Math.PI) / 180;
+function metresBetween(a, b) {
+  const dLat = rad(b.lat - a.lat);
+  const dLong = rad(b.long - a.long);
+  const h = Math.sin(dLat / 2) ** 2
+    + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLong / 2) ** 2;
+  return 2 * EARTH_RADIUS_M * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+/**
+ * One instance = one operator's scriptable subscriber base.
+ *
+ * `locationResolutionM` is OPERATOR CONFIG, not a backstory: it is the finest
+ * radius this operator can resolve, and a question below it produces `PARTIAL` —
+ * the measured third state of `location-verification/v1/verify`, which this
+ * profile REFUSES rather than rounding. It is configuration because it is a
+ * property of the operator's network, not of a subscriber, and because the live
+ * backend's resolution is whatever the real network does and cannot be scripted
+ * at all. Default 2000 m — CAMARA's own minimum location-verification radius.
+ */
+export function createMockFacts({ locationResolutionM = 2000 } = {}) {
+  if (!Number.isSafeInteger(locationResolutionM) || locationResolutionM < 1) {
+    throw new Error(`invalid locationResolutionM: ${describe(locationResolutionM)} (whole metres, at least 1 — operator config, so a fault here is LOUD)`);
+  }
   const store = new Map();
 
   // Operator-side write. Trusted input, so every fault is a THROW naming the
@@ -361,7 +441,7 @@ export function createMockFacts() {
 
   // Operator-side read. `nowMs` is INJECTED — the mock never reads a wall
   // clock, so a case is deterministic forever.
-  function getFacts(number, nowMs) {
+  function getFacts(number, nowMs, query = {}) {
     assertTestNumber(number);
     if (!Number.isSafeInteger(nowMs) || nowMs < 0) {
       throw new Error(`invalid now: ${describe(nowMs)} (unix epoch ms as a safe integer — the clock is injected, never read)`);
@@ -391,12 +471,32 @@ export function createMockFacts() {
     // backstories, so it answers from the story it was given. Both shapes are
     // exercised — this one end to end, the other through M5's replay and through
     // synthetic facts in this module's own check.
-    return Object.freeze({
+    const facts = {
       swapAgeMs: nowMs - swappedAtMs,
       deviceSwapAgeMs: nowMs - deviceSwappedAtMs,
       roamingCountry: b.roamingCountry,
       reachable: b.reachable,
-    });
+    };
+    // The location axis is a VERDICT about an area the requester asked about, and
+    // it exists only when an area was asked about — the subscriber's own position
+    // is never a fact this function returns, on either backend. That is not a
+    // convenience: `presentIn` is the one predicate whose upstream is itself
+    // predicate-shaped, and handing the position out as a fact would put the raw
+    // value one careless line away from the wire.
+    //
+    // `PARTIAL` is produced, not scripted: a radius finer than this operator can
+    // resolve cannot be answered honestly, which is exactly what the live
+    // endpoint says with the same word.
+    const area = plainSnapshot(query)?.area;
+    if (area !== undefined && b.location !== null) {
+      const a = areaOf(area);
+      if (a !== null) {
+        facts.presentVerdict = a.radiusM < locationResolutionM
+          ? 'PARTIAL'
+          : (metresBetween(a, b.location) <= a.radiusM ? 'TRUE' : 'FALSE');
+      }
+    }
+    return Object.freeze(facts);
   }
 
   return { setBackstory, getFacts };
@@ -437,6 +537,13 @@ export function factQuery(predicate) {
   if (spec.value === 'duration') {
     const ms = durationMs(p.value);
     if (ms !== null) q[spec.queryKey] = ms;
+  } else if (spec.value === 'area') {
+    // The one query value that is not a primitive. It is a FROZEN rebuild in a
+    // fixed key order carrying three validated numbers — never the requester's
+    // object — so an adapter iterating it cannot run caller code and cannot see a
+    // key nobody validated.
+    const a = areaOf(p.value);
+    if (a !== null) q[spec.queryKey] = a;
   }
   return Object.freeze(q);
 }
@@ -513,6 +620,25 @@ export function evaluatePredicate(facts, predicate) {
     // `null` = not roaming, so "in this set" is honestly false — a real answer,
     // not a fallback.
     result = set.includes(fact);
+  } else if (spec.value === 'area') {
+    const area = areaOf(p.value);
+    if (area === null) {
+      return { answered: false, reason: `invalid area: ${describe(p.value)} (use {lat, long, radiusM} in degrees and whole metres)` };
+    }
+    // THE THIRD STATE. `PARTIAL` is the operator saying it cannot answer at the
+    // resolution asked for, and this profile REFUSES it rather than rounding it
+    // to `true` or `false` — a rounded answer is signed and indistinguishable on
+    // the wire from a real one, which is the missing-fact-as-confident-negative
+    // failure one layer along. The operator publishes this policy as a floor axis
+    // (`partialPolicy`, M3) and a requester may only tighten it, so there is no
+    // parameter anywhere that turns the rounding on.
+    if (fact === 'PARTIAL') {
+      return { answered: false, reason: 'location partial: refused, never rounded' };
+    }
+    if (fact !== 'TRUE' && fact !== 'FALSE') {
+      return { answered: false, reason: `fact unavailable: ${spec.fact}` };
+    }
+    result = fact === 'TRUE';
   } else {
     if (typeof p.value !== 'boolean') {
       return { answered: false, reason: `invalid ${p.type} value: ${describe(p.value)} (boolean true or false, never a string)` };

@@ -127,14 +127,90 @@ subsequent run. **40 consecutive demo runs and 12 consecutive m6-check runs are
 clean**, so it is recorded as unreproduced rather than explained — measured
 rather than argued away.
 
-### Suite state after part 1 — ALL AGENT-RUN, user run PENDING
+### Part 2 — `presentIn`, and the state that is not an answer
+
+`location-verification/v1/verify` has three measured states, and the third is the
+reason this predicate is interesting: `PARTIAL` is the operator saying *I cannot
+answer at the resolution you asked for*. Rounding it to `true` or `false` produces
+a SIGNED answer that is byte-indistinguishable on the wire from a real one, which
+is the missing-fact-as-confident-negative failure with a signature over it.
+
+Four things this half measured rather than assumed:
+
+**The published policy is a FLOOR AXIS, so "tighten-only" is literal.**
+`partialPolicy` has exactly one legal value (`refuse`), so a request asking to
+have PARTIAL rounded for it is a LOOSENING and is refused by the same M3 gate
+that refuses a below-floor window — before any fact is read. No new mechanism, and
+no parameter anywhere that turns the rounding on. This moved a user-validated
+module: **m3 24 → 25**, AGENT-RUN.
+
+**Canonicalisation by key order was a real bug, found by writing the case.**
+`JSON.stringify` serialises an object in INSERTION order, and a parsed request's
+insertion order is whatever the requester typed. `{lat,long,radiusM}` and
+`{radiusM,long,lat}` are the same circle and produced two different signed
+predicate strings — so a requester who spelled it the second way would receive its
+own correct answer back and reject it as `predicate mismatch`. A self-inflicted
+denial of service that only appears once someone types the keys in another order.
+Fixed by rendering object values with SORTED keys; m6 case 43 pins order-freedom
+AND injectivity together, since the cheap fix (render nothing but the values)
+would re-open the collision M6 exists to close.
+
+**`lastLocationTime` is not filtered — it is never read.** The raw timestamp rides
+on every response including the boolean-looking ones, and the adapter has no line
+that reads it, so there is nothing to filter and nothing to forget to filter. m5
+case 53 scans the whole returned facts object for it. Same shape one layer down:
+the mock computes a real great-circle verdict and returns the VERDICT, never the
+position — m4 case 37 scans the facts for the subscriber's coordinates.
+
+**A residual this axis ADDS, recorded rather than glossed.** An area is a dial —
+centre plus radius — and a requester willing to pay can walk it toward a position
+exactly as a duration threshold can be bisected. `presentIn` gets no bucket menu
+(the signed decision does not give it one, and there is no natural coarse set of
+circles the way there is of durations), so the cap here is the operator's own
+resolution — below which the answer is a refusal rather than a finer bit — plus
+the rate-limit and per-query-billing backstop. That is WEAKER than the duration
+menu and is written down as weaker.
+
+### The second mutation table — 14 mutations, 1 survivor, and the survivor was right
+
+| # | Mutation | Red |
+|---|---|---|
+| 13 | m4: PARTIAL rounded to `true` instead of refused | m4, m6, demo exit 1 |
+| 14 | m4: the lat/long bounds dropped | m4 exit 1 |
+| 15 | m4: the radius bound dropped | m4 exit 1 |
+| 16 | m4: the mock never produces PARTIAL (resolution ignored) | m4, demo exit 1 |
+| 17 | m4: the subscriber position leaked into the facts | m4 exit 1 |
+| 18 | m5: an unrecognised verdict guessed instead of left absent | m5 exit 1 |
+| 19 | m5: the location endpoint called with no question | m5 exit 1 |
+| 20 | m5: `lastLocationTime` read into the facts | m5 exit 1 |
+| 21 | m5: the LOCATION write not read back | **SURVIVED — see below** |
+| 22 | m3: `partialPolicy` not a closed enum | m3, m6 exit 1 |
+| 23 | demo: the area canonicalised in typing order | m6 exit 1 |
+| 24 | demo: the published PARTIAL policy dropped from the floor | m6, demo exit 1 |
+| 25 | m5: the assumed-shape note dropped from the failure message | m5 exit 1 |
+| 26 | m5: a null location verified anyway | m5 exit 1 |
+
+**Survivor 21 was a real gap, not a redundant guard.** Deleting the location axis
+from the write-verification loop left `m5-check` green — so the read-after-write
+comparison that makes this round's ASSUMED Admin write shapes survivable was
+pinned for the device axis and not for the location one, which is the weaker
+assumption of the two. Closed by extending case 52 with a shadowed-position leg
+and a null-location leg; 21 is red after the fix, and 25/26 were minted against
+the fix itself.
+
+Fixing 26 also removed a real piece of dead logic: `got.geo` carried its own
+`location === null ? undefined` guard, which made the loop's skip redundant and
+therefore unkillable. The `got` side now always reads the stored value, exactly as
+the country axis does, and the skip is load-bearing.
+
+### Suite state after part 2 — ALL AGENT-RUN, user run PENDING
 
 ```
-m1 20/20 · m2 10/10 · m3 24/24 · m4 36/36 · m5 52/52 · m6 40/40 · demo 27/27
+m1 20/20 · m2 10/10 · m3 25/25 · m4 38/38 · m5 54/54 · m6 43/43 · demo 30/30
 ```
 
 Every one verified by exit code. `spec/carrier-attestation.yaml` re-parsed after
-the enum edit (now four wired types).
+each enum edit (five wired types; `Floor` now carries `partialPolicy`).
 
 ---
 

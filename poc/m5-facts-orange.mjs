@@ -131,6 +131,24 @@ const READS = Object.freeze({
   simSwapCheck: { url: `${API}/sim-swap/v1/check`, body: (n, maxAge) => ({ phoneNumber: n, maxAge }) },
   deviceSwapCheck: { url: `${API}/device-swap/v1/check`, body: (n, maxAge) => ({ phoneNumber: n, maxAge }) },
   roaming: { url: `${API}/device-roaming-status/v1/retrieve`, body: (n) => ({ device: { phoneNumber: n } }) },
+  // ADDED 2026-08-17. MEASURED: this route answers, and it answers with THREE
+  // states — `TRUE`, `FALSE` and `PARTIAL` (Paris at a 100 m radius) — plus a
+  // `lastLocationTime` timestamp on EVERY response, including the boolean-looking
+  // ones. That timestamp is legitimately the operator's and it stops here: it is
+  // never read into the facts, so there is no line for it to leak from.
+  //
+  // ASSUMED REQUEST SHAPE, stated rather than implied: the sweep recorded that
+  // "Paris, radius 10km" answered, not the exact body it sent. This is CAMARA
+  // location-verification's own `{device, area:{areaType:CIRCLE, center, radius}}`
+  // spelling. A wrong guess answers `400` and `classify()` fails LOUD naming the
+  // surface — never a quiet absent axis.
+  location: {
+    url: `${API}/location-verification/v1/verify`,
+    body: (n, area) => ({
+      device: { phoneNumber: n },
+      area: { areaType: 'CIRCLE', center: { latitude: area.lat, longitude: area.long }, radius: area.radiusM },
+    }),
+  },
   reachability: { url: `${API}/device-reachability-status/v1/retrieve`, body: (n) => ({ device: { phoneNumber: n } }) },
 });
 
@@ -161,6 +179,12 @@ const SWAP_AXES = Object.freeze({
 // purpose: a status this table does not name leaves the axis ABSENT rather than
 // guessing a polarity. Measured values, and the Admin API refuses anything else
 // (`400 … must be one of [CONNECTED_DATA, CONNECTED_SMS, NOT_CONNECTED]`).
+// The measured verdict vocabulary, closed on purpose. A state this table does not
+// name leaves the axis ABSENT rather than guessing a polarity — and `PARTIAL` is
+// carried THROUGH as itself rather than collapsed here, because deciding what
+// PARTIAL means is the profile's job (refuse it), not the transport's.
+const VERDICTS = Object.freeze(['TRUE', 'FALSE', 'PARTIAL']);
+
 const REACHABLE = Object.freeze({
   CONNECTED_DATA: true,
   CONNECTED_SMS: true,
@@ -479,11 +503,11 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
     if (!isPlainData(backstory)) {
       throw new Error(`invalid backstory for ${number}: not a plain object (own enumerable data only — a field on the prototype, or behind a getter, would be USED while escaping the unknown-field check below)`);
     }
-    const { swappedDaysAgo, deviceSwappedDaysAgo, roamingCountry, reachable } = backstory;
+    const { swappedDaysAgo, deviceSwappedDaysAgo, roamingCountry, reachable, location } = backstory;
     // Same closed, required, un-defaulted field set as M4 — and the same
     // reason: a typo must be BOTH an unknown field and a missing one.
     for (const k of Object.keys(backstory)) {
-      if (!['swappedDaysAgo', 'deviceSwappedDaysAgo', 'roamingCountry', 'reachable'].includes(k)) {
+      if (!['swappedDaysAgo', 'deviceSwappedDaysAgo', 'roamingCountry', 'reachable', 'location'].includes(k)) {
         throw new Error(`invalid backstory for ${number}: unknown field ${brief(k)}`);
       }
     }
@@ -497,6 +521,17 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
     }
     if (typeof reachable !== 'boolean') {
       throw new Error(`invalid backstory for ${number}: reachable must be boolean true or false, never a string`);
+    }
+    // Same bound M4 applies, duplicated for the same reason the duration parser is
+    // (§4.4: each module works alone). `NaN`/`Infinity` compare false against every
+    // range test, so an unguarded pair would be written to a live operator as a
+    // position that is not a place.
+    const geoOk = location === null || (isPlainData(location)
+      && Object.keys(location).sort().join(',') === 'lat,long'
+      && Number.isFinite(location.lat) && Math.abs(location.lat) <= 90
+      && Number.isFinite(location.long) && Math.abs(location.long) <= 180);
+    if (!geoOk) {
+      throw new Error(`invalid backstory for ${number}: location must be {lat, long} as finite degrees within ±90/±180, or null`);
     }
     const swappedAtMs = nowMs - swappedDaysAgo * DAY_MS;
     const deviceSwappedAtMs = nowMs - deviceSwappedDaysAgo * DAY_MS;
@@ -524,9 +559,21 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
     // is wrong the stored value will not match and the module fails LOUD naming
     // the axis, instead of scripting a backstory that never took effect. The live
     // run settles it; nothing here claims it is settled.
+    // `location` carries the SECOND assumed Admin write shape of this round, and
+    // it is the weaker of the two: `deviceSwap`'s field name at least comes from a
+    // measured READ (`/retrieve-date` answers `latestDeviceChange`), while the
+    // Admin `location` axis was only ever observed EXISTING in the axis list — its
+    // stored shape has never been read. `{latitude, longitude}` is CAMARA's own
+    // spelling, and that is the whole justification. If it is wrong, the
+    // read-after-write comparison below fails LOUD naming the axis and saying so,
+    // which is the outcome this module is built for and the reason a guess is
+    // survivable at all. A `null` location writes nothing and verifies nothing:
+    // there is no measured spelling for "this operator cannot place the
+    // subscriber", and inventing one would be a fact rather than a gap.
     const data = {
       simSwap: { latestSimChange },
       deviceSwap: { latestDeviceChange },
+      ...(location === null ? {} : { location: { latitude: location.lat, longitude: location.long } }),
       roaming: roamingCountry === null ? { roaming: false } : { roaming: true, countryName: [roamingCountry] },
       reachability: { reachabilityStatus: reachable ? 'CONNECTED_DATA' : 'NOT_CONNECTED' },
     };
@@ -551,12 +598,18 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
     if (typeof stored !== 'object' || stored === null) {
       throw new Error(`write verification failed for ${number}: READ returned no data object`);
     }
+    const show = (v) => (typeof v === 'string' ? brief(redact(v)) : brief(v));
     const got = {
       latestSimChange: stored.simSwap?.latestSimChange,
       latestDeviceChange: stored.deviceSwap?.latestDeviceChange,
       roaming: stored.roaming?.roaming,
       country: joinStored(stored.roaming?.countryName, redact),
       reachabilityStatus: stored.reachability?.reachabilityStatus,
+      // Compared as a rendered STRING pair rather than two numbers, so a stored
+      // `"48.8566"` (a string) cannot compare equal to a written 48.8566 and a
+      // hostile stored value renders as its kind instead of coercing. Same
+      // redact-then-clamp order the country join uses, for the same reason.
+      geo: `${show(stored.location?.latitude)},${show(stored.location?.longitude)}`,
     };
     const want = {
       latestSimChange,
@@ -564,6 +617,7 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
       roaming: roamingCountry !== null,
       country: roamingCountry === null ? undefined : roamingCountry,
       reachabilityStatus: data.reachability.reachabilityStatus,
+      geo: location === null ? undefined : `${show(location.lat)},${show(location.long)}`,
     };
     // This diagnostic quotes values that came off the WIRE, so it is the one
     // place a stored value could carry an echoed secret into a throw — and the
@@ -586,15 +640,23 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
     // RangeError ("Invalid string length") at V8's max string length, which
     // destroyed this message entirely. `brief()` bounds BEFORE it renders, which
     // is the same lesson case 43 of the offline suite already states.
-    const show = (v) => (typeof v === 'string' ? brief(redact(v)) : brief(v));
-    for (const axis of ['latestSimChange', 'latestDeviceChange', 'roaming', 'reachabilityStatus', 'country']) {
+    for (const axis of ['latestSimChange', 'latestDeviceChange', 'roaming', 'reachabilityStatus', 'country', 'geo']) {
       // `country` is only compared when one was written: a stale country left
       // alongside `roaming:false` is producible (measured) and is not a write
       // failure — `roaming:false` is the authoritative half either way.
       if (axis === 'country' && want.country === undefined) continue;
+      // ...and the same rule for a null location: nothing was written, so there is
+      // nothing to verify. Deliberately NOT "verify that nothing is stored" — the
+      // subscriber may legitimately have a position this PoC did not script.
+      if (axis === 'geo' && want.geo === undefined) continue;
       if (got[axis] !== want[axis]) {
         throw new Error(
           `write verification FAILED for ${number}: stored ${axis} is ${show(got[axis])}, wrote ${show(want[axis])}` +
+          (axis === 'latestDeviceChange' || axis === 'geo'
+            ? ' — NOTE: this axis carries an ASSUMED Admin write shape (never measured; see the comment at `data`),'
+              + ' so a mismatch here may be the shape rather than the slot. Read the Admin READ body for this number'
+              + ' and correct the shape in poc/m5-facts-orange.mjs.'
+            : '') +
           ' — the Admin API echoed the write back with a 200 and did NOT store it.' +
           ' Built-in numbers (+990100000000-05) shadow every write: CREATE succeeds, UPDATE returns 200 echoing your payload, and READ/CAMARA keep serving the built-in dataset.' +
           ' Script a CUSTOM slot (e.g. +990100000099) instead.'
@@ -696,6 +758,23 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
       if (Array.isArray(names) && names.length === 1 && typeof names[0] === 'string' && COUNTRY.test(names[0])) {
         facts.roamingCountry = names[0];
       }
+    }
+
+    // The location axis is read ONLY when an area was asked about, for the reason
+    // the device axis is conditional and one more besides: this endpoint takes the
+    // QUESTION as its input, so there is no such thing as reading it "in general".
+    const area = q.area;
+    if (area !== undefined) {
+      const locOut = await post('camara', READS.location.url, READS.location.body(number, area));
+      classify(locOut, number, 'location-verification verify');
+      const loc = parseJson(locOut, 'location-verification verify');
+      const verdict = loc?.verificationResult;
+      // `includes` on a frozen literal array, never a table lookup: an unguarded
+      // `TABLE[verdict]` would resolve `constructor` to an inherited function
+      // (the prototype-key footgun this module already pins for reachability).
+      // Anything unrecognised leaves the axis ABSENT — a refusal downstream.
+      if (typeof verdict === 'string' && VERDICTS.includes(verdict)) facts.presentVerdict = verdict;
+      // `lastLocationTime` rides on every response and is deliberately NOT read.
     }
 
     const reachOut = await post('camara', READS.reachability.url, READS.reachability.body(number));

@@ -14,6 +14,19 @@ const AXES = Object.freeze({
   tenureMin: { kind: 'duration' },
   swapAgeMin: { kind: 'duration' },
   class: { kind: 'enum', legal: 'postpaid' },
+  // ADDED 2026-08-17 with the 3 → 6 predicate round (PRD §9, user-signed).
+  // `location-verification/v1/verify` has a measured THIRD state, `PARTIAL` — the
+  // operator saying "I cannot answer at the resolution you asked for". Under this
+  // profile it is REFUSED, never rounded to yes or no, because a rounded answer
+  // is signed and indistinguishable on the wire from a real one.
+  //
+  // The operator PUBLISHES that policy and the requester may only TIGHTEN it,
+  // which is this module's existing rule-5 machinery and deliberately NOT a new
+  // mechanism. `refuse` is the only legal value today, exactly as `simType` and
+  // `class` carry one legal value each: a request demanding anything else — a
+  // request asking to have PARTIAL rounded for it — is a LOOSENING and is
+  // rejected by the same closed-set gate that rejects a misspelled axis.
+  partialPolicy: { kind: 'enum', legal: 'refuse' },
 });
 
 // Strict ISO-8601 duration subset: P<int>D or P<int>Y ONLY (decision 2026-08-15).

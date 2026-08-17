@@ -74,18 +74,33 @@ const DEVICE_SWAPPED_DAYS_AGO = 211;
 const DEVICE_FLIPPED_DAYS_AGO = 4;
 // One backstory, built in one place: six fields, all required, no defaults (M4's
 // rule — a typo must be both an unknown field and a missing one).
+// Where the subscriber actually is, and — deliberately DIFFERENT — where the
+// requester asks about. Same city, different coordinates, so no assertion can
+// pass by the two rendering as the same string, and the subscriber's own position
+// stays a scannable needle even while the requester's area rides in the claims.
+export const SUBSCRIBER_AT = Object.freeze({ lat: 48.8566, long: 2.3522 });
+const ASK_AREA = Object.freeze({ lat: 48.86, long: 2.35, radiusM: 10000 });
+// Finer than the demo operator's published 2000 m resolution: the question it
+// cannot answer honestly, which is the whole point of the third state.
+const TOO_FINE_AREA = Object.freeze({ lat: 48.86, long: 2.35, radiusM: 100 });
 const story = (over = {}) => ({
   swappedDaysAgo: SWAPPED_DAYS_AGO,
   deviceSwappedDaysAgo: DEVICE_SWAPPED_DAYS_AGO,
   roamingCountry: 'FR',
   reachable: true,
+  location: SUBSCRIBER_AT,
   ...over,
 });
 
 // ─────────────────── what the operator publishes, in one place ───────────────
 // The consumer-agent reference floor (proposal §3.4). A request may TIGHTEN
 // every axis and may never loosen one (profile rule 5 / FR4).
-export const PUBLISHED_FLOOR = Object.freeze({ simType: 'voice+data', tenureMin: 'P2Y', swapAgeMin: 'P90D' });
+// `partialPolicy` joined on 2026-08-17 with `presentIn`: `location-verification`
+// has a measured THIRD state, and the operator publishes what it does with it.
+// `refuse` is the only value M3 admits, so a request asking to have PARTIAL
+// rounded for it is a LOOSENING and is rejected by the existing gate — no new
+// mechanism, and no parameter anywhere that turns the rounding on.
+export const PUBLISHED_FLOOR = Object.freeze({ simType: 'voice+data', tenureMin: 'P2Y', swapAgeMin: 'P90D', partialPolicy: 'refuse' });
 
 // DECISION #1 (2026-08-17, user-signed): PREDICATE THRESHOLDS ARE QUANTISED.
 //
@@ -181,8 +196,28 @@ export function unpackSigned(bytes) {
 // always part of the string. Called only AFTER `evaluatePredicate` has answered,
 // so `type`/`operator` are known literals and `value` is a validated string,
 // boolean, or array of two-letter codes — nothing here can run caller code.
+//
+// EXTENDED 2026-08-17: `presentIn`'s value is an OBJECT (an area), and
+// `JSON.stringify` on an object serialises its keys in insertion order — which
+// for a parsed request is whatever order the requester typed them in. Two
+// requesters asking about the same circle would then derive two different signed
+// predicate strings, and one of them would get its own correct answer back as a
+// `predicate mismatch`. So an object value is rendered with SORTED keys. It stays
+// injective: a string value renders `"…"`, an array `[…]`, an object `{…}`, and
+// within the object the key set is fixed by validation, so no two distinct areas
+// can render the same. (`areaOf` already rebuilds in a fixed order — this is the
+// second bound, on the side that owns the canonical string, because the property
+// this string needs is not the property that function exists for.)
 export function canonicalPredicate(p) {
-  return `${p.type} ${p.operator} ${JSON.stringify(p.value)}`;
+  return `${p.type} ${p.operator} ${canonValue(p.value)}`;
+}
+
+// Called only AFTER `evaluatePredicate` has validated, so the value is a string,
+// a boolean, an array of two-letter codes, or a plain object of primitives.
+function canonValue(v) {
+  if (v === null || typeof v !== 'object' || Array.isArray(v)) return JSON.stringify(v);
+  const keys = Object.keys(v).sort();
+  return `{${keys.map((k) => `${JSON.stringify(k)}:${JSON.stringify(v[k])}`).join(',')}}`;
 }
 
 // ────────────────────────── M6-owned: the reason clamp ───────────────────────
@@ -733,6 +768,11 @@ export function rawNeedles(daysAgo, { country = 'FR', number = DEMO_NUMBER, devi
     ...spellings(daysAgo),
     ...(deviceDaysAgo === null ? [] : spellings(deviceDaysAgo)),
     'swapAgeMs', 'deviceSwapAgeMs', 'roamingCountry', country, number,
+    // The subscriber's own POSITION and the operator's own verdict vocabulary.
+    // `PARTIAL` is a needle in its own right: it is the operator admitting it
+    // cannot resolve the subscriber, which is a fact about the subscriber, and
+    // a refusal carries no predicate so it can never be the echoed question.
+    String(SUBSCRIBER_AT.lat), String(SUBSCRIBER_AT.long), 'presentVerdict', 'PARTIAL',
   ];
 }
 
@@ -1067,6 +1107,52 @@ export async function runDemo(backend) {
       && r6e.verdict.accepted === true && r6e.out.claims.result === false,
     'no menu for this one on purpose: a set has no ordering to bisect');
 
+  // presentIn — the one predicate whose UPSTREAM is itself predicate-shaped, and
+  // the one with a third state. Measured 2026-08-17: `location-verification/v1/
+  // verify` answers TRUE, FALSE and PARTIAL, and ships a `lastLocationTime`
+  // timestamp beside every one of them.
+  const q6h = rp.buildRequest({ type: 'presentIn', operator: 'in', value: ASK_AREA }, { swapAgeMin: 'P180D' });
+  const r6h = await roundTrip(world, q6h);
+  qa(`is the device inside a ${ASK_AREA.radiusM / 1000} km circle around ${ASK_AREA.lat}, ${ASK_AREA.long}?`,
+    `the subscriber is at ${SUBSCRIBER_AT.lat}, ${SUBSCRIBER_AT.long} — which never crosses the wire, and neither does the raw timestamp the catalog endpoint ships beside its verdict`,
+    `${r6h.out.claims?.result} — the area is the QUESTION; the position is not the answer`);
+  // ...and the same question 200 km away, so the bit is answered rather than
+  // assumed. Same shape, same wire, different place.
+  const q6i = rp.buildRequest({ type: 'presentIn', operator: 'in', value: { lat: 50.85, long: 4.35, radiusM: 10000 } }, { swapAgeMin: 'P180D' });
+  const r6i = await roundTrip(world, q6i);
+  assert('presentIn answers a boolean about an area, both ways',
+    r6h.verdict.accepted === true && r6h.out.claims.result === true
+      && r6i.verdict.accepted === true && r6i.out.claims.result === false,
+    `Paris → ${r6h.out.claims?.result}, Brussels → ${r6i.out.claims?.result}; the signed question is '${r6h.out.claims.predicate}'`);
+
+  // NEGATIVE: the third state. A radius finer than the operator can resolve is a
+  // question it CANNOT answer honestly, and this profile refuses it rather than
+  // rounding it to yes or no — a rounded answer would be signed and, on the wire,
+  // indistinguishable from a real one.
+  const q6j = rp.buildRequest({ type: 'presentIn', operator: 'in', value: TOO_FINE_AREA }, { swapAgeMin: 'P180D' });
+  const r6j = await roundTrip(world, q6j);
+  // The last clause is not decoration and it is not a label: the refusal is
+  // SCANNED. `PARTIAL` is the operator's own word for "I cannot resolve this
+  // subscriber", which is a fact ABOUT the subscriber, so shipping it would be a
+  // narrower leak than the verdict but a leak all the same — and a refusal
+  // carries no predicate, so unlike the country it can never be the echoed
+  // question.
+  const partialHits = scan(withoutNonce(unpackSigned(r6j.out.plain).signed.payloadBytes.toString('utf8'), q6j.nonce), NEEDLES);
+  flip(`a ${TOO_FINE_AREA.radiusM} m radius is REFUSED, not rounded — and the word PARTIAL never reaches the wire`,
+    r6j.out.kind === 'reject' && r6j.verdict.refused === true && r6j.out.claims.result === undefined
+      && partialHits.length === 0,
+    `requester saw: '${r6j.verdict.reason}' — a signed refusal carrying no bit; scanned the refusal frame against all ${NEEDLES.length} needles → hits=${JSON.stringify(partialHits)}`);
+
+  // ...and the policy is PUBLISHED and tighten-only, not hardcoded silently: a
+  // request asking to have PARTIAL rounded for it is a LOOSENING, refused by the
+  // same M3 gate that refuses a below-floor window. No parameter turns it on.
+  const q6k = rp.buildRequest({ type: 'presentIn', operator: 'in', value: TOO_FINE_AREA }, { swapAgeMin: 'P180D', partialPolicy: 'round' });
+  const r6k = await roundTrip(world, q6k);
+  assert('asking the operator to ROUND its PARTIAL is refused by the floor gate',
+    r6k.out.kind === 'reject' && r6k.out.floorRejected === true && r6k.verdict.refused === true
+      && PUBLISHED_FLOOR.partialPolicy === 'refuse',
+    `published policy '${PUBLISHED_FLOOR.partialPolicy}'; requester saw: '${r6k.verdict.reason}'`);
+
   // reachable — already one bit at full resolution, so nothing to quantise.
   const q6f = rp.buildRequest({ type: 'reachable', operator: 'eq', value: true }, { swapAgeMin: 'P180D' });
   const r6f = await roundTrip(world, q6f);
@@ -1083,7 +1169,8 @@ export async function runDemo(backend) {
   // inventory. The needle set now carries the device instant's own spellings too,
   // because the review's lesson was that an inventory covering one value five ways
   // reads as complete and is not.
-  const setFrames = [[q6a, r6a], [q6b, r6b], [q6d, r6d], [q6e, r6e], [q6f, r6f], [q6g, r6g]];
+  const setFrames = [[q6a, r6a], [q6b, r6b], [q6d, r6d], [q6e, r6e], [q6f, r6f], [q6g, r6g],
+    [q6h, r6h], [q6i, r6i], [q6j, r6j], [q6k, r6k]];
   const setHits = [];
   const excluded = [];
   for (const [q, r] of setFrames) {

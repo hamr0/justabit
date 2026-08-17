@@ -265,4 +265,31 @@ checkThrows('20 PROTOTYPE PUBLISHED THROWS',
 // guarantee still printed a green `RESULT: n/n` before this argument existed
 // (measured 2026-08-16 on m4-check: truncated to 18/18 exit 0, emptied to 0/0
 // exit 0).
-conclude(24);
+// 25 THE PARTIAL POLICY IS A FLOOR AXIS, TIGHTEN-ONLY — added 2026-08-17 with the
+// 3 -> 6 predicate round. `location-verification/v1/verify` has a measured third
+// state, PARTIAL, and this profile refuses it rather than rounding it to yes or
+// no. The operator publishes that policy and a requester may only tighten it,
+// which is this module's EXISTING machinery and not a new mechanism — so what is
+// pinned here is that the axis behaves like every other closed-set enum axis:
+//   * restating the published value is allowed and lands in `effective`;
+//   * asking for anything else is a LOOSENING and is refused by name (this is the
+//     request "round PARTIAL for me", which is precisely the thing that must not
+//     be answerable);
+//   * omitting it inherits the operator's value VISIBLY, so a requester can see
+//     which policy was enforced rather than assuming one.
+{
+  const PUBP = { ...PUB, partialPolicy: 'refuse' };
+  const same = checkFloor(PUBP, { partialPolicy: 'refuse' });
+  const loosen = checkFloor(PUBP, { partialPolicy: 'round' });
+  const omitted = checkFloor(PUBP, { swapAgeMin: 'P180D' });
+  const typo = checkFloor(PUBP, { partialpolicy: 'refuse' });
+  check('25 PARTIAL POLICY IS A TIGHTEN-ONLY FLOOR AXIS', false, loosen,
+    'invalid partialPolicy: "round" (profile allows only "refuse")',
+    { label: `restating it is allowed (effective=${same.effective?.partialPolicy}); omitting it inherits `
+      + `(${omitted.effective?.partialPolicy}); a typo'd axis is refused ('${typo.reason}')`,
+      ok: same.allowed === true && same.effective.partialPolicy === 'refuse'
+        && omitted.allowed === true && omitted.effective.partialPolicy === 'refuse'
+        && typo.allowed === false && typo.reason === 'unknown floor field: partialpolicy' });
+}
+
+conclude(25);

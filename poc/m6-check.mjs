@@ -16,7 +16,7 @@ import { checkFloor } from './m3-floor.mjs';
 import { makeHarness } from './check-harness.mjs';
 import * as M5 from './m5-facts-orange.mjs';
 import {
-  NOW, VALIDITY_MS, DEMO_NUMBER, PUBLISHED_FLOOR, PUBLISHED_THRESHOLD_MENU, REQUEST_FIELDS,
+  NOW, VALIDITY_MS, DEMO_NUMBER, PUBLISHED_FLOOR, PUBLISHED_THRESHOLD_MENU, REQUEST_FIELDS, SUBSCRIBER_AT,
   WIRE_REASON_JSON_MAX, NONCE_JSON_MAX, FACTS_UNAVAILABLE,
   packSigned, unpackSigned, canonicalPredicate, clampReason, rawNeedles, opaqueNeedles, withoutNonce, withoutAsked, scan,
   createBackend, createWorld, createHub, generateKeys, roundTrip, parseArgs, main, runDemo,
@@ -35,7 +35,10 @@ const DEVICE_PREDICATE = { type: 'deviceSwapAge', operator: 'gte', value: 'P90D'
 const TIGHTER = { swapAgeMin: 'P180D' };
 const NEEDLES = rawNeedles(SWAPPED_DAYS_AGO, { deviceDaysAgo: DEVICE_SWAPPED_DAYS_AGO });
 const OPAQUE = opaqueNeedles(NEEDLES);
-const STORY = { swappedDaysAgo: SWAPPED_DAYS_AGO, deviceSwappedDaysAgo: DEVICE_SWAPPED_DAYS_AGO, roamingCountry: 'FR', reachable: true };
+const STORY = { swappedDaysAgo: SWAPPED_DAYS_AGO, deviceSwappedDaysAgo: DEVICE_SWAPPED_DAYS_AGO, roamingCountry: 'FR', reachable: true, location: SUBSCRIBER_AT };
+// The requester's area is centred somewhere DIFFERENT from the subscriber, so no
+// case can pass by the two rendering as the same string.
+const NEAR_AREA = { lat: 48.86, long: 2.35, radiusM: 10000 };
 
 // The size a reason occupies inside the signed claims — the thing the clamp
 // actually bounds, and the thing seal() actually measures. Asserting on
@@ -362,10 +365,16 @@ const W = await mockWorld();
     `{"deviceSwapAgeMs":${DEVICE_SWAPPED_DAYS_AGO * DAY_MS}}`,
     `{"deviceSwapDays":${DEVICE_SWAPPED_DAYS_AGO}}`,
     `{"dd":"${new Date(NOW - DEVICE_SWAPPED_DAYS_AGO * DAY_MS).toISOString()}"}`,
+    // The subscriber's own POSITION, and the operator's own word for "I cannot
+    // resolve this subscriber" — both facts about the subscriber, neither ever an
+    // echoed question (a refusal carries no predicate at all).
+    `{"lat":${SUBSCRIBER_AT.lat}}`,
+    `{"lon":${SUBSCRIBER_AT.long}}`,
+    '{"verdict":"PARTIAL"}',
   ];
   ok('18 NO RAW VALUE ON THE WIRE', hits.length === 0,
     { label: `${NEEDLES.length} needles (${OPAQUE.length} of them opaque-safe); the same scanner reds on all ${planted.length} planted leaks`,
-      ok: NEEDLES.length === 15 && planted.every((p) => scan(Buffer.from(p), NEEDLES).length > 0) });
+      ok: NEEDLES.length === 19 && planted.every((p) => scan(Buffer.from(p), NEEDLES).length > 0) });
 }
 
 // 19 INJECTIVE CANONICALISATION — the two collisions the spike found, closed.
@@ -456,7 +465,7 @@ const W = await mockWorld();
       // READ mirrors the write, so the module's load-bearing read-after-write
       // verification passes; UPDATE echoes, exactly as the real API does.
       if (body.action === 'READ') {
-        return reply(200, JSON.stringify({ data: { simSwap: { latestSimChange: iso }, deviceSwap: { latestDeviceChange: deviceIsoAt }, roaming: { roaming: true, countryName: ['FR'] }, reachability: { reachabilityStatus: 'CONNECTED_DATA' } } }));
+        return reply(200, JSON.stringify({ data: { simSwap: { latestSimChange: iso }, deviceSwap: { latestDeviceChange: deviceIsoAt }, location: body.data?.location ?? { latitude: SUBSCRIBER_AT.lat, longitude: SUBSCRIBER_AT.long }, roaming: { roaming: true, countryName: ['FR'] }, reachability: { reachabilityStatus: 'CONNECTED_DATA' } } }));
       }
       return reply(200, JSON.stringify({ data: body.data ?? {} }));
     }
@@ -467,6 +476,7 @@ const W = await mockWorld();
     if (url.includes('sim-swap')) return reply(200, JSON.stringify({ latestSimChange: iso }));
     if (url.includes('device-swap/v1/check')) return reply(200, JSON.stringify({ swapped: (NOW - Date.parse(deviceIsoAt)) < body.maxAge * 3600000 }));
     if (url.includes('device-swap')) return reply(200, JSON.stringify({ latestDeviceChange: deviceIsoAt }));
+    if (url.includes('location-verification')) return reply(200, '{"verificationResult":"TRUE","lastLocationTime":"2026-08-11T04:00:16.503Z"}');
     if (url.includes('roaming')) return reply(200, '{"roaming":true,"countryName":["FR"]}');
     if (url.includes('reachability')) return reply(200, '{"reachabilityStatus":"CONNECTED_DATA"}');
     return reply(404, '{}');
@@ -556,7 +566,7 @@ ok('23 ONE EVALUATION STEP', Object.keys(M5).sort().join(',') === 'createOrangeF
   const zk = lines.filter((l) => /zero.knowledge|\bZK\b/i.test(l));
   const allNegated = zk.length > 0 && zk.every((l) => /never|not |NOT |reserved for Mode B/.test(l));
   const result = lines.find((l) => l.startsWith('RESULT: '));
-  ok('25 THE DEMO ITSELF', code === 0 && result === 'RESULT: 27/27',
+  ok('25 THE DEMO ITSELF', code === 0 && result === 'RESULT: 30/30',
     { label: `${zk.length} ZK mentions, all negations=${allNegated}; ${result}`, ok: allNegated });
 }
 
@@ -997,8 +1007,86 @@ ok('23 ONE EVALUATION STEP', Object.keys(M5).sort().join(',') === 'createOrangeF
         && menudReached === 0 });
 }
 
+// 41 presentIn: THE THIRD STATE IS REFUSED, NOT ROUNDED — the round's sharpest
+// guard, and the one whose failure mode is a SIGNED confident answer. Measured
+// 2026-08-17: `location-verification/v1/verify` answers TRUE, FALSE and PARTIAL
+// (Paris at a 100 m radius), and a PARTIAL rounded to either bit is
+// indistinguishable on the wire from a real one.
+//
+// Four legs, because refusing everything would pass a weaker version of this
+// case: a resolvable area must ANSWER both ways, the sub-resolution one must
+// REFUSE, and the refusal must carry no bit and no 'PARTIAL' on the wire.
+{
+  const backend = await createBackend('mock');
+  await backend.setBackstory(DEMO_NUMBER, STORY, NOW);
+  const w = createWorld({ backend, keys: KEYS });
+  const ask = (value) => roundTrip(w, w.rp.buildRequest({ type: 'presentIn', operator: 'in', value }, TIGHTER));
+  const here = await ask(NEAR_AREA);
+  const away = await ask({ lat: 50.85, long: 4.35, radiusM: 10000 });          // Brussels
+  const q = w.rp.buildRequest({ type: 'presentIn', operator: 'in', value: { ...NEAR_AREA, radiusM: 100 } }, TIGHTER);
+  const partial = await roundTrip(w, q);
+  const frame = withoutNonce(unpackSigned(partial.out.plain).signed.payloadBytes.toString('utf8'), q.nonce);
+  check('41 presentIn REFUSES PARTIAL', false, { ok: partial.out.kind === 'answer', reason: partial.verdict.reason },
+    'operator refused: location partial: refused, never rounded',
+    { label: `resolvable areas still ANSWER (near ${here.out.claims?.result}, far ${away.out.claims?.result}); `
+      + `the refusal carries no bit and no verdict word (scanned ${NEEDLES.length} needles)`,
+      ok: here.verdict.accepted === true && here.out.claims.result === true
+        && away.verdict.accepted === true && away.out.claims.result === false
+        && partial.out.claims.result === undefined
+        && scan(frame, NEEDLES).length === 0 });
+}
+
+// 42 THE PARTIAL POLICY IS PUBLISHED AND TIGHTEN-ONLY. The refusal above must not
+// be a hardcoded behaviour a reader has to take on trust: the operator PUBLISHES
+// the policy as a floor axis and the requester may only tighten it, which is M3's
+// existing rule-5 machinery. So a request asking to have PARTIAL ROUNDED for it —
+// the only thing a requester could want here — is a LOOSENING, and dies at the
+// floor gate before any fact is read. The control is the same request restating
+// the published value, which must be ACCEPTED, or this case would pass on a gate
+// that rejected the axis outright.
+{
+  const backend = await createBackend('mock');
+  await backend.setBackstory(DEMO_NUMBER, STORY, NOW);
+  const w = createWorld({ backend, keys: KEYS });
+  const ask = (floor) => roundTrip(w, w.rp.buildRequest({ type: 'presentIn', operator: 'in', value: NEAR_AREA }, floor));
+  const loosen = await ask({ ...TIGHTER, partialPolicy: 'round' });
+  const restate = await ask({ ...TIGHTER, partialPolicy: 'refuse' });
+  check('42 PARTIAL POLICY IS PUBLISHED, TIGHTEN-ONLY', false,
+    { ok: loosen.out.kind === 'answer', reason: loosen.verdict.reason },
+    'operator refused: invalid partialPolicy: "round" (profile allows only "refuse")',
+    { label: `refused at the FLOOR gate (before any fact); restating the published value is accepted (${restate.out.claims?.result}); published=${PUBLISHED_FLOOR.partialPolicy}`,
+      ok: loosen.out.floorRejected === true
+        && restate.verdict.accepted === true && restate.out.claims.result === true
+        && PUBLISHED_FLOOR.partialPolicy === 'refuse' });
+}
+
+// 43 THE AREA IS CANONICALISED BY KEY, NOT BY TYPING ORDER. `JSON.stringify`
+// serialises an object in INSERTION order, and a parsed request's insertion order
+// is whatever the requester typed. Two requesters asking about the same circle
+// would then derive two different signed predicate strings, and one of them would
+// get its own correct answer back as a `predicate mismatch` — a self-inflicted
+// denial of service that only appears once someone spells the area differently.
+//
+// The other half is that canonicalisation must stay INJECTIVE while it does that:
+// a different area, and a value of a different KIND, must still render
+// differently, or the fix would re-open the collision M6 exists to close.
+{
+  const c = canonicalPredicate;
+  const a = { type: 'presentIn', operator: 'in', value: { lat: 48.86, long: 2.35, radiusM: 10000 } };
+  const reordered = { type: 'presentIn', operator: 'in', value: { radiusM: 10000, long: 2.35, lat: 48.86 } };
+  const wireOrder = JSON.parse('{"type":"presentIn","operator":"in","value":{"radiusM":10000,"long":2.35,"lat":48.86}}');
+  const shifted = { type: 'presentIn', operator: 'in', value: { lat: 48.87, long: 2.35, radiusM: 10000 } };
+  const wider = { type: 'presentIn', operator: 'in', value: { lat: 48.86, long: 2.35, radiusM: 10001 } };
+  ok('43 AREA CANONICALISATION IS ORDER-FREE AND INJECTIVE',
+    c(a) === c(reordered) && c(a) === c(wireOrder),
+    { label: `same circle three spellings → ${JSON.stringify(c(a))}`,
+      ok: c(a) !== c(shifted) && c(a) !== c(wider)
+        && c(a) !== c({ type: 'presentIn', operator: 'in', value: JSON.stringify(a.value) })
+        && c(a) === 'presentIn in {"lat":48.86,"long":2.35,"radiusM":10000}' });
+}
+
 // The declared case count. A suite that silently loses the cases carrying its
 // guarantee still printed a green `RESULT: n/n` before this argument existed
 // (measured 2026-08-16 on m4-check: truncated to 18/18 exit 0, emptied to 0/0
 // exit 0).
-conclude(40);
+conclude(43);

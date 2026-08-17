@@ -2,6 +2,31 @@
 
 ## Unreleased (0.4.0 — M6)
 
+- **Part 2: `presentIn` — and the third state is the whole point.**
+  `location-verification/v1/verify` answers `TRUE`, `FALSE` and `PARTIAL`
+  (measured), and `PARTIAL` produces a signed REFUSAL carrying no bit rather than
+  a rounded `true`/`false`: a rounded answer is signed and indistinguishable on
+  the wire from a real one.
+  - **The PARTIAL policy is a published FLOOR AXIS** (`partialPolicy`, one legal
+    value `refuse`), so "the operator publishes it and the requester may only
+    tighten it" is the existing rule-5 machinery rather than a new mechanism — a
+    request asking to have PARTIAL rounded for it dies at the floor gate before
+    any fact is read. **This moved a user-validated module: `m3-check` 24 → 25.**
+  - **The area is canonicalised by KEY, not by typing order.** `JSON.stringify`
+    serialises in insertion order, so two spellings of the same circle would
+    otherwise derive two signed predicate strings and one requester would get its
+    own correct answer back as a `predicate mismatch`.
+  - **`lastLocationTime` is never read** — not filtered on the way out; there is
+    no line that reads it. Same for the subscriber's own position: the mock
+    computes a real great-circle verdict and returns the VERDICT, never the place.
+  - **An honest residual, added rather than removed:** an area is a dial (centre
+    plus radius) and is walkable toward a position the way a duration threshold is
+    bisectable. `presentIn` gets no bucket menu, so the cap is the operator's own
+    resolution plus the rate-limit/billing backstop — weaker than the duration
+    menu, and said to be weaker.
+  - **A mutation SURVIVED on the first pass** and found a real gap: the
+    read-after-write comparison that makes this round's assumed Admin write shapes
+    survivable was pinned for the device axis and not for the location one.
 - **The wired predicate set goes 3 → 6 (user-signed, PRD §9). Part 1:
   `deviceSwapAge`.** Every wired type is backed by an endpoint OBSERVED answering
   live; nothing is minted for a fact no source computes. `deviceSwapAge` takes the

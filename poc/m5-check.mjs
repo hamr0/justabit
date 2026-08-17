@@ -33,7 +33,8 @@ const TOKEN_URL_ADMIN = 'https://api.orange.com/oauth/v3/token';
 // The reference backstory. `deviceSwappedDaysAgo` joined the closed field set on
 // 2026-08-17 (3 -> 6 predicate round) and carries a DIFFERENT day count from the
 // SIM axis, so a write or read that confuses the two cannot pass.
-const STORY = { swappedDaysAgo: 120, deviceSwappedDaysAgo: 200, roamingCountry: null, reachable: true };
+const PARIS = Object.freeze({ lat: 48.8566, long: 2.3522 });
+const STORY = { swappedDaysAgo: 120, deviceSwappedDaysAgo: 200, roamingCountry: null, reachable: true, location: PARIS };
 
 // ==================== CAPTURED responses (verbatim, 2026-08-16) =============
 // Only the client id inside the 403 body is substituted for the synthetic one;
@@ -81,8 +82,8 @@ const C = Object.freeze({
 // axes M5 never touches is arbitrary — `kyc.name` here is not the built-in
 // record's own value. Said explicitly so the "captured verbatim" claim above is
 // not over-read to cover this helper.
-const stored = ({ sim = '2026-04-01T12:00:00.000Z', device = '2026-08-11T04:00:16.516Z', roaming = { roaming: false }, reach = 'CONNECTED_DATA' } = {}) =>
-  JSON.stringify({ data: { location: { available: true }, reachability: { reachabilityStatus: reach }, roaming, simSwap: { latestSimChange: sim }, deviceSwap: { latestDeviceChange: device }, tenure: { contractType: 'PAYM' }, kyc: { name: 'Alice Arnaud' } } });
+const stored = ({ sim = '2026-04-01T12:00:00.000Z', device = '2026-08-11T04:00:16.516Z', roaming = { roaming: false }, reach = 'CONNECTED_DATA', geo = { latitude: PARIS.lat, longitude: PARIS.long } } = {}) =>
+  JSON.stringify({ data: { location: geo, reachability: { reachabilityStatus: reach }, roaming, simSwap: { latestSimChange: sim }, deviceSwap: { latestDeviceChange: device }, tenure: { contractType: 'PAYM' }, kyc: { name: 'Alice Arnaud' } } });
 
 // The stored dataset that MIRRORS a write, i.e. the READ an honouring slot
 // answers with. Written as one helper because the write-verification now covers
@@ -93,6 +94,7 @@ const mirror = (data) => stored({
   device: data.deviceSwap.latestDeviceChange,
   roaming: data.roaming,
   reach: data.reachability.reachabilityStatus,
+  geo: data.location,
 });
 
 // ============================== replay transport ===========================
@@ -873,14 +875,110 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
     return { status: 200, text: '{}' };
   }).facts;
   const shadowed = await athrew(() => shadowing.setBackstory(N, { ...STORY }, NOW));
+
+  // ...and the SAME question for the location axis, which is the OTHER assumed
+  // write shape and the weaker of the two (`deviceSwap`'s field name at least
+  // comes from a measured read; the Admin `location` shape was never read at all).
+  // Added after an independent mutation sweep DELETED the geo axis from the
+  // verification loop and this suite stayed green — the guard that makes the
+  // assumption survivable was itself unpinned. This slot stores the sim and
+  // device dates and keeps its own position.
+  const shadowGeo = mk((url, body) => {
+    if (body?.action === 'UPDATE') return { status: 200, text: stored(body.data) };
+    if (body?.action === 'READ') {
+      return { status: 200, text: stored({
+        sim: new Date(NOW - STORY.swappedDaysAgo * DAY).toISOString(),
+        device: new Date(NOW - STORY.deviceSwappedDaysAgo * DAY).toISOString(),
+        geo: { latitude: 1.5, longitude: 2.5 },
+      }) };
+    }
+    return { status: 200, text: '{}' };
+  }).facts;
+  const geoShadowed = await athrew(() => shadowGeo.setBackstory(N, { ...STORY }, NOW));
+  // ...and a null location writes NOTHING and verifies nothing, so a slot with a
+  // position of its own is not a write failure. Without this leg the case would
+  // pass on a module that demanded a stored position it never wrote.
+  const nullGeo = await athrew(() => shadowGeo.setBackstory(N, { ...STORY, location: null }, NOW));
   const wantDevice = new Date(NOW - STORY.deviceSwappedDaysAgo * DAY).toISOString();
-  checkOk('52 THE DEVICE WRITE IS READ BACK AND COMPARED', okWrite,
-    { label: `honoured write verifies (wrote deviceSwap ${written?.deviceSwap?.latestDeviceChange}); a shadowed device date fails loud=${shadowed.threw}`,
+  checkOk('52 THE TWO ASSUMED WRITE SHAPES ARE READ BACK AND COMPARED', okWrite,
+    { label: `honoured write verifies (wrote deviceSwap ${written?.deviceSwap?.latestDeviceChange}, location ${JSON.stringify(written?.location)}); `
+      + `a shadowed device date fails loud=${shadowed.threw}, a shadowed position fails loud=${geoShadowed.threw}, a null location writes nothing=${!nullGeo.threw}`,
       ok: !okWrite.threw
         && written.deviceSwap.latestDeviceChange === wantDevice
         && shadowed.threw
         && shadowed.msg.includes('stored latestDeviceChange is')
-        && shadowed.msg.includes('write verification FAILED') });
+        && shadowed.msg.includes('write verification FAILED')
+        && geoShadowed.threw && geoShadowed.msg.includes('stored geo is')
+        // ...and BOTH assumed axes say so in the message, so a live failure names
+        // the shape as a suspect instead of sending the reader after the slot.
+        && shadowed.msg.includes('ASSUMED Admin write shape') && geoShadowed.msg.includes('ASSUMED Admin write shape')
+        && !nullGeo.threw });
 }
 
-conclude(52);
+// 53 THE THREE LOCATION STATES MAP THROUGH, AND `lastLocationTime` DOES NOT.
+// MEASURED 2026-08-17: `location-verification/v1/verify` answers TRUE, FALSE and
+// PARTIAL — and ships `lastLocationTime`, an exact timestamp, on EVERY response
+// including the boolean-looking ones. That value is legitimately the operator's
+// and it stops at this module: there is no line that reads it, which is what this
+// case checks by scanning the whole returned facts object for it.
+//
+// PARTIAL is carried THROUGH as itself rather than collapsed here, because
+// deciding what PARTIAL means is the profile's job (refuse it, M4) and not the
+// transport's. An unrecognised verdict, and a PROTOTYPE key, leave the axis absent
+// rather than guessing a polarity — the same footgun this suite pins for
+// reachability, which is why the verdict vocabulary is a frozen array and not a
+// table lookup.
+{
+  const AREA = { lat: 48.86, long: 2.35, radiusM: 10000 };
+  const ts = '2026-08-11T04:00:16.503Z';
+  const ask = async (verify) => {
+    const { facts } = mk((url) => (url.includes('location-verification')
+      ? { status: 200, text: verify }
+      : reads()(url)));
+    return facts.getFacts(N, NOW, { area: AREA });
+  };
+  const yes = await ask(`{"verificationResult":"TRUE","lastLocationTime":"${ts}"}`);
+  const no = await ask(`{"verificationResult":"FALSE","lastLocationTime":"${ts}"}`);
+  const partial = await ask(`{"verificationResult":"PARTIAL","matchRate":100,"lastLocationTime":"${ts}"}`);
+  const unknown = await ask(`{"verificationResult":"MAYBE","lastLocationTime":"${ts}"}`);
+  const proto = await ask(`{"verificationResult":"constructor","lastLocationTime":"${ts}"}`);
+  const all = JSON.stringify([yes, no, partial, unknown, proto]);
+  check('53 THREE LOCATION STATES MAP THROUGH; lastLocationTime DOES NOT', true, { answered: true, reason: 'ok' }, 'ok',
+    { label: `TRUE/FALSE/PARTIAL -> ${yes.presentVerdict}/${no.presentVerdict}/${partial.presentVerdict}; `
+      + `MAYBE present=${'presentVerdict' in unknown}, prototype key present=${'presentVerdict' in proto}; `
+      + `timestamp anywhere in the facts=${all.includes(ts) || all.includes('lastLocationTime')}`,
+      ok: yes.presentVerdict === 'TRUE' && no.presentVerdict === 'FALSE' && partial.presentVerdict === 'PARTIAL'
+        && !('presentVerdict' in unknown) && !('presentVerdict' in proto)
+        && !all.includes(ts) && !all.includes('lastLocationTime') && !all.includes('matchRate') });
+}
+
+// 54 THE LOCATION ENDPOINT IS CALLED ONLY WITH A QUESTION, AND CARRIES IT EXACTLY.
+// This endpoint takes the QUESTION as its input, so there is no such thing as
+// reading it "in general" — with no area asked about, it must not be called at
+// all. When it IS called, the area the requester asked about must arrive intact:
+// a centre or radius mangled on the way out produces a verdict about a different
+// circle, and that verdict is then SIGNED against the original question.
+//
+// The request shape itself is ASSUMED (CAMARA's own `{device, area:{areaType,
+// center, radius}}` spelling; the sweep recorded that the route answers, not the
+// body it sent), so what is pinned here is that the VALUES ride through
+// unchanged — the part a wrong shape guess would not silently corrupt.
+{
+  const AREA = { lat: 48.8566, long: 2.3522, radiusM: 1500 };
+  const { facts: quiet, calls: quietCalls } = mk(reads());
+  await quiet.getFacts(N, NOW);
+  const { facts: asked, calls: askedCalls } = mk((url) => (url.includes('location-verification')
+    ? { status: 200, text: '{"verificationResult":"TRUE","lastLocationTime":"2026-08-11T04:00:16.503Z"}' }
+    : reads()(url)));
+  await asked.getFacts(N, NOW, { area: AREA });
+  const locCalls = (cs) => cs.filter((x) => !x.isToken && x.url.includes('location-verification'));
+  const sent = locCalls(askedCalls)[0]?.body;
+  check('54 THE LOCATION ENDPOINT IS CALLED ONLY WITH A QUESTION', true, { answered: true, reason: 'ok' }, 'ok',
+    { label: `no area -> ${locCalls(quietCalls).length} calls; with an area -> ${locCalls(askedCalls).length}, body ${JSON.stringify(sent?.area)}`,
+      ok: locCalls(quietCalls).length === 0 && locCalls(askedCalls).length === 1
+        && sent.device.phoneNumber === N
+        && sent.area.center.latitude === AREA.lat && sent.area.center.longitude === AREA.long
+        && sent.area.radius === AREA.radiusM && sent.area.areaType === 'CIRCLE' });
+}
+
+conclude(54);

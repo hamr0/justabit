@@ -565,7 +565,37 @@ we manage here:
 
 Dated, append-only. Rationale in one line; details in the stash/history.
 
-- **2026-08-17 (latest) — `deviceSwapAge` BUILT; the predicate set is 3 → 4 so
+- **2026-08-17 (latest) — `presentIn` BUILT; the predicate set is 3 → 5 so far
+  this round (AGENT-RUN, user validation PENDING).** The third state is the whole
+  of it: `location-verification/v1/verify` answers `TRUE`, `FALSE` and `PARTIAL`,
+  and `PARTIAL` produces a signed REFUSAL carrying no bit. Four things recorded:
+  (1) **The published PARTIAL policy is a FLOOR AXIS**, `partialPolicy`, with one
+  legal value (`refuse`) — so "the requester may only tighten it, using the
+  existing rule-5 machinery" is literally what the code does, and a request asking
+  to have PARTIAL rounded for it dies at the floor gate before any fact is read.
+  This moved a user-validated module: **M3 24 → 25 cases**, and that count is
+  AGENT-RUN.
+  (2) **The AREA is canonicalised by KEY, not by typing order.** `JSON.stringify`
+  serialises an object in insertion order, which for a parsed request is whatever
+  the requester typed; two spellings of the same circle would otherwise produce
+  two signed predicate strings and one requester would get its own correct answer
+  back as a `predicate mismatch`.
+  (3) **`lastLocationTime` is not filtered out — it is never read.** There is no
+  line that reads it, so there is nothing to filter.
+  (4) **An honest residual, added not removed:** an area is a dial (centre plus
+  radius) and is walkable toward a position the way a duration threshold is
+  bisectable. `presentIn` gets no bucket menu — the signed decision does not give
+  it one, and there is no natural coarse set of circles the way there is of
+  durations — so the cap here is the operator's own resolution plus the
+  rate-limit/billing backstop. Weaker than the duration menu, and written down as
+  weaker.
+  Counts moved: m3 24 → 25, m4 36 → 38, m5 52 → 54, m6 40 → 43, demo 27 → 30.
+  Fourteen more mutations, fourteen killed — **one of which (the location
+  write-back) SURVIVED on the first pass** and exposed a genuinely unpinned guard:
+  the read-after-write comparison that makes this round's assumed Admin write
+  shapes survivable was itself covered for the device axis and not for the
+  location one. Pinned, plus two more mutations against the fix.
+- **2026-08-17 — `deviceSwapAge` BUILT; the predicate set is 3 → 4 so
   far this round (AGENT-RUN, user validation PENDING).** The signed design above
   is now code: same bucket menu as `simSwapAge`, same `gte` compare, its own
   fact. Three things the build settled that the design had only asserted, each

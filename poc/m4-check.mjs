@@ -13,11 +13,15 @@ const { check, checkThrows, conclude } = makeHarness({ field: 'answered', okWord
 const NOW = Date.UTC(2026, 7, 15);
 const DAY = 86400000;
 const N = '+990100000099';                                   // Playground custom slot
+const PARIS = Object.freeze({ lat: 48.8566, long: 2.3522 });
 // The reference backstory. `deviceSwappedDaysAgo` joined the closed field set on
 // 2026-08-17 with the 3 -> 6 predicate round, and it is deliberately a DIFFERENT
 // day count from the SIM axis: a story where both axes agreed would let a mapping
 // that reads the wrong axis pass every case below.
-const STORY = { swappedDaysAgo: 120, deviceSwappedDaysAgo: 200, roamingCountry: null, reachable: true };
+const STORY = { swappedDaysAgo: 120, deviceSwappedDaysAgo: 200, roamingCountry: null, reachable: true, location: PARIS };
+// The subscriber's own position, and a query area centred somewhere DIFFERENT, so
+// a case cannot pass by the two being the same string.
+const AREA = (radiusM, over = {}) => ({ lat: 48.86, long: 2.35, radiusM, ...over });
 const P90 = { type: 'simSwapAge', operator: 'gte', value: 'P90D' };
 
 // A fresh operator with one scripted subscriber. Fresh per case: a shared
@@ -741,4 +745,67 @@ check('14 WRONG OPERATOR REJECTED', false,
     });
 }
 
-conclude(36);
+// 37 presentIn: THE VERDICT IS PRODUCED, AND THE POSITION IS NOT A FACT. The mock
+// computes a real great-circle answer rather than returning a scripted verdict —
+// a scripted one would make this case unable to fail for the right reason. Four
+// legs: inside answers true, outside answers false, a radius finer than the
+// operator's own resolution produces PARTIAL (which `evaluatePredicate` refuses,
+// case 38), and a subscriber the operator cannot place leaves the axis ABSENT.
+//
+// The fifth leg is the one that matters most: `getFacts` NEVER returns the
+// subscriber's position, on any call. `presentIn` is the only predicate whose
+// upstream is itself predicate-shaped, and handing the position out as a fact
+// would put the raw value one careless line from the wire.
+{
+  const facts = scripted();
+  const q = (radiusM, over) => ({ area: AREA(radiusM, over) });
+  const inside = facts.getFacts(N, NOW, q(10000));
+  const outside = facts.getFacts(N, NOW, q(10000, { lat: 50.85, long: 4.35 }));   // Brussels
+  const fine = facts.getFacts(N, NOW, q(100));
+  const noArea = facts.getFacts(N, NOW);
+  const unplaced = scripted({ ...STORY, location: null }).getFacts(N, NOW, q(10000));
+  const keys = [inside, outside, fine, noArea, unplaced].flatMap((f) => Object.keys(f));
+  check('37 presentIn VERDICT IS PRODUCED, POSITION IS NOT A FACT', true, { answered: true, reason: 'ok' }, 'ok', {
+    label: `inside=${inside.presentVerdict} outside=${outside.presentVerdict} 100m=${fine.presentVerdict} `
+      + `no-area=${'presentVerdict' in noArea} unplaced=${'presentVerdict' in unplaced}`,
+    ok: inside.presentVerdict === 'TRUE' && outside.presentVerdict === 'FALSE' && fine.presentVerdict === 'PARTIAL'
+      && !('presentVerdict' in noArea) && !('presentVerdict' in unplaced)
+      && !keys.includes('location') && !keys.includes('lat') && !keys.includes('long')
+      && !JSON.stringify([inside, outside, fine]).includes(String(PARIS.lat)),
+  });
+}
+
+// 38 PARTIAL IS REFUSED, NOT ROUNDED, AND A MALFORMED AREA NEVER THROWS. The
+// refusal is the whole point of the third state: a rounded PARTIAL is signed and
+// indistinguishable on the wire from a real answer. The control is that TRUE and
+// FALSE still ANSWER — a module that refused every location question would pass a
+// weaker version of this case. The area shapes are wire input, so every one comes
+// back as a verdict and none as an exception; the bounds are not decoration
+// (`NaN` compares false against every range test, so an unguarded pair travels to
+// a live endpoint as a position that is not a place).
+{
+  const pred = (value) => ({ type: 'presentIn', operator: 'in', value });
+  const area = AREA(10000);
+  const partial = evaluatePredicate({ presentVerdict: 'PARTIAL' }, pred(area));
+  const yes = evaluatePredicate({ presentVerdict: 'TRUE' }, pred(area));
+  const no = evaluatePredicate({ presentVerdict: 'FALSE' }, pred(area));
+  const absent = evaluatePredicate({}, pred(area));
+  const junkVerdict = evaluatePredicate({ presentVerdict: 'true' }, pred(area));
+  const bad = [
+    AREA(10000, { lat: 91 }), AREA(10000, { long: 181 }), AREA(10000, { lat: NaN }),
+    AREA(10000, { long: Infinity }), AREA(0), AREA(200001), AREA(1.5),
+    { lat: 48.86, long: 2.35 }, { ...area, extra: 1 }, [48.86, 2.35, 10000], 'paris', null,
+    { lat: 48.86, long: 2.35, get radiusM() { throw new Error('boom'); } },
+  ].map((v) => threws(() => evaluatePredicate({ presentVerdict: 'TRUE' }, pred(v))));
+  check('38 PARTIAL IS REFUSED AND A MALFORMED AREA NEVER THROWS', false, partial,
+    'location partial: refused, never rounded', {
+      label: `TRUE/FALSE still answer (${yes.result}/${no.result}); absent and an unknown verdict refuse; `
+        + `${bad.length} malformed areas rejected, ${bad.filter((r) => r.threw).length} threw`,
+      ok: yes.answered === true && yes.result === true && no.answered === true && no.result === false
+        && absent.answered === false && absent.reason === 'fact unavailable: presentVerdict'
+        && junkVerdict.answered === false && junkVerdict.reason === 'fact unavailable: presentVerdict'
+        && bad.every((r) => !r.threw && r.value.answered === false && r.value.reason.startsWith('invalid area:')),
+    });
+}
+
+conclude(38);
