@@ -6,9 +6,11 @@
 per-module user validation; see PRD §4.4 and the decision log) and the ladder
 since then has held: each module is POC'd against its toughest assumption,
 built, proven end-to-end on its own, and **validated by the user before the
-next module starts**. M1–M5 are user-validated; **M6 is AGENT-RUN only and its
-user validation is PENDING**, so gate G1 (M1–M4 + M6 all user-validated) is
-NOT yet met. Every check runs on its own (negatives first, exit 0 only if
+next module starts**. M1–M5 were user-validated at the trees noted below;
+**M6 is AGENT-RUN only, and every module the 3 -> 6 predicate round and the
+2026-08-17 live-run fixes touched is AGENT-RUN again with a user re-run
+PENDING** — so gate G1 (M1–M4 + M6 all user-validated) is NOT met, and neither
+is G2. Every check runs on its own (negatives first, exit 0 only if
 every case holds):
 
 ```
@@ -36,14 +38,21 @@ node poc/m5-check.mjs   # M5 orange facts adapter, OFFLINE — 57 cases (user-va
 # `| head -1` because a `pass` entry is multi-line (secret on line 1, notes below).
 # The stored value is ALREADY `Basic <base64>`; the adapter normalizes either form.
 ORANGE_BASIC_AUTH="$(pass camara/orange_network | head -1)" node poc/m5-check-live.mjs
-                        # 11 cases (user-validated 11/11 at 8e842c3, the shipped
-                        # v0.3.0 state — G2 MET, nothing pending).
+                        # 19 cases (11/11 user-validated at 8e842c3, the shipped
+                        # v0.3.0 state — that met G2 AT THAT TREE. The 3 -> 6 round
+                        # never touched this file: the user's live run of it died on
+                        # M5's own closed-field validation, so it was rewritten
+                        # (11 -> 19, all six predicates on the live path, plus an
+                        # OFFLINE case 1 pinning the story against the adapter's
+                        # closed field set). AGENT-RUN 19/19 through an
+                        # injected-transport REPLAY only — never against Orange.
+                        # G2 is PENDING the user's re-run.)
                         # exit 2 + printed prerequisites if the credential is absent —
                         # never a silent pass, never a mock fallback.
                         # COSTS QUOTA: consumes and returns one of the app's 10 custom
                         # slots. It reclaims the slot BEFORE consuming it (so an
                         # interrupted run does not leak one), prints the count at both
-                        # ends, and case 11 asserts it came back.
+                        # ends, and case 19 asserts it came back.
 
 node poc/m6-check.mjs   # M6 integration — 45 cases (AGENT-RUN 45/45, user run
                         #   PENDING). Zero credentials, zero network in BOTH
@@ -119,7 +128,7 @@ re-establishing G2 at that state. A post-gate code review round (2026-08-17)
 then fixed three more adapter defects and three live-check faults (counts
 unchanged), so **the user re-ran once more at `8e842c3` — the shipped v0.3.0
 state — and reported both clean. Nothing is pending.** Each
-check declares its case count (`conclude(20|10|25|40|57|11|45)`) so a suite that
+check declares its case count (`conclude(20|10|25|40|57|19|45)`) so a suite that
 silently loses cases exits 1 with
 `FAIL CASE COUNT` instead of printing a smaller green tally — mutation-proven
 per module.
@@ -139,7 +148,18 @@ gate G2, and it WAS met at that tree. It is NOT met at this one.** The 3 → 6
 predicate round changed the module, and the user's live run of that round found
 the Admin `location` write shape was wrong (`400 "data.location.lastLocationTime
 is required"`); the fix landed after the run, so **G2 is PENDING a re-run** and
-`8e842c3`'s record is not transferred forward. An adversarial review round on 2026-08-16 took
+`8e842c3`'s record is not transferred forward. That run also exposed a
+**grounding failure**: `m5-check-live.mjs` was the ONE file the 3 → 6 round never
+updated (`git log 8238d02..81f8da4` on it is empty), so all eight of its
+`setBackstory` calls still passed the old three-field story and the gate died on
+M5's own validation before proving anything — the write-trap case caught an
+`invalid backstory` throw while asserting it had caught the built-in shadowing.
+It is the only check here that cannot run offline, which is exactly why it was
+the one that drifted unobserved. Rewritten **11 → 19 cases**: an OFFLINE case 1
+pins its story against the adapter's closed field set (so a future field addition
+reds on a clean clone with no credentials), the trap case now asserts it failed
+for its OWN reason, and all six predicates are exercised on the live path with
+their negatives. An adversarial review round on 2026-08-16 took
 the offline suite
 44 → **47** and the live suite 10 → **11**, closing one real module defect (the
 write-verification diagnostic — the message the module's most load-bearing guard

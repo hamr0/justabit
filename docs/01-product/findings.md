@@ -75,6 +75,69 @@ location-verification, `{phoneNumber, name}` for kyc-match).
 
 ---
 
+## 2026-08-17 — the same live run found a GROUNDING failure: `m5-check-live.mjs` was never updated by the 3 → 6 round
+
+The second defect the user's run surfaced, and the less flattering one. It is
+recorded because the mechanism that let it happen is general.
+
+### What was observed
+
+The live gate died before it proved anything:
+
+* **case 1 (the write trap) FAILED.** It asserts a throw NAMING the built-in
+  shadowing. It got a throw — `invalid backstory: deviceSwappedDaysAgo must be
+  whole non-negative days` — and its `names the shadowing` extra was `false`.
+* **case 2 (the negative control) FAILED** for the same reason.
+* the script then **CRASHED uncaught at line 190**, so nothing after it ran.
+
+### The mechanism
+
+`git log 8238d02..81f8da4 -- poc/m5-check-live.mjs` is **EMPTY**. The 3 → 6
+predicate round widened M5's backstory from three fields to six and updated
+`m5-check.mjs`, `m4-check.mjs`, `m6-check.mjs` and `demo.mjs` — every sibling.
+All eight `setBackstory` calls in the live check still passed the old
+`{swappedDaysAgo, roamingCountry, reachable}`, which M5's closed-field validation
+now refuses.
+
+**Why this one file and not the others:** it is the only check in the tree that
+cannot be run offline. Every sibling reds on a clean clone the moment a contract
+moves; this one can only red at the gate, and the gate needs credentials the
+agent does not have. A file that nobody can run drifts silently.
+
+**And the second-order finding, which is the more useful one:** case 1 could
+report a throw as evidence a guard fired. `"it threw"` and `"the guard fired"`
+are different claims, and only the extra label distinguished them — so the case
+went red truthfully, but its own stated reason was never what failed it.
+
+### The fix, and what it costs to keep
+
+1. **A new case 1 pins the story against the adapter's closed field set,
+   OFFLINE, before any network call.** The full story must reach a throwing
+   transport sentinel (proving it PASSES validation — the leg that would have
+   caught this drift), each of the six fields must be REQUIRED, and an unknown
+   field must be refused by name. It reds on a clean clone with zero credentials.
+2. **The trap case now asserts it failed for its own reason** — the message must
+   name the shadowing AND must not be a validation refusal.
+3. **The suite went 11 → 19 cases**, covering the three predicates the round
+   added on the LIVE path the way `m5-check.mjs` covers them offline:
+   `deviceSwapAge` with its negative and axis-independence, `presentIn` both ways
+   plus the third-state handling, `numberMatch` both ways plus the gradient
+   staying operator-side, and the `/check`-vs-`/retrieve-date` surface choice
+   read off the wire through a recording pass-through transport.
+
+### What this section is NOT
+
+Every count above is **AGENT-RUN through an injected-transport REPLAY of the
+Playground**, not against Orange. The replay proves control flow, story shape and
+the 19-case tally (19/19, exit 0) and reproduces the user's failure exactly when
+the old file is put back (exit 1, the trap red for the wrong reason). **It proves
+nothing about what the Playground answers today.** Five mutations were killed
+through it: the story drifting; the adapter dropping a required field; the
+surface preference removed; the device axis reading the SIM field; `PARTIAL`
+rounded instead of refused.
+
+---
+
 ## 2026-08-17 — the 3 → 6 predicate round, BUILT: `deviceSwapAge`, `presentIn`, `numberMatch` wired; 38 mutations, 2 survivors both real, 1 flake (AGENT-RUN; user validation PENDING)
 
 Everything below is **AGENT-RUN by exit code on this machine**, offline, no

@@ -2,6 +2,33 @@
 
 ## Unreleased (0.4.0 — M6)
 
+- **GROUNDING FIX: `m5-check-live.mjs` was never updated by the 3 → 6 round
+  (11 → 19 cases).** `git log 8238d02..81f8da4 -- poc/m5-check-live.mjs` is
+  EMPTY: every sibling suite was widened to the six-field backstory and this one
+  was not, so the user's live run died on M5's own closed-field validation before
+  proving anything — the write-trap case caught a `invalid backstory` throw while
+  asserting it had caught the built-in shadowing, and the script then crashed
+  uncaught.
+  - **Why this file and not the others:** it is the only check that cannot run
+    offline. A file nobody can run drifts silently.
+  - **New case 1 pins the story against the adapter's closed field set, OFFLINE
+    and before any network call** — the full story must reach a throwing
+    transport sentinel (proving it PASSES validation), each of the six fields
+    must be required, and an unknown field must be refused by name. It reds on a
+    clean clone with zero credentials, which is what would have caught this.
+  - **The trap case now asserts it failed for its OWN reason** — the message must
+    name the shadowing and must not be a validation refusal. "It threw" is not
+    evidence a guard fired.
+  - **The three new predicates are covered on the LIVE path** the way
+    `m5-check.mjs` covers them offline: `deviceSwapAge` with its negative and
+    axis-independence, `presentIn` both ways plus the third state, `numberMatch`
+    both ways plus the gradient staying operator-side, and the
+    `/check`-vs-`/retrieve-date` surface choice read off the wire via a recording
+    pass-through transport.
+  - Evidence is an **injected-transport REPLAY** (19/19, exit 0; the old file
+    under the same replay reds exactly as the user's run did) plus five killed
+    mutations. **It proves control flow, not the Playground** — the live run is
+    the user's and G2 stays PENDING.
 - **LIVE FIX: the Admin `location` write shape was wrong, and it said so.** The
   user's first live Playground run of the 3 → 6 tree measured
   `admin UPDATE failed (status 400): {"code":"BAD_REQUEST","status":400,

@@ -565,7 +565,27 @@ we manage here:
 
 Dated, append-only. Rationale in one line; details in the stash/history.
 
-- **2026-08-17 (latest) — the FIRST LIVE run of the 3 → 6 tree corrected the
+- **2026-08-17 (latest) — the same live run exposed a GROUNDING failure:
+  `m5-check-live.mjs` was the one file the 3 → 6 round never touched (11 → 19
+  cases).** Recorded:
+  (1) **The mechanism is general, not a slip.** It is the only check in the tree
+  that cannot be run offline, so it is the only one whose drift from a moved
+  contract nobody could observe until the gate. Every sibling reds on a clean
+  clone; this one needed credentials to red at all.
+  (2) **"It threw" is not evidence a guard fired.** The write-trap case caught a
+  backstory-validation throw while asserting it had caught the built-in
+  shadowing. It now asserts it failed for its OWN reason.
+  (3) **The fix is a new offline case 1**: the file's single story definition is
+  pinned against the adapter's closed field set — the full story must PASS
+  validation (proven by reaching a throwing transport sentinel), every field must
+  be required, and an unknown field refused by name. Zero credentials, so a
+  future field addition reds on a clean clone.
+  (4) **The live path now covers all six predicates**, each with its negative,
+  including the `/check`-vs-`/retrieve-date` surface choice read off the wire.
+  Evidence is an injected-transport REPLAY (19/19 exit 0) plus five killed
+  mutations, and it is labelled as proving control flow only. **G2 stays
+  PENDING** — nothing here is a live measurement.
+- **2026-08-17 — the FIRST LIVE run of the 3 → 6 tree corrected the
   Admin `location` write shape (measured by the USER; agent has no credentials).**
   `admin UPDATE` answered `400 BAD_REQUEST "\"data.location.lastLocationTime\" is
   required"`. The adapter wrote the bare `{latitude, longitude}` pair. Recorded:
