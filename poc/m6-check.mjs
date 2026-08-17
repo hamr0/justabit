@@ -17,6 +17,7 @@ import { makeHarness } from './check-harness.mjs';
 import * as M5 from './m5-facts-orange.mjs';
 import {
   NOW, VALIDITY_MS, DEMO_NUMBER, PUBLISHED_FLOOR, PUBLISHED_THRESHOLD_MENU, REQUEST_FIELDS, SUBSCRIBER_AT,
+  REGISTERED_NAME, NEAR_MISS_SCORE,
   WIRE_REASON_JSON_MAX, NONCE_JSON_MAX, FACTS_UNAVAILABLE,
   packSigned, unpackSigned, canonicalPredicate, clampReason, rawNeedles, opaqueNeedles, withoutNonce, withoutAsked, scan,
   createBackend, createWorld, createHub, generateKeys, roundTrip, parseArgs, main, runDemo,
@@ -35,7 +36,7 @@ const DEVICE_PREDICATE = { type: 'deviceSwapAge', operator: 'gte', value: 'P90D'
 const TIGHTER = { swapAgeMin: 'P180D' };
 const NEEDLES = rawNeedles(SWAPPED_DAYS_AGO, { deviceDaysAgo: DEVICE_SWAPPED_DAYS_AGO });
 const OPAQUE = opaqueNeedles(NEEDLES);
-const STORY = { swappedDaysAgo: SWAPPED_DAYS_AGO, deviceSwappedDaysAgo: DEVICE_SWAPPED_DAYS_AGO, roamingCountry: 'FR', reachable: true, location: SUBSCRIBER_AT };
+const STORY = { swappedDaysAgo: SWAPPED_DAYS_AGO, deviceSwappedDaysAgo: DEVICE_SWAPPED_DAYS_AGO, roamingCountry: 'FR', reachable: true, location: SUBSCRIBER_AT, registeredName: REGISTERED_NAME };
 // The requester's area is centred somewhere DIFFERENT from the subscriber, so no
 // case can pass by the two rendering as the same string.
 const NEAR_AREA = { lat: 48.86, long: 2.35, radiusM: 10000 };
@@ -155,10 +156,11 @@ const W = await mockWorld();
   // signed decision is that `deviceSwapAge` takes the SAME menu — a drifted
   // second menu is a second place for the window to widen quietly.
   ok('6 MENU SCOPE', roam.verdict.accepted === true && reach.verdict.accepted === true,
-    { label: 'menu keys are exactly [simSwapAge, deviceSwapAge], same 4 buckets, and no menu for the unordered types',
-      ok: JSON.stringify(Object.keys(PUBLISHED_THRESHOLD_MENU).sort()) === '["deviceSwapAge","simSwapAge"]'
+    { label: 'menu keys are exactly the three ORDERED types; the two duration menus are identical; no menu for the unordered ones',
+      ok: JSON.stringify(Object.keys(PUBLISHED_THRESHOLD_MENU).sort()) === '["deviceSwapAge","numberMatch","simSwapAge"]'
         && JSON.stringify(PUBLISHED_THRESHOLD_MENU.simSwapAge) === '["P30D","P90D","P180D","P365D"]'
-        && JSON.stringify(PUBLISHED_THRESHOLD_MENU.deviceSwapAge) === JSON.stringify(PUBLISHED_THRESHOLD_MENU.simSwapAge) });
+        && JSON.stringify(PUBLISHED_THRESHOLD_MENU.deviceSwapAge) === JSON.stringify(PUBLISHED_THRESHOLD_MENU.simSwapAge)
+        && JSON.stringify(PUBLISHED_THRESHOLD_MENU.numberMatch) === '[60,70,80,90]' });
 }
 
 // 7 DUPLICATE-KEY REQUEST REFUSED — decision #2, using M1's exported scanner.
@@ -371,10 +373,15 @@ const W = await mockWorld();
     `{"lat":${SUBSCRIBER_AT.lat}}`,
     `{"lon":${SUBSCRIBER_AT.long}}`,
     '{"verdict":"PARTIAL"}',
+    // The KYC record and the similarity gradient. The score is the raw value this
+    // predicate exists to withhold, and the registered name is what a walk of it
+    // would recover.
+    `{"registered":"${REGISTERED_NAME}"}`,
+    `{"nameMatchScore":${NEAR_MISS_SCORE}}`,
   ];
   ok('18 NO RAW VALUE ON THE WIRE', hits.length === 0,
     { label: `${NEEDLES.length} needles (${OPAQUE.length} of them opaque-safe); the same scanner reds on all ${planted.length} planted leaks`,
-      ok: NEEDLES.length === 19 && planted.every((p) => scan(Buffer.from(p), NEEDLES).length > 0) });
+      ok: NEEDLES.length === 22 && planted.every((p) => scan(Buffer.from(p), NEEDLES).length > 0) });
 }
 
 // 19 INJECTIVE CANONICALISATION — the two collisions the spike found, closed.
@@ -465,7 +472,7 @@ const W = await mockWorld();
       // READ mirrors the write, so the module's load-bearing read-after-write
       // verification passes; UPDATE echoes, exactly as the real API does.
       if (body.action === 'READ') {
-        return reply(200, JSON.stringify({ data: { simSwap: { latestSimChange: iso }, deviceSwap: { latestDeviceChange: deviceIsoAt }, location: body.data?.location ?? { latitude: SUBSCRIBER_AT.lat, longitude: SUBSCRIBER_AT.long }, roaming: { roaming: true, countryName: ['FR'] }, reachability: { reachabilityStatus: 'CONNECTED_DATA' } } }));
+        return reply(200, JSON.stringify({ data: { simSwap: { latestSimChange: iso }, deviceSwap: { latestDeviceChange: deviceIsoAt }, location: body.data?.location ?? { latitude: SUBSCRIBER_AT.lat, longitude: SUBSCRIBER_AT.long }, kyc: body.data?.kyc ?? { name: REGISTERED_NAME }, roaming: { roaming: true, countryName: ['FR'] }, reachability: { reachabilityStatus: 'CONNECTED_DATA' } } }));
       }
       return reply(200, JSON.stringify({ data: body.data ?? {} }));
     }
@@ -477,6 +484,12 @@ const W = await mockWorld();
     if (url.includes('device-swap/v1/check')) return reply(200, JSON.stringify({ swapped: (NOW - Date.parse(deviceIsoAt)) < body.maxAge * 3600000 }));
     if (url.includes('device-swap')) return reply(200, JSON.stringify({ latestDeviceChange: deviceIsoAt }));
     if (url.includes('location-verification')) return reply(200, '{"verificationResult":"TRUE","lastLocationTime":"2026-08-11T04:00:16.503Z"}');
+    // `nameMatch` is a STRING on the wire, exactly as captured.
+    if (url.includes('kyc-match')) {
+      return reply(200, body.name === REGISTERED_NAME
+        ? '{"nameMatch":"true"}'
+        : `{"nameMatch":"false","nameMatchScore":${NEAR_MISS_SCORE}}`);
+    }
     if (url.includes('roaming')) return reply(200, '{"roaming":true,"countryName":["FR"]}');
     if (url.includes('reachability')) return reply(200, '{"reachabilityStatus":"CONNECTED_DATA"}');
     return reply(404, '{}');
@@ -566,7 +579,7 @@ ok('23 ONE EVALUATION STEP', Object.keys(M5).sort().join(',') === 'createOrangeF
   const zk = lines.filter((l) => /zero.knowledge|\bZK\b/i.test(l));
   const allNegated = zk.length > 0 && zk.every((l) => /never|not |NOT |reserved for Mode B/.test(l));
   const result = lines.find((l) => l.startsWith('RESULT: '));
-  ok('25 THE DEMO ITSELF', code === 0 && result === 'RESULT: 30/30',
+  ok('25 THE DEMO ITSELF', code === 0 && result === 'RESULT: 33/33',
     { label: `${zk.length} ZK mentions, all negations=${allNegated}; ${result}`, ok: allNegated });
 }
 
@@ -1085,8 +1098,82 @@ ok('23 ONE EVALUATION STEP', Object.keys(M5).sort().join(',') === 'createOrangeF
         && c(a) === 'presentIn in {"lat":48.86,"long":2.35,"radiusM":10000}' });
 }
 
+// 44 numberMatch END TO END: THE SCORE NEVER CROSSES, AND THE WALK IS CAPPED. The
+// composition's half of the predicate. Three legs that only exist here:
+//   * the same subscriber, the same claim, TWO menu thresholds, TWO different
+//     bits — so the threshold is genuinely the requester's window and not
+//     decoration;
+//   * an OFF-MENU threshold is refused before any fact is read, and the menu-off
+//     control answers the same rung: that rung is one step of a walk that ends at
+//     the subscriber's REGISTERED NAME, because the operator's score is a
+//     gradient (97 for one letter off, 53 for a wrong name) rather than a band;
+//   * the score, its field name and the registered name are scanned for in every
+//     artifact the requester or the hub can hold.
+{
+  const w = await mockWorld();
+  const ask = (claimed, value, controls) =>
+    roundTrip(w, w.rp.buildRequest({ type: 'numberMatch', operator: 'gte', value, claimed }, TIGHTER), controls);
+  const at90 = await ask(REGISTERED_NAME.replace(/d$/, 't'), 90);      // the measured near miss
+  const at60 = await ask('Bob Wrong', 60);
+  // The random hex nonce is blanked before a plaintext scan, for the same measured
+  // reason the demo's scanner blanks it: a 32-character hex string contains a
+  // given 2-digit needle about one run in 60, and a needle that reds a clean run
+  // asserts nothing.
+  const noNonce = (r) => (t) => withoutNonce(t, r.out.claims?.nonce);
+  const q = w.rp.buildRequest({ type: 'numberMatch', operator: 'gte', value: 96, claimed: 'Alice Arnaut' }, TIGHTER);
+  const offMenu = await roundTrip(w, q);
+  const control = await roundTrip(w, w.rp.buildRequest({ type: 'numberMatch', operator: 'gte', value: 96, claimed: 'Alice Arnaut' }, TIGHTER), { operator: { skipMenu: true } });
+  // The needle set splits the SAME way the wire scanner splits, and for the same
+  // MEASURED reason: `97` is two characters, and two characters land inside 512
+  // random ciphertext bytes about one run in eight. This case FLAKED exactly once
+  // that way before the split existed — a needle that reds a clean run asserts
+  // nothing, so the short one is scanned only where a hit is real.
+  const secrets = [REGISTERED_NAME, String(NEAR_MISS_SCORE), 'nameMatchScore', 'nameMatch'];
+  const longSecrets = opaqueNeedles(secrets);
+  const opaque = [at90, at60, offMenu].map((r) => r.atRp.toString('latin1'));
+  const plain = [at90, at60, offMenu].flatMap((r) => [JSON.stringify(r.out.claims), String(r.verdict.reason)].map(noNonce(r)));
+  const artifacts = [...opaque, ...plain];
+  const found = [...opaque.flatMap((a) => scan(a, longSecrets)), ...plain.flatMap((a) => scan(a, secrets))];
+  check('44 numberMatch END TO END', false, { ok: offMenu.out.kind === 'answer', reason: offMenu.verdict.reason },
+    'operator refused: threshold not on the published menu for numberMatch (allowed: 60, 70, 80, 90)',
+    { label: `near-miss ≥90 → ${at90.out.claims?.result}; wrong name ≥60 → ${at60.out.claims?.result}; `
+      + `menu-off answers the ≥96 rung (${control.out.claims?.result}); `
+      + `${opaque.length} opaque artifacts vs the ${longSecrets.length} long forms and ${plain.length} plaintext vs all ${secrets.length} → hits=${JSON.stringify(found)}`,
+      ok: at90.verdict.accepted === true && at90.out.claims.result === true
+        && at60.verdict.accepted === true && at60.out.claims.result === false
+        && offMenu.out.menuRejected === true
+        && control.out.kind === 'answer' && control.verdict.accepted === true
+        && found.length === 0 && artifacts.length === 9 });
+}
+
+// 45 THE CLAIMED NAME IS PART OF THE SIGNED QUESTION. `claimed` is the one
+// predicate field that is neither the type nor the window, and leaving it out of
+// the canonical string would let an answer about "does Bob match?" verify as an
+// answer about "does Alice match?" — the injectivity failure M6's canonical string
+// exists to prevent, arriving through the only field the spike never saw.
+//
+// The control is the substituted-answer attack, applied AFTER the gates exactly as
+// case 11 applies it: the operator accepts a legitimate question and answers a
+// different one. The requester must reject it.
+{
+  const w = await mockWorld();
+  const c = canonicalPredicate;
+  const alice = { type: 'numberMatch', operator: 'gte', value: 90, claimed: 'Alice Arnaut' };
+  const bob = { type: 'numberMatch', operator: 'gte', value: 90, claimed: 'Bob Wrong' };
+  const q = w.rp.buildRequest(alice, TIGHTER);
+  const swapped = await roundTrip(w, q, { operator: { answerPredicate: bob } });
+  rejects('45 THE CLAIMED NAME IS PART OF THE SIGNED QUESTION', swapped.verdict, 'predicate mismatch',
+    { label: `asked ${JSON.stringify(c(alice))}, signed ${JSON.stringify(swapped.out.claims.predicate)}`,
+      ok: c(alice) !== c(bob)
+        && c(alice) === 'numberMatch gte 90 "Alice Arnaut"'
+        // ...and a quote inside a name cannot forge the separator, because the
+        // claim is JSON-quoted rather than concatenated raw.
+        && c({ ...alice, claimed: 'A" 90 "B' }) !== c({ ...alice, claimed: 'A', value: 90 })
+        && swapped.out.claims.predicate === c(bob) });
+}
+
 // The declared case count. A suite that silently loses the cases carrying its
 // guarantee still printed a green `RESULT: n/n` before this argument existed
 // (measured 2026-08-16 on m4-check: truncated to 18/18 exit 0, emptied to 0/0
 // exit 0).
-conclude(43);
+conclude(45);

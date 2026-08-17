@@ -2,6 +2,35 @@
 
 ## Unreleased (0.4.0 — M6)
 
+- **Part 3: `numberMatch` — the predicate set is now the signed SIX.** The
+  requester declares its match threshold off the published menu
+  (`60 | 70 | 80 | 90`) and the name it holds; the operator compares internally;
+  **only the boolean crosses the wire.** This is the row where the raw value the
+  profile protects is the catalog response itself: `kyc-match` returns a
+  similarity SCORE, and a score is a gradient rather than a band (a wrong name
+  scored 53; the registered name with ONE letter changed scored 97), so an
+  unquantised threshold against it is a warmer/colder oracle that hill-climbs to
+  the subscriber's real registered name.
+  - **`claimed` is the only predicate field that is neither a type nor a
+    window** — the attribute value the requester wants compared. Legal only for
+    the types that declare it, refused by name elsewhere, and part of the SIGNED
+    predicate string (otherwise an answer about "does Bob match?" verifies as an
+    answer about "does Alice match?").
+  - **Two measured response shapes a naive implementation gets wrong:**
+    `nameMatch` is the STRING `"true"`/`"false"` (and `"false"` is truthy, so an
+    unguarded read reports a non-match as a match), and an EXACT match carries no
+    score at all (so "compare score against threshold" alone answers `false` to
+    the strongest possible match).
+  - **Recorded, not glossed: the operator learns what the requester claims.**
+    Inherent to a comparison, and disclosure in the other direction. Profile mode
+    narrows what the OPERATOR discloses; it does not make the requester's query
+    private.
+  - **A real FLAKE caught and fixed:** a new case scanned the two-character needle
+    `97` against RSA ciphertext and an unblanked random nonce — a ~1-in-8 false
+    red, the exact short-needle trap this repo already documented. Split by
+    artifact class, as the wire scanner already was.
+  - **A second unpinned guard of the same shape as part 2's:** the kyc-name
+    write-back survived mutation in the same place the location one did.
 - **Part 2: `presentIn` — and the third state is the whole point.**
   `location-verification/v1/verify` answers `TRUE`, `FALSE` and `PARTIAL`
   (measured), and `PARTIAL` produces a signed REFUSAL carrying no bit rather than

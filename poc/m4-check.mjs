@@ -18,7 +18,8 @@ const PARIS = Object.freeze({ lat: 48.8566, long: 2.3522 });
 // 2026-08-17 with the 3 -> 6 predicate round, and it is deliberately a DIFFERENT
 // day count from the SIM axis: a story where both axes agreed would let a mapping
 // that reads the wrong axis pass every case below.
-const STORY = { swappedDaysAgo: 120, deviceSwappedDaysAgo: 200, roamingCountry: null, reachable: true, location: PARIS };
+const REGISTERED = 'Alice Arnaud';
+const STORY = { swappedDaysAgo: 120, deviceSwappedDaysAgo: 200, roamingCountry: null, reachable: true, location: PARIS, registeredName: REGISTERED };
 // The subscriber's own position, and a query area centred somewhere DIFFERENT, so
 // a case cannot pass by the two being the same string.
 const AREA = (radiusM, over = {}) => ({ lat: 48.86, long: 2.35, radiusM, ...over });
@@ -808,4 +809,62 @@ check('14 WRONG OPERATOR REJECTED', false,
     });
 }
 
-conclude(38);
+// 39 numberMatch: THRESHOLD IN, BOOLEAN OUT, AND THE SCORE STAYS BEHIND. The
+// predicate exists in this shape because of ONE measurement: `kyc-match` returns
+// a similarity SCORE, and the score is a GRADIENT (a wrong name scored 53, the
+// registered name with ONE letter changed scored 97). A gradient is not a band —
+// a band coarsens, a gradient preserves the distance to the answer — so it is
+// hill-climbable to the subscriber's real registered name.
+//
+// Four legs. The threshold decides (the same score answers differently either side
+// of it); an exact operator-side match satisfies every threshold WITHOUT a score
+// present, which is the measured shape and would otherwise read as `false`; a
+// `false` with NO score is unanswerable rather than a zero; and the returned
+// answer carries the bit and nothing else.
+{
+  const q = (value, claimed = 'Alice Arnaut') => ({ type: 'numberMatch', operator: 'gte', value, claimed });
+  const near = { nameMatch: false, nameMatchScore: 97 };
+  const met = evaluatePredicate(near, q(90));
+  const notMet = evaluatePredicate(near, q(98));
+  const exact = evaluatePredicate({ nameMatch: true }, q(90));         // no score, measured shape
+  const noScore = evaluatePredicate({ nameMatch: false }, q(90));
+  const absent = evaluatePredicate({}, q(90));
+  check('39 numberMatch: THRESHOLD IN, BOOLEAN OUT', true, met, 'ok', {
+    label: `score 97 vs threshold 90 -> ${met.result}, vs 98 -> ${notMet.result}; exact match with NO score -> ${exact.result}; `
+      + `false with no score -> '${noScore.reason}'; answer keys ${Object.keys(met).join(',')}`,
+    ok: met.result === true && notMet.answered === true && notMet.result === false
+      && exact.answered === true && exact.result === true
+      && noScore.answered === false && noScore.reason === 'fact unavailable: nameMatchScore'
+      && absent.answered === false && absent.reason === 'fact unavailable: nameMatch'
+      && Object.keys(met).join(',') === 'answered,reason,result'
+      && !JSON.stringify(met).includes('97'),
+  });
+}
+
+// 40 `claimed` IS LEGAL ONLY WHERE IT IS DECLARED, AND IT IS PART OF THE QUESTION.
+// It is the one predicate field that is neither a type nor a window: the attribute
+// value the REQUESTER wants compared. Two failures are pinned. A `claimed` on a
+// type that does not declare it must be REFUSED by name — an ignored extra field
+// is a constraint the requester believes is enforced and is not, which is the
+// closed-set rule this module already applies twice. And a MISSING or malformed
+// claim must be refused rather than compared against nothing.
+//
+// The bound is not decoration either: the claimed name is caller text that rides
+// into the signed answer, where the envelope has a hard capacity.
+{
+  const onOtherType = evaluatePredicate({ swapAgeMs: 100 * DAY }, { ...P90, claimed: 'Alice Arnaud' });
+  const missing = evaluatePredicate({ nameMatch: false, nameMatchScore: 97 }, { type: 'numberMatch', operator: 'gte', value: 90 });
+  const bad = [7, null, '', 'x'.repeat(121), { toString() { return 'Alice'; } }, ['Alice']]
+    .map((claimed) => threws(() => evaluatePredicate({ nameMatch: false, nameMatchScore: 97 }, { type: 'numberMatch', operator: 'gte', value: 90, claimed })));
+  const badThreshold = [0, 101, '90', 90.5, null].map((value) =>
+    evaluatePredicate({ nameMatch: false, nameMatchScore: 97 }, { type: 'numberMatch', operator: 'gte', value, claimed: 'Alice' }));
+  check('40 `claimed` IS LEGAL ONLY WHERE DECLARED', false, onOtherType,
+    'unexpected predicate fields: claimed', {
+      label: `a missing claim refuses ('${missing.reason}'); ${bad.length} malformed claims and ${badThreshold.length} malformed thresholds all refuse, none throw`,
+      ok: missing.answered === false && missing.reason.startsWith('invalid claimed name')
+        && bad.every((r) => !r.threw && r.value.answered === false && r.value.reason.startsWith('invalid claimed name'))
+        && badThreshold.every((r) => r.answered === false && r.reason.startsWith('invalid match threshold')),
+    });
+}
+
+conclude(40);

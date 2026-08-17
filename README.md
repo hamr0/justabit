@@ -162,9 +162,9 @@ monotone floor (looser queries rejected, never silently widened).
 with scriptable backstories; `--backend orange` re-proves the same code path live on the
 Network APIs Playground with a free Orange developer account. Each module also has its own
 check, negatives first, exit code 0 only if every case holds: `m1-check.mjs` (20 cases),
-`m2-check.mjs` (10), `m3-check.mjs` (25), `m4-check.mjs` (38), `m5-check.mjs` (54, an
+`m2-check.mjs` (10), `m3-check.mjs` (25), `m4-check.mjs` (40), `m5-check.mjs` (56, an
 offline replay of live-captured responses; `m5-check-live.mjs` re-proves 11 cases against
-the real Playground) and `m6-check.mjs` (43, offline in both backend modes).
+the real Playground) and `m6-check.mjs` (45, offline in both backend modes).
 M2 is validated by a run on the maintainer's own machine at the count above. **M1, M3, M4,
 M5 and M6 are not**: the maintainer's runs cover M1 at 19, M3 at 22, M4 at 33 and M5 at
 48+11, and the 2026-08-17 rounds took M1 to 20 and M3 to 25, built M6, and then widened the

@@ -20,12 +20,12 @@ node poc/m3-check.mjs   # M3 floor gate — 25 cases (user-validated 22/22 at th
                         #   22-case tree; cases 23-25 added by the M6 and
                         #   3 -> 6 predicate rounds — AGENT-RUN 25/25,
                         #   user re-run PENDING)
-node poc/m4-check.mjs   # M4 mock facts adapter — 38 cases (user-validated 33/33 at the
-                        #   33-case tree; cases 34-38 added by the 3 -> 6 predicate
-                        #   round — AGENT-RUN 38/38, user re-run PENDING)
-node poc/m5-check.mjs   # M5 orange facts adapter, OFFLINE — 54 cases (user-validated
-                        #   48/48 at 8e842c3, the shipped v0.3.0 state; cases 49-54
-                        #   added by the 3 -> 6 predicate round — AGENT-RUN 54/54,
+node poc/m4-check.mjs   # M4 mock facts adapter — 40 cases (user-validated 33/33 at the
+                        #   33-case tree; cases 34-40 added by the 3 -> 6 predicate
+                        #   round — AGENT-RUN 40/40, user re-run PENDING)
+node poc/m5-check.mjs   # M5 orange facts adapter, OFFLINE — 56 cases (user-validated
+                        #   48/48 at 8e842c3, the shipped v0.3.0 state; cases 49-56
+                        #   added by the 3 -> 6 predicate round — AGENT-RUN 56/56,
                         #   user re-run PENDING).
                         #   Zero credentials, zero network:
                         #   an injected transport replays responses captured live on
@@ -44,12 +44,12 @@ ORANGE_BASIC_AUTH="$(pass camara/orange_network | head -1)" node poc/m5-check-li
                         # interrupted run does not leak one), prints the count at both
                         # ends, and case 11 asserts it came back.
 
-node poc/m6-check.mjs   # M6 integration — 43 cases (AGENT-RUN 43/43, user run
+node poc/m6-check.mjs   # M6 integration — 45 cases (AGENT-RUN 45/45, user run
                         #   PENDING). Zero credentials, zero network in BOTH
                         #   backend modes: the `--backend orange` seam runs
                         #   through an injected transport replaying captured
                         #   Playground bytes, exactly like m5-check. It also runs
-                        #   the demo itself and asserts its exit code, its 30/30
+                        #   the demo itself and asserts its exit code, its 33/33
                         #   tally, and claims discipline (every mention of
                         #   zero-knowledge in the output must be a negation).
                         #   Takes ~15s — RSA-4096 keygen dominates.
@@ -73,7 +73,7 @@ backstory, the `A:` bit, then the negative flip — then the WIRED PREDICATE SET
 request-path guards (off-menu threshold, duplicate keys, response key pinning),
 each with a control that disables that one guard and shows the SAME input being
 accepted. **Exit 0
-only if all 30 hold; 1 if any fails; 2 if the backend cannot RUN** (e.g.
+only if all 33 hold; 1 if any fails; 2 if the backend cannot RUN** (e.g.
 `--backend orange` with no `ORANGE_BASIC_AUTH` — it prints the prerequisites and
 exits 2, and there is deliberately no silent fallback to the mock).
 
@@ -92,7 +92,7 @@ anything real; a deployment evicts on expiry, since the answer's validity window
 is already the natural TTL. Stated rather than built — exercising a TTL would
 mean faking elapsed time, and a stated limit beats an untested one.
 
-The mock run is **AGENT-RUN 30/30 exit 0; the user run is PENDING.** The live
+The mock run is **AGENT-RUN 33/33 exit 0; the user run is PENDING.** The live
 `--backend orange` run has not happened at all — it is the user's, and it is the
 only thing that makes the FR5 claim a live one rather than a replayed one.
 `poc/m6-check.mjs` proves the seam offline; it cannot prove the Playground still
@@ -118,7 +118,7 @@ re-establishing G2 at that state. A post-gate code review round (2026-08-17)
 then fixed three more adapter defects and three live-check faults (counts
 unchanged), so **the user re-ran once more at `8e842c3` — the shipped v0.3.0
 state — and reported both clean. Nothing is pending.** Each
-check declares its case count (`conclude(20|10|25|38|54|11|43)`) so a suite that
+check declares its case count (`conclude(20|10|25|40|56|11|45)`) so a suite that
 silently loses cases exits 1 with
 `FAIL CASE COUNT` instead of printing a smaller green tally — mutation-proven
 per module.
@@ -187,6 +187,38 @@ RSA-4096 OAEP-SHA256 envelopes for the end-to-end leg past the hub — one
 vetted primitive, per the PRD decision log). The runbook is the demo section
 above.
 
+## The wired predicate set (six, 2026-08-17)
+
+Every one is backed by an endpoint OBSERVED answering live on the Orange
+Playground; nothing is wired for a fact no source computes.
+
+| Predicate | Question | Menu | Live source |
+|---|---|---|---|
+| `simSwapAge` | SIM in place ≥ a bucket | `P30D P90D P180D P365D` | sim-swap `/check` under the 2400-hour cap, `/retrieve-date` above it |
+| `deviceSwapAge` | device in place ≥ a bucket | same four buckets | device-swap `/check` / `/retrieve-date` |
+| `roamingIn` | in this country set | — (a set has no ordering to bisect) | device-roaming-status |
+| `presentIn` | inside this area | — (see the residual below) | location-verification `/verify` |
+| `numberMatch` | claimed name matches ≥ a threshold | `60 70 80 90` | kyc-match `/match` |
+| `reachable` | reachable = true/false | — (already one bit) | device-reachability-status |
+
+Five rules bind all six, without exception: **(1)** the answer is a signed boolean
+or a refusal — never a value, a score or a date; **(2)** an off-menu threshold is
+refused LOUDLY and never rounded to the nearest bucket; **(3)** anything the
+operator cannot answer honestly is a refusal (a straddling band, a missing fact,
+location's `PARTIAL`); **(4)** the operator publishes the floor and the requester
+may only tighten; **(5)** raw values the operator legitimately holds stay
+operator-side.
+
+`tenure` and `simType` stay OUT for a measured reason: the data exists
+operator-side and no CAMARA read endpoint for it does.
+
+**Two residuals this set adds, stated rather than closed.** `presentIn`'s AREA is
+a dial (centre plus radius) and is walkable toward a position the way a duration
+threshold is bisectable; it gets no bucket menu, so the cap is the operator's own
+resolution plus rate-limiting and per-query billing — weaker than the duration
+menu. And `numberMatch` discloses in the OTHER direction: the operator learns what
+the requester claims, which is inherent to a comparison.
+
 ## What it proves (four assertions, each shown failing too)
 
 1. **Windowing** — the wire carries `swapAge ≥ 90d → true|false`, never the
@@ -221,11 +253,13 @@ One operator-facts adapter, two backends behind it:
   stubbed; backstories set via its Admin API, and every write READ back and
   compared before it is trusted. **Two shapes are ASSUMED rather than measured**
   and are flagged as such in the code: the Admin write shape for the `deviceSwap`
-  axis, the Admin write shape for the `location` axis (the weaker of the two —
-  that axis was only ever observed EXISTING), and the `{phoneNumber, maxAge}` body
-  of the two `/check` routes, plus the `{device, area}` body of
-  `location-verification/v1/verify` (all mirrored from measured siblings or from
-  CAMARA's own spelling). Read-after-write verification is what makes a
+  axis, the Admin write shape for the `location` axis (the weakest of the three —
+  that axis was only ever observed EXISTING) and for the `kyc` axis (whose
+  sub-object and `name` field WERE observed, though writing them was not), plus
+  three request-body shapes: `{phoneNumber, maxAge}` for the two `/check` routes,
+  `{device, area}` for `location-verification/v1/verify` and `{phoneNumber, name}`
+  for `kyc-match/v1/match` (all mirrored from measured siblings or from CAMARA's
+  own spelling). Read-after-write verification is what makes a
   wrong guess fail LOUD instead of silently scripting a history that never took
   effect — the live run is what settles them.
   Credential from the environment only (`ORANGE_BASIC_AUTH`, the Playground

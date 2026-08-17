@@ -65,7 +65,20 @@ const FIELDS = Object.freeze({
   // answers. It is never returned as a fact; only a VERDICT about an area the
   // requester asked about is (see `presentVerdict`).
   location: 'geoOrNull',
+  // The name the operator has on file for this subscriber, or `null` for a
+  // subscriber whose KYC record it does not hold. It is NEVER returned as a fact
+  // and never crosses the wire in any form: `numberMatch` compares against it
+  // INSIDE the operator and only the comparison's verdict leaves.
+  registeredName: 'nameOrNull',
 });
+
+// A name is caller text on both sides — the operator's record and the requester's
+// claim — so both are bounded. The comparison below is O(n·window), and the
+// canonical predicate string carries the CLAIMED name into the signed answer,
+// where the envelope has a hard capacity. 120 is far past any real name and far
+// inside both bounds.
+const MAX_NAME = 120;
+const validName = (v) => typeof v === 'string' && v.length >= 1 && v.length <= MAX_NAME;
 
 // The predicate types this adapter's facts can answer — closed, one fact and
 // one operator each. An unrecognized type must NOT fall through to a compare:
@@ -101,9 +114,24 @@ const PREDICATES = Object.freeze({
   },
   roamingIn: { operator: 'in', value: 'countries', fact: 'roamingCountry' },
   presentIn: { operator: 'in', value: 'area', fact: 'presentVerdict', queryKey: 'area' },
+  // The ONLY predicate with a fourth field. `claimed` is the attribute value the
+  // REQUESTER holds and wants compared — it is an input to the question, not a
+  // window, so it cannot ride in `value` (which carries the threshold and is what
+  // the published menu quantises). It is legal ONLY for the types that declare
+  // it, and refused by name everywhere else by the closed-field-set check below:
+  // a `claimed` on a `simSwapAge` question is a field the requester believes
+  // means something and does not.
+  numberMatch: {
+    operator: 'gte', value: 'matchThreshold', fact: 'nameMatch',
+    claimed: 'name', queryKey: 'claimedName',
+  },
   reachable: { operator: 'eq', value: 'boolean', fact: 'reachable' },
 });
 const PREDICATE_KEYS = Object.freeze(['type', 'operator', 'value']);
+// Per-type allowed key set: the base three, plus `claimed` for the one type that
+// declares it. Computed from the table rather than written twice, so a future
+// type cannot gain the field by being added to one list and not the other.
+const allowedKeys = (spec) => (spec.claimed ? [...PREDICATE_KEYS, 'claimed'] : PREDICATE_KEYS);
 
 const hasOwn = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 
@@ -332,6 +360,10 @@ function invalidField(field, value) {
         && inRange(g.lat, -90, 90) && inRange(g.long, -180, 180);
       return ok ? null : `invalid location: ${describe(value)} ({lat, long} as finite degrees within ±90/±180, or null for a subscriber the operator cannot place)`;
     }
+    case 'nameOrNull':
+      return value === null || validName(value)
+        ? null
+        : `invalid registeredName: ${describe(value)} (1-${MAX_NAME} characters, or null for a subscriber whose KYC record the operator does not hold)`;
     case 'boolean':
       return typeof value === 'boolean'
         ? null
@@ -397,6 +429,52 @@ function metresBetween(a, b) {
   const h = Math.sin(dLat / 2) ** 2
     + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLong / 2) ** 2;
   return 2 * EARTH_RADIUS_M * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+// The mock's own name-similarity metric, DECLARED as its own and not claimed to
+// be any operator's. Jaro-Winkler, ~25 lines of arithmetic over two bounded
+// strings, no dependency and nothing caller-supplied invoked.
+//
+// It exists because a SCRIPTED verdict would make the demo's numberMatch
+// assertion unable to fail for the right reason: the point of the predicate is
+// that a real gradient exists operator-side and never crosses the wire, and a
+// hardcoded 97 would demonstrate the plumbing while assuming the phenomenon.
+// What is claimed: this produces a gradient of the same SHAPE as the measured one
+// (near-miss high, unrelated low). What is NOT claimed: that it is the
+// Playground's metric — the profile does not depend on which metric an operator
+// uses, only on the score staying operator-side.
+function jaro(a, b) {
+  if (a === b) return 1;
+  const la = a.length;
+  const lb = b.length;
+  if (la === 0 || lb === 0) return 0;
+  const window = Math.max(0, Math.floor(Math.max(la, lb) / 2) - 1);
+  const usedA = new Array(la).fill(false);
+  const usedB = new Array(lb).fill(false);
+  let matches = 0;
+  for (let i = 0; i < la; i += 1) {
+    const lo = Math.max(0, i - window);
+    const hi = Math.min(i + window + 1, lb);
+    for (let j = lo; j < hi; j += 1) {
+      if (!usedB[j] && a[i] === b[j]) { usedA[i] = true; usedB[j] = true; matches += 1; break; }
+    }
+  }
+  if (matches === 0) return 0;
+  let transpositions = 0;
+  let k = 0;
+  for (let i = 0; i < la; i += 1) {
+    if (!usedA[i]) continue;
+    while (!usedB[k]) k += 1;
+    if (a[i] !== b[k]) transpositions += 1;
+    k += 1;
+  }
+  return (matches / la + matches / lb + (matches - transpositions / 2) / matches) / 3;
+}
+function similarity(a, b) {
+  const j = jaro(a, b);
+  let prefix = 0;
+  while (prefix < 4 && prefix < a.length && prefix < b.length && a[prefix] === b[prefix]) prefix += 1;
+  return Math.round((j + prefix * 0.1 * (1 - j)) * 100);
 }
 
 /**
@@ -487,7 +565,20 @@ export function createMockFacts({ locationResolutionM = 2000 } = {}) {
     // `PARTIAL` is produced, not scripted: a radius finer than this operator can
     // resolve cannot be answered honestly, which is exactly what the live
     // endpoint says with the same word.
-    const area = plainSnapshot(query)?.area;
+    const q = plainSnapshot(query) ?? {};
+    // The KYC comparison, and the one place a raw score exists at all. It is
+    // computed only when a name was actually claimed, it lives on the facts
+    // (operator-internal, never wire-bound), and `evaluatePredicate` turns it
+    // into the bit. The exact-match branch carries NO score, mirroring the
+    // measured response shape — a correct name answers `{"nameMatch":"true"}`
+    // with no score field at all.
+    if (typeof q.claimedName === 'string' && b.registeredName !== null) {
+      const exact = q.claimedName === b.registeredName;
+      facts.nameMatch = exact;
+      if (!exact) facts.nameMatchScore = similarity(q.claimedName, b.registeredName);
+    }
+
+    const area = q.area;
     if (area !== undefined && b.location !== null) {
       const a = areaOf(area);
       if (a !== null) {
@@ -537,6 +628,8 @@ export function factQuery(predicate) {
   if (spec.value === 'duration') {
     const ms = durationMs(p.value);
     if (ms !== null) q[spec.queryKey] = ms;
+  } else if (spec.value === 'matchThreshold') {
+    if (validName(p.claimed)) q[spec.queryKey] = p.claimed;
   } else if (spec.value === 'area') {
     // The one query value that is not a primitive. It is a FROZEN rebuild in a
     // fixed key order carrying three validated numbers — never the requester's
@@ -566,7 +659,7 @@ export function evaluatePredicate(facts, predicate) {
   // Closed predicate field set (M1's closed claim set, M3's closed axis set).
   // An ignored extra field is a constraint the requester believes is enforced
   // and is not — the silent-widening class, arriving on the predicate.
-  const extra = Object.keys(p).filter((k) => !PREDICATE_KEYS.includes(k));
+  const extra = Object.keys(p).filter((k) => !allowedKeys(spec).includes(k));
   if (extra.length > 0) {
     // Rendered and clamped like every other diagnostic: the keys are
     // requester-chosen text, and a bare `join` was the one reason string built
@@ -620,6 +713,42 @@ export function evaluatePredicate(facts, predicate) {
     // `null` = not roaming, so "in this set" is honestly false — a real answer,
     // not a fallback.
     result = set.includes(fact);
+  } else if (spec.value === 'matchThreshold') {
+    // THE SHAPE, and the whole reason this predicate exists in this form.
+    // `kyc-match` returns a similarity SCORE, measured 2026-08-17 as a GRADIENT:
+    // a wrong name scored 53 and the registered name with ONE letter changed
+    // scored 97. A score is therefore not a band — a band coarsens, a score
+    // preserves the distance to the answer — so it is hill-climbable to the
+    // subscriber's real registered name and must never cross the wire. The
+    // requester declares the THRESHOLD it needs, the operator compares here, and
+    // only the boolean leaves.
+    //
+    // The threshold's SHAPE is checked here (1..100, a whole number). WHICH
+    // thresholds are legal is the operator's published menu, one layer up —
+    // exactly as this module accepts any `P<n>D` and the menu admits four.
+    if (!Number.isSafeInteger(p.value) || p.value < 1 || p.value > 100) {
+      return { answered: false, reason: `invalid match threshold: ${describe(p.value)} (a whole number 1-100; the operator's published menu decides which are legal)` };
+    }
+    if (!validName(p.claimed)) {
+      return { answered: false, reason: `invalid claimed name: ${describe(p.claimed)} (1-${MAX_NAME} characters, as a string)` };
+    }
+    if (typeof fact !== 'boolean') return { answered: false, reason: `fact unavailable: ${spec.fact}` };
+    if (fact === true) {
+      // An exact operator-side match satisfies every threshold on any menu, and
+      // the measured response carries NO score in this case — so this branch must
+      // not require one. Reading a missing score as 0 would answer `false` to a
+      // perfect match.
+      result = true;
+    } else {
+      const score = f.nameMatchScore;
+      // No score beside a `false` is UNANSWERABLE, not a zero: `undefined >= 60`
+      // is false, which would sign "the names do not match to your tolerance"
+      // about a comparison nobody made.
+      if (!Number.isSafeInteger(score) || score < 0 || score > 100) {
+        return { answered: false, reason: 'fact unavailable: nameMatchScore' };
+      }
+      result = score >= p.value;
+    }
   } else if (spec.value === 'area') {
     const area = areaOf(p.value);
     if (area === null) {

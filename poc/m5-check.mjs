@@ -34,7 +34,8 @@ const TOKEN_URL_ADMIN = 'https://api.orange.com/oauth/v3/token';
 // 2026-08-17 (3 -> 6 predicate round) and carries a DIFFERENT day count from the
 // SIM axis, so a write or read that confuses the two cannot pass.
 const PARIS = Object.freeze({ lat: 48.8566, long: 2.3522 });
-const STORY = { swappedDaysAgo: 120, deviceSwappedDaysAgo: 200, roamingCountry: null, reachable: true, location: PARIS };
+const REGISTERED = 'Alice Arnaud';                          // the Playground's own stored name
+const STORY = { swappedDaysAgo: 120, deviceSwappedDaysAgo: 200, roamingCountry: null, reachable: true, location: PARIS, registeredName: REGISTERED };
 
 // ==================== CAPTURED responses (verbatim, 2026-08-16) =============
 // Only the client id inside the 403 body is substituted for the synthetic one;
@@ -82,8 +83,8 @@ const C = Object.freeze({
 // axes M5 never touches is arbitrary — `kyc.name` here is not the built-in
 // record's own value. Said explicitly so the "captured verbatim" claim above is
 // not over-read to cover this helper.
-const stored = ({ sim = '2026-04-01T12:00:00.000Z', device = '2026-08-11T04:00:16.516Z', roaming = { roaming: false }, reach = 'CONNECTED_DATA', geo = { latitude: PARIS.lat, longitude: PARIS.long } } = {}) =>
-  JSON.stringify({ data: { location: geo, reachability: { reachabilityStatus: reach }, roaming, simSwap: { latestSimChange: sim }, deviceSwap: { latestDeviceChange: device }, tenure: { contractType: 'PAYM' }, kyc: { name: 'Alice Arnaud' } } });
+const stored = ({ sim = '2026-04-01T12:00:00.000Z', device = '2026-08-11T04:00:16.516Z', roaming = { roaming: false }, reach = 'CONNECTED_DATA', geo = { latitude: PARIS.lat, longitude: PARIS.long }, kyc = { name: REGISTERED } } = {}) =>
+  JSON.stringify({ data: { location: geo, reachability: { reachabilityStatus: reach }, roaming, simSwap: { latestSimChange: sim }, deviceSwap: { latestDeviceChange: device }, tenure: { contractType: 'PAYM' }, kyc } });
 
 // The stored dataset that MIRRORS a write, i.e. the READ an honouring slot
 // answers with. Written as one helper because the write-verification now covers
@@ -95,6 +96,7 @@ const mirror = (data) => stored({
   roaming: data.roaming,
   reach: data.reachability.reachabilityStatus,
   geo: data.location,
+  kyc: data.kyc,
 });
 
 // ============================== replay transport ===========================
@@ -899,10 +901,29 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
   // position of its own is not a write failure. Without this leg the case would
   // pass on a module that demanded a stored position it never wrote.
   const nullGeo = await athrew(() => shadowGeo.setBackstory(N, { ...STORY, location: null }, NOW));
+
+  // ...and the THIRD assumed shape. Added after an independent sweep deleted the
+  // kycName axis from the verification loop with this suite still green — the
+  // identical gap the geo axis had, in the identical place, which is the argument
+  // for pinning each assumed shape rather than one representative of them.
+  const shadowName = mk((url, body) => {
+    if (body?.action === 'UPDATE') return { status: 200, text: stored(body.data) };
+    if (body?.action === 'READ') {
+      return { status: 200, text: stored({
+        sim: new Date(NOW - STORY.swappedDaysAgo * DAY).toISOString(),
+        device: new Date(NOW - STORY.deviceSwappedDaysAgo * DAY).toISOString(),
+        kyc: { name: 'Bernard Blanc' },
+      }) };
+    }
+    return { status: 200, text: '{}' };
+  }).facts;
+  const nameShadowed = await athrew(() => shadowName.setBackstory(N, { ...STORY }, NOW));
+  const nullName = await athrew(() => shadowName.setBackstory(N, { ...STORY, registeredName: null }, NOW));
   const wantDevice = new Date(NOW - STORY.deviceSwappedDaysAgo * DAY).toISOString();
-  checkOk('52 THE TWO ASSUMED WRITE SHAPES ARE READ BACK AND COMPARED', okWrite,
+  checkOk('52 ALL THREE ASSUMED WRITE SHAPES ARE READ BACK AND COMPARED', okWrite,
     { label: `honoured write verifies (wrote deviceSwap ${written?.deviceSwap?.latestDeviceChange}, location ${JSON.stringify(written?.location)}); `
-      + `a shadowed device date fails loud=${shadowed.threw}, a shadowed position fails loud=${geoShadowed.threw}, a null location writes nothing=${!nullGeo.threw}`,
+      + `shadowed device date=${shadowed.threw}, shadowed position=${geoShadowed.threw}, shadowed name=${nameShadowed.threw} all fail loud; `
+      + `null location and null name write nothing=${!nullGeo.threw && !nullName.threw}`,
       ok: !okWrite.threw
         && written.deviceSwap.latestDeviceChange === wantDevice
         && shadowed.threw
@@ -912,7 +933,10 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
         // ...and BOTH assumed axes say so in the message, so a live failure names
         // the shape as a suspect instead of sending the reader after the slot.
         && shadowed.msg.includes('ASSUMED Admin write shape') && geoShadowed.msg.includes('ASSUMED Admin write shape')
-        && !nullGeo.threw });
+        && !nullGeo.threw
+        && nameShadowed.threw && nameShadowed.msg.includes('stored kycName is')
+        && nameShadowed.msg.includes('ASSUMED Admin write shape')
+        && !nullName.threw });
 }
 
 // 53 THE THREE LOCATION STATES MAP THROUGH, AND `lastLocationTime` DOES NOT.
@@ -981,4 +1005,61 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
         && sent.area.radius === AREA.radiusM && sent.area.areaType === 'CIRCLE' });
 }
 
-conclude(54);
+// 55 `nameMatch` IS A STRING ON THE WIRE, AND `"false"` IS TRUTHY. The single most
+// consequential coercion in this module: measured 2026-08-17, `kyc-match` answers
+// `{"nameMatch":"true"}` or `{"nameMatch":"false","nameMatchScore":53}` — STRINGS,
+// not booleans. An unguarded `if (body.nameMatch)` therefore reports a NON-match
+// as a match, because the string `"false"` is truthy. Both spellings are compared
+// explicitly and anything else leaves the axis ABSENT.
+//
+// The other legs are the measured response SHAPE: an exact match carries NO score
+// at all (so a module demanding one would refuse a perfect match), and a score
+// outside 0-100 or of the wrong type is dropped rather than carried into a
+// comparison.
+{
+  const ask = async (text) => {
+    const { facts } = mk((url) => (url.includes('kyc-match') ? { status: 200, text } : reads()(url)));
+    return facts.getFacts(N, NOW, { claimedName: 'Alice Arnaut' });
+  };
+  const yes = await ask('{"nameMatch":"true"}');
+  const no = await ask('{"nameMatch":"false","nameMatchScore":97}');
+  const boolish = await ask('{"nameMatch":false,"nameMatchScore":97}');      // a real boolean is NOT the measured shape
+  const unknown = await ask('{"nameMatch":"maybe"}');
+  const badScore = await ask('{"nameMatch":"false","nameMatchScore":"97"}');
+  const outOfRange = await ask('{"nameMatch":"false","nameMatchScore":101}');
+  check('55 nameMatch IS A STRING; "false" IS NOT A MATCH', true, { answered: true, reason: 'ok' }, 'ok',
+    { label: `"true"->${yes.nameMatch} (score present=${'nameMatchScore' in yes}), "false"+97->${no.nameMatch}/${no.nameMatchScore}, `
+      + `boolean false->present=${'nameMatch' in boolish}, "maybe"->present=${'nameMatch' in unknown}, `
+      + `"97"->score present=${'nameMatchScore' in badScore}, 101->present=${'nameMatchScore' in outOfRange}`,
+      ok: yes.nameMatch === true && !('nameMatchScore' in yes)
+        && no.nameMatch === false && no.nameMatchScore === 97
+        && !('nameMatch' in boolish) && !('nameMatch' in unknown)
+        && badScore.nameMatch === false && !('nameMatchScore' in badScore)
+        && outOfRange.nameMatch === false && !('nameMatchScore' in outOfRange) });
+}
+
+// 56 THE KYC ENDPOINT IS CALLED ONLY WITH A CLAIM, AND CARRIES IT EXACTLY. Like
+// location, this endpoint takes the requester's claim as its input, so there is no
+// reading it "in general" — with no name claimed it must not be called at all
+// (every metered call is a query about a subscriber, and a comparison nobody asked
+// for is a query with no question behind it). When it IS called, the claimed name
+// must arrive unchanged: a mangled claim produces a score about a different name,
+// and that verdict is then SIGNED against the original question.
+{
+  const CLAIM = 'Alice Arnaut';
+  const { facts: quiet, calls: quietCalls } = mk(reads());
+  await quiet.getFacts(N, NOW);
+  const { facts: asked, calls: askedCalls } = mk((url) => (url.includes('kyc-match')
+    ? { status: 200, text: '{"nameMatch":"false","nameMatchScore":97}' }
+    : reads()(url)));
+  await asked.getFacts(N, NOW, { claimedName: CLAIM });
+  const kycCalls = (cs) => cs.filter((x) => !x.isToken && x.url.includes('kyc-match'));
+  const sent = kycCalls(askedCalls)[0]?.body;
+  check('56 THE KYC ENDPOINT IS CALLED ONLY WITH A CLAIM', true, { answered: true, reason: 'ok' }, 'ok',
+    { label: `no claim -> ${kycCalls(quietCalls).length} calls; with a claim -> ${kycCalls(askedCalls).length}, body ${JSON.stringify(sent)}`,
+      ok: kycCalls(quietCalls).length === 0 && kycCalls(askedCalls).length === 1
+        && sent.phoneNumber === N && sent.name === CLAIM
+        && Object.keys(sent).sort().join(',') === 'name,phoneNumber' });
+}
+
+conclude(56);

@@ -150,6 +150,21 @@ const READS = Object.freeze({
     }),
   },
   reachability: { url: `${API}/device-reachability-status/v1/retrieve`, body: (n) => ({ device: { phoneNumber: n } }) },
+  // ADDED 2026-08-17. MEASURED, and the most important measurement of the sweep:
+  // this route does NOT return a match bit. It returns a similarity SCORE, and
+  // the score moves with how close you got — `"Bob Wrong"` → 53,
+  // `"Alice Arnaut"` (the registered name with ONE letter changed) → 97. That is
+  // a warmer/colder oracle, hill-climbable to the subscriber's real registered
+  // name, and it is why the score never leaves this module.
+  //
+  // The response shape has two traps, both measured and both handled below:
+  // `nameMatch` is the STRING `"true"`/`"false"`, not a boolean; and an exact
+  // match carries NO `nameMatchScore` at all.
+  //
+  // ASSUMED REQUEST SHAPE: `{phoneNumber, name}` — the sweep sent a `name` and
+  // got scored answers, and every other attribute answered `not_available`, but
+  // the exact body is not recorded here. A wrong guess answers 400 and fails LOUD.
+  kyc: { url: `${API}/kyc-match/v1/match`, body: (n, name) => ({ phoneNumber: n, name }) },
 });
 
 // `/check`'s window is expressed in HOURS and capped at 2400 — MEASURED, and
@@ -503,11 +518,11 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
     if (!isPlainData(backstory)) {
       throw new Error(`invalid backstory for ${number}: not a plain object (own enumerable data only — a field on the prototype, or behind a getter, would be USED while escaping the unknown-field check below)`);
     }
-    const { swappedDaysAgo, deviceSwappedDaysAgo, roamingCountry, reachable, location } = backstory;
+    const { swappedDaysAgo, deviceSwappedDaysAgo, roamingCountry, reachable, location, registeredName } = backstory;
     // Same closed, required, un-defaulted field set as M4 — and the same
     // reason: a typo must be BOTH an unknown field and a missing one.
     for (const k of Object.keys(backstory)) {
-      if (!['swappedDaysAgo', 'deviceSwappedDaysAgo', 'roamingCountry', 'reachable', 'location'].includes(k)) {
+      if (!['swappedDaysAgo', 'deviceSwappedDaysAgo', 'roamingCountry', 'reachable', 'location', 'registeredName'].includes(k)) {
         throw new Error(`invalid backstory for ${number}: unknown field ${brief(k)}`);
       }
     }
@@ -532,6 +547,9 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
       && Number.isFinite(location.long) && Math.abs(location.long) <= 180);
     if (!geoOk) {
       throw new Error(`invalid backstory for ${number}: location must be {lat, long} as finite degrees within ±90/±180, or null`);
+    }
+    if (!(registeredName === null || (typeof registeredName === 'string' && registeredName.length >= 1 && registeredName.length <= 120))) {
+      throw new Error(`invalid backstory for ${number}: registeredName must be a string of 1-120 characters, or null`);
     }
     const swappedAtMs = nowMs - swappedDaysAgo * DAY_MS;
     const deviceSwappedAtMs = nowMs - deviceSwappedDaysAgo * DAY_MS;
@@ -574,6 +592,11 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
       simSwap: { latestSimChange },
       deviceSwap: { latestDeviceChange },
       ...(location === null ? {} : { location: { latitude: location.lat, longitude: location.long } }),
+      // The THIRD assumed write shape, and the best-supported of the three: the
+      // Admin READ axis list carries `kyc`, and it was OBSERVED holding
+      // `name:"Alice Arnaud"` — so the sub-object and its field name are measured
+      // even though writing them is not. Verified below like every other axis.
+      ...(registeredName === null ? {} : { kyc: { name: registeredName } }),
       roaming: roamingCountry === null ? { roaming: false } : { roaming: true, countryName: [roamingCountry] },
       reachability: { reachabilityStatus: reachable ? 'CONNECTED_DATA' : 'NOT_CONNECTED' },
     };
@@ -610,6 +633,9 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
       // hostile stored value renders as its kind instead of coercing. Same
       // redact-then-clamp order the country join uses, for the same reason.
       geo: `${show(stored.location?.latitude)},${show(stored.location?.longitude)}`,
+      // Redact-then-clamp, never the raw stored string: this value came off the
+      // WIRE and a name field is exactly where an echoed credential would land.
+      kycName: show(stored.kyc?.name),
     };
     const want = {
       latestSimChange,
@@ -618,6 +644,7 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
       country: roamingCountry === null ? undefined : roamingCountry,
       reachabilityStatus: data.reachability.reachabilityStatus,
       geo: location === null ? undefined : `${show(location.lat)},${show(location.long)}`,
+      kycName: registeredName === null ? undefined : show(registeredName),
     };
     // This diagnostic quotes values that came off the WIRE, so it is the one
     // place a stored value could carry an echoed secret into a throw — and the
@@ -640,7 +667,7 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
     // RangeError ("Invalid string length") at V8's max string length, which
     // destroyed this message entirely. `brief()` bounds BEFORE it renders, which
     // is the same lesson case 43 of the offline suite already states.
-    for (const axis of ['latestSimChange', 'latestDeviceChange', 'roaming', 'reachabilityStatus', 'country', 'geo']) {
+    for (const axis of ['latestSimChange', 'latestDeviceChange', 'roaming', 'reachabilityStatus', 'country', 'geo', 'kycName']) {
       // `country` is only compared when one was written: a stale country left
       // alongside `roaming:false` is producible (measured) and is not a write
       // failure — `roaming:false` is the authoritative half either way.
@@ -649,10 +676,11 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
       // nothing to verify. Deliberately NOT "verify that nothing is stored" — the
       // subscriber may legitimately have a position this PoC did not script.
       if (axis === 'geo' && want.geo === undefined) continue;
+      if (axis === 'kycName' && want.kycName === undefined) continue;
       if (got[axis] !== want[axis]) {
         throw new Error(
           `write verification FAILED for ${number}: stored ${axis} is ${show(got[axis])}, wrote ${show(want[axis])}` +
-          (axis === 'latestDeviceChange' || axis === 'geo'
+          (axis === 'latestDeviceChange' || axis === 'geo' || axis === 'kycName'
             ? ' — NOTE: this axis carries an ASSUMED Admin write shape (never measured; see the comment at `data`),'
               + ' so a mismatch here may be the shape rather than the slot. Read the Admin READ body for this number'
               + ' and correct the shape in poc/m5-facts-orange.mjs.'
@@ -775,6 +803,31 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
       // Anything unrecognised leaves the axis ABSENT — a refusal downstream.
       if (typeof verdict === 'string' && VERDICTS.includes(verdict)) facts.presentVerdict = verdict;
       // `lastLocationTime` rides on every response and is deliberately NOT read.
+    }
+
+    // The KYC comparison, read only when a name was actually claimed — this
+    // endpoint takes the requester's claim as its input, so like location there is
+    // no reading it "in general". The SCORE stops here: it goes on the facts
+    // (operator-internal) and `evaluatePredicate` turns it into a bit.
+    if (typeof q.claimedName === 'string') {
+      const kycOut = await post('camara', READS.kyc.url, READS.kyc.body(number, q.claimedName));
+      classify(kycOut, number, 'kyc-match');
+      const kyc = parseJson(kycOut, 'kyc-match');
+      // `nameMatch` is a STRING on the wire. The string `"false"` is TRUTHY, so
+      // an unguarded `if (kyc.nameMatch)` would report a NON-match as a match —
+      // the single most consequential coercion in this module. Compared against
+      // both spellings explicitly; anything else leaves the axis ABSENT.
+      if (kyc?.nameMatch === 'true') {
+        facts.nameMatch = true;
+      } else if (kyc?.nameMatch === 'false') {
+        facts.nameMatch = false;
+        // A score is present only on a non-match (measured). Read as a whole
+        // number in range or not at all: `undefined >= threshold` is false, and a
+        // fabricated 0 would sign "these names do not match" about a comparison
+        // nobody made.
+        const score = kyc.nameMatchScore;
+        if (Number.isSafeInteger(score) && score >= 0 && score <= 100) facts.nameMatchScore = score;
+      }
     }
 
     const reachOut = await post('camara', READS.reachability.url, READS.reachability.body(number));

@@ -565,7 +565,40 @@ we manage here:
 
 Dated, append-only. Rationale in one line; details in the stash/history.
 
-- **2026-08-17 (latest) — `presentIn` BUILT; the predicate set is 3 → 5 so far
+- **2026-08-17 (latest) — `numberMatch` BUILT; the wired predicate set is now
+  the signed SIX (AGENT-RUN, user validation PENDING).** `simSwapAge`,
+  `deviceSwapAge`, `roamingIn`, `presentIn`, `numberMatch`, `reachable`. The
+  threshold rides off the published menu `60 | 70 | 80 | 90`, the operator
+  compares internally, and the score never crosses the wire in any spelling.
+  Recorded:
+  (1) **`claimed` is the only predicate field that is neither a type nor a
+  window** — the attribute value the REQUESTER wants compared. It is legal only
+  for the types that declare it (refused by name elsewhere, like any unknown
+  field) and it is part of the SIGNED predicate string, or an answer about "does
+  Bob match?" would verify as an answer about "does Alice match?".
+  (2) **Two measured response shapes that a naive implementation gets wrong.**
+  `nameMatch` is the STRING `"true"`/`"false"` — and `"false"` is truthy, so an
+  unguarded read reports a NON-match as a match. And an EXACT match carries no
+  score at all, so "compare score against threshold" alone answers `false` to the
+  strongest possible match.
+  (3) **The operator learns what the requester claims.** Inherent to a comparison
+  and disclosure in the OTHER direction; recorded rather than glossed. Profile
+  mode narrows what the OPERATOR discloses and does not make the requester's query
+  private — Mode A retains the query log either way.
+  (4) **An incidental measurement:** the mock needed a score source, and
+  Jaro-Winkler — chosen independently as a plausible standard metric — reproduces
+  BOTH measured Playground values exactly (97 for the one-letter near miss, 53 for
+  the unrelated name). Evidence, not proof, and nothing depends on it.
+  Counts moved: m4 38 → 40, m5 54 → 56, m6 43 → 45, demo 30 → 33. Twelve more
+  mutations; **one SURVIVED — the kyc-name write-back, the identical gap the
+  location axis had, in the identical place**, which is the argument for pinning
+  every assumed write shape rather than one representative of them.
+  **One real FLAKE was caught and fixed:** a new case scanned the two-character
+  needle `97` against RSA ciphertext and against an unblanked random hex nonce,
+  which is a ~1-in-8 and ~1-in-60 false red — the exact trap this repo already
+  documented for short needles. Split by artifact class, as the wire scanner
+  already was.
+- **2026-08-17 — `presentIn` BUILT; the predicate set is 3 → 5 so far
   this round (AGENT-RUN, user validation PENDING).** The third state is the whole
   of it: `location-verification/v1/verify` answers `TRUE`, `FALSE` and `PARTIAL`,
   and `PARTIAL` produces a signed REFUSAL carrying no bit. Four things recorded:

@@ -82,17 +82,28 @@ components:
       properties:
         type:
           type: string
-          enum: [simSwapAge, deviceSwapAge, roamingIn, presentIn, reachable]
+          enum: [simSwapAge, deviceSwapAge, roamingIn, presentIn, numberMatch, reachable]
         operator:
           type: string
           enum: [gte, eq, in]
+        claimed:
+          type: string
+          maxLength: 120
+          description: >
+            The attribute value the REQUESTER holds and asks to have compared —
+            an input to the question, not a window, which is why it is not
+            `value`. Legal only for the predicate types that declare it
+            (`numberMatch`); on any other type it is a rejection, like any other
+            unknown field. It is part of the signed predicate string, so an
+            answer about one claimed value can never be read as an answer about
+            another.
         value:
           # `"voice+data"` used to appear here and was left behind when the enum
           # was trimmed on 2026-08-17: it is a `simType` FLOOR value, and
           # `simType` is not a predicate type any more. One example per wired
           # type instead, so every spelling shown is one the reference operator
           # can actually answer.
-          description: Threshold, set, area, or flag — one per wired type (simSwapAge/deviceSwapAge "P90D", roamingIn ["FR","BE"], presentIn {lat, long, radiusM}, reachable true)
+          description: Threshold, set, area, match threshold, or flag — one per wired type (simSwapAge/deviceSwapAge "P90D", roamingIn ["FR","BE"], presentIn {lat, long, radiusM}, numberMatch 90, reachable true)
           oneOf:
             - type: string
             - type: array
@@ -109,6 +120,14 @@ components:
                 lat:     { type: number, minimum: -90, maximum: 90 }
                 long:    { type: number, minimum: -180, maximum: 180 }
                 radiusM: { type: integer, minimum: 1, maximum: 200000, description: 'Metres. CAMARA location-verification specifies a 2000 m minimum; the reference implementation accepts less so the operator PARTIAL state stays reachable, and refuses that state rather than rounding it.' }
+            # `numberMatch` takes an integer MATCH THRESHOLD off the operator's
+            # published menu (60|70|80|90 in the reference operator). The
+            # comparison happens operator-side and only the boolean is returned:
+            # `kyc-match`'s similarity SCORE is a gradient, not a band, and never
+            # crosses the wire (see the retraction in the profile document §3.3).
+            - type: integer
+              minimum: 1
+              maximum: 100
             # `reachable` takes a boolean — the reference module rejects the
             # string spelling ("true"), so without this branch no reachable
             # request could be both schema-valid and answerable.

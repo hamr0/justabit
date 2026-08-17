@@ -83,12 +83,20 @@ const ASK_AREA = Object.freeze({ lat: 48.86, long: 2.35, radiusM: 10000 });
 // Finer than the demo operator's published 2000 m resolution: the question it
 // cannot answer honestly, which is the whole point of the third state.
 const TOO_FINE_AREA = Object.freeze({ lat: 48.86, long: 2.35, radiusM: 100 });
+// The operator's own record, and the requester's CLAIM about it — one letter
+// apart, which is the measured near-miss that scores 97. The registered name is a
+// scannable needle; the claimed one rides in the signed claims legitimately,
+// because it is the question.
+export const REGISTERED_NAME = 'Alice Arnaud';
+const CLAIMED_NAME = 'Alice Arnaut';
+const WRONG_NAME = 'Bob Wrong';
 const story = (over = {}) => ({
   swappedDaysAgo: SWAPPED_DAYS_AGO,
   deviceSwappedDaysAgo: DEVICE_SWAPPED_DAYS_AGO,
   roamingCountry: 'FR',
   reachable: true,
   location: SUBSCRIBER_AT,
+  registeredName: REGISTERED_NAME,
   ...over,
 });
 
@@ -137,6 +145,15 @@ export const PUBLISHED_FLOOR = Object.freeze({ simType: 'voice+data', tenureMin:
 export const PUBLISHED_THRESHOLD_MENU = Object.freeze({
   simSwapAge: Object.freeze(['P30D', 'P90D', 'P180D', 'P365D']),
   deviceSwapAge: Object.freeze(['P30D', 'P90D', 'P180D', 'P365D']),
+  // The THIRD ordered threshold, and the one with measured urgency. `kyc-match`
+  // returns a similarity SCORE, and the score is a GRADIENT: measured 2026-08-17,
+  // a wrong name scored 53 and the registered name with ONE letter changed scored
+  // 97. A free-choice threshold against a gradient is not merely bisectable — it
+  // is a warmer/colder oracle a requester can HILL-CLIMB toward the subscriber's
+  // real registered name, which is strictly worse than binary guessing, because
+  // binary guessing has no gradient to follow. Four buckets, and the score itself
+  // never crosses the wire in any spelling.
+  numberMatch: Object.freeze([60, 70, 80, 90]),
 });
 
 // ─────────────────────────── M6-owned: the transport frame ───────────────────
@@ -209,7 +226,14 @@ export function unpackSigned(bytes) {
 // second bound, on the side that owns the canonical string, because the property
 // this string needs is not the property that function exists for.)
 export function canonicalPredicate(p) {
-  return `${p.type} ${p.operator} ${canonValue(p.value)}`;
+  // `claimed` (the attribute value the requester asked to have compared) is part
+  // of the QUESTION, so it is part of the signed string. Leaving it out would let
+  // an answer about "does 'Bob' match?" verify as an answer about "does 'Alice'
+  // match?" — the injectivity failure this function exists to prevent, arriving
+  // through the one field that is not the threshold. It is JSON-quoted, so a
+  // space or a quote inside a name cannot forge the separator.
+  const head = `${p.type} ${p.operator} ${canonValue(p.value)}`;
+  return p.claimed === undefined ? head : `${head} ${JSON.stringify(p.claimed)}`;
 }
 
 // Called only AFTER `evaluatePredicate` has validated, so the value is a string,
@@ -753,6 +777,10 @@ export async function roundTrip(world, request, { operator: opControls = {}, rp:
 // it is explicit below instead: some of these values are too short to scan
 // against opaque bytes without flaking, which is a property of the ARTIFACT, not
 // a reason to leave the value out of the inventory.
+// The measured near-miss score, and the one the mock reproduces: `Alice Arnaut`
+// against `Alice Arnaud`. Named so the scanner and the narrative cannot drift.
+export const NEAR_MISS_SCORE = 97;
+
 export function rawNeedles(daysAgo, { country = 'FR', number = DEMO_NUMBER, deviceDaysAgo = null } = {}) {
   const spellings = (d) => {
     const ageMs = d * DAY_MS;
@@ -773,6 +801,10 @@ export function rawNeedles(daysAgo, { country = 'FR', number = DEMO_NUMBER, devi
     // cannot resolve the subscriber, which is a fact about the subscriber, and
     // a refusal carries no predicate so it can never be the echoed question.
     String(SUBSCRIBER_AT.lat), String(SUBSCRIBER_AT.long), 'presentVerdict', 'PARTIAL',
+    // The operator's own KYC record and the similarity gradient it computes.
+    // The requester's CLAIMED name is deliberately NOT here: it is the question,
+    // and it comes back inside the signed predicate by design.
+    REGISTERED_NAME, 'nameMatchScore', String(NEAR_MISS_SCORE),
   ];
 }
 
@@ -1165,12 +1197,48 @@ export async function runDemo(backend) {
       && r6g.verdict.accepted === true && r6g.out.claims.result === false,
     'CONNECTED_DATA/CONNECTED_SMS → true, NOT_CONNECTED → false; the status string stays operator-side');
 
+  // numberMatch — the one predicate where the RAW VALUE the profile protects is
+  // not a date or a place but a SCORE, and where the catalog's own response is
+  // the thing that has to be withheld.
+  const askMatch = (claimed, value) => rp.buildRequest({ type: 'numberMatch', operator: 'gte', value, claimed }, { swapAgeMin: 'P180D' });
+  const q6l = askMatch(CLAIMED_NAME, 90);
+  const r6l = await roundTrip(world, q6l);
+  qa(`does the name I hold — "${CLAIMED_NAME}" — match this subscriber's registered name to at least 90?`,
+    `the operator has "${REGISTERED_NAME}" on file; one letter apart, and its own similarity metric scores that ${NEAR_MISS_SCORE}`,
+    `${r6l.out.claims?.result} — the requester learns that its tolerance is met, and NOT the score, and NOT the name`);
+  const q6m = askMatch(WRONG_NAME, 90);
+  const r6m = await roundTrip(world, q6m);
+  const matchFrames = [[q6l, r6l], [q6m, r6m]];
+  const scoreHits = matchFrames.flatMap(([q, r]) => scan(
+    withoutNonce(unpackSigned(r.out.plain).signed.payloadBytes.toString('utf8'), q.nonce),
+    [REGISTERED_NAME, String(NEAR_MISS_SCORE), 'nameMatchScore']));
+  assert('numberMatch: threshold in, boolean out — the score and the registered name never cross',
+    r6l.verdict.accepted === true && r6l.out.claims.result === true
+      && r6m.verdict.accepted === true && r6m.out.claims.result === false
+      && scoreHits.length === 0,
+    `"${CLAIMED_NAME}" ≥90 → ${r6l.out.claims.result}, "${WRONG_NAME}" ≥90 → ${r6m.out.claims.result}; `
+    + `both answer frames scanned for the score, the score's field name and the registered name → hits=${JSON.stringify(scoreHits)}`);
+
+  // NEGATIVE: the free-choice threshold. This is the measured attack, not a
+  // hypothetical one — against a GRADIENT a threshold walk does not merely
+  // bracket a number, it tells the requester which guess was WARMER, and that
+  // hill-climbs to the registered name itself.
+  const q6n = askMatch(CLAIMED_NAME, 96);
+  const r6n = await roundTrip(world, q6n);
+  const q6o = askMatch(CLAIMED_NAME, 96);
+  const r6o = await roundTrip(world, q6o, { operator: { skipMenu: true } });
+  flip('an off-menu match threshold is refused; with the menu off, the same rung is ANSWERED',
+    r6n.out.kind === 'reject' && r6n.out.menuRejected === true && r6n.verdict.refused === true
+      && r6o.out.kind === 'answer' && r6o.verdict.accepted === true,
+    `requester saw: '${r6n.verdict.reason}'. With the menu disabled it answers "${r6o.out.claims?.result}" to the ≥96 question — `
+    + `one rung of a walk that ends at the subscriber's real registered name, because the operator's score is a gradient (${NEAR_MISS_SCORE} for one letter off, 53 for a wrong name) and not a band`);
+
   // ...and ONE scan across every answer this section produced, against the WIDENED
   // inventory. The needle set now carries the device instant's own spellings too,
   // because the review's lesson was that an inventory covering one value five ways
   // reads as complete and is not.
   const setFrames = [[q6a, r6a], [q6b, r6b], [q6d, r6d], [q6e, r6e], [q6f, r6f], [q6g, r6g],
-    [q6h, r6h], [q6i, r6i], [q6j, r6j], [q6k, r6k]];
+    [q6h, r6h], [q6i, r6i], [q6j, r6j], [q6k, r6k], [q6l, r6l], [q6m, r6m], [q6n, r6n]];
   const setHits = [];
   const excluded = [];
   for (const [q, r] of setFrames) {
@@ -1184,6 +1252,19 @@ export async function runDemo(backend) {
     setHits.length === 0 && excluded.every((n) => n <= 1),
     `${setFrames.length} answer frames vs all ${NEEDLES.length} needles; per-frame needles excluded as requester-supplied = `
     + `${JSON.stringify(excluded)} (only the country set can exclude one) → hits=${JSON.stringify(setHits)}`);
+
+  // ...and the set itself, counted rather than described. The headline of this
+  // round is "3 → 6", and a reader is entitled to see the six answered in one
+  // place — and to see that a SEVENTH is refused, because "wire only what a real
+  // fact source answers" is the rule that produced this set and an enum that
+  // answered for `tenure` would break it in the one direction that matters.
+  const answered = [r1, r6a, r6d, r6f, r6h, r6l].map((r) => r.out.claims?.predicate?.split(' ')[0]);
+  const q6p = rp.buildRequest({ type: 'tenure', operator: 'gte', value: 'P2Y' }, { swapAgeMin: 'P180D' });
+  const r6p = await roundTrip(world, q6p);
+  assert('six predicates answered, and a seventh nobody can compute is REFUSED',
+    new Set(answered).size === 6 && answered.every((t) => typeof t === 'string')
+      && r6p.out.kind === 'reject' && r6p.verdict.refused === true && r6p.out.claims.result === undefined,
+    `answered: ${answered.join(', ')} — and tenure: '${r6p.verdict.reason}' (the data exists operator-side; no CAMARA read endpoint does)`);
 
   // ─────────────────────────────────────────── guards on the request path
   section('Guards on the request path (the two M6 decisions, 2026-08-17)');
@@ -1254,7 +1335,14 @@ export async function runDemo(backend) {
   out('   3. THE NONCE STORE ONLY GROWS. A request that never receives a response leaves');
   out('      its nonce resident forever; a real deployment evicts on expiry (the answer\'s');
   out('      validity window is already the TTL). Stated, not built — see createRP.');
-  out('   4. WHAT THIS IS NOT. The operator shim simulates operator-side computation and');
+  out('   4. TWO RESIDUALS THIS PREDICATE SET ADDS, stated rather than closed. An AREA is a');
+  out('      dial (centre plus radius) and is walkable toward a position the way a duration');
+  out('      threshold is bisectable; presentIn gets no bucket menu, so the cap is the');
+  out('      operator\'s own resolution plus rate limits and per-query billing — weaker than');
+  out('      the duration menu, and said to be weaker. And numberMatch discloses in the OTHER');
+  out('      direction: the operator learns the name the requester claims. That is inherent');
+  out('      to a comparison, and profile mode does not narrow it.');
+  out('   5. WHAT THIS IS NOT. The operator shim simulates operator-side computation and');
   out('      signing; consent and legal-basis legs are out of scope. Mode A keeps the');
   out('      operator-side query log — the operator always knows who asked about whom.');
   out('      And this is attested windowed disclosure, NOT zero-knowledge: the operator');

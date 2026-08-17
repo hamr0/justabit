@@ -7,7 +7,7 @@ memory. A finding here is something that was RUN and OBSERVED, not reasoned.
 
 ---
 
-## 2026-08-17 (latest) — the 3 → 6 predicate round, part 1: `deviceSwapAge` wired, and three things the build measured that the design had only asserted (AGENT-RUN; user validation PENDING)
+## 2026-08-17 (latest) — the 3 → 6 predicate round, BUILT: `deviceSwapAge`, `presentIn`, `numberMatch` wired; 38 mutations, 2 survivors both real, 1 flake (AGENT-RUN; user validation PENDING)
 
 Everything below is **AGENT-RUN by exit code on this machine**, offline, no
 network in either backend mode. G1 stays **NOT met**. Base commit `fe271df`.
@@ -203,14 +203,91 @@ Fixing 26 also removed a real piece of dead logic: `got.geo` carried its own
 therefore unkillable. The `got` side now always reads the stored value, exactly as
 the country axis does, and the skip is load-bearing.
 
-### Suite state after part 2 — ALL AGENT-RUN, user run PENDING
+### Part 3 — `numberMatch`, where the raw value IS the response
+
+`kyc-match` does not answer a match bit. It answers a similarity SCORE, and the
+score moves with how close the guess got — measured 2026-08-17:
 
 ```
-m1 20/20 · m2 10/10 · m3 25/25 · m4 38/38 · m5 54/54 · m6 43/43 · demo 30/30
+"Alice Arnaud"  (correct)     -> {"nameMatch":"true"}                       no score
+"Bob Wrong"                   -> {"nameMatch":"false","nameMatchScore":53}
+"Alice Arnaut"  (ONE letter)  -> {"nameMatch":"false","nameMatchScore":97}
+```
+
+Two measured response shapes that a naive implementation gets WRONG, and both are
+now guarded and pinned:
+
+- **`nameMatch` is a STRING**, not a boolean — and `"false"` is truthy, so
+  `if (body.nameMatch)` reports a NON-match as a match. This is the single most
+  consequential coercion in the adapter.
+- **An exact match carries NO score at all.** So "compare the score against the
+  threshold" alone answers `false` to the strongest possible match; the exact
+  branch has to satisfy every threshold without a score.
+
+**The mock's score source reproduces both measured values exactly.** The mock
+needed a gradient of its own (a scripted 97 would demonstrate the plumbing while
+assuming the phenomenon), so it computes Jaro-Winkler — chosen independently as a
+plausible standard string metric. It returns **97** for `Alice Arnaut` and **53**
+for `Bob Wrong`: both measured Playground values, exactly. Two agreeing points is
+EVIDENCE, not proof, and nothing in the profile depends on which metric an
+operator uses. Recorded because a reader reproducing the PoC will see the same
+numbers and should know why they match.
+
+```
+"Alice Arnaud"       -> nameMatch true, no score
+"Alice Arnaut"       -> false, 97      <- matches the measured value
+"Bob Wrong"          -> false, 53      <- matches the measured value
+"alice arnaud"       -> false, 84
+"Alice Marie Arnaud" -> false, 91
+```
+
+**A disclosure in the OTHER direction, stated rather than glossed:** the operator
+learns what the requester claims. That is inherent to a comparison — both sides
+are needed — and it is the one row of the table where profile mode does not narrow
+anything for the requester. Mode A retains the query log either way (§3.5).
+
+### The third mutation table — 12 mutations, 1 survivor, same shape as part 2's
+
+| # | Mutation | Red |
+|---|---|---|
+| 27 | m4: a missing score read as zero instead of unanswerable | m4 exit 1 |
+| 28 | m4: an exact match requires a score (perfect match reads false) | m4 exit 1 |
+| 29 | m4: the match threshold shape unchecked | m4 exit 1 |
+| 30 | m4: `claimed` allowed on every predicate type | m4 exit 1 |
+| 31 | m4: the claimed name unbounded/unchecked | m4 exit 1 |
+| 32 | m5: `nameMatch` read by truthiness (`"false"` becomes a match) | m5 exit 1 |
+| 33 | m5: an out-of-range or non-integer score carried anyway | m5 exit 1 |
+| 34 | m5: `kyc-match` called whether a name was claimed or not | m5 exit 1 |
+| 35 | m5: the kyc-name write not read back | **SURVIVED — see below** |
+| 36 | demo: the claimed name left out of the canonical predicate | m6 exit 1 |
+| 37 | demo: `numberMatch` has no published menu | m6, demo exit 1 |
+| 38 | m5: a null `registeredName` verified anyway | m5 exit 1 |
+
+**Survivor 35 is the identical gap survivor 21 was, in the identical place** — the
+read-after-write comparison for an assumed write shape, pinned for two axes and
+not the third. That is the argument for pinning EVERY assumed shape rather than
+one representative of them, and it is why the fix added a shadowed-name leg beside
+the shadowed-position one rather than a general assertion.
+
+### A real flake, caught by a re-run and fixed rather than retried
+
+Case 44 went red once and green twice. The cause was mine and it is one this log
+already records: it scanned the two-character needle `97` against **RSA
+ciphertext** (a 2-char string lands in 512 random bytes about one run in eight)
+and against an **unblanked random hex nonce** (about one run in sixty). A needle
+that reds a clean run asserts nothing. Fixed the way the wire scanner already
+handles it — long forms against opaque artifacts, the full set against plaintext
+with the nonce blanked — rather than by re-running until it passed.
+
+### Suite state after part 3 — ALL AGENT-RUN, user run PENDING
+
+```
+m1 20/20 · m2 10/10 · m3 25/25 · m4 40/40 · m5 56/56 · m6 45/45 · demo 33/33
 ```
 
 Every one verified by exit code. `spec/carrier-attestation.yaml` re-parsed after
-each enum edit (five wired types; `Floor` now carries `partialPolicy`).
+each enum edit (**six** wired types; `Predicate` carries `claimed`, `Floor`
+carries `partialPolicy`).
 
 ---
 

@@ -235,7 +235,7 @@ consistently ask what a catalog API *returns* under the profile.
 | number-verification `/verify` | `{"devicePhoneNumberVerified":true}` | same, plus nonce+expiry binding and a signature over the closed claim set |
 | number-verification `/device-phone-number` | `{"devicePhoneNumber":"+33…"}` | excluded from profile mode (returns the identifier itself) |
 | kyc `kyc-age-verification` | `{"ageCheck":"true"}` | `{"claims":{"predicate":"age≥18","result":true,…},"sig":"…"}` |
-| kyc `kyc-match` | per-attribute match **scores** (`{"nameMatch":"false","nameMatchScore":97}`) | `{"claims":{"predicate":"numberMatch≥90","result":true,…},"sig":"…"}` — threshold in, boolean out; **the score never crosses the wire** (retraction above) |
+| kyc `kyc-match` | per-attribute match **scores** (`{"nameMatch":"false","nameMatchScore":97}`) | `{"claims":{"predicate":"numberMatch gte 90 \"Alice Arnaut\"","result":true,…},"sig":"…"}` — threshold in, boolean out; **the score never crosses the wire** (retraction above); **wired in the PoC 2026-08-17** |
 | kyc `kyc-fill-in` | attribute values | excluded from profile mode |
 | device-roaming-status † | `{"roaming":true,"countryName":["FR"]}` | `{"claims":{"predicate":"roamingIn[FR,DE]","result":true,…},"sig":"…"}` — country in, boolean out |
 | device-reachability-status † | `{"reachabilityStatus":"CONNECTED_DATA"}` | `{"claims":{"predicate":"reachable=true","result":true,…},"sig":"…"}` |
@@ -371,6 +371,26 @@ Two limits and one deferral on that, stated rather than glossed:
   not a finer bit) plus the rate-limit and per-query-billing backstop of §3.5.
   Stated as a residual rather than closed.
 
+  **Built, 2026-08-17 — `numberMatch` is wired, and it is the row where the raw
+  value the profile protects is the RESPONSE ITSELF.** The requester declares its
+  threshold off the published menu (`60 | 70 | 80 | 90`) and the name it holds; the
+  operator compares internally; only the boolean leaves. Three notes the build
+  adds to the retraction above:
+  - **The claimed value is part of the SIGNED question.** It is an input to the
+    comparison, not a window, so it does not ride in the threshold field — but it
+    must be in the signed predicate string, or an answer about "does *Bob* match?"
+    would verify as an answer about "does *Alice* match?".
+  - **The operator learns what the requester claims.** That is inherent to
+    `kyc-match` — a comparison needs both sides — and it is disclosure in the
+    OTHER direction from everything else in this profile. It is recorded rather
+    than glossed: profile mode narrows what the OPERATOR discloses; it does not
+    make the requester's own query private, and Mode A retains the query log
+    (§3.5, first bullet).
+  - **An exact operator-side match carries no score at all** in the measured
+    response, so "compare the score against the threshold" is not sufficient on
+    its own: a perfect match must satisfy every threshold WITHOUT one, or the
+    conforming implementation answers `false` to the strongest possible match.
+
 ### 3.4 Agent-grade floor (reference profile)
 
 Agents are the "why now" (§7.2). Consumer-agent floor, only tightenable:
@@ -456,8 +476,8 @@ sequence, not any response, and floors do not reach it (a floor constrains the
    refuses an off-menu device threshold with the same reason shape as the SIM one,
    and a disabled-menu control shows the same rung being answered.
 
-   *Extension, 2026-08-17 (design, not yet implemented).* The same rule reaches
-   a third ordered axis once `numberMatch` is wired: `kyc-match` returns a
+   *Extension, 2026-08-17 (BUILT).* The same rule reaches
+   a third ordered axis now that `numberMatch` is wired: `kyc-match` returns a
    similarity **score**, and a free-choice match threshold is bisectable exactly
    as a duration threshold is. The published menu there is **60 | 70 | 80 | 90
    and nothing else**, the comparison happens operator-side, and the score never
@@ -469,7 +489,17 @@ sequence, not any response, and floors do not reach it (a floor constrains the
    urgency for this one: the score is a *gradient*, not a band (a name one
    letter off scored 97 against a wrong name's 53), so an unquantised,
    unwithheld score is hill-climbable to the registered value — see the
-   retraction in §3.3.
+   retraction in §3.3. In the reference implementation an off-menu match
+   threshold is refused before any comparison is made, and a disabled-menu control
+   answers the same rung — one step of exactly that walk.
+
+   *One measurement worth recording beside it.* The PoC's mock operator needed a
+   score source of its own, and Jaro-Winkler — chosen independently, as a
+   plausible standard string metric — reproduces BOTH measured Playground values
+   exactly: 97 for the one-letter near miss and 53 for the unrelated name. Two
+   agreeing points is evidence and not proof, and nothing in this profile depends
+   on which metric an operator uses; it is noted because a reader reproducing the
+   PoC will see the same numbers and should know why.
 
    *And one axis where the honest answer is to refuse — BUILT 2026-08-17.*
    `location-verification` returns a third state, `PARTIAL`, when the asked-for
