@@ -103,11 +103,16 @@ anything real; a deployment evicts on expiry, since the answer's validity window
 is already the natural TTL. Stated rather than built — exercising a TTL would
 mean faking elapsed time, and a stated limit beats an untested one.
 
-The mock run is **AGENT-RUN 33/33 exit 0; the user run is PENDING.** The live
-`--backend orange` run has not happened at all — it is the user's, and it is the
-only thing that makes the FR5 claim a live one rather than a replayed one.
-`poc/m6-check.mjs` proves the seam offline; it cannot prove the Playground still
-answers today.
+The mock run is **AGENT-RUN 33/33 exit 0.** The user's first live
+`--backend orange` run (2026-08-17) scored 32/33 — one negative control (the
+assertion-1 leaky-operator flip) was VACUOUS on that backend, not a profile
+defect: it asked a `P90D` question, which runs `/check` on orange and never
+holds a raw date to leak, so the control's asserted condition was false. Fixed
+in `poc/demo.mjs` (dedicated `LEAK_PREDICATE` at `P365D`, which forces
+`/retrieve-date`) and mutation-proven offline via an injected-transport
+replay — see `docs/01-product/findings.md`, 2026-08-17. The fix is
+**AGENT-RUN; a live 33/33 re-run is PENDING** — `poc/m6-check.mjs` proves the
+seam offline, it cannot prove the Playground still answers today.
 
 The **M6 round (2026-08-17)** then changed two of those modules, so two counts
 moved: M1 gained case 20 (its duplicate-key scanner is now EXPORTED, so a signed

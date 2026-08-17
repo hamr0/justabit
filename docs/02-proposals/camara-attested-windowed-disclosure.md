@@ -340,6 +340,17 @@ Two limits and one deferral on that, stated rather than glossed:
   to `/retrieve-date` with the windowing done operator-side. That is the profile's
   own preference showing up as an endpoint choice rather than as prose, and it is
   the one place a catalog surface already does what §3.2 rule 1 asks for.
+
+  **Found, 2026-08-17 (accidental, from a live-run negative-control bug, not
+  designed for) — `/check` closes off a whole class of operator mistake, not
+  just a requester's exposure.** A `P90D` question never puts a raw date into
+  the operator's own working set at all, so there is nothing to leak even if
+  the operator ships extra fields by accident — the M1 closed-claim-set defence
+  still catches it, but on `/check` there is a SECOND, structural reason it
+  cannot happen: the value is absent, not merely rejected. `/retrieve-date`
+  (`P180D`/`P365D`) has no such structural floor and relies on the closed claim
+  set alone. See `docs/01-product/findings.md`, 2026-08-17, for the mechanism.
+
   `presentIn` and `numberMatch` follow in the same round.
 
   **Built, 2026-08-17 — `presentIn` is wired, and the third state is the whole

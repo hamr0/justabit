@@ -974,7 +974,23 @@ export async function runDemo(backend) {
 
   // NEGATIVE: an operator that ships the age alongside the bit. Two independent
   // defences must both fire, or the scanner above was asserting nothing.
-  const q1c = rp.buildRequest(PREDICATE, { swapAgeMin: 'P180D' });
+  //
+  // FIXED 2026-08-17 (live Orange run, 32/33): this control used to reuse the
+  // shared P90D `PREDICATE`. 2160 hours is under M5's measured 2400-hour
+  // `/check` cap (see m5-facts-orange.mjs and m6-check.mjs case 22), so on the
+  // orange backend this question runs through `/check` — which answers a bit
+  // about the asked window and never holds a raw date at all. With no
+  // `facts.swapAgeMs` to leak, `claims.swapAgeMs` came back `undefined`,
+  // `JSON.stringify` dropped the key, the scanner had nothing to find, and the
+  // control asserted a leak it could not produce on that path — a control that
+  // cannot fail must never be asserted as though it did. P365D is above the cap
+  // (`/retrieve-date` is the only surface that can answer it), so a raw date
+  // genuinely exists on both backends for `leakRaw` to leak, and both
+  // defences — the wire scanner and M1's closed claim set — fire on both. See
+  // docs/01-product/findings.md, 2026-08-17, for the mechanism and the
+  // structural argument for `/check` this accidentally surfaced.
+  const LEAK_PREDICATE = { type: 'simSwapAge', operator: 'gte', value: 'P365D' };
+  const q1c = rp.buildRequest(LEAK_PREDICATE, { swapAgeMin: 'P180D' });
   const r1c = await roundTrip(world, q1c, { operator: { leakRaw: true } });
   const leakHits = scan(withoutNonce(unpackSigned(r1c.out.plain).signed.payloadBytes.toString('utf8'), q1c.nonce), NEEDLES);
   flip('a leaky operator reds the SAME scanner, and M1 rejects the response anyway',

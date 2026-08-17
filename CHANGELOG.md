@@ -2,6 +2,31 @@
 
 ## Unreleased (0.4.0 — M6)
 
+- **LIVE FIX: the assertion-1 leaky-operator negative control was VACUOUS on
+  the orange backend (user's live `--backend orange` run: 32/33) — fixed
+  offline, mutation-proven.** The control reused the section's shared
+  `simSwapAge gte P90D` predicate. P90D is 2160 hours, under M5's measured
+  2400-hour `/check` cap, so on orange this question runs `/check` — which
+  never reads a raw date at all, so `facts.swapAgeMs` was `undefined` and
+  there was nothing for `leakRaw` to leak. The control's asserted condition
+  was false, not because the profile leaked but because a raw age was
+  structurally absent on that path; the harness failed loudly rather than
+  passing vacuously, which is correct — but a control that cannot fail must
+  never be asserted as though it did. `poc/demo.mjs`'s `q1c`/`r1c` now ask a
+  dedicated `LEAK_PREDICATE` at `P365D` (above the `/check` cap, forcing
+  `/retrieve-date`, where a real raw date exists to leak on both backends).
+  Verified offline, zero network, via an injected-transport replay mirroring
+  `m6-check.mjs` case 22: the fixed control reds the leak on both mock and
+  replayed-orange; replaying the OLD `P90D` shape against the same orange
+  transport reproduces the exact live-observed vacuous pass offline. No
+  offline case counts moved (demo stays 33/33) — the fix is inside an
+  existing assertion, not a new one. Accidental finding recorded in
+  `docs/01-product/findings.md` and `docs/02-proposals/camara-attested-windowed-disclosure.md`,
+  2026-08-17: `/check` structurally closes off this whole class of operator
+  mistake (nothing to leak), where `/retrieve-date` relies on the closed
+  claim set alone. AGENT-RUN; the user's live 32/33 orange run and offline
+  greens elsewhere are theirs and stand; this fix itself is PENDING a live
+  re-run.
 - **MEASURED FIX: a live convergence probe settled the Admin `location` write
   shape and corrected two ASSUMED labels to MEASURED-GOOD.** Following on from
   the `LIVE FIX` entry below (which found `lastLocationTime` missing), the user

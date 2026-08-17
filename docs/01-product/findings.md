@@ -7,7 +7,75 @@ memory. A finding here is something that was RUN and OBSERVED, not reasoned.
 
 ---
 
-## 2026-08-17 (latest) — a LIVE convergence probe settled the Admin `location` write shape (three rounds, three 400s to two) and closed the `kyc`/`deviceSwap` "still untested" labels
+## 2026-08-17 (latest) — a LIVE Orange run at 32/33 caught a vacuous negative control, fixed, and an accidental argument FOR `/check`
+
+The user ran `node poc/demo.mjs --backend orange` live against the Orange
+Playground: 32/33. Everything held except one negative control:
+
+```
+negative flip → FAIL: a leaky operator reds the SAME scanner, and M1 rejects the response anyway
+  — hits=[]; requester verdict='ok' (closed claim set)
+```
+
+`m5-check-live.mjs` passed 19/19 live in the same session, and every offline
+suite was green (m1 20, m2 10, m3 25, m4 40, m5 58, m6 45, demo 33/33 on mock)
+— so this was not a regression in the profile core, it was the control itself.
+
+### The mechanism
+
+Assertion 1's leaky-operator negative used the section's shared predicate,
+`{type:'simSwapAge', operator:'gte', value:'P90D'}`. P90D is 2160 hours, under
+M5's measured 2400-hour `/check` cap (see `m5-facts-orange.mjs`,
+`m6-check.mjs` case 22) — so on the orange backend this question runs through
+`/check`, which answers a bit about the ASKED WINDOW and never reads or holds
+a raw date at all. `facts.swapAgeMs` is `undefined` on that path; the
+`if (controls.leakRaw) claims.swapAgeMs = facts.swapAgeMs;` line assigns
+`undefined`, `JSON.stringify` drops the key, the wire scanner has nothing to
+find, and M1 sees a claim set with no extra field to reject. The control's
+asserted condition (`leakHits.length > 0 && ... rejected`) was FALSE — not
+because the profile leaked, but because a raw age operator-side to leak is
+STRUCTURALLY ABSENT on `/check`. The same control passes on mock only because
+the mock backend always materializes `swapAgeMs` regardless of what was
+asked.
+
+The harness did the right thing: it failed loudly instead of passing
+vacuously. A control that cannot fail must never be asserted as though it
+did — the bug was in the assertion, not in M1/M2/M3.
+
+### The fix
+
+`poc/demo.mjs`'s leaky-operator control (`q1c`/`r1c`, assertion 1) now asks a
+dedicated `LEAK_PREDICATE` at `P365D` instead of reusing the shared P90D
+predicate. P365D (8760h) is above the `/check` cap, so it forces
+`/retrieve-date` on the orange backend, where a real raw date genuinely
+exists in `facts.swapAgeMs` for `leakRaw` to leak. Verified offline (zero
+network) with an injected-transport replay mirroring `m6-check.mjs` case 22's
+shape: the fixed control REDS the leak (scanner hits, M1 rejects) on BOTH the
+mock and the replayed-orange path; replaying the OLD P90D shape against the
+same orange transport reproduces the exact live-observed vacuous pass
+(`hits=[]`, `verdict='ok'`) offline. `swapAgeAtLeastMs` (the `/check` bit's
+own accompanying window value) is the REQUESTER'S OWN THRESHOLD, not a
+subscriber value — leaking it would not be a raw-value leak, so it was never
+a candidate replacement.
+
+### The accidental finding, worth stating on its own
+
+This is a genuine argument FOR the `/check` surface, discovered by accident
+rather than by design: on the profile-conforming `/check` path, there is no
+raw age held operator-side to leak in the first place, so a whole CLASS of
+operator mistake (accidentally or maliciously attaching the raw date to an
+otherwise-correct answer) is structurally unavailable rather than merely
+prevented by a downstream check. `/retrieve-date` still needs the M1 closed
+claim set as its only defence for that class of mistake; `/check` gets it for
+free from the shape of the data it holds. This strengthens (rather than
+introduces) `m5-facts-orange.mjs`'s existing "why `/check`, when the proposal
+itself lists it as non-conforming" argument — the cap-boundary and
+menu-quantisation ordering the module already documents, plus this: `/check`
+narrows the operator's own attack surface, not only the requester's exposure.
+
+---
+
+## 2026-08-17 — a LIVE convergence probe settled the Admin `location` write shape (three rounds, three 400s to two) and closed the `kyc`/`deviceSwap` "still untested" labels
 
 A second live measurement, again the user's — no credentials, no network on the
 agent side. Rather than script one field, run live, read the next 400, and
