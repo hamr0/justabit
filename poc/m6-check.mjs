@@ -340,9 +340,12 @@ const W = await mockWorld();
 // varies is which artifact a given needle can honestly be scanned against —
 // OPAQUE bytes (ciphertext, base64-bearing frames) take the long forms only,
 // because a 2-character country code lands in 512 random bytes about one run in
-// 8. PLAINTEXT takes all nine, with the random hex nonce blanked so the 3-digit
-// day count asserts instead of flaking. The control plants all four of the leaks
-// the old set was blind to, so this case can now fail for each of them.
+// 8. PLAINTEXT takes the WHOLE inventory, with the random hex nonce blanked so
+// the 3-digit day count asserts instead of flaking. The control plants one leak
+// per value the operator holds — the four the old set was blind to, and every
+// value added since — so this case can fail for each of them individually. The
+// two counts are asserted rather than described, because a silently shrinking
+// inventory is exactly the failure this case was widened to catch.
 {
   const w = await mockWorld();
   const q = w.rp.buildRequest(PREDICATE, TIGHTER);
@@ -378,10 +381,18 @@ const W = await mockWorld();
     // would recover.
     `{"registered":"${REGISTERED_NAME}"}`,
     `{"nameMatchScore":${NEAR_MISS_SCORE}}`,
+    // WIDENED 2026-08-17 again, by the user's live Playground run: the Admin
+    // store REQUIRES an observation instant to hold a position at all, so the
+    // operator now holds a third raw timestamp about this subscriber. Each of its
+    // three spellings gets its own planted leak, for the reason this list exists
+    // — an inventory nobody has watched RED is a label, not a check.
+    `{"lastLocationTime":"${new Date(NOW).toISOString()}"}`,
+    `{"seenAt":${NOW}}`,
+    `{"seenOn":"${new Date(NOW).toISOString().slice(0, 10)}"}`,
   ];
   ok('18 NO RAW VALUE ON THE WIRE', hits.length === 0,
     { label: `${NEEDLES.length} needles (${OPAQUE.length} of them opaque-safe); the same scanner reds on all ${planted.length} planted leaks`,
-      ok: NEEDLES.length === 22 && planted.every((p) => scan(Buffer.from(p), NEEDLES).length > 0) });
+      ok: NEEDLES.length === 26 && planted.every((p) => scan(Buffer.from(p), NEEDLES).length > 0) });
 }
 
 // 19 INJECTIVE CANONICALISATION — the two collisions the spike found, closed.
@@ -472,7 +483,7 @@ const W = await mockWorld();
       // READ mirrors the write, so the module's load-bearing read-after-write
       // verification passes; UPDATE echoes, exactly as the real API does.
       if (body.action === 'READ') {
-        return reply(200, JSON.stringify({ data: { simSwap: { latestSimChange: iso }, deviceSwap: { latestDeviceChange: deviceIsoAt }, location: body.data?.location ?? { latitude: SUBSCRIBER_AT.lat, longitude: SUBSCRIBER_AT.long }, kyc: body.data?.kyc ?? { name: REGISTERED_NAME }, roaming: { roaming: true, countryName: ['FR'] }, reachability: { reachabilityStatus: 'CONNECTED_DATA' } } }));
+        return reply(200, JSON.stringify({ data: { simSwap: { latestSimChange: iso }, deviceSwap: { latestDeviceChange: deviceIsoAt }, location: body.data?.location ?? { latitude: SUBSCRIBER_AT.lat, longitude: SUBSCRIBER_AT.long, lastLocationTime: new Date(NOW).toISOString() }, kyc: body.data?.kyc ?? { name: REGISTERED_NAME }, roaming: { roaming: true, countryName: ['FR'] }, reachability: { reachabilityStatus: 'CONNECTED_DATA' } } }));
       }
       return reply(200, JSON.stringify({ data: body.data ?? {} }));
     }

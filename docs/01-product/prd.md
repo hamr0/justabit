@@ -565,7 +565,31 @@ we manage here:
 
 Dated, append-only. Rationale in one line; details in the stash/history.
 
-- **2026-08-17 (latest) — `numberMatch` BUILT; the wired predicate set is now
+- **2026-08-17 (latest) — the FIRST LIVE run of the 3 → 6 tree corrected the
+  Admin `location` write shape (measured by the USER; agent has no credentials).**
+  `admin UPDATE` answered `400 BAD_REQUEST "\"data.location.lastLocationTime\" is
+  required"`. The adapter wrote the bare `{latitude, longitude}` pair. Recorded:
+  (1) **This is the assumed-shape design working, not failing.** The axis was
+  shipped as an explicit guess on the argument that a wrong one fails LOUD naming
+  the axis rather than scripting a position that never took effect — and it did,
+  on first contact, with the missing field named.
+  (2) **An OBSERVED READ shape does not tell you the REQUIRED WRITE field set.**
+  This downgrades the reasoning that ranked `kyc` "best-supported of the three"
+  because its field name had been seen in a READ body. Written into the code
+  against that axis.
+  (3) **The instant is derived from the INJECTED clock**, never `Date.now()` —
+  the same rule every other scripted instant in M5 follows, and the property that
+  makes the write payload reproducible.
+  (4) **It never becomes a readable fact.** `getFacts` reads no
+  `lastLocationTime` from either direction, and the value now sits in the
+  wire-byte needle inventory in all three spellings so a future leak reds.
+  (5) **The run ABORTED at location, so the `kyc: {name}` write shape is STILL
+  UNTESTED** and stays labelled ASSUMED everywhere it appears. Nothing is claimed
+  about it in either direction.
+  Counts moved: m5 offline 56 → 57. m6 (45) and demo (33) are unchanged in count
+  but changed in content — all three are AGENT-RUN with a user re-run PENDING.
+  Six mutations, six killed.
+- **2026-08-17 — `numberMatch` BUILT; the wired predicate set is now
   the signed SIX (AGENT-RUN, user validation PENDING).** `simSwapAge`,
   `deviceSwapAge`, `roamingIn`, `presentIn`, `numberMatch`, `reachable`. The
   threshold rides off the published menu `60 | 70 | 80 | 90`, the operator

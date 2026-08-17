@@ -2,6 +2,29 @@
 
 ## Unreleased (0.4.0 — M6)
 
+- **LIVE FIX: the Admin `location` write shape was wrong, and it said so.** The
+  user's first live Playground run of the 3 → 6 tree measured
+  `admin UPDATE failed (status 400): {"code":"BAD_REQUEST","status":400,
+  "message":"\"data.location.lastLocationTime\" is required"}`. The adapter wrote
+  the bare `{latitude, longitude}` pair; the Orange Admin store will not hold a
+  position without an observation instant. **This is the assumed-shape design
+  working**: the axis was labelled the weakest of three guesses precisely because
+  a wrong one had to fail LOUD naming the axis rather than script a position that
+  never took effect, and that is what happened on first contact.
+  - The instant is `new Date(nowMs).toISOString()` — **off the INJECTED clock,
+    never `Date.now()`**, so the same demo writes the same bytes on every run.
+  - **It is scripting, not disclosure.** `getFacts` still never reads a
+    `lastLocationTime` from anywhere, and all three of its spellings (epoch ms,
+    ISO, ISO date) plus the field name joined the demo's wire-byte needle
+    inventory (22 → 26 needles, three more planted leaks in m6 case 18), so a
+    future line that let it out reds.
+  - It is verified by the same read-after-write loop as every other axis, as its
+    own axis `geoAt`.
+  - **Generalisable, and recorded against `kyc`:** an OBSERVED READ shape does not
+    tell you the REQUIRED WRITE field set. The run **aborted at location**, so the
+    `kyc: {name}` write shape is **still untested** and stays labelled ASSUMED.
+  - Counts moved: **m5 offline 56 → 57**. m6 stays 45 and demo stays 33, but both
+    changed, so all three are AGENT-RUN with a **user re-run PENDING**.
 - **Part 3: `numberMatch` — the predicate set is now the signed SIX.** The
   requester declares its match threshold off the published menu
   (`60 | 70 | 80 | 90`) and the name it holds; the operator compares internally;

@@ -781,12 +781,20 @@ export async function roundTrip(world, request, { operator: opControls = {}, rp:
 // against `Alice Arnaud`. Named so the scanner and the narrative cannot drift.
 export const NEAR_MISS_SCORE = 97;
 
+// Every spelling of an ABSOLUTE instant the operator holds. Split out of
+// `spellings` below because an instant that is not expressed as "N days ago" has
+// no age and no day count to spell — and inventing a `0` for one would put a
+// one-character needle in the set, which cannot assert anything.
+export const instantSpellings = (atMs) => {
+  const iso = new Date(atMs).toISOString();
+  return [String(atMs), iso, iso.slice(0, 10)];
+};
+
 export function rawNeedles(daysAgo, { country = 'FR', number = DEMO_NUMBER, deviceDaysAgo = null } = {}) {
   const spellings = (d) => {
     const ageMs = d * DAY_MS;
     const atMs = NOW - ageMs;
-    const iso = new Date(atMs).toISOString();
-    return [String(ageMs), String(atMs), iso, iso.slice(0, 10), String(d)];
+    return [String(ageMs), ...instantSpellings(atMs), String(d)];
   };
   // WIDENED 2026-08-17 with the 3 → 6 predicate round: every fact the operator
   // now holds gets its own spellings, because the review's lesson was that an
@@ -796,6 +804,16 @@ export function rawNeedles(daysAgo, { country = 'FR', number = DEMO_NUMBER, devi
     ...spellings(daysAgo),
     ...(deviceDaysAgo === null ? [] : spellings(deviceDaysAgo)),
     'swapAgeMs', 'deviceSwapAgeMs', 'roamingCountry', country, number,
+    // The OBSERVATION INSTANT that rides with the position — added 2026-08-17,
+    // when the user's live Playground run measured that the Admin store REQUIRES
+    // one to hold a position at all (`400 "data.location.lastLocationTime is
+    // required"`). It is a raw timestamp about the subscriber, exactly like the
+    // two swap instants above and exactly as disclosive, so it is inventoried the
+    // same way rather than treated as plumbing. The operator writes it off the
+    // injected clock, so its spellings are `NOW`'s — and none of them can appear
+    // in an artifact by chance: `exp` is a NUMBER, and `NOW + VALIDITY_MS` is not
+    // a substring of `NOW`.
+    ...instantSpellings(NOW), 'lastLocationTime',
     // The subscriber's own POSITION and the operator's own verdict vocabulary.
     // `PARTIAL` is a needle in its own right: it is the operator admitting it
     // cannot resolve the subscriber, which is a fact about the subscriber, and

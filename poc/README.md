@@ -23,9 +23,10 @@ node poc/m3-check.mjs   # M3 floor gate — 25 cases (user-validated 22/22 at th
 node poc/m4-check.mjs   # M4 mock facts adapter — 40 cases (user-validated 33/33 at the
                         #   33-case tree; cases 34-40 added by the 3 -> 6 predicate
                         #   round — AGENT-RUN 40/40, user re-run PENDING)
-node poc/m5-check.mjs   # M5 orange facts adapter, OFFLINE — 56 cases (user-validated
+node poc/m5-check.mjs   # M5 orange facts adapter, OFFLINE — 57 cases (user-validated
                         #   48/48 at 8e842c3, the shipped v0.3.0 state; cases 49-56
-                        #   added by the 3 -> 6 predicate round — AGENT-RUN 56/56,
+                        #   added by the 3 -> 6 predicate round and case 57 by the
+                        #   live location-write fix — AGENT-RUN 57/57,
                         #   user re-run PENDING).
                         #   Zero credentials, zero network:
                         #   an injected transport replays responses captured live on
@@ -118,7 +119,7 @@ re-establishing G2 at that state. A post-gate code review round (2026-08-17)
 then fixed three more adapter defects and three live-check faults (counts
 unchanged), so **the user re-ran once more at `8e842c3` — the shipped v0.3.0
 state — and reported both clean. Nothing is pending.** Each
-check declares its case count (`conclude(20|10|25|40|56|11|45)`) so a suite that
+check declares its case count (`conclude(20|10|25|40|57|11|45)`) so a suite that
 silently loses cases exits 1 with
 `FAIL CASE COUNT` instead of printing a smaller green tally — mutation-proven
 per module.
@@ -133,8 +134,12 @@ only ever covered top-level values. Fixing them changed **two** files —
 cases; the three added cases pin exactly those guards, and the user run above
 covers them. Nothing is pending.
 
-**M5 is built, review-hardened, and is user-validated LIVE at `8e842c3`, the
-shipped v0.3.0 state — that IS gate G2, and it is MET.** An adversarial review round on 2026-08-16 took
+**M5 was user-validated LIVE at `8e842c3`, the shipped v0.3.0 state — that IS
+gate G2, and it WAS met at that tree. It is NOT met at this one.** The 3 → 6
+predicate round changed the module, and the user's live run of that round found
+the Admin `location` write shape was wrong (`400 "data.location.lastLocationTime
+is required"`); the fix landed after the run, so **G2 is PENDING a re-run** and
+`8e842c3`'s record is not transferred forward. An adversarial review round on 2026-08-16 took
 the offline suite
 44 → **47** and the live suite 10 → **11**, closing one real module defect (the
 write-verification diagnostic — the message the module's most load-bearing guard
@@ -251,17 +256,29 @@ One operator-facts adapter, two backends behind it:
   cap, `/retrieve-date` above it), device-swap, device-roaming-status and
   device-reachability-status APIs — one live CAMARA read per fact axis, none
   stubbed; backstories set via its Admin API, and every write READ back and
-  compared before it is trusted. **Two shapes are ASSUMED rather than measured**
-  and are flagged as such in the code: the Admin write shape for the `deviceSwap`
-  axis, the Admin write shape for the `location` axis (the weakest of the three —
-  that axis was only ever observed EXISTING) and for the `kyc` axis (whose
-  sub-object and `name` field WERE observed, though writing them was not), plus
-  three request-body shapes: `{phoneNumber, maxAge}` for the two `/check` routes,
-  `{device, area}` for `location-verification/v1/verify` and `{phoneNumber, name}`
-  for `kyc-match/v1/match` (all mirrored from measured siblings or from CAMARA's
+  compared before it is trusted. **Shapes that are ASSUMED rather than measured**
+  are flagged as such in the code: the Admin write shape for the `deviceSwap`
+  axis and for the `kyc` axis (whose sub-object and `name` field WERE observed in
+  a READ body, though writing them was not), plus three request-body shapes:
+  `{phoneNumber, maxAge}` for the two `/check` routes, `{device, area}` for
+  `location-verification/v1/verify` and `{phoneNumber, name}` for
+  `kyc-match/v1/match` (all mirrored from measured siblings or from CAMARA's
   own spelling). Read-after-write verification is what makes a
   wrong guess fail LOUD instead of silently scripting a history that never took
   effect — the live run is what settles them.
+  **The `location` axis is the one that has now happened to, and it is worth
+  reading as the mechanism working rather than as a miss.** The user's first live
+  run (2026-08-17) got `400 BAD_REQUEST "\"data.location.lastLocationTime\" is
+  required"` back from `admin UPDATE`: the guessed bare `{latitude, longitude}`
+  pair is incomplete, because the store keeps an OBSERVATION INSTANT beside a
+  position. The adapter now writes one — derived from the injected clock like
+  every other scripted instant, verified as its own axis, and still never READ
+  into the facts (it is in the wire-byte needle inventory so a future leak reds).
+  The generalisable lesson is recorded against `kyc`: an observed READ shape does
+  not tell you the required WRITE field set, which is weaker evidence than
+  "best-supported of the three" originally read as. **That run aborted at the
+  location axis, so the `kyc` write shape has never reached the Admin API at all
+  and nothing is claimed about it in either direction.**
   Credential from the environment only (`ORANGE_BASIC_AUTH`, the Playground
   Basic Auth string) — never the tree, never logged: the credential, the
   client id Orange echoes back inside 403 bodies, and every bearer token are

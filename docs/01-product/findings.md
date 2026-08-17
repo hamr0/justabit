@@ -7,7 +7,75 @@ memory. A finding here is something that was RUN and OBSERVED, not reasoned.
 
 ---
 
-## 2026-08-17 (latest) — the 3 → 6 predicate round, BUILT: `deviceSwapAge`, `presentIn`, `numberMatch` wired; 38 mutations, 2 survivors both real, 1 flake (AGENT-RUN; user validation PENDING)
+## 2026-08-17 (latest) — the USER's LIVE Playground run of the 3 → 6 round: the assumed `location` write shape FAILED LOUD, and it was supposed to
+
+The first live run of the tree at `81f8da4`. It is the only measurement in this
+log that the agent did not and could not make — no credentials, no network — so
+everything in this section is the user's observation, quoted.
+
+### The measurement
+
+`admin UPDATE` was refused, verbatim:
+
+```
+admin UPDATE failed (status 400): {"code":"BAD_REQUEST","status":400,
+"message":"\"data.location.lastLocationTime\" is required"}
+```
+
+The adapter wrote `location: {latitude, longitude}` — CAMARA's own spelling for a
+point, and the whole justification the code gave for the guess. The Orange Admin
+store will not hold a position without an OBSERVATION INSTANT beside it.
+
+### Why this is the design working rather than the design failing
+
+This axis was labelled, in the code and in `poc/README.md`, as the WEAKEST of
+three ASSUMED Admin write shapes — the only one whose stored shape had never been
+read at all. The stated argument for shipping a guess was that a wrong one would
+fail LOUD naming the axis instead of silently scripting a backstory that never
+took effect. That is exactly what happened, on the first contact with the real
+API, with the missing field named. Nothing was signed against a position that was
+never stored.
+
+**The generalisable lesson, which is bigger than this field:** an OBSERVED READ
+shape does not tell you the REQUIRED WRITE field set. The `kyc` axis was ranked
+"best-supported of the three" precisely because its sub-object and field name had
+been observed in a READ body — and that ranking is now known to be weaker
+evidence than it read as. Recorded against `kyc` in the code.
+
+### The fix, and its three constraints
+
+`lastLocationTime` is written as `new Date(nowMs).toISOString()`:
+
+1. **Off the INJECTED clock, never `Date.now()`.** Every scripted instant in this
+   module is `nowMs` minus an offset; this one is `nowMs` itself. A wall clock
+   would make the same demo write different bytes on two runs, which is the one
+   property the injected-clock design buys. Mutation-proven: swapping it for
+   `Date.now()` reds `m5-check` (exit 1).
+2. **It is SCRIPTING, not disclosure.** `getFacts` still never reads a
+   `lastLocationTime` — not the one the operator wrote, and not the one
+   `location-verification/v1/verify` ships on every response. It is now in the
+   demo's wire-byte needle inventory in all three spellings (epoch ms, ISO, ISO
+   date) alongside the two swap instants, so a future line that let it out reds.
+3. **It rides the same read-after-write loop as every other axis**, as its OWN
+   axis `geoAt` rather than a third component of `geo` — a slot that stores the
+   position and rewrites the instant must fail naming the instant, because "the
+   position did not store" is a different bug with a different fix.
+
+### What this run did NOT settle — the `kyc` write shape
+
+The run **aborted at the location axis**, which sits immediately ahead of `kyc`
+in the same Admin payload. So `kyc: {name}` has **never reached the Admin API**
+and remains ASSUMED — labelled as such in the code, in `poc/README.md` and here.
+It is the next thing the live run will settle, in either direction.
+
+Also still unsettled by this run, for the same reason: `deviceSwap:
+{latestDeviceChange}`, and the three assumed REQUEST bodies
+(`{phoneNumber, maxAge}` for the two `/check` routes, `{device, area}` for
+location-verification, `{phoneNumber, name}` for kyc-match).
+
+---
+
+## 2026-08-17 — the 3 → 6 predicate round, BUILT: `deviceSwapAge`, `presentIn`, `numberMatch` wired; 38 mutations, 2 survivors both real, 1 flake (AGENT-RUN; user validation PENDING)
 
 Everything below is **AGENT-RUN by exit code on this machine**, offline, no
 network in either backend mode. G1 stays **NOT met**. Base commit `fe271df`.

@@ -560,6 +560,35 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
     }
     const latestSimChange = new Date(swappedAtMs).toISOString();
     const latestDeviceChange = new Date(deviceSwappedAtMs).toISOString();
+    // MEASURED 2026-08-17, by the user's live Playground run of the 3 -> 6
+    // predicate round — the first time the location write shape reached a real
+    // Admin API. The guessed `{latitude, longitude}` pair is INCOMPLETE:
+    //
+    //   admin UPDATE failed (status 400):
+    //   {"code":"BAD_REQUEST","status":400,
+    //    "message":"\"data.location.lastLocationTime\" is required"}
+    //
+    // So the Admin store keeps an OBSERVATION INSTANT beside the position, and
+    // will not take a position without one. That is the assumed-shape design
+    // working exactly as intended: a wrong guess failed LOUD naming the axis and
+    // the status, rather than scripting a position that never took effect.
+    //
+    // Two rules govern the value, and neither is optional:
+    //
+    //  1. IT COMES OFF THE INJECTED CLOCK, never `Date.now()`. Every other
+    //     scripted instant in this module is `nowMs` minus a scripted offset, and
+    //     this one is `nowMs` itself — the operator observed the subscriber at
+    //     the position the backstory just declared. A wall clock here would make
+    //     the write payload differ between two runs of the same demo, which is
+    //     the one property the whole injected-clock design buys. `assertNow`
+    //     already bounded `nowMs` inside `Date`'s range, so this cannot throw.
+    //  2. IT IS SCRIPTING, NOT DISCLOSURE. `getFacts` deliberately never reads
+    //     `lastLocationTime` off `location-verification/v1/verify` (see the note
+    //     at the location read), and writing one operator-side does not change
+    //     that: it is a value the operator legitimately holds, and it stops here.
+    //     It is in the demo's wire-byte needle inventory alongside the two swap
+    //     instants, so a future line that let it out would red.
+    const lastLocationTime = new Date(nowMs).toISOString();
 
     // `countryCode` is deliberately NOT written. Measured 2026-08-16: the
     // Playground's own records are internally inconsistent about it (the
@@ -585,17 +614,31 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
     // spelling, and that is the whole justification. If it is wrong, the
     // read-after-write comparison below fails LOUD naming the axis and saying so,
     // which is the outcome this module is built for and the reason a guess is
-    // survivable at all. A `null` location writes nothing and verifies nothing:
+    // survivable at all.
+    // CORRECTED 2026-08-17 from the live 400 above: the required
+    // `lastLocationTime` now rides with the pair. The axis stays ASSUMED — the
+    // API named one missing field, which is not the same as confirming the rest
+    // of the shape — and it is still the weakest of the three. A `null` location writes nothing and verifies nothing:
     // there is no measured spelling for "this operator cannot place the
     // subscriber", and inventing one would be a fact rather than a gap.
     const data = {
       simSwap: { latestSimChange },
       deviceSwap: { latestDeviceChange },
-      ...(location === null ? {} : { location: { latitude: location.lat, longitude: location.long } }),
+      ...(location === null ? {} : { location: { latitude: location.lat, longitude: location.long, lastLocationTime } }),
       // The THIRD assumed write shape, and the best-supported of the three: the
       // Admin READ axis list carries `kyc`, and it was OBSERVED holding
       // `name:"Alice Arnaud"` — so the sub-object and its field name are measured
       // even though writing them is not. Verified below like every other axis.
+      //
+      // STILL UNTESTED as of 2026-08-17, and said plainly because the live run
+      // that corrected the location shape ABORTED AT LOCATION — which is the axis
+      // immediately ahead of this one in the same payload, so this write has never
+      // reached the Admin API at all. "Best-supported" is a ranking among three
+      // guesses, not a claim that this one is measured, and the location 400 is
+      // the reason to read it that way: an OBSERVED READ shape does not tell you
+      // the REQUIRED WRITE field set (the store took no position without an
+      // observation instant the read shape never advertised as mandatory). If
+      // `kyc` has a companion field of its own, the same 400 will name it.
       ...(registeredName === null ? {} : { kyc: { name: registeredName } }),
       roaming: roamingCountry === null ? { roaming: false } : { roaming: true, countryName: [roamingCountry] },
       reachability: { reachabilityStatus: reachable ? 'CONNECTED_DATA' : 'NOT_CONNECTED' },
@@ -633,6 +676,11 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
       // hostile stored value renders as its kind instead of coercing. Same
       // redact-then-clamp order the country join uses, for the same reason.
       geo: `${show(stored.location?.latitude)},${show(stored.location?.longitude)}`,
+      // The observation instant is its OWN axis rather than a third component of
+      // `geo`, so a slot that stores the position and rewrites the instant fails
+      // naming the instant — a mismatch folded into `geo` would read as "the
+      // position did not store", which is a different bug with a different fix.
+      geoAt: show(stored.location?.lastLocationTime),
       // Redact-then-clamp, never the raw stored string: this value came off the
       // WIRE and a name field is exactly where an echoed credential would land.
       kycName: show(stored.kyc?.name),
@@ -644,6 +692,7 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
       country: roamingCountry === null ? undefined : roamingCountry,
       reachabilityStatus: data.reachability.reachabilityStatus,
       geo: location === null ? undefined : `${show(location.lat)},${show(location.long)}`,
+      geoAt: location === null ? undefined : show(lastLocationTime),
       kycName: registeredName === null ? undefined : show(registeredName),
     };
     // This diagnostic quotes values that came off the WIRE, so it is the one
@@ -667,7 +716,7 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
     // RangeError ("Invalid string length") at V8's max string length, which
     // destroyed this message entirely. `brief()` bounds BEFORE it renders, which
     // is the same lesson case 43 of the offline suite already states.
-    for (const axis of ['latestSimChange', 'latestDeviceChange', 'roaming', 'reachabilityStatus', 'country', 'geo', 'kycName']) {
+    for (const axis of ['latestSimChange', 'latestDeviceChange', 'roaming', 'reachabilityStatus', 'country', 'geo', 'geoAt', 'kycName']) {
       // `country` is only compared when one was written: a stale country left
       // alongside `roaming:false` is producible (measured) and is not a write
       // failure — `roaming:false` is the authoritative half either way.
@@ -676,11 +725,12 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
       // nothing to verify. Deliberately NOT "verify that nothing is stored" — the
       // subscriber may legitimately have a position this PoC did not script.
       if (axis === 'geo' && want.geo === undefined) continue;
+      if (axis === 'geoAt' && want.geoAt === undefined) continue;
       if (axis === 'kycName' && want.kycName === undefined) continue;
       if (got[axis] !== want[axis]) {
         throw new Error(
           `write verification FAILED for ${number}: stored ${axis} is ${show(got[axis])}, wrote ${show(want[axis])}` +
-          (axis === 'latestDeviceChange' || axis === 'geo' || axis === 'kycName'
+          (axis === 'latestDeviceChange' || axis === 'geo' || axis === 'geoAt' || axis === 'kycName'
             ? ' — NOTE: this axis carries an ASSUMED Admin write shape (never measured; see the comment at `data`),'
               + ' so a mismatch here may be the shape rather than the slot. Read the Admin READ body for this number'
               + ' and correct the shape in poc/m5-facts-orange.mjs.'
@@ -803,6 +853,11 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
       // Anything unrecognised leaves the axis ABSENT — a refusal downstream.
       if (typeof verdict === 'string' && VERDICTS.includes(verdict)) facts.presentVerdict = verdict;
       // `lastLocationTime` rides on every response and is deliberately NOT read.
+      // Unchanged by the 2026-08-17 write-shape correction: the Admin API
+      // REQUIRES an observation instant to STORE a position, and this module now
+      // writes one — but writing operator-side is scripting, and reading one off
+      // this CAMARA response would be disclosure. There is still no line here
+      // that reads it, so there is nothing to filter.
     }
 
     // The KYC comparison, read only when a name was actually claimed — this

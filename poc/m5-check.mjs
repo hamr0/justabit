@@ -83,7 +83,13 @@ const C = Object.freeze({
 // axes M5 never touches is arbitrary — `kyc.name` here is not the built-in
 // record's own value. Said explicitly so the "captured verbatim" claim above is
 // not over-read to cover this helper.
-const stored = ({ sim = '2026-04-01T12:00:00.000Z', device = '2026-08-11T04:00:16.516Z', roaming = { roaming: false }, reach = 'CONNECTED_DATA', geo = { latitude: PARIS.lat, longitude: PARIS.long }, kyc = { name: REGISTERED } } = {}) =>
+// The observation instant the Admin store REQUIRES beside a position (measured
+// live 2026-08-17: writing the bare pair answers `400 "data.location.
+// lastLocationTime is required"`). It is the injected clock itself, so the
+// default stored dataset below mirrors what an honouring slot would hold — and a
+// case that wants some OTHER axis to mismatch is not derailed by this one.
+const NOW_ISO = new Date(NOW).toISOString();
+const stored = ({ sim = '2026-04-01T12:00:00.000Z', device = '2026-08-11T04:00:16.516Z', roaming = { roaming: false }, reach = 'CONNECTED_DATA', geo = { latitude: PARIS.lat, longitude: PARIS.long, lastLocationTime: NOW_ISO }, kyc = { name: REGISTERED } } = {}) =>
   JSON.stringify({ data: { location: geo, reachability: { reachabilityStatus: reach }, roaming, simSwap: { latestSimChange: sim }, deviceSwap: { latestDeviceChange: device }, tenure: { contractType: 'PAYM' }, kyc } });
 
 // The stored dataset that MIRRORS a write, i.e. the READ an honouring slot
@@ -1062,4 +1068,78 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
         && Object.keys(sent).sort().join(',') === 'name,phoneNumber' });
 }
 
-conclude(56);
+// 57 THE POSITION CARRIES AN OBSERVATION INSTANT, OFF THE INJECTED CLOCK, AND IT
+// STAYS OPERATOR-SIDE. Added 2026-08-17 after the USER's live Playground run
+// measured the location write shape wrong:
+//
+//   admin UPDATE failed (status 400): {"code":"BAD_REQUEST","status":400,
+//   "message":"\"data.location.lastLocationTime\" is required"}
+//
+// The Admin store will not take a position without an observation instant. Three
+// legs, and they are three different failure modes rather than one restated:
+//
+//   * THE FIELD IS SENT, and it equals `new Date(injected now).toISOString()`.
+//     The assertion is against a clock set to 2026 while the process runs in
+//     whatever year it runs — so a regression to `Date.now()` (the one forbidden
+//     spelling in this module) reds here rather than at the next live run, and
+//     the ~1-in-31-million chance that a wall clock happens to agree is the
+//     assertion doing its job.
+//   * IT IS VERIFIED like every other axis: a slot that stores the position and
+//     rewrites the instant fails LOUD naming `geoAt` — its own axis, because a
+//     mismatch folded into `geo` would read as "the position did not store",
+//     which is a different bug with a different fix. A `null` location still
+//     writes nothing and verifies nothing.
+//   * IT NEVER BECOMES A FACT. Writing an instant operator-side is scripting;
+//     reading one back to the requester would be disclosure. `getFacts` is asked
+//     for the location axis and the whole returned object is scanned for the
+//     instant in every spelling — the same scan case 53 applies to the
+//     `lastLocationTime` that rides the CAMARA response.
+{
+  const AREA = { lat: 48.86, long: 2.35, radiusM: 10000 };
+  let sent = null;
+  const honouring = mk((url, body) => {
+    if (body?.action === 'UPDATE') { sent = body.data; return { status: 200, text: stored(body.data) }; }
+    if (body?.action === 'READ') return { status: 200, text: mirror(sent) };
+    return { status: 200, text: '{}' };
+  }).facts;
+  const wrote = await athrew(() => honouring.setBackstory(N, { ...STORY }, NOW));
+
+  // The slot that keeps its OWN observation instant while storing the position.
+  const rewriting = mk((url, body) => {
+    if (body?.action === 'UPDATE') return { status: 200, text: stored(body.data) };
+    if (body?.action === 'READ') {
+      return { status: 200, text: stored({
+        sim: new Date(NOW - STORY.swappedDaysAgo * DAY).toISOString(),
+        device: new Date(NOW - STORY.deviceSwappedDaysAgo * DAY).toISOString(),
+        geo: { latitude: PARIS.lat, longitude: PARIS.long, lastLocationTime: '2020-03-15T10:00:00.000Z' },
+      }) };
+    }
+    return { status: 200, text: '{}' };
+  }).facts;
+  const rewritten = await athrew(() => rewriting.setBackstory(N, { ...STORY }, NOW));
+  const nullGeo = await athrew(() => rewriting.setBackstory(N, { ...STORY, location: null }, NOW));
+
+  // ...and the read side: the instant must not reach the facts from either
+  // direction — the one the operator wrote, or the one the CAMARA verify answers.
+  const { facts: reader } = mk((url) => (url.includes('location-verification')
+    ? { status: 200, text: `{"verificationResult":"TRUE","lastLocationTime":"${NOW_ISO}"}` }
+    : reads()(url)));
+  const f = await reader.getFacts(N, NOW, { area: AREA });
+  const leaked = JSON.stringify(f);
+
+  check('57 THE POSITION CARRIES AN INSTANT OFF THE INJECTED CLOCK, OPERATOR-SIDE ONLY', true, { answered: true, reason: 'ok' }, 'ok',
+    { label: `wrote location=${JSON.stringify(sent?.location)} (injected now ${NOW_ISO}); `
+      + `rewritten instant fails loud naming geoAt=${rewritten.threw && rewritten.msg.includes('stored geoAt is')}; `
+      + `null location writes nothing=${!nullGeo.threw}; instant anywhere in the facts=${leaked.includes(NOW_ISO) || leaked.includes('lastLocationTime')}`,
+      ok: !wrote.threw
+        && sent.location.lastLocationTime === NOW_ISO
+        && Object.keys(sent.location).sort().join(',') === 'lastLocationTime,latitude,longitude'
+        && rewritten.threw && rewritten.msg.includes('stored geoAt is')
+        && rewritten.msg.includes('write verification FAILED')
+        && rewritten.msg.includes('ASSUMED Admin write shape')
+        && !nullGeo.threw
+        && !leaked.includes(NOW_ISO) && !leaked.includes('lastLocationTime')
+        && !leaked.includes(String(NOW)) && f.presentVerdict === 'TRUE' });
+}
+
+conclude(57);
