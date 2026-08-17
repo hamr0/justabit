@@ -49,6 +49,13 @@ const COUNTRY = /^[A-Z]{2}$/;
 // same typo is BOTH an unknown field and a missing one, and cannot be silent.
 const FIELDS = Object.freeze({
   swappedDaysAgo: 'dayCount',
+  // ADDED 2026-08-17 (predicate set 3 → 6). A DEVICE swap is a different fact
+  // about different hardware, so it is a separate axis rather than a reuse of
+  // the SIM one — but the QUESTION shape is deliberately identical (PRD §9,
+  // user-signed): same bucket menu, same `gte` duration compare. Two facts that
+  // answer the same shape of question must not teach a reader two grammars, and
+  // a second shape is a second place for the window to widen quietly.
+  deviceSwappedDaysAgo: 'dayCount',
   roamingCountry: 'countryOrNull',
   reachable: 'boolean',
 });
@@ -65,8 +72,26 @@ const FIELDS = Object.freeze({
 // a required mock FACT (PRD FR5), and a fact no predicate can consume is dead
 // weight. The sketch is illustrative, not normative — the normative profile
 // (proposal rules 1–8) enumerates no predicate types, so nothing else moved.
+// `atLeastFact`/`atLeastMsFact` are the SECOND, coarser shape a duration fact can
+// arrive in, and they exist because a real operator surface measured on
+// 2026-08-17 only offers that shape: CAMARA's sim-swap and device-swap `/check`
+// answer `{"swapped":bool}` for a `maxAge` window in HOURS and never hand back a
+// date at all. A boolean about a window is not an age, so it cannot be compared
+// against an arbitrary threshold — it can only answer the ONE question it was
+// computed for. The `…AtLeastMs` companion carries that window, and the compare
+// below refuses unless it EQUALS the threshold asked. That equality is the whole
+// guard: without it an adapter could answer "not swapped in 30 days" to a
+// "90 days?" question and the bit would look perfect on the wire.
+// `queryKey` is what `factQuery` hands the adapter so it can choose the surface.
 const PREDICATES = Object.freeze({
-  simSwapAge: { operator: 'gte', value: 'duration', fact: 'swapAgeMs' },
+  simSwapAge: {
+    operator: 'gte', value: 'duration', fact: 'swapAgeMs',
+    atLeastFact: 'swapAgeAtLeast', atLeastMsFact: 'swapAgeAtLeastMs', queryKey: 'swapAgeThresholdMs',
+  },
+  deviceSwapAge: {
+    operator: 'gte', value: 'duration', fact: 'deviceSwapAgeMs',
+    atLeastFact: 'deviceSwapAgeAtLeast', atLeastMsFact: 'deviceSwapAgeAtLeastMs', queryKey: 'deviceSwapAgeThresholdMs',
+  },
   roamingIn: { operator: 'in', value: 'countries', fact: 'roamingCountry' },
   reachable: { operator: 'eq', value: 'boolean', fact: 'reachable' },
 });
@@ -246,9 +271,13 @@ function invalidField(field, value) {
     case 'dayCount':
       // isSafeInteger rejects strings, null, booleans, NaN and fractions
       // outright; the product bound keeps the ms conversion exact.
+      // The field is NAMED from `field` rather than hardcoded: a second dayCount
+      // axis (deviceSwappedDaysAgo) arrived 2026-08-17, and a message naming the
+      // wrong field is the "every fault names the field" rule broken in the one
+      // place a caller reads. The spelling for swappedDaysAgo is unchanged.
       return Number.isSafeInteger(value) && value >= 0 && Number.isSafeInteger(value * DAY_MS)
         ? null
-        : `invalid swappedDaysAgo: ${describe(value)} (whole days as a non-negative number; strings, null and booleans are NOT coerced)`;
+        : `invalid ${field}: ${describe(value)} (whole days as a non-negative number; strings, null and booleans are NOT coerced)`;
     case 'countryOrNull':
       return value === null || (typeof value === 'string' && COUNTRY.test(value))
         ? null
@@ -351,16 +380,65 @@ export function createMockFacts() {
     // `now`. Exact in both directions: both operands are non-negative safe
     // integers, so the difference cannot leave the safe range.
     const swappedAtMs = nowMs - b.swappedDaysAgo * DAY_MS;
+    const deviceSwappedAtMs = nowMs - b.deviceSwappedDaysAgo * DAY_MS;
     // Frozen: facts are operator-internal, and an M6 caller mutating them
     // in place would rewrite the input to the bit after the fact.
+    //
+    // The mock returns EXACT ages for both swap axes and never the coarse
+    // `…AtLeast` shape, and that asymmetry with M5 is deliberate and stated: the
+    // coarse shape is an artefact of a REAL surface (`/check`, whose `maxAge` is
+    // capped at 2400 hours), not of the fact. The mock's job is scriptable
+    // backstories, so it answers from the story it was given. Both shapes are
+    // exercised — this one end to end, the other through M5's replay and through
+    // synthetic facts in this module's own check.
     return Object.freeze({
       swapAgeMs: nowMs - swappedAtMs,
+      deviceSwapAgeMs: nowMs - deviceSwappedAtMs,
       roamingCountry: b.roamingCountry,
       reachable: b.reachable,
     });
   }
 
   return { setBackstory, getFacts };
+}
+
+// ─────────────── the validated question a facts backend is allowed to see ────
+// ADDED 2026-08-17 with the 3 → 6 predicate round, and it is the round's one
+// genuinely new seam, so the reason is written down.
+//
+// Three of the six predicates cannot be answered from a subscriber snapshot: the
+// operator has to ask its own upstream a QUESTION-SHAPED question. `/check` needs
+// the window in hours; `location-verification/v1/verify` needs the area;
+// `kyc-match/v1/match` needs the name the requester claims. So something has to
+// carry part of the predicate down to the adapter.
+//
+// The dangerous way to do that is to hand the adapter `req.predicate` — raw wire
+// input, before anything validated it, into the one module that builds outbound
+// HTTP. That is the mistake M6 already avoided once (canonicalising before
+// evaluation would have run `Array.prototype.join` over a wire array); doing it
+// here would be the same mistake pointed at the network.
+//
+// So this function is the chokepoint: it takes the untrusted predicate, NEVER
+// throws, invokes nothing caller-supplied (`plainSnapshot` + the same validators
+// `evaluatePredicate` uses), and returns a FROZEN plain object of validated
+// PRIMITIVES — or `{}`. An adapter therefore never holds a wire object at all.
+// Anything it could not validate is simply absent, which makes the fact absent,
+// which `evaluatePredicate` refuses. There is no path where a malformed question
+// becomes a query.
+//
+// It deliberately does NOT decide which endpoint to call: that is the adapter's
+// own measured business (M5 knows the 2400-hour cap; the mock has no endpoints).
+export function factQuery(predicate) {
+  const p = plainSnapshot(predicate);
+  if (p === null) return Object.freeze({});
+  if (typeof p.type !== 'string' || !hasOwn(PREDICATES, p.type)) return Object.freeze({});
+  const spec = PREDICATES[p.type];
+  const q = {};
+  if (spec.value === 'duration') {
+    const ms = durationMs(p.value);
+    if (ms !== null) q[spec.queryKey] = ms;
+  }
+  return Object.freeze(q);
 }
 
 // Facts + predicate → the BIT. The predicate arrives off the wire, so this
@@ -404,10 +482,22 @@ export function evaluatePredicate(facts, predicate) {
     // A missing or malformed fact must NOT compare: `undefined >= n` is false,
     // which would answer "the SIM is not old enough" about a SIM nobody looked
     // up. Unanswerable is a distinct outcome from `false`.
-    if (!Number.isSafeInteger(fact) || fact < 0) {
-      return { answered: false, reason: `fact unavailable: ${spec.fact}` };
+    if (Number.isSafeInteger(fact) && fact >= 0) {
+      result = fact >= threshold;
+    } else {
+      // The COARSE shape (a `/check`-style boolean about one window). Answerable
+      // only for the window it was computed for: the carried `…AtLeastMs` must
+      // EQUAL the threshold asked, or this is a bit about a different question
+      // and the honest outcome is a refusal. `!==` on two safe integers, never a
+      // range test — "close enough" is how a 30-day answer gets signed against a
+      // 90-day question.
+      const win = f[spec.atLeastMsFact];
+      const bit = f[spec.atLeastFact];
+      if (!(Number.isSafeInteger(win) && win >= 0 && typeof bit === 'boolean' && win === threshold)) {
+        return { answered: false, reason: `fact unavailable: ${spec.fact}` };
+      }
+      result = bit;
     }
-    result = fact >= threshold;
   } else if (spec.value === 'countries') {
     // An empty set is rejected rather than answered: it is false for every
     // subscriber alive, so it is a malformed question, not a question. The

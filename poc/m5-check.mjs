@@ -30,6 +30,11 @@ const TOKEN = 'TOKEN.eyJmYWtlIjoidG9rZW4ifQ.SIGNATURE0000';
 const ADMIN_TOKEN = 'ADMINTOKEN.eyJmYWtlIjoiYWRtaW4ifQ.SIGNATURE1111';
 const TOKEN_URL_ADMIN = 'https://api.orange.com/oauth/v3/token';
 
+// The reference backstory. `deviceSwappedDaysAgo` joined the closed field set on
+// 2026-08-17 (3 -> 6 predicate round) and carries a DIFFERENT day count from the
+// SIM axis, so a write or read that confuses the two cannot pass.
+const STORY = { swappedDaysAgo: 120, deviceSwappedDaysAgo: 200, roamingCountry: null, reachable: true };
+
 // ==================== CAPTURED responses (verbatim, 2026-08-16) =============
 // Only the client id inside the 403 body is substituted for the synthetic one;
 // every other byte is as received.
@@ -56,6 +61,16 @@ const C = Object.freeze({
   forbiddenAuth: '{"code":"FORBIDDEN","status":403,"message":"Request must be authorized"}',
   unauthenticated: '{"status":401,"code":"UNAUTHENTICATED","message":"Request not authenticated due to missing, invalid, or expired credentials"}',
   notFound: '{"code":"BAD_REQUEST","status":400,"message":"PhoneNumber Not Found"}',
+  // CAPTURED 2026-08-17 (standalone Playground sweep, findings log). The two
+  // `/check` surfaces answer a BOOLEAN about a `maxAge` window in HOURS, capped
+  // at 2400 — boundary-tested on both (2400 -> 200, 2401 -> 400). The device
+  // date surface answers `latestDeviceChange`, a different field name from
+  // sim-swap's, which is why the axis table carries the field rather than
+  // assuming one.
+  checkNotSwapped: '{"swapped":false}',
+  checkSwapped: '{"swapped":true}',
+  deviceDate: '{"latestDeviceChange":"2026-08-11T04:00:16.516Z"}',
+  checkMaxAge: '{"status":400,"code":"INVALID_ARGUMENT","message":"\"maxAge\" must be less than or equal to 2400"}',
   malformedBasic: '{"error":"invalid_client","error_description":"Basic authentication is malformed"}',
 });
 
@@ -66,8 +81,19 @@ const C = Object.freeze({
 // axes M5 never touches is arbitrary — `kyc.name` here is not the built-in
 // record's own value. Said explicitly so the "captured verbatim" claim above is
 // not over-read to cover this helper.
-const stored = ({ sim = '2026-04-01T12:00:00.000Z', roaming = { roaming: false }, reach = 'CONNECTED_DATA' } = {}) =>
-  JSON.stringify({ data: { location: { available: true }, reachability: { reachabilityStatus: reach }, roaming, simSwap: { latestSimChange: sim }, deviceSwap: { latestDeviceChange: '2026-08-11T04:00:16.516Z' }, tenure: { contractType: 'PAYM' }, kyc: { name: 'Alice Arnaud' } } });
+const stored = ({ sim = '2026-04-01T12:00:00.000Z', device = '2026-08-11T04:00:16.516Z', roaming = { roaming: false }, reach = 'CONNECTED_DATA' } = {}) =>
+  JSON.stringify({ data: { location: { available: true }, reachability: { reachabilityStatus: reach }, roaming, simSwap: { latestSimChange: sim }, deviceSwap: { latestDeviceChange: device }, tenure: { contractType: 'PAYM' }, kyc: { name: 'Alice Arnaud' } } });
+
+// The stored dataset that MIRRORS a write, i.e. the READ an honouring slot
+// answers with. Written as one helper because the write-verification now covers
+// FOUR axes (deviceSwap joined on 2026-08-17) and a route that mirrored three of
+// them would fail verification for a reason that has nothing to do with the case.
+const mirror = (data) => stored({
+  sim: data.simSwap.latestSimChange,
+  device: data.deviceSwap.latestDeviceChange,
+  roaming: data.roaming,
+  reach: data.reachability.reachabilityStatus,
+});
 
 // ============================== replay transport ===========================
 // `route(url, parsedBody, callIndex)` returns `{status, text}`. Every call is
@@ -92,8 +118,15 @@ function transport(route) {
 }
 // The default happy route: every CAMARA read answers, admin READ mirrors the
 // last write. Cases override only the piece they are about.
-const reads = ({ swap = C.swap, roam = C.roamFalse, reach = C.reachData } = {}) => (url) => {
+const reads = ({ swap = C.swap, roam = C.roamFalse, reach = C.reachData,
+  swapCheck = C.checkNotSwapped, deviceDate = C.deviceDate, deviceCheck = C.checkSwapped } = {}) => (url) => {
+  // The `/check` route is matched BEFORE the date route: both urls contain the
+  // API name, so an order-insensitive match would answer a `/check` call with a
+  // date body and the axis would silently go absent.
+  if (url.includes('sim-swap/v1/check')) return { status: 200, text: swapCheck };
   if (url.includes('sim-swap')) return { status: 200, text: swap };
+  if (url.includes('device-swap/v1/check')) return { status: 200, text: deviceCheck };
+  if (url.includes('device-swap')) return { status: 200, text: deviceDate };
   if (url.includes('roaming')) return { status: 200, text: roam };
   if (url.includes('reachability')) return { status: 200, text: reach };
   return { status: 404, text: '{}' };
@@ -435,7 +468,7 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
     if (body?.action === 'READ') return { status: 200, text: stored({ sim: '2020-03-15T10:00:00.000Z' }) }; // the truth
     return { status: 200, text: '{}' };
   });
-  const r = await athrew(() => facts.setBackstory(BUILTIN, { swappedDaysAgo: 120, roamingCountry: null, reachable: true }, NOW));
+  const r = await athrew(() => facts.setBackstory(BUILTIN, { ...STORY }, NOW));
   checkThrew('31 THE TRAP: echoed-but-unstored write FAILS LOUD', r,
     names(r, 'write verification FAILED', 'echoed the write back', 'Built-in numbers'));
 }
@@ -447,10 +480,10 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
   let written = null;
   const { facts } = mk((url, body) => {
     if (body?.action === 'UPDATE') { written = body.data; return { status: 200, text: stored(written) }; }
-    if (body?.action === 'READ') return { status: 200, text: stored({ sim: written.simSwap.latestSimChange, roaming: written.roaming, reach: written.reachability.reachabilityStatus }) };
+    if (body?.action === 'READ') return { status: 200, text: mirror(written) };
     return { status: 200, text: '{}' };
   });
-  const r = await athrew(() => facts.setBackstory(N, { swappedDaysAgo: 120, roamingCountry: 'FR', reachable: false }, NOW));
+  const r = await athrew(() => facts.setBackstory(N, { ...STORY, roamingCountry: 'FR', reachable: false }, NOW));
   checkOk('32 CONTROL: an honoured write VERIFIES', r, { label: 'no throw', ok: !r.threw });
 }
 
@@ -463,10 +496,10 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
     if (body?.action === 'UPDATE' && !created) return { status: 400, text: C.notFound };
     if (body?.action === 'CREATE') { created = true; return { status: 201, text: stored() }; }
     if (body?.action === 'UPDATE') { written = body.data; return { status: 200, text: stored(written) }; }
-    if (body?.action === 'READ') return { status: 200, text: stored({ sim: written.simSwap.latestSimChange, roaming: written.roaming, reach: written.reachability.reachabilityStatus }) };
+    if (body?.action === 'READ') return { status: 200, text: mirror(written) };
     return { status: 200, text: '{}' };
   });
-  const r = await athrew(() => facts.setBackstory(N, { swappedDaysAgo: 30, roamingCountry: null, reachable: true }, NOW));
+  const r = await athrew(() => facts.setBackstory(N, { ...STORY, swappedDaysAgo: 30 }, NOW));
   const actions = calls.filter((c) => !c.isToken).map((c) => c.body.action).join(',');
   checkOk('33 CREATE-IF-MISSING then write then verify', r, { label: `actions=${actions}`, ok: !r.threw && actions === 'UPDATE,CREATE,UPDATE,READ' });
 }
@@ -479,10 +512,10 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
   let sent = null;
   const { facts } = mk((url, body) => {
     if (body?.action === 'UPDATE') { sent = body.data; return { status: 200, text: stored(body.data) }; }
-    if (body?.action === 'READ') return { status: 200, text: stored({ sim: sent.simSwap.latestSimChange, roaming: sent.roaming, reach: sent.reachability.reachabilityStatus }) };
+    if (body?.action === 'READ') return { status: 200, text: mirror(sent) };
     return { status: 200, text: '{}' };
   });
-  await facts.setBackstory(N, { swappedDaysAgo: 120, roamingCountry: null, reachable: true }, NOW);
+  await facts.setBackstory(N, { ...STORY }, NOW);
   const want = new Date(NOW - 120 * DAY).toISOString();
   check('34 relative days → absolute ISO at the M5 boundary', true, { answered: true, reason: 'ok' }, 'ok',
     { label: `sent=${sent.simSwap.latestSimChange}`, ok: sent.simSwap.latestSimChange === want });
@@ -498,10 +531,10 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
     let sent = null;
     const { facts } = mk((url, body) => {
       if (body?.action === 'UPDATE') { sent = body.data; return { status: 200, text: stored(body.data) }; }
-      if (body?.action === 'READ') return { status: 200, text: stored({ sim: sent.simSwap.latestSimChange, roaming: sent.roaming, reach: sent.reachability.reachabilityStatus }) };
+      if (body?.action === 'READ') return { status: 200, text: mirror(sent) };
       return { status: 200, text: '{}' };
     });
-    await facts.setBackstory(N, { swappedDaysAgo: 1, roamingCountry, reachable: true }, NOW);
+    await facts.setBackstory(N, { ...STORY, swappedDaysAgo: 1, roamingCountry }, NOW);
     return sent.roaming;
   };
   const off = await grab(null);
@@ -517,7 +550,7 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
 // boundary: a scripted story that silently never took effect.
 {
   const { facts } = mk(() => ({ status: 200, text: stored() }));
-  const r = await athrew(() => facts.setBackstory(N, { swapedDaysAgo: 120, roamingCountry: null, reachable: true }, NOW));
+  const r = await athrew(() => facts.setBackstory(N, { ...STORY, swapedDaysAgo: 120 }, NOW));
   checkThrew('36 TYPO\'D BACKSTORY FIELD THROWS', r, names(r, 'unknown field', 'swapedDaysAgo'));
 }
 
@@ -525,7 +558,7 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
 // -coerce, and either would write a confident wrong date.
 {
   const { facts } = mk(() => ({ status: 200, text: stored() }));
-  const r = await athrew(() => facts.setBackstory(N, { swappedDaysAgo: '120', roamingCountry: null, reachable: true }, NOW));
+  const r = await athrew(() => facts.setBackstory(N, { ...STORY, swappedDaysAgo: '120' }, NOW));
   checkThrew('37 STRING swappedDaysAgo THROWS (no coercion)', r, names(r, 'swappedDaysAgo', 'NOT coerced'));
 }
 
@@ -533,7 +566,7 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
 // lowercase country silently answers "not roaming in FR" about someone who is.
 {
   const { facts } = mk(() => ({ status: 200, text: stored() }));
-  const r = await athrew(() => facts.setBackstory(N, { swappedDaysAgo: 1, roamingCountry: 'fr', reachable: true }, NOW));
+  const r = await athrew(() => facts.setBackstory(N, { ...STORY, roamingCountry: 'fr' }, NOW));
   checkThrew('38 LOWERCASE COUNTRY THROWS', r, names(r, 'roamingCountry', 'alpha-2'));
 }
 
@@ -628,7 +661,7 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
     if (body?.action === 'READ') return { status: 200, text: stored({ sim: SECRET }) };
     return { status: 200, text: '{}' };
   });
-  const r = await athrew(() => facts.setBackstory(N, { swappedDaysAgo: 1, roamingCountry: null, reachable: true }, NOW));
+  const r = await athrew(() => facts.setBackstory(N, { ...STORY, swappedDaysAgo: 1 }, NOW));
   check('45 WRITE-VERIFY DIAGNOSTIC REDACTS THE STORED VALUE', false, { answered: !r.threw, reason: r.threw ? 'threw' : 'did not throw' }, 'threw',
     { label: `no secret substring=${r.threw && !r.msg.includes(SECRET)}`,
       ok: r.threw && r.msg.includes('write verification FAILED') && !r.msg.includes(SECRET) && r.msg.includes('[REDACTED]') });
@@ -654,7 +687,7 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
     return { status: 200, text: '{}' };
   });
   const t0 = Date.now();
-  const r = await athrew(() => facts.setBackstory(N, { swappedDaysAgo: 1, roamingCountry: null, reachable: true }, NOW));
+  const r = await athrew(() => facts.setBackstory(N, { ...STORY, swappedDaysAgo: 1 }, NOW));
   const ms = Date.now() - t0;
   check('46 WRITE-VERIFY DIAGNOSTIC CLAMPED BEFORE RENDERING', false, { answered: !r.threw, reason: r.threw ? 'threw' : 'did not throw' }, 'threw',
     { label: `len=${r.msg.length} ms=${ms} closed-and-elided=${r.threw && r.msg.includes('…"')}`,
@@ -673,10 +706,10 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
   let written = null;
   const { facts, calls } = mk((url, body) => {
     if (body?.action === 'UPDATE') { written = body.data; return { status: 200, text: stored(written) }; }
-    if (body?.action === 'READ') return { status: 200, text: stored({ sim: written.simSwap.latestSimChange, roaming: written.roaming, reach: written.reachability.reachabilityStatus }) };
+    if (body?.action === 'READ') return { status: 200, text: mirror(written) };
     return reads()(url);
   });
-  await facts.setBackstory(N, { swappedDaysAgo: 1, roamingCountry: null, reachable: true }, NOW);  // admin surface
+  await facts.setBackstory(N, { ...STORY, swappedDaysAgo: 1 }, NOW);  // admin surface
   await facts.getFacts(N, NOW);                                                                    // camara surface
   const adminCalls = calls.filter((c) => !c.isToken && c.url.includes('/admin/'));
   const camaraCalls = calls.filter((c) => !c.isToken && c.url.includes('/playground/api/'));
@@ -706,20 +739,23 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
 // over-long list must be bounded rather than walked.
 {
   const sim = new Date(NOW - 1 * DAY).toISOString();
+  // The device axis has to MATCH, or the verification loop stops on it and the
+  // country leg — the subject of this case — is never reached.
+  const device = new Date(NOW - STORY.deviceSwappedDaysAgo * DAY).toISOString();
   const mkCountry = (countryName) => mk((url, body) => {
-    const s = stored({ sim, roaming: { roaming: true, countryName }, reach: 'CONNECTED_DATA' });
+    const s = stored({ sim, device, roaming: { roaming: true, countryName }, reach: 'CONNECTED_DATA' });
     if (body?.action === 'UPDATE' || body?.action === 'READ') return { status: 200, text: s };
     return { status: 200, text: '{}' };
   }).facts;
 
   const hostile = await athrew(() => mkCountry([JSON.parse('{"toString":"x"}')])
-    .setBackstory(N, { swappedDaysAgo: 1, roamingCountry: 'FR', reachable: true }, NOW));
+    .setBackstory(N, { ...STORY, swappedDaysAgo: 1, roamingCountry: 'FR' }, NOW));
   const benign = await athrew(() => mkCountry(['Spain'])
-    .setBackstory(N, { swappedDaysAgo: 1, roamingCountry: 'FR', reachable: true }, NOW));
+    .setBackstory(N, { ...STORY, swappedDaysAgo: 1, roamingCountry: 'FR' }, NOW));
   const equal = await athrew(() => mkCountry(['FR'])
-    .setBackstory(N, { swappedDaysAgo: 1, roamingCountry: 'FR', reachable: true }, NOW));
+    .setBackstory(N, { ...STORY, swappedDaysAgo: 1, roamingCountry: 'FR' }, NOW));
   const many = await athrew(() => mkCountry(Array.from({ length: 5000 }, () => 'FR'))
-    .setBackstory(N, { swappedDaysAgo: 1, roamingCountry: 'FR', reachable: true }, NOW));
+    .setBackstory(N, { ...STORY, swappedDaysAgo: 1, roamingCountry: 'FR' }, NOW));
 
   const loud = (r) => r.threw && r.msg.includes('write verification FAILED');
   check('48 STORED COUNTRY LIST JOINED WITHOUT COERCION', false,
@@ -733,4 +769,118 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
         && loud(many) && many.msg.length < 500 });
 }
 
-conclude(48);
+// ========= 2026-08-17: the 3 -> 6 predicate round, sim/device swap surfaces ====
+// `/check` was measured to EXIST and answer on both sim-swap and device-swap, with
+// `maxAge` in HOURS capped at 2400 (boundary-tested 2400 -> 200, 2401 -> 400). It
+// is the profile-conforming surface — a bit about a window, and the operator never
+// learns the date — so the adapter uses it wherever the asked bucket fits and
+// falls back to the date surface only above the cap.
+
+// 49 THE SURFACE IS CHOSEN FROM THE MEASURED CAP, PER BUCKET. This is the case
+// that can actually red: it reads which URL went on the wire for each published
+// bucket, and what `maxAge` rode with it. P30D and P90D fit under 2400 hours;
+// P180D and P365D cannot be expressed by `/check` AT ALL, so asking it anyway —
+// or rounding down to a window it can express — would answer a question nobody
+// asked, signed. The control is the no-threshold call: with no bucket named, the
+// date surface answers, which is how every case above this one still works.
+{
+  const buckets = [[30, 'check', 720], [90, 'check', 2160], [180, 'date', null], [365, 'date', null]];
+  const seen = [];
+  for (const [days] of buckets) {
+    const { facts, calls } = mk(reads());
+    await facts.getFacts(N, NOW, { swapAgeThresholdMs: days * DAY });
+    const c = calls.filter((x) => !x.isToken && x.url.includes('sim-swap'));
+    seen.push({ surface: c[0].url.endsWith('/check') ? 'check' : 'date', maxAge: c[0].body.maxAge ?? null, n: c.length });
+  }
+  const { facts: plain, calls: plainCalls } = mk(reads());
+  await plain.getFacts(N, NOW);
+  const noThreshold = plainCalls.find((x) => !x.isToken && x.url.includes('sim-swap'));
+  check('49 /check UNDER THE MEASURED CAP, THE DATE SURFACE ABOVE IT', true, { answered: true, reason: 'ok' }, 'ok',
+    { label: `P30D/P90D/P180D/P365D -> ${JSON.stringify(seen.map((x) => `${x.surface}${x.maxAge ? `:${x.maxAge}h` : ''}`))}; `
+      + `no threshold -> ${noThreshold.url.endsWith('/check') ? 'check' : 'date'}`,
+      ok: seen.every((x, i) => x.surface === buckets[i][1] && x.maxAge === buckets[i][2] && x.n === 1)
+        && seen.every((x) => x.maxAge === null || x.maxAge <= 2400)
+        && !noThreshold.url.endsWith('/check') });
+}
+
+// 50 THE `/check` POLARITY, BOTH WAYS, AND NO COERCION. `swapped:false` means NOT
+// swapped inside the window, i.e. the age is AT LEAST the window — the negation is
+// the entire mapping, and a flipped one is a silent wrong answer that looks
+// perfectly well-formed on the wire. The third leg is the measured coercion trap:
+// the STRING `"false"` is truthy, so an unguarded read would report "swapped
+// recently" for a subscriber who was not; it leaves the axis ABSENT instead.
+{
+  const ask = async (text) => {
+    const { facts } = mk(reads({ swapCheck: text }));
+    return facts.getFacts(N, NOW, { swapAgeThresholdMs: 90 * DAY });
+  };
+  const notSwapped = await ask(C.checkNotSwapped);
+  const swapped = await ask(C.checkSwapped);
+  const stringy = await ask('{"swapped":"false"}');
+  const missing = await ask('{}');
+  check('50 /check POLARITY AND NO COERCION', true, { answered: true, reason: 'ok' }, 'ok',
+    { label: `swapped:false -> atLeast ${notSwapped.swapAgeAtLeast}, swapped:true -> ${swapped.swapAgeAtLeast}, `
+      + `"false" -> present=${'swapAgeAtLeast' in stringy}, {} -> present=${'swapAgeAtLeast' in missing}`,
+      ok: notSwapped.swapAgeAtLeast === true && notSwapped.swapAgeAtLeastMs === 90 * DAY
+        && swapped.swapAgeAtLeast === false && swapped.swapAgeAtLeastMs === 90 * DAY
+        && !('swapAgeMs' in notSwapped)
+        && !('swapAgeAtLeast' in stringy) && !('swapAgeAtLeastMs' in stringy)
+        && !('swapAgeAtLeast' in missing) });
+}
+
+// 51 THE DEVICE AXIS IS READ ONLY WHEN A DEVICE QUESTION WAS ASKED, and it reads
+// its OWN field name. Two things pinned together. The conditional read is not an
+// optimisation: every read is a metered live call about one subscriber, so reading
+// a fact nobody asked about is an operator query with no question behind it. And
+// `latestDeviceChange` is a DIFFERENT field from sim-swap's `latestSimChange` — a
+// table that reused the sim field would leave the axis absent, which reads as
+// "unavailable" rather than as the bug it is.
+{
+  const { facts: quiet, calls: quietCalls } = mk(reads());
+  await quiet.getFacts(N, NOW, { swapAgeThresholdMs: 90 * DAY });
+  const { facts: asked, calls: askedCalls } = mk(reads());
+  const f = await asked.getFacts(N, NOW, { deviceSwapAgeThresholdMs: 365 * DAY });
+  const deviceCalls = (cs) => cs.filter((x) => !x.isToken && x.url.includes('device-swap')).length;
+  const wantAge = NOW - Date.parse(JSON.parse(C.deviceDate).latestDeviceChange);
+  check('51 THE DEVICE AXIS IS READ ONLY WHEN ASKED', true, { answered: true, reason: 'ok' }, 'ok',
+    { label: `sim-only question -> ${deviceCalls(quietCalls)} device calls; device question -> ${deviceCalls(askedCalls)}; deviceSwapAgeMs=${f.deviceSwapAgeMs}`,
+      ok: deviceCalls(quietCalls) === 0 && deviceCalls(askedCalls) === 1 && f.deviceSwapAgeMs === wantAge });
+}
+
+// 52 THE DEVICE WRITE IS VERIFIED LIKE EVERY OTHER AXIS — and it is the axis whose
+// Admin write SHAPE is ASSUMED rather than measured (the READ axis list carries
+// `deviceSwap` and `/retrieve-date` answers `latestDeviceChange`, but no Admin
+// UPDATE of it has been observed). That is exactly the situation read-after-write
+// exists for: a slot that stores it verifies, and a slot that echoes it back
+// WITHOUT storing it fails LOUD naming the axis, instead of scripting a device
+// history that never took effect. Both directions, so neither can pass alone.
+{
+  let written = null;
+  const honouring = mk((url, body) => {
+    if (body?.action === 'UPDATE') { written = body.data; return { status: 200, text: stored(written) }; }
+    if (body?.action === 'READ') return { status: 200, text: mirror(written) };
+    return { status: 200, text: '{}' };
+  }).facts;
+  const okWrite = await athrew(() => honouring.setBackstory(N, { ...STORY }, NOW));
+
+  // The shadowing slot: it stores the SIM date but keeps its own device date —
+  // the exact half-honoured write the built-in cast produces.
+  const shadowing = mk((url, body) => {
+    if (body?.action === 'UPDATE') return { status: 200, text: stored(body.data) };
+    if (body?.action === 'READ') {
+      return { status: 200, text: stored({ sim: new Date(NOW - STORY.swappedDaysAgo * DAY).toISOString() }) };
+    }
+    return { status: 200, text: '{}' };
+  }).facts;
+  const shadowed = await athrew(() => shadowing.setBackstory(N, { ...STORY }, NOW));
+  const wantDevice = new Date(NOW - STORY.deviceSwappedDaysAgo * DAY).toISOString();
+  checkOk('52 THE DEVICE WRITE IS READ BACK AND COMPARED', okWrite,
+    { label: `honoured write verifies (wrote deviceSwap ${written?.deviceSwap?.latestDeviceChange}); a shadowed device date fails loud=${shadowed.threw}`,
+      ok: !okWrite.threw
+        && written.deviceSwap.latestDeviceChange === wantDevice
+        && shadowed.threw
+        && shadowed.msg.includes('stored latestDeviceChange is')
+        && shadowed.msg.includes('write verification FAILED') });
+}
+
+conclude(52);

@@ -239,7 +239,7 @@ consistently ask what a catalog API *returns* under the profile.
 | kyc `kyc-fill-in` | attribute values | excluded from profile mode |
 | device-roaming-status † | `{"roaming":true,"countryName":["FR"]}` | `{"claims":{"predicate":"roamingIn[FR,DE]","result":true,…},"sig":"…"}` — country in, boolean out |
 | device-reachability-status † | `{"reachabilityStatus":"CONNECTED_DATA"}` | `{"claims":{"predicate":"reachable=true","result":true,…},"sig":"…"}` |
-| device-swap `/check`, `/retrieve-date` † | `{"swapped":true}` / `{"latestDeviceChange":"2026-08-11T…"}` | `{"claims":{"predicate":"deviceSwapAge≥P90D",…},"sig":"…"}` — identical shape to `simSwapAge`, same bucket menu |
+| device-swap `/check`, `/retrieve-date` † | `{"swapped":true}` / `{"latestDeviceChange":"2026-08-11T…"}` | `{"claims":{"predicate":"deviceSwapAge≥P90D",…},"sig":"…"}` — identical shape to `simSwapAge`, same bucket menu; **wired in the PoC 2026-08-17** |
 | location-verification `/verify` † | `{"verificationResult":"TRUE\|FALSE\|PARTIAL","lastLocationTime":"2026-08-11T…"}` | `{"claims":{"predicate":"presentIn[area]","result":true,…},"sig":"…"}` — **`PARTIAL` refuses, it is not rounded**; `lastLocationTime` stays operator-side |
 
 Three things the table is meant to make concrete:
@@ -327,6 +327,21 @@ Two limits and one deferral on that, stated rather than glossed:
   lands, `spec/carrier-attestation.yaml` still lists three types; this paragraph
   describes a signed-off design, and the enum follows the code, never the plan.
 
+  **Built, 2026-08-17 — `deviceSwapAge` is wired end to end** and the sketch enum
+  now lists four types (`simSwapAge`, `deviceSwapAge`, `roamingIn`, `reachable`).
+  It took the identical shape to `simSwapAge`, which is the point rather than a
+  saving: same published bucket menu, same `≥` compare, so the two questions
+  share one grammar and there is no second place for the window to widen. One
+  thing the build MEASURED and the design had only asserted: the reference adapter
+  now calls the profile-conforming surface wherever it can. `/check` answers a
+  boolean about a `maxAge` window in HOURS capped at 2400 (boundary-tested), so a
+  `P30D` or `P90D` question is answered by `/check` — the operator never reads a
+  date at all — and only `P180D`/`P365D`, which that cap cannot express, fall back
+  to `/retrieve-date` with the windowing done operator-side. That is the profile's
+  own preference showing up as an endpoint choice rather than as prose, and it is
+  the one place a catalog surface already does what §3.2 rule 1 asks for.
+  `presentIn` and `numberMatch` follow in the same round.
+
 ### 3.4 Agent-grade floor (reference profile)
 
 Agents are the "why now" (§7.2). Consumer-agent floor, only tightenable:
@@ -402,8 +417,18 @@ sequence, not any response, and floors do not reach it (a floor constrains the
    set-membership predicate has no ordering to bisect, and a boolean predicate
    is already at full resolution.
 
+   *Extension, 2026-08-17 (BUILT).* The same rule reached a second ordered axis
+   the moment `deviceSwapAge` was wired: a device swap age is bisectable exactly
+   as a SIM swap age is, so it takes the SAME published menu
+   (`P30D | P90D | P180D | P365D`) rather than a menu of its own. Sharing the
+   menu is deliberate — a second, separately-maintained bucket list is a second
+   thing that can quietly widen, and two facts answering the same shape of
+   question should not teach a reader two grammars. The reference implementation
+   refuses an off-menu device threshold with the same reason shape as the SIM one,
+   and a disabled-menu control shows the same rung being answered.
+
    *Extension, 2026-08-17 (design, not yet implemented).* The same rule reaches
-   a second ordered axis once `numberMatch` is wired: `kyc-match` returns a
+   a third ordered axis once `numberMatch` is wired: `kyc-match` returns a
    similarity **score**, and a free-choice match threshold is bisectable exactly
    as a duration threshold is. The published menu there is **60 | 70 | 80 | 90
    and nothing else**, the comparison happens operator-side, and the score never

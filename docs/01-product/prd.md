@@ -88,6 +88,19 @@ Each assertion must be able to FAIL, and the demo must show the negative:
   **rejected**, never silently answered wider. Negative: loosen the floor in
   the request and show the rejection; tighten it and show acceptance.
 
+- **FR7 The wired predicate set (added 2026-08-17, PRD §9 user-signed).** The
+  PoC answers `simSwapAge`, `deviceSwapAge`, `roamingIn`, `presentIn`,
+  `numberMatch` and `reachable`, and nothing else. Every one is backed by an
+  endpoint OBSERVED answering live; a type nothing computes is never minted (the
+  fabricated-fact rule, one layer up). Five rules bind all six, without
+  exception: (1) the answer is a signed boolean or a refusal — never a value, a
+  score or a date; (2) an off-menu threshold is refused LOUDLY and never rounded
+  to the nearest bucket; (3) anything the operator cannot answer honestly is a
+  refusal; (4) the operator publishes the floor and the requester may only
+  tighten; (5) raw values the operator legitimately holds stay operator-side.
+  Each new predicate ships with its own negative and its own disabled-guard
+  control, like every assertion before it.
+
 ### 4.2 Backend adapter seam
 
 - **FR5** One operator-facts interface, two backends:
@@ -551,6 +564,32 @@ we manage here:
 ## 9. Decisions log
 
 Dated, append-only. Rationale in one line; details in the stash/history.
+
+- **2026-08-17 (latest) — `deviceSwapAge` BUILT; the predicate set is 3 → 4 so
+  far this round (AGENT-RUN, user validation PENDING).** The signed design above
+  is now code: same bucket menu as `simSwapAge`, same `gte` compare, its own
+  fact. Three things the build settled that the design had only asserted, each
+  recorded because they are the kind of detail a design round cannot reach.
+  (1) **The reference adapter now prefers the profile-conforming SURFACE.**
+  `/check` answers a bit about a `maxAge` window in HOURS capped at 2400
+  (boundary-tested), so `P30D`/`P90D` questions are answered by `/check` — the
+  operator never reads a date — and only `P180D`/`P365D` fall back to
+  `/retrieve-date`. There is deliberately NO rounding down to a window `/check`
+  can express: that would answer a question nobody asked, signed.
+  (2) **A coarse `/check` answer is a bit about ONE window, so it carries that
+  window and the compare refuses unless it EQUALS the threshold asked.** Without
+  the equality an adapter could answer "not swapped in 30 days" to a "90 days?"
+  question and the bit would look perfect on the wire.
+  (3) **A new seam, `factQuery`.** Three of the six predicates make the operator
+  ask its own upstream a question-shaped question, so part of the predicate has
+  to reach the adapter. It reaches it through one validating chokepoint that
+  never throws, invokes nothing caller-supplied and returns frozen primitives or
+  `{}` — never `req.predicate` itself, which would put unvalidated wire objects
+  into the one module that builds outbound HTTP. Measured while pinning it: a
+  hostile value on a MENU'D type never reaches the adapter at all, because the
+  published menu refuses it before any fact is read.
+  Counts moved: m4 33 → 36, m5 48 → 52, m6 38 → 40, demo 22 → 27. Twelve
+  mutations against the round's new guards, twelve killed.
 
 - **2026-08-17 (latest) — The wired predicate set goes 3 → 6 (user-signed;
   DESIGN, not yet built).** `simSwapAge`, `deviceSwapAge` (NEW — not one of the

@@ -7,7 +7,138 @@ memory. A finding here is something that was RUN and OBSERVED, not reasoned.
 
 ---
 
-## 2026-08-17 (latest) — M6 adversarial review: five ways to crash or DoS the operator, a 29%-survival mutation sweep, and four labels that claimed more than they checked (AGENT-RUN; user validation PENDING)
+## 2026-08-17 (latest) — the 3 → 6 predicate round, part 1: `deviceSwapAge` wired, and three things the build measured that the design had only asserted (AGENT-RUN; user validation PENDING)
+
+Everything below is **AGENT-RUN by exit code on this machine**, offline, no
+network in either backend mode. G1 stays **NOT met**. Base commit `fe271df`.
+
+### The scan went red on its first run, and it was right to
+
+The six-predicate wire scan failed immediately with `hits=["FR","FR"]`. Not a
+leak: `roamingIn ["FR","BE"]` puts `FR` in the SIGNED CLAIMS by design, because
+profile rule 2 requires the answer to name the predicate it answers. A value the
+requester put INTO the question is not a disclosure when it comes back out — the
+same argument already recorded for the subscriber number.
+
+So each frame is now scanned against the inventory MINUS whatever the question it
+answers already carried, and **the size of that exclusion is asserted** (at most
+one needle per frame): an exclusion that quietly swallowed the inventory would be
+a scanner that cannot red, which is exactly the defect the previous round found.
+Mutating the exclusion to drop every needle reds `node poc/demo.mjs`.
+
+**Honest limit, and a real one:** this makes the scan blind to a leak of the SAME
+value on the AXIS BEING ASKED ABOUT. If the operator echoed its stored country
+into a `roamingIn [FR]` answer, that is byte-identical to the echoed question and
+no scanner can separate the two. M1's closed claim set is what actually prevents
+it (the leaky-operator control shows that firing); the scan covers every OTHER
+value the operator holds. Stated rather than glossed, because the alternative —
+dropping `FR` from the inventory — is how the scanner ended up checking one value
+five ways last time.
+
+### `/check` is the profile-conforming surface, and it is now the one that runs
+
+`/check` answers `{"swapped":bool}` for a `maxAge` window in HOURS, capped at
+2400 (measured, boundary-tested 2400 → 200 / 2401 → 400). That cap is
+arithmetic, so the split is not a preference:
+
+```
+P30D  =  720h  ->  /check          (operator never reads a date)
+P90D  = 2160h  ->  /check
+P180D = 4320h  ->  /retrieve-date  (the cap cannot express it)
+P365D = 8760h  ->  /retrieve-date
+```
+
+There is deliberately no rounding DOWN to a window `/check` can express: that
+answers a question nobody asked, signed. `m5-check` case 49 reads which URL went
+on the wire per bucket and what `maxAge` rode with it; `m6-check` case 22 pins
+that the orange leg of the byte-identity claim really did ask `/check` with
+`maxAge=2160` and never touched `/retrieve-date`.
+
+Consequence worth stating: on the `/check` path the operator's own raw fact is a
+BOOLEAN, not a timestamp. The profile's argument that windowing is something the
+operator does TO a value it holds does not even need to be made there — it never
+holds the value.
+
+### A coarse answer is a bit about ONE window, and has to say which
+
+`/check` cannot be compared against an arbitrary threshold, so the fact carries
+the window it was computed for (`swapAgeAtLeastMs`) and the compare refuses
+unless it EQUALS the threshold asked. Mutating that equality away leaves a module
+that can answer "not swapped in 30 days" to a "90 days?" question with a bit that
+is signed, verifiable and wrong — killed by m4 case 35.
+
+### `factQuery`, and what it measured
+
+Three of the six predicates need part of the question at the adapter. Handing
+`req.predicate` down would put unvalidated wire input into the one module that
+builds outbound HTTP — a hostile getter or a revoked Proxy delivered to a network
+client instead of being refused. `factQuery` is the chokepoint: never throws,
+invokes nothing caller-supplied, returns frozen primitives or `{}`.
+
+Measured while pinning it (m6 case 40): a hostile value on a **menu'd** type never
+reaches the adapter at all — the published menu refuses it before any fact is
+read. So the shapes that DO reach the seam are the ones on unmenu'd types and the
+ones that are not predicates at all; all six arrive as `{}`.
+
+### The Admin write shape for `deviceSwap` is ASSUMED, not measured
+
+What is measured: the Admin READ axis list includes `deviceSwap`, and
+`device-swap/v1/retrieve-date` answers `{"latestDeviceChange":…}`. What is NOT:
+that an Admin `UPDATE` accepts `deviceSwap:{latestDeviceChange}`. The write
+mirrors the one shape that IS verified (`simSwap:{latestSimChange}`), and the
+module's read-after-write verification is what makes guessing survivable — a
+wrong guess fails LOUD naming the axis rather than scripting a device history
+that never took effect. **The live run is what settles it, and nothing here
+claims it is settled.** Same for the `{phoneNumber, maxAge}` body shape of the
+two `/check` routes, mirrored from sim-swap's measured bare form.
+
+### Mutation table — twelve mutations, twelve killed
+
+| # | Mutation | Red |
+|---|---|---|
+| 1 | m4: the `/check` window need not equal the threshold | m4 exit 1 |
+| 2 | m4: the coarse bit need not be a boolean | m4 exit 1 |
+| 3 | m4: `deviceSwapAge` reads the SIM fact | m4, m6, demo all exit 1 |
+| 4 | m5: `/check` polarity flipped (`swapped` read as "old enough") | m5, m6 exit 1 |
+| 5 | m5: the 2400-hour cap ignored | m5 exit 1 |
+| 6 | m5: `swapped` read by truthiness, not as a boolean | m5 exit 1 |
+| 7 | m5: the device axis read whether asked or not | m5 exit 1 |
+| 8 | m5: the device write not read back | m5 exit 1 |
+| 9 | demo: the raw predicate handed to the facts backend | m6 exit 1 |
+| 10 | demo: `deviceSwapAge` has no published menu | m6 exit 1 |
+| 11 | demo: the wire scan excludes every needle | demo exit 1 |
+| 12 | m6-check: the two story day counts made equal | m6 exit 1 |
+
+Every one restored byte-identical afterwards and re-run green.
+
+### A defect in the mutation HARNESS, recorded because it cost a real scare
+
+The harness backs up with `cp` and restores after each mutation — but it had no
+restore on INTERRUPT, and a 2-minute command timeout killed it mid-mutation,
+leaving mutation 10 applied in the working copy. The next run then reported
+`applied=false` (the code was already mutated) with suites red, which reads like
+a surviving mutant and is actually a dirty tree. Caught only because the harness
+reports whether the mutation applied — the same instrumentation the 2026-08-17
+entry below added for the opposite reason. Restored by hand and re-verified.
+
+A separate one-off: immediately after a harness run, `node poc/demo.mjs` and
+`node poc/m6-check.mjs` each exited 1 once, then both were green on every
+subsequent run. **40 consecutive demo runs and 12 consecutive m6-check runs are
+clean**, so it is recorded as unreproduced rather than explained — measured
+rather than argued away.
+
+### Suite state after part 1 — ALL AGENT-RUN, user run PENDING
+
+```
+m1 20/20 · m2 10/10 · m3 24/24 · m4 36/36 · m5 52/52 · m6 40/40 · demo 27/27
+```
+
+Every one verified by exit code. `spec/carrier-attestation.yaml` re-parsed after
+the enum edit (now four wired types).
+
+---
+
+## 2026-08-17 — M6 adversarial review: five ways to crash or DoS the operator, a 29%-survival mutation sweep, and four labels that claimed more than they checked (AGENT-RUN; user validation PENDING)
 
 Everything below is **AGENT-RUN by exit code on this machine**, offline, no
 network in either backend mode. G1 (PRD §4.4) stays **NOT met**: no user has run

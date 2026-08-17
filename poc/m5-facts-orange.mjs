@@ -102,10 +102,59 @@ const ADMIN_URL = 'https://api.orange.com/camara/playground/admin/v1.0/action';
 //      UNVERIFIED: never probed, never 404'd, recorded as untested rather than
 //      assumed either way.** Probing it is the obvious next spike; until then
 //      no claim is made about it in either direction.
+//
+// UPDATED 2026-08-17 (predicate set 3 → 6). Point 3 above is now HALF-CLOSED and
+// point 2 is closed the other way, both by measurement (standalone Playground
+// sweep, `docs/01-product/findings.md`):
+//   * `/retrieve-age-band` DOES NOT EXIST here — `400 "unhandled path"`, the
+//     Playground's own signal for an unwired route. So the coarse surface the
+//     profile would prefer cannot be demonstrated live at all. Recorded
+//     unfavourably rather than left as "untested".
+//   * `/check` DOES exist and answers on BOTH sim-swap and device-swap, and its
+//     `maxAge` cap was BOUNDARY-tested (2400 → 200, 2401 → 400). 2400 hours is
+//     ≈100 days, so `/check` can express the `P30D` and `P90D` buckets of the
+//     published menu and cannot express `P180D` or `P365D` — arithmetic, not
+//     preference. This module therefore uses `/check` WHEREVER THE BUCKET FITS
+//     (the profile-conforming surface: the operator never learns the date) and
+//     falls back to `/retrieve-date` only above the cap. Which surface ran is
+//     observable in the transport, and the offline check asserts it per bucket.
 const READS = Object.freeze({
-  simSwap: { url: `${API}/sim-swap/v1/retrieve-date`, body: (n) => ({ phoneNumber: n }) },
+  simSwapDate: { url: `${API}/sim-swap/v1/retrieve-date`, body: (n) => ({ phoneNumber: n }) },
+  deviceSwapDate: { url: `${API}/device-swap/v1/retrieve-date`, body: (n) => ({ phoneNumber: n }) },
+  // ASSUMED REQUEST SHAPE, stated rather than implied: the sweep measured that
+  // these routes ANSWER (`{"swapped":…}`) and that `maxAge` is validated against
+  // 2400, but the exact body it sent is not recorded here, so `{phoneNumber,
+  // maxAge}` is mirrored from sim-swap's measured bare-`phoneNumber` form. If it
+  // is wrong the Playground answers `400 INVALID_ARGUMENT` and `classify()` fails
+  // LOUD naming the surface — never a quiet absent axis. The live run is what
+  // settles it; nothing here claims it is settled.
+  simSwapCheck: { url: `${API}/sim-swap/v1/check`, body: (n, maxAge) => ({ phoneNumber: n, maxAge }) },
+  deviceSwapCheck: { url: `${API}/device-swap/v1/check`, body: (n, maxAge) => ({ phoneNumber: n, maxAge }) },
   roaming: { url: `${API}/device-roaming-status/v1/retrieve`, body: (n) => ({ device: { phoneNumber: n } }) },
   reachability: { url: `${API}/device-reachability-status/v1/retrieve`, body: (n) => ({ device: { phoneNumber: n } }) },
+});
+
+// `/check`'s window is expressed in HOURS and capped at 2400 — MEASURED, and
+// boundary-tested on both surfaces (2400 → 200, 2401 → 400). A threshold that is
+// not a whole number of hours, or is past the cap, cannot be asked of `/check`
+// at all, so the date surface answers it instead. No rounding: asking `/check` a
+// window it cannot express and then treating the answer as if it could is how a
+// bit about the wrong question gets signed.
+const CHECK_MAX_HOURS = 2400;
+const HOUR_MS = 3600000;
+
+// The two swap axes, identical in shape and different in every wire detail.
+const SWAP_AXES = Object.freeze({
+  sim: Object.freeze({
+    what: 'sim-swap', dateField: 'latestSimChange', date: 'simSwapDate', check: 'simSwapCheck',
+    ageFact: 'swapAgeMs', atLeastFact: 'swapAgeAtLeast', atLeastMsFact: 'swapAgeAtLeastMs',
+    thresholdKey: 'swapAgeThresholdMs',
+  }),
+  device: Object.freeze({
+    what: 'device-swap', dateField: 'latestDeviceChange', date: 'deviceSwapDate', check: 'deviceSwapCheck',
+    ageFact: 'deviceSwapAgeMs', atLeastFact: 'deviceSwapAgeAtLeast', atLeastMsFact: 'deviceSwapAgeAtLeastMs',
+    thresholdKey: 'deviceSwapAgeThresholdMs',
+  }),
 });
 
 // Reachability is an enum on the wire and a boolean in the facts. Closed on
@@ -430,16 +479,18 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
     if (!isPlainData(backstory)) {
       throw new Error(`invalid backstory for ${number}: not a plain object (own enumerable data only — a field on the prototype, or behind a getter, would be USED while escaping the unknown-field check below)`);
     }
-    const { swappedDaysAgo, roamingCountry, reachable } = backstory;
+    const { swappedDaysAgo, deviceSwappedDaysAgo, roamingCountry, reachable } = backstory;
     // Same closed, required, un-defaulted field set as M4 — and the same
     // reason: a typo must be BOTH an unknown field and a missing one.
     for (const k of Object.keys(backstory)) {
-      if (!['swappedDaysAgo', 'roamingCountry', 'reachable'].includes(k)) {
+      if (!['swappedDaysAgo', 'deviceSwappedDaysAgo', 'roamingCountry', 'reachable'].includes(k)) {
         throw new Error(`invalid backstory for ${number}: unknown field ${brief(k)}`);
       }
     }
-    if (!Number.isSafeInteger(swappedDaysAgo) || swappedDaysAgo < 0) {
-      throw new Error(`invalid backstory for ${number}: swappedDaysAgo must be whole non-negative days (strings, null and booleans are NOT coerced)`);
+    for (const [k, v] of [['swappedDaysAgo', swappedDaysAgo], ['deviceSwappedDaysAgo', deviceSwappedDaysAgo]]) {
+      if (!Number.isSafeInteger(v) || v < 0) {
+        throw new Error(`invalid backstory for ${number}: ${k} must be whole non-negative days (strings, null and booleans are NOT coerced)`);
+      }
     }
     if (!(roamingCountry === null || (typeof roamingCountry === 'string' && COUNTRY.test(roamingCountry)))) {
       throw new Error(`invalid backstory for ${number}: roamingCountry must be ISO-3166-1 alpha-2 uppercase, or null for not roaming`);
@@ -448,10 +499,14 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
       throw new Error(`invalid backstory for ${number}: reachable must be boolean true or false, never a string`);
     }
     const swappedAtMs = nowMs - swappedDaysAgo * DAY_MS;
-    if (swappedAtMs < 0) {
-      throw new Error(`invalid backstory for ${number}: swappedDaysAgo ${swappedDaysAgo} predates the epoch relative to the injected now`);
+    const deviceSwappedAtMs = nowMs - deviceSwappedDaysAgo * DAY_MS;
+    for (const [k, v, at] of [['swappedDaysAgo', swappedDaysAgo, swappedAtMs], ['deviceSwappedDaysAgo', deviceSwappedDaysAgo, deviceSwappedAtMs]]) {
+      if (at < 0) {
+        throw new Error(`invalid backstory for ${number}: ${k} ${v} predates the epoch relative to the injected now`);
+      }
     }
     const latestSimChange = new Date(swappedAtMs).toISOString();
+    const latestDeviceChange = new Date(deviceSwappedAtMs).toISOString();
 
     // `countryCode` is deliberately NOT written. Measured 2026-08-16: the
     // Playground's own records are internally inconsistent about it (the
@@ -459,8 +514,19 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
     // admin-scripted France record takes `208`, the MCC), so nothing honest can
     // be read from it and writing one would imply a mapping this PoC does not
     // have. `countryName` alone is accepted and round-trips — verified live.
+    // `deviceSwap` is written with an ASSUMED sub-object shape, and that is said
+    // out loud rather than implied. What is MEASURED: the Admin READ axis list
+    // includes `deviceSwap`, and `device-swap/v1/retrieve-date` answers
+    // `{"latestDeviceChange":"…"}`. What is NOT measured: that an Admin `UPDATE`
+    // accepts `deviceSwap:{latestDeviceChange}`. It mirrors the one write shape
+    // that IS verified (`simSwap:{latestSimChange}`), and the read-after-write
+    // verification below is exactly what makes guessing survivable: if the guess
+    // is wrong the stored value will not match and the module fails LOUD naming
+    // the axis, instead of scripting a backstory that never took effect. The live
+    // run settles it; nothing here claims it is settled.
     const data = {
       simSwap: { latestSimChange },
+      deviceSwap: { latestDeviceChange },
       roaming: roamingCountry === null ? { roaming: false } : { roaming: true, countryName: [roamingCountry] },
       reachability: { reachabilityStatus: reachable ? 'CONNECTED_DATA' : 'NOT_CONNECTED' },
     };
@@ -487,12 +553,14 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
     }
     const got = {
       latestSimChange: stored.simSwap?.latestSimChange,
+      latestDeviceChange: stored.deviceSwap?.latestDeviceChange,
       roaming: stored.roaming?.roaming,
       country: joinStored(stored.roaming?.countryName, redact),
       reachabilityStatus: stored.reachability?.reachabilityStatus,
     };
     const want = {
       latestSimChange,
+      latestDeviceChange,
       roaming: roamingCountry !== null,
       country: roamingCountry === null ? undefined : roamingCountry,
       reachabilityStatus: data.reachability.reachabilityStatus,
@@ -519,7 +587,7 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
     // destroyed this message entirely. `brief()` bounds BEFORE it renders, which
     // is the same lesson case 43 of the offline suite already states.
     const show = (v) => (typeof v === 'string' ? brief(redact(v)) : brief(v));
-    for (const axis of ['latestSimChange', 'roaming', 'reachabilityStatus', 'country']) {
+    for (const axis of ['latestSimChange', 'latestDeviceChange', 'roaming', 'reachabilityStatus', 'country']) {
       // `country` is only compared when one was written: a stale country left
       // alongside `roaming:false` is producible (measured) and is not a write
       // failure — `roaming:false` is the authoritative half either way.
@@ -545,22 +613,70 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
    * An axis the Playground cannot honestly supply is ABSENT from the returned
    * object. `roamingCountry: null` is a PRESENT key meaning "not roaming".
    */
-  async function getFacts(number, nowMs) {
+  async function getFacts(number, nowMs, query = {}) {
     assertTestNumber(number);
     assertNow(nowMs);
     const facts = {};
 
-    const swapOut = await post('camara', READS.simSwap.url, READS.simSwap.body(number));
-    classify(swapOut, number, 'sim-swap retrieve-date');
-    const swap = parseJson(swapOut, 'sim-swap retrieve-date');
-    const swappedAtMs = Date.parse(swap?.latestSimChange);
-    // An unparseable date, or one in the FUTURE relative to the injected clock,
-    // leaves the axis absent rather than producing a negative age. `undefined >=
-    // threshold` is `false`, so a fabricated age here would read as "the SIM is
-    // not old enough" about a SIM nobody could date — an answer, from garbage.
-    if (Number.isSafeInteger(swappedAtMs) && swappedAtMs <= nowMs) {
-      facts.swapAgeMs = nowMs - swappedAtMs;
-    }
+    // `query` comes from M4's `factQuery`, which validated it and froze it — so
+    // everything read out of it here already passed the same parser
+    // `evaluatePredicate` will apply. It is re-checked anyway, because this
+    // module's contract is that IT decides what goes on the wire: a `maxAge` is a
+    // value this file sends to a live operator, and "the caller validated it" is
+    // not a property this file can verify.
+    const q = isPlainData(query) ? query : {};
+
+    // ONE swap axis, TWO surfaces, and the choice is made HERE from the measured
+    // cap. This is the only place in the PoC where the profile's own preference
+    // is expressible on a real endpoint: `/check` answers a bit about a window
+    // and the operator never learns the date, which is strictly less disclosure
+    // than holding a timestamp. Above the cap `/check` cannot express the
+    // question at all, so the date surface answers it and the windowing happens
+    // locally. No rounding to a window `/check` CAN express — that would answer
+    // a question nobody asked, signed.
+    const readSwapAxis = async (axis) => {
+      const thresholdMs = q[axis.thresholdKey];
+      const fits = Number.isSafeInteger(thresholdMs) && thresholdMs > 0
+        && thresholdMs % HOUR_MS === 0 && thresholdMs / HOUR_MS <= CHECK_MAX_HOURS;
+      if (fits) {
+        const hours = thresholdMs / HOUR_MS;
+        const r = READS[axis.check];
+        const out = await post('camara', r.url, r.body(number, hours));
+        classify(out, number, `${axis.what} check`);
+        const body = parseJson(out, `${axis.what} check`);
+        // `swapped` is a JSON BOOLEAN in the captured responses and is read as
+        // one: the string `"false"` is TRUTHY, so coercing here would report
+        // "swapped recently" for a subscriber who was not. Anything else leaves
+        // the axis ABSENT — a refusal downstream, never a guessed bit.
+        if (typeof body?.swapped === 'boolean') {
+          // `swapped === false` means NOT swapped inside the window, i.e. the age
+          // is AT LEAST the window. That negation is the entire mapping, and a
+          // flipped polarity is a silent wrong answer, so it is pinned in both
+          // directions by its own case.
+          facts[axis.atLeastFact] = body.swapped === false;
+          facts[axis.atLeastMsFact] = thresholdMs;
+        }
+        return;
+      }
+      const r = READS[axis.date];
+      const out = await post('camara', r.url, r.body(number));
+      classify(out, number, `${axis.what} retrieve-date`);
+      const body = parseJson(out, `${axis.what} retrieve-date`);
+      const atMs = Date.parse(body?.[axis.dateField]);
+      // An unparseable date, or one in the FUTURE relative to the injected clock,
+      // leaves the axis absent rather than producing a negative age. `undefined >=
+      // threshold` is `false`, so a fabricated age here would read as "the SIM is
+      // not old enough" about a SIM nobody could date — an answer, from garbage.
+      if (Number.isSafeInteger(atMs) && atMs <= nowMs) facts[axis.ageFact] = nowMs - atMs;
+    };
+
+    await readSwapAxis(SWAP_AXES.sim);
+    // The DEVICE axis is read only when a device question was asked. Not an
+    // optimisation: every read is a metered live call about one subscriber, and
+    // reading a fact nobody asked for is an operator query with no question
+    // behind it. The SIM axis stays unconditional — it is the axis this module has
+    // always answered and the demo's headline question.
+    if (hasOwn(q, SWAP_AXES.device.thresholdKey)) await readSwapAxis(SWAP_AXES.device);
 
     const roamOut = await post('camara', READS.roaming.url, READS.roaming.body(number));
     classify(roamOut, number, 'device-roaming-status');

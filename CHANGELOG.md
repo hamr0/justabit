@@ -2,6 +2,43 @@
 
 ## Unreleased (0.4.0 — M6)
 
+- **The wired predicate set goes 3 → 6 (user-signed, PRD §9). Part 1:
+  `deviceSwapAge`.** Every wired type is backed by an endpoint OBSERVED answering
+  live; nothing is minted for a fact no source computes. `deviceSwapAge` takes the
+  IDENTICAL shape to `simSwapAge` — same published bucket menu
+  (`P30D | P90D | P180D | P365D`), same `≥` compare, its own fact — because two
+  questions of the same shape must not teach a reader two grammars, and a second
+  menu is a second place for the window to widen quietly.
+  - **The reference adapter now calls the PROFILE-CONFORMING surface where it
+    can.** `/check` answers a bit about a `maxAge` window in HOURS capped at 2400
+    (boundary-tested), so `P30D`/`P90D` questions go to `/check` — on that path
+    the operator never reads a date at all — and only `P180D`/`P365D`, which the
+    cap cannot express, fall back to `/retrieve-date`. No rounding down to a
+    window `/check` can express: that answers a question nobody asked, signed.
+  - **A coarse `/check` answer carries the window it was computed for**, and the
+    compare refuses unless that window EQUALS the threshold asked — otherwise an
+    adapter could answer "not swapped in 30 days" to a "90 days?" question with a
+    bit that is signed, verifiable and wrong.
+  - **New seam `factQuery` (M4).** Three of the six predicates make the operator
+    ask its own upstream a question-shaped question, so part of the predicate has
+    to reach the adapter. It goes through one validating chokepoint — never
+    throws, invokes nothing caller-supplied, returns frozen primitives or `{}` —
+    rather than handing `req.predicate` to the module that builds outbound HTTP.
+  - **The wire-byte scanner now excludes what the QUESTION itself carried**, and
+    asserts the size of that exclusion. Found by the scan going red on its first
+    run: `roamingIn ["FR","BE"]` puts `FR` in the signed claims by design (rule 2
+    requires the answer to name its predicate). Honest limit recorded: the scan is
+    therefore blind to a leak of the same value on the axis being asked about —
+    M1's closed claim set is what prevents that, not the scanner.
+  - **Stated, not claimed:** the Admin write shape for the `deviceSwap` axis and
+    the `{phoneNumber, maxAge}` body of the two `/check` routes are ASSUMED
+    (mirrored from measured siblings), never observed. Read-after-write
+    verification is what makes a wrong guess fail LOUD instead of silently
+    scripting a history that never took effect; the live run settles it.
+  - **Counts: `m4-check` 33 → 36, `m5-check` 48 → 52, `m6-check` 38 → 40,
+    `poc/demo.mjs` 22 → 27.** All AGENT-RUN by exit code; **user run PENDING.**
+    Twelve mutations against the round's new guards, twelve killed.
+
 - **M6 adversarial review round (2026-08-17): five ways to crash or deny-service
   the operator, all fixed and mutation-proven.** An independent review filed six
   defects with a repro script; all six reproduced on the first run. Four were

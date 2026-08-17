@@ -45,7 +45,7 @@ import { pathToFileURL } from 'node:url';
 import { attest, verifyAttestation, hasDuplicateTopLevelKey } from './m1-attestation.mjs';
 import { generateEnvelopeKeys, seal, open, OAEP_CAPACITY } from './m2-envelope.mjs';
 import { checkFloor } from './m3-floor.mjs';
-import { createMockFacts, evaluatePredicate } from './m4-facts-mock.mjs';
+import { createMockFacts, evaluatePredicate, factQuery } from './m4-facts-mock.mjs';
 import { createOrangeFacts } from './m5-facts-orange.mjs';
 
 const hasOwn = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -66,6 +66,21 @@ export const VALIDITY_MS = 60_000;
 export const DEMO_NUMBER = '+990100000099';
 const SWAPPED_DAYS_AGO = 137;   // deliberately not a round number
 const FLIPPED_DAYS_AGO = 3;
+// The DEVICE swap is a DIFFERENT instant from the SIM swap, and deliberately so:
+// one story where both axes shared a day count would let a mapping that reads the
+// wrong axis pass every assertion. Three digits, so it is a needle that can be
+// scanned against plaintext without landing by chance.
+const DEVICE_SWAPPED_DAYS_AGO = 211;
+const DEVICE_FLIPPED_DAYS_AGO = 4;
+// One backstory, built in one place: six fields, all required, no defaults (M4's
+// rule — a typo must be both an unknown field and a missing one).
+const story = (over = {}) => ({
+  swappedDaysAgo: SWAPPED_DAYS_AGO,
+  deviceSwappedDaysAgo: DEVICE_SWAPPED_DAYS_AGO,
+  roamingCountry: 'FR',
+  reachable: true,
+  ...over,
+});
 
 // ─────────────────── what the operator publishes, in one place ───────────────
 // The consumer-agent reference floor (proposal §3.4). A request may TIGHTEN
@@ -97,8 +112,16 @@ export const PUBLISHED_FLOOR = Object.freeze({ simType: 'voice+data', tenureMin:
 // country — i.e. the answer itself, which the rate limit and the per-query bill
 // are the correct defence against), and `reachable` is already a single bit at
 // full resolution, so there is nothing left to quantise.
+//
+// WIDENED 2026-08-17 with the 3 → 6 predicate round (PRD §9, user-signed):
+// `deviceSwapAge` takes the IDENTICAL bucket menu to `simSwapAge`. Not a new
+// shape on purpose — two facts answering the same question about different
+// hardware must not teach a reader two grammars, and a second shape is a second
+// place for the window to widen quietly. `roamingIn` and `reachable` still have
+// no menu for the reasons stated above.
 export const PUBLISHED_THRESHOLD_MENU = Object.freeze({
   simSwapAge: Object.freeze(['P30D', 'P90D', 'P180D', 'P365D']),
+  deviceSwapAge: Object.freeze(['P30D', 'P90D', 'P180D', 'P365D']),
 });
 
 // ─────────────────────────── M6-owned: the transport frame ───────────────────
@@ -409,9 +432,19 @@ export function createOperator({ keys, directory, backend, floor = PUBLISHED_FLO
     //     the throw is caught here and answered as a loud refusal. `await` covers
     //     both backends: M4 is synchronous, M5 is not, and that is the only shape
     //     difference between them.
+    //     `factQuery` (M4, added with the 3 → 6 round) is what lets a predicate
+    //     that needs an UPSTREAM question — a `/check` window in hours, an area,
+    //     a claimed name — reach the adapter WITHOUT the adapter ever holding
+    //     wire input. It validates with the same parsers `evaluatePredicate`
+    //     applies, never throws, and returns frozen primitives or `{}`; an
+    //     unvalidatable question yields an empty query, which yields an absent
+    //     fact, which is refused below. Handing `req.predicate` straight to the
+    //     backend instead would put unvalidated wire objects into the one module
+    //     that builds outbound HTTP — the same mistake as canonicalising before
+    //     evaluating, aimed at the network.
     let facts;
     try {
-      facts = await backend.getFacts(req.number, NOW);
+      facts = await backend.getFacts(req.number, NOW, factQuery(req.predicate));
     } catch (e) {
       // DECISION #3 (2026-08-17, adversarial review) — THE REQUESTER GETS A
       // STABLE REASON; THE DIAGNOSTIC STAYS OPERATOR-SIDE. This used to forward
@@ -612,7 +645,7 @@ export async function createBackend(mode, { basicAuth, fetchImpl } = {}) {
       // M5's takes one, because it converts to an absolute date for Orange. The
       // uniform 3-argument shape here is the whole adapter difference.
       setBackstory: async (number, backstory) => facts.setBackstory(number, backstory),
-      getFacts: async (number, nowMs) => facts.getFacts(number, nowMs),
+      getFacts: async (number, nowMs, query) => facts.getFacts(number, nowMs, query),
     };
   }
   if (mode === 'orange') {
@@ -620,7 +653,7 @@ export async function createBackend(mode, { basicAuth, fetchImpl } = {}) {
     return {
       label: 'orange — live Orange Network APIs Playground',
       setBackstory: (number, backstory, nowMs) => facts.setBackstory(number, backstory, nowMs),
-      getFacts: (number, nowMs) => facts.getFacts(number, nowMs),
+      getFacts: (number, nowMs, query) => facts.getFacts(number, nowMs, query),
     };
   }
   throw new Error(`unknown backend: ${JSON.stringify(mode)} (use mock or orange)`);
@@ -685,12 +718,22 @@ export async function roundTrip(world, request, { operator: opControls = {}, rp:
 // it is explicit below instead: some of these values are too short to scan
 // against opaque bytes without flaking, which is a property of the ARTIFACT, not
 // a reason to leave the value out of the inventory.
-export function rawNeedles(daysAgo, { country = 'FR', number = DEMO_NUMBER } = {}) {
-  const ageMs = daysAgo * DAY_MS;
-  const atMs = NOW - ageMs;
-  const iso = new Date(atMs).toISOString();
-  return [String(ageMs), String(atMs), iso, iso.slice(0, 10), 'swapAgeMs', 'roamingCountry',
-    String(daysAgo), country, number];
+export function rawNeedles(daysAgo, { country = 'FR', number = DEMO_NUMBER, deviceDaysAgo = null } = {}) {
+  const spellings = (d) => {
+    const ageMs = d * DAY_MS;
+    const atMs = NOW - ageMs;
+    const iso = new Date(atMs).toISOString();
+    return [String(ageMs), String(atMs), iso, iso.slice(0, 10), String(d)];
+  };
+  // WIDENED 2026-08-17 with the 3 → 6 predicate round: every fact the operator
+  // now holds gets its own spellings, because the review's lesson was that an
+  // inventory covering one value five ways reads as complete and is not. The
+  // DEVICE swap instant is a second raw timestamp, as disclosive as the first.
+  return [
+    ...spellings(daysAgo),
+    ...(deviceDaysAgo === null ? [] : spellings(deviceDaysAgo)),
+    'swapAgeMs', 'deviceSwapAgeMs', 'roamingCountry', country, number,
+  ];
 }
 
 // The subset that is safe to scan against OPAQUE bytes — RSA ciphertext read as
@@ -708,6 +751,35 @@ export const opaqueNeedles = (all) => all.filter((n) => n.length >= OPAQUE_MIN_N
 // a flaky needle into an asserting one — the value is still scanned, in every
 // artifact byte the operator actually authored.
 export const withoutNonce = (text, nonce) => (nonce ? text.split(nonce).join('') : text);
+
+// ...and the counterpart the 3 → 6 round forced, which is worth stating plainly
+// because it looks like an excuse and is not.
+//
+// The signed claims ECHO THE QUESTION (profile rule 2 — an answer must name the
+// predicate it answers, or a signed bit can be read as answering a different
+// one). So for `roamingIn ["FR","BE"]` the string `FR` is IN the answer by
+// design: it is the requester's own set, coming back to the requester, exactly
+// like the nonce. Measured the moment the six-predicate scan first ran — it went
+// red on `["FR","FR"]` from the two roaming frames, which is the scan working,
+// not a leak.
+//
+// A value the requester put INTO the question is not a disclosure when it comes
+// back out. So each frame is scanned against the inventory MINUS whatever the
+// question it answers already carried, and the excluded set is asserted (an
+// exclusion that quietly swallowed the whole inventory would be a scanner that
+// cannot red).
+//
+// HONEST LIMIT, and it is a real one: this makes the scan blind to a leak of the
+// SAME value on the AXIS BEING ASKED ABOUT. If the operator echoed its stored
+// country into a `roamingIn [FR]` answer, that is byte-identical to the echoed
+// question and no scanner can separate them. M1's closed claim set is what
+// actually prevents it (any field beyond {predicate,result,nonce,exp} is
+// rejected — the leaky-operator control shows that firing); the scan covers every
+// OTHER value the operator holds. Stated rather than glossed, because the
+// alternative — dropping `FR` from the inventory entirely — is how the previous
+// version of this scanner ended up checking one value five ways.
+export const withoutAsked = (needles, canonical) =>
+  needles.filter((n) => !String(canonical).includes(n));
 
 export function scan(buf, needles) {
   const s = Buffer.isBuffer(buf) ? buf.toString('latin1') : String(buf);
@@ -740,11 +812,11 @@ export async function runDemo(backend) {
   results.length = 0;   // so a second call in one process reports its own tally
   const world = createWorld({ backend });
   const { hub, rp, keys } = world;
-  const NEEDLES = rawNeedles(SWAPPED_DAYS_AGO);
+  const NEEDLES = rawNeedles(SWAPPED_DAYS_AGO, { deviceDaysAgo: DEVICE_SWAPPED_DAYS_AGO });
   const OPAQUE = opaqueNeedles(NEEDLES);
   const SWAP_ISO = new Date(NOW - SWAPPED_DAYS_AGO * DAY_MS).toISOString();
 
-  await backend.setBackstory(DEMO_NUMBER, { swappedDaysAgo: SWAPPED_DAYS_AGO, roamingCountry: 'FR', reachable: true }, NOW);
+  await backend.setBackstory(DEMO_NUMBER, story(), NOW);
 
   out('justabit — Mode A, attested windowed disclosure (never "zero-knowledge")');
   out('');
@@ -799,7 +871,7 @@ export async function runDemo(backend) {
     + `${Object.keys(plain1).join(', ')} (nonce blanked) vs all ${NEEDLES.length}: [${NEEDLES.join(', ')}] → hits=${JSON.stringify(hits1)}`);
 
   step('and the bit is real, not decoration: re-script the backstory and re-ask.');
-  await backend.setBackstory(DEMO_NUMBER, { swappedDaysAgo: FLIPPED_DAYS_AGO, roamingCountry: 'FR', reachable: true }, NOW);
+  await backend.setBackstory(DEMO_NUMBER, story({ swappedDaysAgo: FLIPPED_DAYS_AGO }), NOW);
   const q1b = rp.buildRequest(PREDICATE, { swapAgeMin: 'P180D' });
   const r1b = await roundTrip(world, q1b);
   qa('same question, same wire shape, different subscriber history',
@@ -808,7 +880,7 @@ export async function runDemo(backend) {
   assert('the bit flips and the ciphertext length does not move',
     r1b.out.claims.result === false && r1b.verdict.accepted === true && r1b.out.sealed.length === r1.out.sealed.length,
     `${r1.out.sealed.length} B both times — RSA-OAEP ciphertext is fixed-length, so the billing record carries no content signal`);
-  await backend.setBackstory(DEMO_NUMBER, { swappedDaysAgo: SWAPPED_DAYS_AGO, roamingCountry: 'FR', reachable: true }, NOW);
+  await backend.setBackstory(DEMO_NUMBER, story(), NOW);
 
   // NEGATIVE: an operator that ships the age alongside the bit. Two independent
   // defences must both fire, or the scanner above was asserting nothing.
@@ -948,6 +1020,83 @@ export async function runDemo(backend) {
   flip('with the set left open, the typo silently DROPS the demanded floor',
     typoCtrl.kind === 'answer',
     `answered under the operator's own ${PUBLISHED_FLOOR.swapAgeMin} while the requester believed it demanded ${typo.floors.swapAgeMin} — no error anywhere`);
+
+  // ────────────────────────────────────── the wired predicate set (3 → 6)
+  section('The wired predicate set — one envelope, several questions');
+  step('every predicate below is backed by an endpoint that was OBSERVED ANSWERING on');
+  step('the Orange Playground (2026-08-17). Nothing is wired that no fact source answers —');
+  step('which is why `tenure` and `simType` are NOT here: the data exists operator-side,');
+  step('and no CAMARA read endpoint for it does (both probes: 400 "unhandled path").');
+
+  // deviceSwapAge — the same grammar as simSwapAge, deliberately. A second shape
+  // would be a second place for the window to widen quietly.
+  const DEVICE_P90 = { type: 'deviceSwapAge', operator: 'gte', value: 'P90D' };
+  const q6a = rp.buildRequest(DEVICE_P90, { swapAgeMin: 'P180D' });
+  const r6a = await roundTrip(world, q6a);
+  qa('has the DEVICE behind this number been in place for at least 90 days?',
+    `the device was swapped ${DEVICE_SWAPPED_DAYS_AGO} days ago; the SIM ${SWAPPED_DAYS_AGO} — two different instants`,
+    `${r6a.out.claims?.result} — off the same published bucket menu as simSwapAge`);
+  assert('deviceSwapAge answers off the SAME menu, and the two axes are independent',
+    r6a.verdict.accepted === true && r6a.out.claims.result === true
+      && JSON.stringify(PUBLISHED_THRESHOLD_MENU.deviceSwapAge) === JSON.stringify(PUBLISHED_THRESHOLD_MENU.simSwapAge),
+    `signed '${r6a.out.claims.predicate}'; menu ${JSON.stringify(PUBLISHED_THRESHOLD_MENU.deviceSwapAge)}`);
+
+  // NEGATIVE: re-script ONLY the device axis. If the mapping read the SIM axis by
+  // mistake, this bit would not move — which is the whole reason the two day
+  // counts differ.
+  await backend.setBackstory(DEMO_NUMBER, story({ deviceSwappedDaysAgo: DEVICE_FLIPPED_DAYS_AGO }), NOW);
+  const q6b = rp.buildRequest(DEVICE_P90, { swapAgeMin: 'P180D' });
+  const r6b = await roundTrip(world, q6b);
+  const q6c = rp.buildRequest(PREDICATE, { swapAgeMin: 'P180D' });
+  const r6c = await roundTrip(world, q6c);
+  flip('re-scripting ONLY the device swap flips ONLY the device bit',
+    r6b.out.claims?.result === false && r6b.verdict.accepted === true && r6c.out.claims?.result === true,
+    `device ${DEVICE_FLIPPED_DAYS_AGO}d → ${r6b.out.claims?.result}; the SIM is untouched at ${SWAPPED_DAYS_AGO}d → ${r6c.out.claims?.result}`);
+  await backend.setBackstory(DEMO_NUMBER, story(), NOW);
+
+  // roamingIn — a SET, not an ordered threshold, so no menu (nothing to bisect).
+  const q6d = rp.buildRequest({ type: 'roamingIn', operator: 'in', value: ['FR', 'BE'] }, { swapAgeMin: 'P180D' });
+  const r6d = await roundTrip(world, q6d);
+  await backend.setBackstory(DEMO_NUMBER, story({ roamingCountry: null }), NOW);
+  const q6e = rp.buildRequest({ type: 'roamingIn', operator: 'in', value: ['FR', 'BE'] }, { swapAgeMin: 'P180D' });
+  const r6e = await roundTrip(world, q6e);
+  await backend.setBackstory(DEMO_NUMBER, story(), NOW);
+  qa('is the device in FR or BE?', 'the subscriber is roaming in FR', `${r6d.out.claims?.result} — and the country never comes back`);
+  assert('roamingIn answers a set membership, and NOT roaming answers an honest false',
+    r6d.verdict.accepted === true && r6d.out.claims.result === true
+      && r6e.verdict.accepted === true && r6e.out.claims.result === false,
+    'no menu for this one on purpose: a set has no ordering to bisect');
+
+  // reachable — already one bit at full resolution, so nothing to quantise.
+  const q6f = rp.buildRequest({ type: 'reachable', operator: 'eq', value: true }, { swapAgeMin: 'P180D' });
+  const r6f = await roundTrip(world, q6f);
+  await backend.setBackstory(DEMO_NUMBER, story({ reachable: false }), NOW);
+  const q6g = rp.buildRequest({ type: 'reachable', operator: 'eq', value: true }, { swapAgeMin: 'P180D' });
+  const r6g = await roundTrip(world, q6g);
+  await backend.setBackstory(DEMO_NUMBER, story(), NOW);
+  assert('reachable answers a flag, both ways',
+    r6f.verdict.accepted === true && r6f.out.claims.result === true
+      && r6g.verdict.accepted === true && r6g.out.claims.result === false,
+    'CONNECTED_DATA/CONNECTED_SMS → true, NOT_CONNECTED → false; the status string stays operator-side');
+
+  // ...and ONE scan across every answer this section produced, against the WIDENED
+  // inventory. The needle set now carries the device instant's own spellings too,
+  // because the review's lesson was that an inventory covering one value five ways
+  // reads as complete and is not.
+  const setFrames = [[q6a, r6a], [q6b, r6b], [q6d, r6d], [q6e, r6e], [q6f, r6f], [q6g, r6g]];
+  const setHits = [];
+  const excluded = [];
+  for (const [q, r] of setFrames) {
+    const text = withoutNonce(unpackSigned(r.out.plain).signed.payloadBytes.toString('utf8'), q.nonce);
+    const asked = r.out.claims.predicate;
+    const useful = withoutAsked(NEEDLES, asked);
+    excluded.push(NEEDLES.length - useful.length);
+    setHits.push(...scan(text, useful));
+  }
+  assert('no raw value in ANY of these answers — the whole widened inventory, minus what the question itself asked',
+    setHits.length === 0 && excluded.every((n) => n <= 1),
+    `${setFrames.length} answer frames vs all ${NEEDLES.length} needles; per-frame needles excluded as requester-supplied = `
+    + `${JSON.stringify(excluded)} (only the country set can exclude one) → hits=${JSON.stringify(setHits)}`);
 
   // ─────────────────────────────────────────── guards on the request path
   section('Guards on the request path (the two M6 decisions, 2026-08-17)');

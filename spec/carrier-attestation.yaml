@@ -69,10 +69,20 @@ components:
       # (docs/02-proposals/camara-attested-windowed-disclosure.md §3.3.1), not
       # deleted. The NORMATIVE profile enumerates no predicate types at all
       # (§3.2), so this list constrains the sketch and nothing else.
+      #
+      # WIDENED 2026-08-17 (predicate set 3 -> 6, user-signed) by the same rule
+      # the trim applied, not against it: wire only what a real fact source
+      # answers. A Playground endpoint sweep found `device-swap` `/check` and
+      # `/retrieve-date` both answering live, so `deviceSwapAge` is wired and
+      # listed here. The enum follows the CODE, never the plan: a type appears
+      # here only once the reference operator can answer it end to end.
+      # `tenure` and `simType` stay OUT for a MEASURED reason — the operator-side
+      # data exists, and no CAMARA read endpoint for it does (`tenure/v1/retrieve`
+      # and `sim-tenure/v1/retrieve` both `400 "unhandled path"`).
       properties:
         type:
           type: string
-          enum: [simSwapAge, roamingIn, reachable]
+          enum: [simSwapAge, deviceSwapAge, roamingIn, reachable]
         operator:
           type: string
           enum: [gte, eq, in]
@@ -82,7 +92,7 @@ components:
           # `simType` is not a predicate type any more. One example per wired
           # type instead, so every spelling shown is one the reference operator
           # can actually answer.
-          description: Threshold, set, or flag — one per wired type (simSwapAge "P90D", roamingIn ["FR","BE"], reachable true)
+          description: Threshold, set, or flag — one per wired type (simSwapAge/deviceSwapAge "P90D", roamingIn ["FR","BE"], reachable true)
           oneOf:
             - type: string
             - type: array

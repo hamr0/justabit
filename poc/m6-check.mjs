@@ -18,7 +18,7 @@ import * as M5 from './m5-facts-orange.mjs';
 import {
   NOW, VALIDITY_MS, DEMO_NUMBER, PUBLISHED_FLOOR, PUBLISHED_THRESHOLD_MENU, REQUEST_FIELDS,
   WIRE_REASON_JSON_MAX, NONCE_JSON_MAX, FACTS_UNAVAILABLE,
-  packSigned, unpackSigned, canonicalPredicate, clampReason, rawNeedles, opaqueNeedles, withoutNonce, scan,
+  packSigned, unpackSigned, canonicalPredicate, clampReason, rawNeedles, opaqueNeedles, withoutNonce, withoutAsked, scan,
   createBackend, createWorld, createHub, generateKeys, roundTrip, parseArgs, main, runDemo,
 } from './demo.mjs';
 
@@ -26,11 +26,16 @@ const { check, conclude } = makeHarness({ field: 'ok', okWord: 'OK' });
 
 const DAY_MS = 86400000;
 const SWAPPED_DAYS_AGO = 137;
+// A DIFFERENT day count from the SIM axis (added 2026-08-17 with the 3 -> 6
+// round): a story where both swap axes agreed would let a mapping that reads the
+// wrong axis pass every case in this file.
+const DEVICE_SWAPPED_DAYS_AGO = 211;
 const PREDICATE = { type: 'simSwapAge', operator: 'gte', value: 'P90D' };
+const DEVICE_PREDICATE = { type: 'deviceSwapAge', operator: 'gte', value: 'P90D' };
 const TIGHTER = { swapAgeMin: 'P180D' };
-const NEEDLES = rawNeedles(SWAPPED_DAYS_AGO);
+const NEEDLES = rawNeedles(SWAPPED_DAYS_AGO, { deviceDaysAgo: DEVICE_SWAPPED_DAYS_AGO });
 const OPAQUE = opaqueNeedles(NEEDLES);
-const STORY = { swappedDaysAgo: SWAPPED_DAYS_AGO, roamingCountry: 'FR', reachable: true };
+const STORY = { swappedDaysAgo: SWAPPED_DAYS_AGO, deviceSwappedDaysAgo: DEVICE_SWAPPED_DAYS_AGO, roamingCountry: 'FR', reachable: true };
 
 // The size a reason occupies inside the signed claims — the thing the clamp
 // actually bounds, and the thing seal() actually measures. Asserting on
@@ -141,10 +146,16 @@ const W = await mockWorld();
   const w = await mockWorld();
   const roam = await roundTrip(w, w.rp.buildRequest({ type: 'roamingIn', operator: 'in', value: ['FR', 'BE'] }, TIGHTER));
   const reach = await roundTrip(w, w.rp.buildRequest({ type: 'reachable', operator: 'eq', value: true }, TIGHTER));
+  // WIDENED 2026-08-17: the menu now covers BOTH ordered duration thresholds and
+  // still covers neither unordered one. The published buckets are pinned
+  // byte-for-byte and the two duration menus are pinned IDENTICAL, because the
+  // signed decision is that `deviceSwapAge` takes the SAME menu — a drifted
+  // second menu is a second place for the window to widen quietly.
   ok('6 MENU SCOPE', roam.verdict.accepted === true && reach.verdict.accepted === true,
-    { label: 'menu keys are exactly [simSwapAge] with 4 buckets',
-      ok: JSON.stringify(Object.keys(PUBLISHED_THRESHOLD_MENU)) === '["simSwapAge"]'
-        && JSON.stringify(PUBLISHED_THRESHOLD_MENU.simSwapAge) === '["P30D","P90D","P180D","P365D"]' });
+    { label: 'menu keys are exactly [simSwapAge, deviceSwapAge], same 4 buckets, and no menu for the unordered types',
+      ok: JSON.stringify(Object.keys(PUBLISHED_THRESHOLD_MENU).sort()) === '["deviceSwapAge","simSwapAge"]'
+        && JSON.stringify(PUBLISHED_THRESHOLD_MENU.simSwapAge) === '["P30D","P90D","P180D","P365D"]'
+        && JSON.stringify(PUBLISHED_THRESHOLD_MENU.deviceSwapAge) === JSON.stringify(PUBLISHED_THRESHOLD_MENU.simSwapAge) });
 }
 
 // 7 DUPLICATE-KEY REQUEST REFUSED — decision #2, using M1's exported scanner.
@@ -343,10 +354,18 @@ const W = await mockWorld();
     '{"c":"FR"}',
     `{"m":"${DEMO_NUMBER}"}`,
     '{"d":"2026-04-02"}',
+    // WIDENED 2026-08-17 with the 3 -> 6 round: the DEVICE swap instant is a
+    // second raw timestamp and is exactly as disclosive as the first. Each new
+    // fact the operator holds gets its own planted leak, because the review's
+    // lesson was that an inventory covering ONE value five ways reads as complete
+    // and is not.
+    `{"deviceSwapAgeMs":${DEVICE_SWAPPED_DAYS_AGO * DAY_MS}}`,
+    `{"deviceSwapDays":${DEVICE_SWAPPED_DAYS_AGO}}`,
+    `{"dd":"${new Date(NOW - DEVICE_SWAPPED_DAYS_AGO * DAY_MS).toISOString()}"}`,
   ];
   ok('18 NO RAW VALUE ON THE WIRE', hits.length === 0,
     { label: `${NEEDLES.length} needles (${OPAQUE.length} of them opaque-safe); the same scanner reds on all ${planted.length} planted leaks`,
-      ok: NEEDLES.length === 9 && planted.every((p) => scan(Buffer.from(p), NEEDLES).length > 0) });
+      ok: NEEDLES.length === 15 && planted.every((p) => scan(Buffer.from(p), NEEDLES).length > 0) });
 }
 
 // 19 INJECTIVE CANONICALISATION — the two collisions the spike found, closed.
@@ -422,22 +441,32 @@ const W = await mockWorld();
 {
   const CRED = `Basic ${Buffer.from('CLIENTID0000000000000000000000AA:SECRET000000000000000000000000000000000000BB').toString('base64')}`;
   const swapIso = new Date(NOW - SWAPPED_DAYS_AGO * DAY_MS).toISOString();
+  const deviceIso = new Date(NOW - DEVICE_SWAPPED_DAYS_AGO * DAY_MS).toISOString();
   const calls = [];
-  const makeFetch = (iso, sink) => async (url, opts) => {
+  // `daysAgo` drives BOTH the replayed date bodies and the replayed `/check`
+  // verdict, from ONE story — so the two surfaces cannot disagree by accident and
+  // a case that flips the story flips whichever surface actually ran.
+  const makeFetch = (iso, sink, { daysAgo = SWAPPED_DAYS_AGO, deviceIsoAt = deviceIso } = {}) => async (url, opts) => {
     const isToken = String(opts?.headers?.['Content-Type']).includes('urlencoded');
     const body = !isToken && typeof opts?.body === 'string' ? JSON.parse(opts.body) : null;
-    sink.push({ url, action: body?.action });
+    sink.push({ url, action: body?.action, maxAge: body?.maxAge });
     const reply = (status, text) => ({ status, text: async () => text });
     if (isToken) return reply(200, '{"token_type":"Bearer","access_token":"T.OK.0000","expires_in":3600}');
     if (url.includes('/admin/')) {
       // READ mirrors the write, so the module's load-bearing read-after-write
       // verification passes; UPDATE echoes, exactly as the real API does.
       if (body.action === 'READ') {
-        return reply(200, JSON.stringify({ data: { simSwap: { latestSimChange: iso }, roaming: { roaming: true, countryName: ['FR'] }, reachability: { reachabilityStatus: 'CONNECTED_DATA' } } }));
+        return reply(200, JSON.stringify({ data: { simSwap: { latestSimChange: iso }, deviceSwap: { latestDeviceChange: deviceIsoAt }, roaming: { roaming: true, countryName: ['FR'] }, reachability: { reachabilityStatus: 'CONNECTED_DATA' } } }));
       }
       return reply(200, JSON.stringify({ data: body.data ?? {} }));
     }
+    // `/check` before the date route: both urls carry the API name, so an
+    // order-insensitive match would answer a `/check` call with a date body.
+    // `swapped` is TRUE when the swap falls INSIDE the asked window.
+    if (url.includes('sim-swap/v1/check')) return reply(200, JSON.stringify({ swapped: daysAgo * DAY_MS < body.maxAge * 3600000 }));
     if (url.includes('sim-swap')) return reply(200, JSON.stringify({ latestSimChange: iso }));
+    if (url.includes('device-swap/v1/check')) return reply(200, JSON.stringify({ swapped: (NOW - Date.parse(deviceIsoAt)) < body.maxAge * 3600000 }));
+    if (url.includes('device-swap')) return reply(200, JSON.stringify({ latestDeviceChange: deviceIsoAt }));
     if (url.includes('roaming')) return reply(200, '{"roaming":true,"countryName":["FR"]}');
     if (url.includes('reachability')) return reply(200, '{"reachabilityStatus":"CONNECTED_DATA"}');
     return reply(404, '{}');
@@ -456,7 +485,7 @@ const W = await mockWorld();
   // demonstrably reading its own responses rather than agreeing by coincidence.
   const freshCalls = [];
   const freshIso = new Date(NOW - 5 * DAY_MS).toISOString();
-  const orangeFresh = await createBackend('orange', { basicAuth: CRED, fetchImpl: makeFetch(freshIso, freshCalls) });
+  const orangeFresh = await createBackend('orange', { basicAuth: CRED, fetchImpl: makeFetch(freshIso, freshCalls, { daysAgo: 5 }) });
   await orangeFresh.setBackstory(DEMO_NUMBER, { ...STORY, swappedDaysAgo: 5 }, NOW);
   const wf = createWorld({ backend: orangeFresh, keys: KEYS });
   const rf = await roundTrip(wf, wf.rp.buildRequest(PREDICATE, TIGHTER, { nonce: 'b1b2c3d4e5f60718293a4b5c6d7e8f90' }));
@@ -466,6 +495,13 @@ const W = await mockWorld();
       + `a 5-day-old replayed swap flips the same question to ${rf.out.claims?.result}`,
       ok: bytesOf(ro) === bytesOf(rm)
         && calls.some((c) => c.url.includes('sim-swap')) && calls.some((c) => c.action === 'READ')
+        // ...and the surface that actually ran is the PROFILE-CONFORMING one:
+        // a `P90D` question is 2160 hours, inside the measured 2400-hour cap, so
+        // the orange leg asked `/check` and the operator never read a date at
+        // all. Pinned here rather than only in m5-check because this is the leg
+        // that produces the signed frame the identity claim is about.
+        && calls.some((c) => c.url.endsWith('/sim-swap/v1/check') && c.maxAge === 2160)
+        && !calls.some((c) => c.url.includes('/sim-swap/v1/retrieve-date'))
         && rf.verdict.accepted === true && rf.out.claims.result === false && rm.out.claims.result === true });
 }
 
@@ -520,7 +556,7 @@ ok('23 ONE EVALUATION STEP', Object.keys(M5).sort().join(',') === 'createOrangeF
   const zk = lines.filter((l) => /zero.knowledge|\bZK\b/i.test(l));
   const allNegated = zk.length > 0 && zk.every((l) => /never|not |NOT |reserved for Mode B/.test(l));
   const result = lines.find((l) => l.startsWith('RESULT: '));
-  ok('25 THE DEMO ITSELF', code === 0 && result === 'RESULT: 22/22',
+  ok('25 THE DEMO ITSELF', code === 0 && result === 'RESULT: 27/27',
     { label: `${zk.length} ZK mentions, all negations=${allNegated}; ${result}`, ok: allNegated });
 }
 
@@ -870,8 +906,99 @@ ok('23 ONE EVALUATION STEP', Object.keys(M5).sort().join(',') === 'createOrangeF
       ok: JSON.stringify(shape(chatty.log)) === '["bill,bytes,debug,from,seq,to"]' });
 }
 
+// ═══════════ THE 3 → 6 PREDICATE ROUND (2026-08-17) — cases 39+ ══════════════
+// One case per thing the composition owns for a NEW predicate: that the menu
+// actually reaches it, that the axes are independent end to end, and that the
+// question reaches the facts backend as validated primitives and never as wire
+// input.
+
+// 39 deviceSwapAge END TO END, UNDER THE SAME MENU. Three legs, because the
+// cheap way to add a second duration type is to add it to `PREDICATES` and forget
+// the menu — and that failure is invisible from the answer side: the bit is
+// correct, signed and verifiable, and the oracle the menu exists to cap is simply
+// open again on the new axis. So an off-menu DEVICE threshold must be refused with
+// the same reason shape as the SIM one, and the menu-off control must answer it.
+{
+  const w = await mockWorld();
+  const onMenu = await roundTrip(w, w.rp.buildRequest(DEVICE_PREDICATE, TIGHTER));
+  const off = { type: 'deviceSwapAge', operator: 'gte', value: 'P211D' };   // the exact rung a walk needs
+  const refused = await roundTrip(w, w.rp.buildRequest(off, TIGHTER));
+  const control = await roundTrip(w, w.rp.buildRequest(off, TIGHTER), { operator: { skipMenu: true } });
+  // ...and the two axes are independent through the WHOLE composition, not just
+  // in M4: the device story is 211 days and the SIM story is 137, so a mapping
+  // that read the wrong fact would answer P180D the same way on both.
+  const devP180 = await roundTrip(w, w.rp.buildRequest({ type: 'deviceSwapAge', operator: 'gte', value: 'P180D' }, TIGHTER));
+  const simP180 = await roundTrip(w, w.rp.buildRequest({ type: 'simSwapAge', operator: 'gte', value: 'P180D' }, TIGHTER));
+  check('39 deviceSwapAge END TO END', false, { ok: refused.out.kind === 'answer', reason: refused.verdict.reason },
+    'operator refused: threshold not on the published menu for deviceSwapAge (allowed: P30D, P90D, P180D, P365D)',
+    { label: `on-menu P90D → ${onMenu.out.claims?.result}; menu-off control answers the P211D rung (${control.out.claims?.result}); `
+      + `device ${DEVICE_SWAPPED_DAYS_AGO}d vs SIM ${SWAPPED_DAYS_AGO}d under P180D → ${devP180.out.claims?.result}/${simP180.out.claims?.result}`,
+      ok: onMenu.verdict.accepted === true && onMenu.out.claims.result === true
+        && refused.out.menuRejected === true
+        && control.out.kind === 'answer' && control.verdict.accepted === true
+        && devP180.out.claims.result === true && simP180.out.claims.result === false
+        && onMenu.out.claims.predicate === 'deviceSwapAge gte "P90D"' });
+}
+
+// 40 THE FACTS BACKEND NEVER SEES WIRE INPUT. The 3 → 6 round added a path from
+// the request to the adapter (three of the six predicates make the operator ask
+// its own upstream a question-shaped question), and that path is the one place
+// where handing `req.predicate` down would put an unvalidated wire object into the
+// module that builds outbound HTTP — a hostile getter, a revoked Proxy or a
+// 5,000,000-element array, delivered to a live network client instead of being
+// refused. So the backend is INSTRUMENTED: every query it is handed is recorded
+// and must be frozen plain data carrying primitives only.
+//
+// The control is the leg that makes it mean something: a LEGAL question must
+// actually deliver its threshold, or this case would pass on a seam that always
+// handed the adapter nothing.
+{
+  const base = await createBackend('mock');
+  await base.setBackstory(DEMO_NUMBER, STORY, NOW);
+  const seen = [];
+  const spy = { ...base, getFacts: async (n, t, q) => { seen.push(q); return base.getFacts(n, t, q); } };
+  const w = createWorld({ backend: spy, keys: KEYS });
+
+  await roundTrip(w, w.rp.buildRequest(PREDICATE, TIGHTER));                       // legal: carries a threshold
+  await roundTrip(w, w.rp.buildRequest(DEVICE_PREDICATE, TIGHTER));                // legal: the other axis
+  await roundTrip(w, w.rp.buildRequest({ type: 'roamingIn', operator: 'in', value: ['FR'] }, TIGHTER));
+  // Hostile shapes that still get PAST the gates and genuinely REACH this seam.
+  // Which shapes those are is itself a finding, measured while writing this case:
+  // a hostile value on a MENU'D type (`{type:'simSwapAge', value:{a:1}}`) never
+  // arrives at all — the published menu refuses it first, before any fact is read
+  // — so the shapes that reach the adapter are the ones on unmenu'd types and the
+  // ones that are not predicates at all. Both halves are asserted below.
+  const hostile = [
+    { type: 'roamingIn', operator: 'in', value: { a: 1 } },
+    { type: 'roamingIn', operator: 'in', value: [{}] },
+    { type: 'watIsThis', operator: 'gte', value: 'P90D' },
+    7, null, 'simSwapAge',
+  ];
+  for (let i = 0; i < hostile.length; i++) await sendRaw(w, { number: DEMO_NUMBER, predicate: hostile[i], floor: TIGHTER, nonce: `q40-${i}` });
+  // ...and the menu'd pair, which must add NOTHING to the tally.
+  const beforeMenud = seen.length;
+  await sendRaw(w, { number: DEMO_NUMBER, predicate: { type: 'simSwapAge', operator: 'gte', value: { a: 1 } }, floor: TIGHTER, nonce: 'q40-m1' });
+  await sendRaw(w, { number: DEMO_NUMBER, predicate: { type: 'deviceSwapAge', operator: 'gte', value: ['P90D'] }, floor: TIGHTER, nonce: 'q40-m2' });
+  const menudReached = seen.length - beforeMenud;
+
+  const plain = (q) => q !== null && typeof q === 'object' && !Array.isArray(q)
+    && Object.getPrototypeOf(q) === Object.prototype && Object.isFrozen(q)
+    && Object.values(q).every((v) => v === null || typeof v !== 'object');
+  const legal = seen.slice(0, 3);
+  const fromHostile = seen.slice(3);
+  ok('40 THE FACTS BACKEND NEVER SEES WIRE INPUT',
+    seen.length === 9 && seen.every(plain),
+    { label: `${seen.length} queries handed to the backend, all frozen plain primitives; legal → `
+      + `${JSON.stringify(legal)}; hostile → ${JSON.stringify(fromHostile)}`,
+      ok: legal[0].swapAgeThresholdMs === 90 * DAY_MS
+        && legal[1].deviceSwapAgeThresholdMs === 90 * DAY_MS
+        && Object.keys(legal[2]).length === 0
+        && fromHostile.length === 6 && fromHostile.every((q) => Object.keys(q).length === 0)
+        && menudReached === 0 });
+}
+
 // The declared case count. A suite that silently loses the cases carrying its
 // guarantee still printed a green `RESULT: n/n` before this argument existed
 // (measured 2026-08-16 on m4-check: truncated to 18/18 exit 0, emptied to 0/0
 // exit 0).
-conclude(38);
+conclude(40);
