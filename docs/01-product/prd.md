@@ -298,7 +298,9 @@ field set was still open, so a request carrying `floors` — one letter off — 
 its floor silently dropped and got a signed answer under the operator's own
 `P90D` while the requester believed it demanded `P365D` (decision log entry
 above). Closing it took the demo to 22 assertions and the check to 27 cases (28
-after the exit-code fix logged above).
+after the exit-code fix logged above, and **38 after the 2026-08-17 adversarial
+review round** — four real defects, one more found while fixing them, and ten
+independent mutation survivors, all pinned).
 The lesson is worth more than the fix: **a closed-set discipline is only as good
 as its outermost layer, and the composition owns a layer none of the modules
 do** — which is exactly the failure class M6's own POC gate was aimed at, found
@@ -308,13 +310,29 @@ own disabled-guard control, and signs its refusals so the blind hub cannot forge
 a denial. The check is offline in both modes: `--backend orange` is exercised
 through an injected transport replaying captured Playground bytes, and with the
 keys and nonce held fixed the two backends produce a **byte-identical signed
-frame** — the strongest form the FR5 "only the facts source swaps" claim can
-take. **18 mutations against M6's own guards, all killed** (plus 5 against the
-M1/M3 changes above). The live `--backend orange` run is the user's, in the
-runbook — nothing in this round touched the network.
+frame**, which is one honest half of the FR5 "only the facts source swaps"
+claim: it shows the wire carries the bit and nothing about where the bit came
+from. The other half is that the orange leg drives the bit at all — replay a
+5-day-old swap through the same injected transport and the same question comes
+back `false` — added 2026-08-17, because byte-identity alone would also pass for
+an adapter that ignored its own responses.
 
-On §4.3's simplicity bound, honestly: `poc/demo.mjs` is 873 lines, of which 282
-are comment and 509 are code — and roughly half of that code is the narrative
+**Mutation coverage, corrected 2026-08-17.** This paragraph used to claim "18
+mutations against M6's own guards, all killed". An INDEPENDENT sweep of 34
+meaningful mutations then found **10 survivors — 29% survival**, so the original
+18 were a self-selected set that happened to hit what the suite already pinned.
+The survivors were: the malformed-frame and missing-nonce transport rejects;
+the floor gate's position relative to `getFacts` (the ordering argument the
+whole pipeline rests on, claimed in two comments and asserted nowhere); three of
+`verifyRefusal`'s four checks; two of `unpackSigned`'s guards; the hub log's
+open field set; and M3's `render` symbol/function branches. All ten are pinned
+by cases added the same day (m6-check 29–38, m3-check 24), and the review's four
+real defects plus one found while fixing them are pinned beside them. The live
+`--backend orange` run is the user's, in the runbook — nothing in this round
+touched the network.
+
+On §4.3's simplicity bound, honestly: `poc/demo.mjs` is 1093 lines, of which 452
+are comment, 90 blank and 551 code — and roughly half of that code is the narrative
 PRINTING the reader asked for (the `Q:`/`A:`/negative-flip transcript), not
 composition machinery, which is closer to 200 lines. That is over "a few hundred
 lines" if the whole file is counted and inside it if the explanation is counted
@@ -322,8 +340,17 @@ as prose, which it largely is. Recorded rather than trimmed: the comments and
 the narrative are the deliverable for a WG reader, and cutting them to hit a
 line count would optimise the wrong thing.
 
-**Every count above is from a run on the user's own machine**, M5's shipped
-48/11 included. At commit
+**Scope of that claim, corrected 2026-08-17.** It used to read "every count
+above is from a run on the user's own machine", and by the time the M6 and
+review rounds landed above it that was false: M6's 22/38, M1's 20 and M3's 24
+are all marked AGENT-RUN in the paragraphs directly above, and this was the one
+place in the repo claiming user validation for M6. It contradicted the ladder's
+binding rule, so it is narrowed to what actually happened rather than deleted.
+
+**The user-run counts are M1 19/19, M2 10/10, M3 22/22, M4 33/33 and M5 48/48
+offline + 11/11 live**, at the commits named below. Everything the 2026-08-17
+rounds changed — M1 19→20, M3 22→24, M6 22 assertions / 38 cases — is AGENT-RUN,
+with a **user re-run PENDING**. At commit
 `5d5e8aa` (dated findings record, 2026-08-16) the user ran 19/19, 10/10, 22/22
 and 30/30. The v0.2.0 release gate then changed two files —
 `poc/m4-facts-mock.mjs` and `poc/m4-check.mjs` — taking M4 to 33 cases, leaving
@@ -337,8 +364,11 @@ redundant guards stay as documented defence-in-depth, and `reachable` was minted
 into the illustrative spec-sketch `Predicate` enum now rather than at M6 (no
 normative surface enumerates predicate types, so nothing else moved).
 
-**No module carries an asterisk** — all five are user-validated at their
-current case counts on the shipped tree. M5's asterisk was raised twice and
+**M2, M4 and M5 carry no asterisk** — user-validated at their current case
+counts on the shipped tree. **M1, M3 and M6 do**: the 2026-08-17 rounds moved
+M1 to 20 and M3 to 24 and built M6, and none of those counts has been run by the
+user yet. (Amended 2026-08-17 — this line said "all five are user-validated" and
+had not been re-read against the rounds that landed after it.) M5's asterisk was raised twice and
 retired twice by runs, not by argument: G2 was met at `69b6f2e`, re-opened by
 the release-gate fixes and re-established at `4ac60e9`, re-opened again by the
 2026-08-17 post-gate review round (all three M5 files touched) and re-closed at

@@ -7,7 +7,242 @@ memory. A finding here is something that was RUN and OBSERVED, not reasoned.
 
 ---
 
-## 2026-08-17 (latest) — Playground endpoint sweep: the band endpoint does not exist, `kyc-match` leaks a similarity GRADIENT, location has three states (AGENT-RUN; user validation PENDING)
+## 2026-08-17 (latest) — M6 adversarial review: five ways to crash or DoS the operator, a 29%-survival mutation sweep, and four labels that claimed more than they checked (AGENT-RUN; user validation PENDING)
+
+Everything below is **AGENT-RUN by exit code on this machine**, offline, no
+network in either backend mode. G1 (PRD §4.4) stays **NOT met**: no user has run
+M6, and this round also moved M1 to 20 and M3 to 24, so those two lose their
+user-validated status until re-run. Base commit `8238d02`.
+
+An independent adversarial review of the M6 round filed six defects with a
+consolidated repro script. All six reproduced on the first run. Four were real
+code defects; one was the wire-scanner's LABEL overstating what it scanned; one
+was a narration line. Fixing the first two surfaced a fifth crash the review had
+not found.
+
+### The four real defects, and the fifth found while fixing them
+
+**1. The operator could be crashed remotely, two ways.** `handle()`'s contract is
+that untrusted wire input produces a verdict and never a throw. Two inputs broke
+it, both on a request that fits one envelope, both reachable by anyone holding
+the operator's public envelope key:
+
+- an **unbounded echoed NONCE**. `req.nonce` was type-checked and never
+  length-checked; `signedReject` puts it in the claims and `seal()`s them. 200
+  characters → `seal: payload is 500 bytes, over the 446-byte OAEP capacity`,
+  thrown straight out of `handle` and up through `roundTrip` → `runDemo` →
+  `main`.
+- a **clamp counting UTF-16 code units where `seal` counts BYTES**. A floor value
+  of 40 astral characters produced a "clamped" 121-unit reason that was 363
+  bytes → the same throw, through the ordinary M3 floor-reason path.
+
+The comment above the clamp claimed the worst wire-reachable reason had been
+*measured* to fit. It had not. The bound is now computed and the arithmetic is
+written down rather than asserted: frame fixed overhead 136 B (32 + 16 `iss` +
+88 base64 signature) → base64 payload budget 310 → 308 usable (multiple of 4) →
+claims ≤ 231 B → 39 B fixed → **E + N ≤ 192 B**, split 122 / 70 as the
+JSON-ENCODED sizes. Measured, not derived on paper: the empty refusal frame is
+196 B with 43 B of claims, which pins the 136 exactly. `clampReason` now bounds
+the ENCODED byte length (one control character costs six bytes as `\u00XX`, so a
+raw-byte bound would still be wrong) and cuts on a CODE POINT boundary, so no
+character is split and no lone surrogate is emitted. 122 keeps every previously
+pinned reason byte-identical — a quote-free ASCII reason encodes to length + 2,
+so the old 120-character cut point does not move. An over-long nonce is a
+TRANSPORT reject, in the clear: a nonce the operator cannot echo is one it
+cannot sign a refusal against.
+
+**Case 29 seals the worst refusal the two bounds admit — 68-byte nonce beside a
+maximal multibyte reason — and measures it at 444/446 B.** Two bytes of
+headroom, which is the point of pinning it: that line reds if `iss` ever grows,
+which is the one input the stated arithmetic assumes.
+
+**1c. THE FIFTH, found while fixing the first two and not on the review's list:
+a request that fits one envelope does not imply an answer that does.**
+`roamingIn` takes a SET, and the canonical predicate string re-escapes every
+quote in it, so the answer frame grows faster than the request did. Measured: 18
+two-letter country codes fit a 446-byte request and produce a **448-byte answer
+frame** — `seal()` threw out of `handle` again, on a perfectly legal question.
+The answer frame is now measured before it is sealed and an overflow becomes a
+signed refusal (a refusal carries no predicate, so it always fits). Case 30 pins
+the boundary with a 14-code control that still answers.
+
+**2. A forged response permanently burned the pending nonce.**
+`pending.delete(nonce)` ran BEFORE the verdict was examined, so the untrusted hub
+— the party the whole design assumes is hostile — could inject **one** garbage
+sealed response and the operator's genuine answer then arrived to `unknown or
+already-used nonce`. A one-message denial of service. The in-code comment already
+said "CONSUMED on any VERIFIED exchange"; the code consumed on any PRESENTED one.
+The contract was right and the code was not. Consumption now happens only on an
+accepted answer or a verified signed refusal; case 31 also pins the other
+direction, that the genuine answer is still single-use afterwards.
+
+**3. `verifyRefusal` never ran the duplicate-key scan.** Profile rule 2 requires
+verifiers to reject duplicate claim keys. `verifyAttestation` does it. M6
+exported M1's scanner **this very round** precisely so the request path would not
+carry a second copy — and then wrote a second verifier that did not call it. One
+signature over `{"error":"below floor","error":"off menu",…}` read as one refusal
+to a last-wins parser and another to a first-wins one. Fixed in M1's own order
+(signature → parse → scan).
+
+**4. Operator-internal diagnostics were signed and delivered to the untrusted
+requester.** The backend's exception message was forwarded verbatim into the
+signed refusal. On the Orange path an upstream 500 ships a core-network hostname
+or pool name to whoever asked — AGENT_RULES invariant 4, broken in the one place
+the operator is most likely to be having a bad day. Now one stable reason
+(`no facts available for this subject`), with the full message kept on
+`operatorDetail`, which never enters the claims and is never sealed. Case 33
+throws a message shaped like a real upstream failure
+(`sim-swap-pool-07.core.example.net`, tenant, trace id) and scans the ciphertext,
+the claims and the requester's verdict for every fragment.
+
+Two decisions recorded rather than assumed:
+
+- **"Unknown subject" and "temporarily unavailable" are deliberately NOT told
+  apart.** Distinguishing them is a subject-existence oracle built out of
+  refusals — free enumeration of which numbers the operator serves, without ever
+  getting an answer. Same reasoning that makes M2 collapse every decryption
+  failure into one `undecryptable`.
+- **The requester's own submitted number is not echoed back.** The review asked
+  whether naming it is disclosure. It is not — it is data they sent. It is
+  dropped because it is not NEEDED (the nonce already binds the refusal to that
+  exact request) and because putting unbounded wire text into a sealed reason is
+  the class of move that produced the nonce crash above. **Case 12 asserted the
+  OPPOSITE** ("names the number") — it was pinning the defect, and now pins the
+  fix.
+
+### The mutation sweep: 34 meaningful mutations, 10 survivors, 29% survival
+
+Against a shipped claim of "18 mutations against M6's own guards, all killed".
+Both numbers are true and the second is the useful one: the original 18 were
+self-selected and happened to hit what the suite already pinned. **The claim has
+been corrected in `prd.md` and `CHANGELOG.md` rather than left standing.**
+
+The ten survivors, each now pinned:
+
+| # | Survivor | Pinned by |
+|---|---|---|
+| 1 | `unpackSigned` → `null` → `transportReject('malformed request')` never reached | m6 case 34 |
+| 2 | `typeof req.nonce !== 'string'` → `'missing nonce'` never reached | m6 case 35 |
+| 3 | **the floor gate moved AFTER `getFacts` left the suite green** | m6 case 36 |
+| 4 | `verifyRefusal`'s closed key set (`error,exp,nonce`) | m6 case 37 |
+| 5 | `verifyRefusal`'s nonce binding | m6 case 37 |
+| 6 | `verifyRefusal`'s expiry check | m6 case 37 |
+| 7 | `unpackSigned`'s `typeof … !== 'string'` guards | m6 case 34 |
+| 8 | `unpackSigned`'s `Array.isArray(o)` guard | **not pinned — proved REDUNDANT** |
+| 9 | the hub log had no closed field set | m6 case 38 |
+| 10 | M3 `render`'s `symbol` / `function` branches | m3 case 24 |
+
+Survivor 3 is the one that mattered. "Refused BEFORE any fact is read" is the
+justification for the entire pipeline ORDER — *a computed-then-discarded answer
+is still an oracle query* — it was claimed in two case comments and asserted
+nowhere. Case 36 now **instruments the backend**: a spying `getFacts` counts
+calls, and the below-floor and off-menu paths must both read **0** while the
+accepted path reads **1**. Counted, not described.
+
+**Survivor 8 is the one that could not be killed, and the honest reading is that
+it is redundant, not that the suite is weak.** `unpackSigned`'s `Array.isArray`
+was mutated away and `m6-check` stayed green (exit **0**) even with case 34
+sending `[1,2,3]`. Proved rather than argued: only `JSON.parse` output reaches
+that line, a parsed array's own keys are always its numeric indices, so an array
+can never carry own string-valued `iss`/`payload`/`sig` and always dies on the
+`typeof` line below instead — guarded and unguarded agreed on **9 array shapes,
+0 divergent**. The guard stays as documented defence in depth ("a list is not a
+record", said out loud) and is recorded as a **deliberately-unpinned redundant
+guard**, not counted as a kill. Exactly the finding and the resolution M4
+already reached for the same call in `plainSnapshot`. **So the sweep closes at 9
+of 10 survivors pinned and 1 proved unpinnable** — writing a case to "cover" an
+unreachable branch would have been a case that cannot fail.
+
+Survivor 10 is pinned in `m3-check.mjs` and not in `m6-check.mjs` on purpose:
+**reverting M3's whole `render` fix leaves `m6-check` green**, because the
+composition's envelope is what keeps a symbol or a function off the wire. That
+is consistent with the fix belonging to M3 — so its pin belongs there too. Saying
+so explicitly rather than leaving it implicit, because "the transport happens to
+filter it" is exactly the structural accident M3's own case 23 refuses to treat
+as a contract.
+
+### Four labels that claimed more than the code checked
+
+No false PASS in any of them — the assertions were true, they just were not
+asserting the headline.
+
+- **case 23's `extra` was the literal `ok: true`.** Now asserts M5's export
+  surface is exactly one function and carries no `evaluatePredicate` of its own.
+- **"the hub opening a message it just carried gets nothing"** opened RSA
+  ciphertext with an unrelated fresh key. That asserts RSA-OAEP works; the hub's
+  blindness is STRUCTURAL (it is never handed a key) and has no failing case to
+  write. Kept as narration, relabelled to what it exercises, in both `demo.mjs`
+  and `m6-check.mjs` (case renamed `14 NON-RECIPIENT KEY OPENS NOTHING`). The
+  evidence that CAN fail is the log scan and its chatty control.
+- **"the effective floor is visible"** asserted only `accepted === true` — a gate
+  returning the operator's own floor verbatim would have passed. The effective
+  floor is now read: both tightened axes must be the REQUESTER's values and the
+  untouched axis the operator's. Mutating M3's `effective[axis] = r === p ? pub :
+  req` to `= pub` reds `node poc/demo.mjs`.
+- **case 22's byte-identity headline** ("the strongest form the FR5 claim can
+  take") was near-vacuous: the signed claims are backend-independent except for
+  the boolean, so the frame stays identical even when the orange replay reports a
+  swap age nowhere near the mock's. The MECHANISM is sound — the review confirmed
+  the orange leg drives M5's real write-verification — so the claim was rewritten
+  to what it proves, and a second leg was added that CAN fail: replay a 5-day-old
+  swap through the same injected transport and the same question comes back
+  `false` while the mock still says `true`. Without it, an adapter that ignored
+  its own responses would pass the identity check perfectly.
+
+### The wire-byte scanner was scanning one value five ways
+
+`rawNeedles` was five long-form spellings of the swap timestamp. Four plausible
+leaks scored **ZERO** hits while the printed line read "no raw value in ANY wire
+artifact": `{"swapDays":137}`, `{"c":"FR"}` (the roaming COUNTRY VALUE — a raw
+value under profile rule 1 as much as the date is), `{"m":"+990100000099"}` and
+`{"d":"2026-04-02"}`. M1's closed claim set is the real defence and it works, so
+this was an honesty defect, not an open leak.
+
+The inventory is now complete at **nine** needles, and the split that was hidden
+inside it is explicit: OPAQUE artifacts (RSA ciphertext, base64-bearing frames)
+take the seven long forms; PLAINTEXT artifacts take all nine with the random hex
+nonce blanked first. Both halves are measured, not assumed — a 2-character
+country code lands inside 512 random bytes about one run in 8 and inside a
+308-character base64 payload about one in 13; a 3-digit day count lands inside a
+32-character hex nonce about one in 140. That is why those two are scanned only
+where a hit is real, and why blanking the nonce is what turns the day count from
+a flaky needle into an asserting one. Case 18's control plants all five leaks.
+
+### Red → green evidence
+
+Every fix was mutation-proven by reverting it in the working copy (`cp` from a
+scratchpad snapshot — never `git checkout`, which would have wiped the
+uncommitted fix under test), confirming the target suite exits **1**, then
+restoring and confirming **0**. The reviewer's own `repro.mjs` was used as the
+red/green oracle alongside `m6-check`, and goes from **6 defects reproduced** to
+**0**.
+
+One honest note on that script: its F5 line is written `R('F5', true, …)` — the
+verdict is hardcoded, so it reports a defect regardless of the code. It cannot
+reach zero by construction. It reaches **0 defect(s) reproduced** with that one
+line corrected to test what its own message describes (does the requester's
+reason carry the backend's internal detail?), and the correction is a one-line
+diff kept beside the run. Reported rather than worked around.
+
+### Suite state after the round
+
+`m1 20/20 · m2 10/10 · m3 24/24 · m4 33/33 · m5 48/48 · m6 38/38 · demo 22/22`,
+every one exit 0. Exit-code contract re-verified: clean mock **0**, mock mid-run
+crash **1**, orange-without-credential **2**, bad argument **2**.
+`spec/carrier-attestation.yaml` parses.
+
+Docs corrected in the same round: the PRD's "every count above is from a run on
+the user's own machine" (false the moment M6/M1/M3 landed above it, and the only
+place in the repo claiming user validation for M6), the root README's
+count/carve-out, `poc/README.md`'s `conclude()` list, the re-measured
+`demo.mjs` line composition (1093 / 452 comment / 90 blank / 551 code — the old
+873/282/509 no longer summed), the spec's still-open `AttestRequest` top-level
+field set, and the spec's `value` example still showing `"voice+data"` after
+`simType` left the enum.
+
+---
+
+## 2026-08-17 — Playground endpoint sweep: the band endpoint does not exist, `kyc-match` leaks a similarity GRADIENT, location has three states (AGENT-RUN; user validation PENDING)
 
 Two standalone probes against the Orange Network APIs Playground, number
 `+990100000099`, importing nothing from this repo (so nothing here is an

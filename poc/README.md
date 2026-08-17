@@ -112,7 +112,7 @@ re-establishing G2 at that state. A post-gate code review round (2026-08-17)
 then fixed three more adapter defects and three live-check faults (counts
 unchanged), so **the user re-ran once more at `8e842c3` — the shipped v0.3.0
 state — and reported both clean. Nothing is pending.** Each
-check declares its case count (`conclude(20|10|23|33|48|11|27)`) so a suite that
+check declares its case count (`conclude(20|10|24|33|48|11|38)`) so a suite that
 silently loses cases exits 1 with
 `FAIL CASE COUNT` instead of printing a smaller green tally — mutation-proven
 per module.

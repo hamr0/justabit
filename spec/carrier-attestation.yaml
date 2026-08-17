@@ -39,6 +39,14 @@ components:
     AttestRequest:
       type: object
       required: [predicate, nonce]
+      # CLOSED 2026-08-17 (adversarial review). `Floor` and `claims` were already
+      # closed for a stated reason — an IGNORED field is a constraint the
+      # requester believes is enforced and is not — and this is the OUTERMOST
+      # layer, the one the PoC closed in code this same round after a request
+      # carrying `floors` (one letter off) had its floor silently dropped and got
+      # a signed answer under the operator's own weaker floor. The sketch was
+      # still leaving that door open while the code shut it.
+      additionalProperties: false
       properties:
         predicate:
           $ref: '#/components/schemas/Predicate'
@@ -69,7 +77,12 @@ components:
           type: string
           enum: [gte, eq, in]
         value:
-          description: Threshold, set, or flag (e.g. "P90D", "voice+data", ["FR","BE"], true)
+          # `"voice+data"` used to appear here and was left behind when the enum
+          # was trimmed on 2026-08-17: it is a `simType` FLOOR value, and
+          # `simType` is not a predicate type any more. One example per wired
+          # type instead, so every spelling shown is one the reference operator
+          # can actually answer.
+          description: Threshold, set, or flag — one per wired type (simSwapAge "P90D", roamingIn ["FR","BE"], reachable true)
           oneOf:
             - type: string
             - type: array

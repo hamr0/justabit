@@ -11,13 +11,14 @@
 // proven load-bearing.
 import { generateKeyPairSync, sign as edSign } from 'node:crypto';
 import { attest } from './m1-attestation.mjs';
-import { generateEnvelopeKeys, seal, open } from './m2-envelope.mjs';
+import { generateEnvelopeKeys, seal, open, OAEP_CAPACITY } from './m2-envelope.mjs';
 import { checkFloor } from './m3-floor.mjs';
 import { makeHarness } from './check-harness.mjs';
 import * as M5 from './m5-facts-orange.mjs';
 import {
-  NOW, VALIDITY_MS, DEMO_NUMBER, PUBLISHED_FLOOR, PUBLISHED_THRESHOLD_MENU, WIRE_REASON_MAX, REQUEST_FIELDS,
-  packSigned, unpackSigned, canonicalPredicate, clampReason, rawNeedles, scan,
+  NOW, VALIDITY_MS, DEMO_NUMBER, PUBLISHED_FLOOR, PUBLISHED_THRESHOLD_MENU, REQUEST_FIELDS,
+  WIRE_REASON_JSON_MAX, NONCE_JSON_MAX, FACTS_UNAVAILABLE,
+  packSigned, unpackSigned, canonicalPredicate, clampReason, rawNeedles, opaqueNeedles, withoutNonce, scan,
   createBackend, createWorld, createHub, generateKeys, roundTrip, parseArgs, main, runDemo,
 } from './demo.mjs';
 
@@ -28,7 +29,23 @@ const SWAPPED_DAYS_AGO = 137;
 const PREDICATE = { type: 'simSwapAge', operator: 'gte', value: 'P90D' };
 const TIGHTER = { swapAgeMin: 'P180D' };
 const NEEDLES = rawNeedles(SWAPPED_DAYS_AGO);
+const OPAQUE = opaqueNeedles(NEEDLES);
 const STORY = { swappedDaysAgo: SWAPPED_DAYS_AGO, roamingCountry: 'FR', reachable: true };
+
+// The size a reason occupies inside the signed claims — the thing the clamp
+// actually bounds, and the thing seal() actually measures. Asserting on
+// `.length` (UTF-16 code units) is what let a 121-unit / 363-byte reason through
+// before the 2026-08-17 review.
+const claimBytes = (s) => Buffer.byteLength(JSON.stringify(s), 'utf8');
+
+// Sign arbitrary bytes as the RP and seal them for the operator: what an
+// attacker does, and the only way to build request bytes `attest()` will not
+// produce (duplicate keys, a missing nonce, a non-frame).
+const asRp = (w, bytes) =>
+  seal(w.keys.opEnc.publicKey, packSigned({ payloadBytes: bytes, signature: edSign(null, bytes, w.keys.rpSig.privateKey) }, w.keys.rpIss));
+const sendRaw = async (w, obj, controls) => {
+  try { return await w.operator.handle(asRp(w, Buffer.from(JSON.stringify(obj), 'utf8')), controls); } catch (e) { return { kind: 'THREW', reason: `${e.constructor.name}: ${e.message}` }; }
+};
 
 // A fresh world per case where state matters (the nonce store, the hub log), so
 // no case can pass because an earlier one left the right thing lying around.
@@ -203,13 +220,28 @@ const W = await mockWorld();
 // 12 UNSCRIPTED NUMBER — M4/M5 THROW rather than fabricate a backstory, and the
 // number came off the wire, so M6 must catch it and refuse loudly. A crash here
 // would take the operator down on an input anyone can send.
+//
+// CHANGED 2026-08-17 by the adversarial review. This case used to assert that
+// the refusal NAMES THE NUMBER — i.e. it pinned the defect. The backend's whole
+// exception message was being forwarded verbatim into a SIGNED refusal, so on
+// the Orange path an upstream 500 would ship a core-network hostname to the
+// requester (AGENT_RULES invariant 4). The number itself is not the disclosure —
+// it is data the requester sent — but the message carrying it is, and the number
+// is not needed either, because the nonce already binds this refusal to that
+// exact request. So the case now pins the OPPOSITE: one stable reason, with the
+// operator's own diagnostic kept locally and never sealed. Case 33 is the
+// general form of that assertion.
 {
   const w = await mockWorld();
   const q = w.rp.buildRequest(PREDICATE, TIGHTER, { number: '+990999999999' });
   const r = await roundTrip(w, q);
   check('12 UNSCRIPTED NUMBER', false, { ok: r.out.kind === 'answer', reason: r.out.reason ? 'refused' : 'crashed' }, 'refused',
-    { label: 'refusal is signed, nonce-bound, clamped, and names the number',
-      ok: r.verdict.refused === true && r.out.reason.includes('+990999999999') && r.out.reason.length <= WIRE_REASON_MAX + 1 });
+    { label: 'signed, nonce-bound, stable reason; the backend message stays operator-side',
+      ok: r.verdict.refused === true
+        && r.out.reason === FACTS_UNAVAILABLE
+        && claimBytes(r.out.reason) <= WIRE_REASON_JSON_MAX
+        && !r.out.reason.includes('+990999999999')
+        && String(r.out.operatorDetail).includes('no backstory scripted') });
 }
 
 // 13 UNANSWERABLE PREDICATE — profile §3.3.1: a fact the operator cannot supply
@@ -223,21 +255,25 @@ const W = await mockWorld();
       ok: r.out.claims.result === undefined && Object.keys(r.out.claims).sort().join(',') === 'error,exp,nonce' && r.verdict.refused === true });
 }
 
-// 14 HUB CANNOT READ + the log carries metering only. The chatty control is what
-// makes the log assertion mean anything: a scanner that cannot red is not a
-// scanner.
+// 14 A NON-RECIPIENT KEY DOES NOT OPEN THE CIPHERTEXT + the log carries metering
+// only. Renamed 2026-08-17: the old title ("BLIND HUB") claimed more than the
+// code checked. The hub's blindness is STRUCTURAL — it is never handed a key
+// that opens either leg — and a structural property has no failing case to
+// write; what the `open` below exercises is RSA-OAEP. The assertions that CAN
+// fail are the log ones, and the chatty control is what makes them mean
+// anything: a scanner that cannot red is not a scanner.
 {
   const w = await mockWorld();
   const q = w.rp.buildRequest(PREDICATE, TIGHTER);
   const r = await roundTrip(w, q);
   const hubKeys = generateEnvelopeKeys();
   const tried = open(hubKeys.privateKey, r.atRp);
-  const logNeedles = [...NEEDLES, DEMO_NUMBER, 'simSwapAge', 'P90D'];
-  const clean = scan(JSON.stringify(w.hub.log), logNeedles);
+  const logNeedles = [...NEEDLES, 'simSwapAge', 'P90D'];
+  const clean = scan(withoutNonce(JSON.stringify(w.hub.log), q.nonce), logNeedles);
   const chatty = createHub();
   chatty.route(w.keys.rpIss, w.keys.opIss, r.atRp, { chatty: `${DEMO_NUMBER} asked simSwapAge P90D → true` });
-  check('14 BLIND HUB', false, { ok: tried.ok, reason: tried.reason }, 'undecryptable',
-    { label: `log clean (hits=${JSON.stringify(clean)}); chatty control reds the SAME scanner`,
+  check('14 NON-RECIPIENT KEY OPENS NOTHING', false, { ok: tried.ok, reason: tried.reason }, 'undecryptable',
+    { label: `log clean against all ${logNeedles.length} needles (hits=${JSON.stringify(clean)}); chatty control reds the SAME scanner`,
       ok: clean.length === 0 && scan(JSON.stringify(chatty.log), logNeedles).length > 0 });
 }
 
@@ -277,18 +313,40 @@ const W = await mockWorld();
       ok: JSON.stringify(Object.keys(r.verdict.claims)) === '["predicate","result","nonce","exp"]' });
 }
 
-// 18 NO RAW VALUE ON THE WIRE — every artifact the requester or the hub can hold.
-// The bare day count is deliberately not a needle: three digits land inside a
-// 32-character hex nonce about once every 140 runs, so it would flake rather
-// than assert. The long forms are the values that would actually leak.
+// 18 NO RAW VALUE ON THE WIRE — every artifact the requester or the hub can hold,
+// against every value the operator holds.
+//
+// WIDENED 2026-08-17 by the adversarial review, which was right that the old
+// needle set was five long-form spellings of the SAME swap timestamp: a planted
+// `{"c":"FR"}` (the roaming country VALUE), `{"m":"+990100000099"}`,
+// `{"d":"2026-04-02"}` and `{"swapDays":137}` all scored ZERO while the label
+// read "no raw value in ANY wire artifact". The inventory is now complete; what
+// varies is which artifact a given needle can honestly be scanned against —
+// OPAQUE bytes (ciphertext, base64-bearing frames) take the long forms only,
+// because a 2-character country code lands in 512 random bytes about one run in
+// 8. PLAINTEXT takes all nine, with the random hex nonce blanked so the 3-digit
+// day count asserts instead of flaking. The control plants all four of the leaks
+// the old set was blind to, so this case can now fail for each of them.
 {
   const w = await mockWorld();
   const q = w.rp.buildRequest(PREDICATE, TIGHTER);
   const r = await roundTrip(w, q);
-  const artifacts = [r.atRp, r.out.plain, unpackSigned(r.out.plain).signed.payloadBytes, Buffer.from(JSON.stringify(w.hub.log), 'utf8')];
-  const hits = artifacts.flatMap((a) => scan(a, NEEDLES));
+  const opaque = [r.atRp, r.out.plain];
+  const plain = [
+    withoutNonce(unpackSigned(r.out.plain).signed.payloadBytes.toString('utf8'), q.nonce),
+    withoutNonce(JSON.stringify(w.hub.log), q.nonce),
+  ];
+  const hits = [...opaque.flatMap((a) => scan(a, OPAQUE)), ...plain.flatMap((a) => scan(a, NEEDLES))];
+  const planted = [
+    `{"swapAgeMs":${SWAPPED_DAYS_AGO * DAY_MS}}`,
+    `{"swapDays":${SWAPPED_DAYS_AGO}}`,
+    '{"c":"FR"}',
+    `{"m":"${DEMO_NUMBER}"}`,
+    '{"d":"2026-04-02"}',
+  ];
   ok('18 NO RAW VALUE ON THE WIRE', hits.length === 0,
-    { label: 'and the same scanner reds on a planted leak', ok: scan(Buffer.from(`{"swapAgeMs":${SWAPPED_DAYS_AGO * DAY_MS}}`), NEEDLES).length === 2 });
+    { label: `${NEEDLES.length} needles (${OPAQUE.length} of them opaque-safe); the same scanner reds on all ${planted.length} planted leaks`,
+      ok: NEEDLES.length === 9 && planted.every((p) => scan(Buffer.from(p), NEEDLES).length > 0) });
 }
 
 // 19 INJECTIVE CANONICALISATION — the two collisions the spike found, closed.
@@ -321,8 +379,8 @@ const W = await mockWorld();
   const rawThrew = sealIt(long.reason);
   const clampedThrew = sealIt(clampReason(long.reason));
   ok('20 REASON CLAMP', rawThrew !== null && clampedThrew === null,
-    { label: `unclamped ${long.reason.length} B → '${String(rawThrew).slice(0, 40)}…'; clamped ${clampReason(long.reason).length} B seals`,
-      ok: long.allowed === false && clampReason(long.reason).length <= WIRE_REASON_MAX + 1 && clampReason(42) === 'rejected' });
+    { label: `unclamped ${claimBytes(long.reason)} B → '${String(rawThrew).slice(0, 40)}…'; clamped ${claimBytes(clampReason(long.reason))} B seals`,
+      ok: long.allowed === false && claimBytes(clampReason(long.reason)) <= WIRE_REASON_JSON_MAX && clampReason(42) === 'rejected' });
 }
 
 // 21 LARGEST WIRE-REACHABLE FLOOR VALUE — how reachable case 20 actually is:
@@ -338,40 +396,53 @@ const W = await mockWorld();
   const r = await roundTrip(w, biggest.req);
   ok('21 LARGEST WIRE-REACHABLE FLOOR VALUE', r.out.kind === 'reject',
     { label: `max wire value ${biggest.n + 2} chars → refused, signed, sealed`,
-      ok: r.verdict.refused === true && r.out.reason.length <= WIRE_REASON_MAX + 1 });
+      ok: r.verdict.refused === true && claimBytes(r.out.reason) <= WIRE_REASON_JSON_MAX });
 }
 
-// 22 BACKEND SEAM — the whole FR5 claim in one case. The orange backend runs
-// through an INJECTED transport replaying captured Playground bytes (zero
-// credentials, zero network). Hold the keys and the nonce fixed and the two
-// backends produce a BYTE-IDENTICAL signed frame — signature included, since
-// Ed25519 is deterministic. That is the strongest form the FR5 claim can take:
-// the backend is demonstrably the only variable, and the wire is not merely
-// equivalent between the two modes but literally the same bytes.
+// 22 BACKEND SEAM — the FR5 claim. The orange backend runs through an INJECTED
+// transport replaying captured Playground bytes (zero credentials, zero
+// network). Hold the keys and the nonce fixed and the two backends produce a
+// BYTE-IDENTICAL signed frame, signature included, since Ed25519 is
+// deterministic.
+//
+// THE HEADLINE WAS TRIMMED 2026-08-17. It used to call this "the strongest form
+// the FR5 claim can take", and the review was right that it is nearly vacuous on
+// its own: the signed claims are backend-INDEPENDENT except for the boolean, so
+// the frame stays identical even when the orange leg reports a swap age nowhere
+// near the mock's. Byte-identity proves what it proves — the WIRE carries the
+// bit and nothing about where the bit came from, which is the whole profile
+// invariant restated at the seam — and it needs the two assertions beside it to
+// mean FR5:
+//   * the orange leg really drove M5 (the replayed calls include the sim-swap
+//     read and the admin READ that M5's write-verification depends on), and
+//   * the orange leg really drives the BIT: replay a 5-day-old swap through the
+//     same transport and the same question comes back `false` while the mock
+//     still says `true`. Without that, an orange adapter that ignored its own
+//     response would pass the identity check perfectly.
 {
   const CRED = `Basic ${Buffer.from('CLIENTID0000000000000000000000AA:SECRET000000000000000000000000000000000000BB').toString('base64')}`;
   const swapIso = new Date(NOW - SWAPPED_DAYS_AGO * DAY_MS).toISOString();
   const calls = [];
-  const fetchImpl = async (url, opts) => {
+  const makeFetch = (iso, sink) => async (url, opts) => {
     const isToken = String(opts?.headers?.['Content-Type']).includes('urlencoded');
     const body = !isToken && typeof opts?.body === 'string' ? JSON.parse(opts.body) : null;
-    calls.push({ url, action: body?.action });
+    sink.push({ url, action: body?.action });
     const reply = (status, text) => ({ status, text: async () => text });
     if (isToken) return reply(200, '{"token_type":"Bearer","access_token":"T.OK.0000","expires_in":3600}');
     if (url.includes('/admin/')) {
       // READ mirrors the write, so the module's load-bearing read-after-write
       // verification passes; UPDATE echoes, exactly as the real API does.
       if (body.action === 'READ') {
-        return reply(200, JSON.stringify({ data: { simSwap: { latestSimChange: swapIso }, roaming: { roaming: true, countryName: ['FR'] }, reachability: { reachabilityStatus: 'CONNECTED_DATA' } } }));
+        return reply(200, JSON.stringify({ data: { simSwap: { latestSimChange: iso }, roaming: { roaming: true, countryName: ['FR'] }, reachability: { reachabilityStatus: 'CONNECTED_DATA' } } }));
       }
       return reply(200, JSON.stringify({ data: body.data ?? {} }));
     }
-    if (url.includes('sim-swap')) return reply(200, JSON.stringify({ latestSimChange: swapIso }));
+    if (url.includes('sim-swap')) return reply(200, JSON.stringify({ latestSimChange: iso }));
     if (url.includes('roaming')) return reply(200, '{"roaming":true,"countryName":["FR"]}');
     if (url.includes('reachability')) return reply(200, '{"reachabilityStatus":"CONNECTED_DATA"}');
     return reply(404, '{}');
   };
-  const orange = await createBackend('orange', { basicAuth: CRED, fetchImpl });
+  const orange = await createBackend('orange', { basicAuth: CRED, fetchImpl: makeFetch(swapIso, calls) });
   await orange.setBackstory(DEMO_NUMBER, STORY, NOW);
   const wo = createWorld({ backend: orange, keys: KEYS });
   const wm = await mockWorld();
@@ -379,17 +450,33 @@ const W = await mockWorld();
   const ro = await roundTrip(wo, wo.rp.buildRequest(PREDICATE, TIGHTER, { nonce: NONCE }));
   const rm = await roundTrip(wm, wm.rp.buildRequest(PREDICATE, TIGHTER, { nonce: NONCE }));
   const bytesOf = (r) => unpackSigned(r.out.plain).signed.payloadBytes.toString('utf8');
+
+  // The leg that makes the identity above mean something: the SAME transport
+  // shape replaying a 5-day-old swap must flip the bit, so the orange adapter is
+  // demonstrably reading its own responses rather than agreeing by coincidence.
+  const freshCalls = [];
+  const freshIso = new Date(NOW - 5 * DAY_MS).toISOString();
+  const orangeFresh = await createBackend('orange', { basicAuth: CRED, fetchImpl: makeFetch(freshIso, freshCalls) });
+  await orangeFresh.setBackstory(DEMO_NUMBER, { ...STORY, swappedDaysAgo: 5 }, NOW);
+  const wf = createWorld({ backend: orangeFresh, keys: KEYS });
+  const rf = await roundTrip(wf, wf.rp.buildRequest(PREDICATE, TIGHTER, { nonce: 'b1b2c3d4e5f60718293a4b5c6d7e8f90' }));
+
   ok('22 BACKEND SEAM', ro.verdict.accepted === true && rm.verdict.accepted === true && ro.out.plain.equals(rm.out.plain),
-    { label: `identical frame; claims ${JSON.stringify(bytesOf(ro))} over ${calls.length} replayed calls, none live`,
-      ok: bytesOf(ro) === bytesOf(rm) && calls.some((c) => c.url.includes('sim-swap')) && calls.some((c) => c.action === 'READ') });
+    { label: `identical frame; claims ${JSON.stringify(bytesOf(ro))} over ${calls.length} replayed calls, none live; `
+      + `a 5-day-old replayed swap flips the same question to ${rf.out.claims?.result}`,
+      ok: bytesOf(ro) === bytesOf(rm)
+        && calls.some((c) => c.url.includes('sim-swap')) && calls.some((c) => c.action === 'READ')
+        && rf.verdict.accepted === true && rf.out.claims.result === false && rm.out.claims.result === true });
 }
 
 // 23 ONE EVALUATION STEP — M5 exports `createOrangeFacts` and nothing else, so
 // both backends share M4's `evaluatePredicate`. If M5 ever grew its own copy,
 // the backends would be two code paths and case 22's equality would be proving
-// far less than it looks like it proves.
+// far less than it looks like it proves. (The `extra` here used to be the
+// literal `ok: true` — flagged 2026-08-17 as a label with nothing behind it.)
 ok('23 ONE EVALUATION STEP', Object.keys(M5).sort().join(',') === 'createOrangeFacts',
-  { label: `M5 exports=${JSON.stringify(Object.keys(M5).sort())}`, ok: true });
+  { label: `M5 exports=${JSON.stringify(Object.keys(M5).sort())}`,
+    ok: Object.keys(M5).length === 1 && typeof M5.createOrangeFacts === 'function' && M5.evaluatePredicate === undefined });
 
 // 24 ENTRY POINT — argument parsing and the COULD-NOT-START half of the
 // exit-code contract (the started-then-crashed half is case 28). The orange leg
@@ -488,7 +575,7 @@ ok('23 ONE EVALUATION STEP', Object.keys(M5).sort().join(',') === 'createOrangeF
   const answered = outs.filter((o) => o.kind === 'answer');
   ok('27 HOSTILE PREDICATE NEVER THROWS', threw.length === 0 && answered.length === 0,
     { label: `${outs.length} shapes, ${threw.length} threw, ${answered.length} answered${threw.length ? `: ${threw[0].reason}` : ''}`,
-      ok: outs.every((o) => typeof o.reason === 'string' && o.reason.length <= WIRE_REASON_MAX + 1) });
+      ok: outs.every((o) => typeof o.reason === 'string' && claimBytes(o.reason) <= WIRE_REASON_JSON_MAX) });
 }
 
 // 28 A CRASHED MOCK RUN IS A FAILURE, NOT A SKIP — the other half of the
@@ -537,8 +624,254 @@ ok('23 ONE EVALUATION STEP', Object.keys(M5).sort().join(',') === 'createOrangeF
       ok: clean === 0 });
 }
 
+// ═══════════════ THE 2026-08-17 ADVERSARIAL REVIEW (cases 29-38) ═════════════
+// Four real defects and ten mutation survivors. Every case below either replays
+// a defect this suite did not catch, or pins a guard an independent mutation
+// sweep proved could be DELETED with the suite still green — which is the same
+// thing said twice: the code was right and nothing was holding it there.
+
+// 29 THE REFUSAL BUDGET IS COMPUTED, NOT ASSUMED — the two ways `handle()` could
+// be made to THROW on a request that fits one envelope. Both arrive through the
+// ordinary path, from anyone holding the operator's public envelope key, and
+// both were live at 8238d02:
+//   * an unbounded echoed NONCE (200 characters on an otherwise minimal
+//     request), and
+//   * a clamp counting UTF-16 CODE UNITS while seal() counts BYTES (a floor
+//     value of 40 astral characters clamped to 121 units = 363 bytes).
+// The third assertion is the arithmetic itself: the WORST refusal the two bounds
+// admit — a 68-byte nonce beside a maximal multibyte reason — must actually seal
+// into one envelope. That is the line that would red if `iss` grew, which is the
+// one input the stated arithmetic assumes.
+{
+  const w = await mockWorld();
+  const longNonce = await sendRaw(w, { nonce: 'N'.repeat(200), zz: 1 });
+  const astral = await sendRaw(w, { number: DEMO_NUMBER, floor: { swapAgeMin: `P${'\u{1F600}'.repeat(40)}D` }, nonce: 'mb' });
+  const clamped = clampReason(`P${'\u{1F600}'.repeat(40)}D is not a duration`);
+
+  const worstNonce = 'n'.repeat(NONCE_JSON_MAX - 2);
+  const worstReason = clampReason('\u{1F600}'.repeat(400));
+  const worstFrame = packSigned(attest(w.keys.opSig.privateKey, { error: worstReason, nonce: worstNonce, exp: NOW + VALIDITY_MS }), w.keys.opIss);
+  let worstSealed = null;
+  try { worstSealed = seal(w.keys.rpEnc.publicKey, worstFrame); } catch (e) { worstSealed = e.message; }
+
+  check('29 REFUSAL BUDGET', false, { ok: longNonce.kind !== 'reject', reason: longNonce.reason },
+    'nonce too long to echo in a signed refusal',
+    { label: `astral floor value refuses (${claimBytes(clamped)} B claim, was 363 raw); worst admissible refusal = ${worstFrame.length}/${OAEP_CAPACITY} B and seals`,
+      ok: astral.kind === 'reject' && astral.sealed !== null
+        && claimBytes(clamped) <= WIRE_REASON_JSON_MAX
+        && Buffer.from(clamped, 'utf8').toString('utf8') === clamped   // still valid UTF-8: no character was split
+        && worstFrame.length <= OAEP_CAPACITY && Buffer.isBuffer(worstSealed) });
+}
+
+// 30 AN ANSWER THAT WILL NOT FIT IS REFUSED, NOT A CRASH — found 2026-08-17
+// while fixing case 29, and not on the review's list. A request that fits one
+// envelope does NOT imply an answer that does: `roamingIn` takes a SET, and the
+// canonical predicate re-escapes every quote in it, so the answer frame grows
+// faster than the request did. 18 two-letter codes fit a 446-byte request and
+// produced a 448-byte answer frame; seal() threw straight out of handle().
+{
+  const w = await mockWorld();
+  let biggest = null;
+  for (let n = 1; n <= 40; n++) {
+    const value = Array.from({ length: n }, (_, i) => `${String.fromCharCode(65 + (i % 26))}${String.fromCharCode(65 + ((i * 7) % 26))}`);
+    try { biggest = { n, req: w.rp.buildRequest({ type: 'roamingIn', operator: 'in', value }, {}) }; } catch { break; }
+  }
+  let r;
+  try { r = await roundTrip(w, biggest.req); } catch (e) { r = { out: { kind: 'THREW', reason: e.message } }; }
+  // ...and the control: one code fewer still ANSWERS, so this case pins the
+  // overflow boundary rather than "roamingIn is broken".
+  const smallValue = Array.from({ length: biggest.n - 4 }, (_, i) => `${String.fromCharCode(65 + (i % 26))}${String.fromCharCode(65 + ((i * 7) % 26))}`);
+  const small = await roundTrip(w, w.rp.buildRequest({ type: 'roamingIn', operator: 'in', value: smallValue }, {}));
+  check('30 OVERSIZE ANSWER', false, { ok: r.out.kind === 'answer', reason: r.out.reason },
+    'answer does not fit one envelope',
+    { label: `${biggest.n} country codes fit the request and overflow the answer; ${smallValue.length} still answers`,
+      ok: r.out.kind === 'reject' && r.out.sealed !== null && small.verdict.accepted === true });
+}
+
+// 31 A FORGED RESPONSE DOES NOT BURN THE PENDING NONCE — the untrusted hub's
+// cheapest attack, and it worked at 8238d02: the store deleted the nonce BEFORE
+// the verdict was read, so one injected garbage sealed response made the
+// operator's genuine answer arrive to 'unknown or already-used nonce'. A
+// one-message denial of service by exactly the party the design assumes is
+// hostile. The comment already said "consumed on any VERIFIED exchange"; the
+// code consumed on any PRESENTED one.
+//
+// The replay control is the other half: consuming too LATE would be just as
+// wrong, so the genuine answer must still be single-use afterwards.
+{
+  const w = await mockWorld();
+  const q = w.rp.buildRequest(PREDICATE, TIGHTER);
+  const hubSig = generateKeyPairSync('ed25519');
+  const forged = seal(w.keys.rpEnc.publicKey,
+    packSigned(attest(hubSig.privateKey, { predicate: canonicalPredicate(PREDICATE), result: true, nonce: q.nonce, exp: NOW + VALIDITY_MS }), w.keys.opIss));
+  const injected = w.rp.verifyResponse(forged, q.nonce, NOW + 1_000);
+  const real = await roundTrip(w, q);
+  const replay = w.rp.verifyResponse(real.atRp, q.nonce, NOW + 2_000);
+  ok('31 FORGED RESPONSE DOES NOT BURN THE NONCE', real.verdict.accepted === true,
+    { label: `forgery rejected as '${injected.reason}', genuine answer still accepted, and it is still single-use ('${replay.reason}')`,
+      ok: injected.accepted === false && injected.refused === undefined && replay.accepted === false && replay.reason === 'unknown or already-used nonce' });
+}
+
+// 32 AN AMBIGUOUS REFUSAL IS REJECTED — profile rule 2 for the SECOND verifier.
+// `verifyAttestation` runs M1's duplicate-key scan; `verifyRefusal` did not,
+// even though M6 exported that scanner from M1 this very round precisely so the
+// request path would not carry a second copy. One signature over
+// `{"error":"below floor","error":"off menu",…}` therefore read as one refusal
+// to a last-wins parser and a different one to a first-wins parser.
+{
+  const w = await mockWorld();
+  const N = 'dup-refusal';
+  const signAsOp = (text) => {
+    const by = Buffer.from(text, 'utf8');
+    return seal(w.keys.rpEnc.publicKey, packSigned({ payloadBytes: by, signature: edSign(null, by, w.keys.opSig.privateKey) }, w.keys.opIss));
+  };
+  w.rp.pending.set(N, { predicate: canonicalPredicate(PREDICATE) });
+  const dup = w.rp.verifyResponse(signAsOp(`{"error":"below floor","error":"off menu","nonce":"${N}","exp":${NOW + VALIDITY_MS}}`), N, NOW + 1_000);
+  // Control: the SAME shape with one error key IS reported as a refusal, so this
+  // case pins the scan and not "refusals never verify".
+  w.rp.pending.set(N, { predicate: canonicalPredicate(PREDICATE) });
+  const clean = w.rp.verifyResponse(signAsOp(`{"error":"off menu","nonce":"${N}","exp":${NOW + VALIDITY_MS}}`), N, NOW + 1_000);
+  check('32 AMBIGUOUS REFUSAL', false, { ok: dup.refused === true, reason: dup.reason }, 'duplicate claim keys',
+    { label: 'single-error control IS reported as a refusal', ok: clean.refused === true && clean.reason === 'operator refused: off menu' });
+}
+
+// 33 NO OPERATOR-INTERNAL DIAGNOSTIC REACHES THE REQUESTER — decision #3. The
+// backend's exception message used to ride verbatim into the SIGNED refusal, so
+// on the Orange path an upstream 500 would deliver a core-network hostname or
+// pool name to whoever asked (AGENT_RULES invariant 4). The backend here throws
+// a message shaped like exactly that, and none of it may cross.
+{
+  const leaky = {
+    label: 'leaky — throws an upstream diagnostic',
+    setBackstory: async () => {},
+    getFacts: async () => { throw new Error('upstream 500 from sim-swap-pool-07.core.example.net (tenant acct-9911, trace 0f3a)'); },
+  };
+  const w = createWorld({ backend: leaky, keys: KEYS });
+  const q = w.rp.buildRequest(PREDICATE, TIGHTER);
+  const r = await roundTrip(w, q);
+  const secrets = ['sim-swap-pool-07', 'core.example.net', 'acct-9911', '0f3a', 'upstream 500'];
+  const sealedText = r.atRp.toString('latin1') + JSON.stringify(r.out.claims) + String(r.verdict.reason);
+  check('33 NO INTERNAL DETAIL ON THE WIRE', false, { ok: r.out.kind === 'answer', reason: r.out.reason }, FACTS_UNAVAILABLE,
+    { label: `requester sees one stable reason; the operator keeps '${String(r.out.operatorDetail).slice(0, 34)}…' locally`,
+      ok: r.verdict.refused === true
+        && scan(sealedText, secrets).length === 0
+        && secrets.every((s) => String(r.out.operatorDetail).includes(s)) });
+}
+
+// 34 A MALFORMED TRANSPORT FRAME IS A VERDICT — `unpackSigned`'s guards, which
+// no case reached before (an independent mutation sweep deleted them with the
+// suite still green). Every shape below is validly SEALED, so it gets past M2
+// and dies exactly where it should.
+//
+// One of those survivors is NOT pinned here, and saying which is the honest
+// half: `Array.isArray(o)` is REDUNDANT. Only `JSON.parse` output reaches it, a
+// parsed array's own keys are always its numeric indices, so it can never carry
+// own string-valued `iss`/`payload`/`sig` and always dies on the typeof line
+// below instead. Proved rather than assumed (guarded and unguarded agreed on 9
+// array shapes) and documented at the call site, because a case written to
+// "cover" an unreachable branch is a case that cannot fail. Same finding, and
+// the same resolution, as M4's redundant `Array.isArray` in `plainSnapshot`.
+{
+  const w = await mockWorld();
+  const sealRaw = (text) => w.operator.handle(seal(w.keys.opEnc.publicKey, Buffer.from(text, 'utf8')));
+  const notJson = await sealRaw('}{ not json');
+  const anArray = await sealRaw('[1,2,3]');                                     // dies on the typeof guards, not Array.isArray
+  const aNumber = await sealRaw('7');                                           // typeof object guard
+  const badTypes = await sealRaw('{"iss":"rp:demo-agent-01","payload":"e30=","sig":42}');   // typeof string guards
+  const noIss = await sealRaw('{"payload":"e30=","sig":"AA=="}');
+  const all = [notJson, anArray, aNumber, badTypes, noIss];
+  // Control: a well-formed frame with the same unknown issuer gets PAST unpack
+  // and dies one step later, so 'malformed request' is not simply what every
+  // sealed byte string returns.
+  const wellFormed = await w.operator.handle(seal(w.keys.opEnc.publicKey, packSigned(attest(w.keys.rpSig.privateKey, { nonce: 'n' }), 'rp:nobody')));
+  check('34 MALFORMED FRAME', false, { ok: all.some((r) => r.kind === 'answer'), reason: all.map((r) => r.reason).join('|') },
+    'malformed request|malformed request|malformed request|malformed request|malformed request',
+    { label: `${all.length} frame shapes; a well-formed frame gets past unpack ('${wellFormed.reason}')`,
+      ok: wellFormed.reason === 'unknown issuer' });
+}
+
+// 35 A REQUEST WITH NO NONCE IS REFUSED IN THE CLEAR — the `typeof req.nonce`
+// guard, also never exercised. Unsealed on purpose: an operator cannot sign a
+// refusal to a request that gave it nothing to bind one to.
+{
+  const w = await mockWorld();
+  const none = await sendRaw(w, { number: DEMO_NUMBER, predicate: PREDICATE, floor: TIGHTER });
+  const wrongType = await sendRaw(w, { number: DEMO_NUMBER, predicate: PREDICATE, floor: TIGHTER, nonce: 7 });
+  const withOne = await sendRaw(w, { number: DEMO_NUMBER, predicate: PREDICATE, floor: TIGHTER, nonce: 'n35' });
+  check('35 MISSING NONCE', false, { ok: none.kind === 'answer', reason: none.reason }, 'missing nonce',
+    { label: `a numeric nonce is also missing ('${wrongType.reason}'); with one, the same request is ANSWERED`,
+      ok: wrongType.reason === 'missing nonce' && none.sealed === null && withOne.kind === 'answer' });
+}
+
+// 36 NO FACT IS READ BEFORE THE GATES — the justification for the whole pipeline
+// ORDER ("a computed-then-discarded answer is still an oracle query"), claimed
+// in two case comments and asserted nowhere. An independent mutation sweep moved
+// the floor gate to AFTER `getFacts` and this suite stayed green. The backend is
+// INSTRUMENTED here, so the claim is now counted rather than described.
+{
+  const base = await createBackend('mock');
+  await base.setBackstory(DEMO_NUMBER, STORY, NOW);
+  let reads = 0;
+  const spy = { ...base, getFacts: async (...a) => { reads += 1; return base.getFacts(...a); } };
+  const w = createWorld({ backend: spy, keys: KEYS });
+
+  reads = 0;
+  await roundTrip(w, w.rp.buildRequest(PREDICATE, { swapAgeMin: 'P30D' }));            // below floor
+  const afterFloor = reads;
+  reads = 0;
+  await roundTrip(w, w.rp.buildRequest({ type: 'simSwapAge', operator: 'gte', value: 'P137D' }, TIGHTER));   // off menu
+  const afterMenu = reads;
+  reads = 0;
+  const happy = await roundTrip(w, w.rp.buildRequest(PREDICATE, TIGHTER));             // the control
+  const afterHappy = reads;
+  ok('36 NO FACT READ BEFORE THE GATES', afterFloor === 0 && afterMenu === 0,
+    { label: `getFacts calls — below-floor ${afterFloor}, off-menu ${afterMenu}, accepted ${afterHappy}`,
+      ok: afterHappy === 1 && happy.verdict.accepted === true });
+}
+
+// 37 THE REFUSAL VERIFIER IS 4/4 — `verifyRefusal` runs four checks and only the
+// signature was pinned; the sweep deleted the closed key set, the nonce binding
+// and the expiry with this suite still green. Each is shown REJECTING beside a
+// control that differs in that one field only, so none of them can pass by the
+// refusal being unverifiable for some other reason.
+{
+  const w = await mockWorld();
+  const N = 'refusal-4';
+  const signAsOp = (claims) => seal(w.keys.rpEnc.publicKey, packSigned(attest(w.keys.opSig.privateKey, claims), w.keys.opIss));
+  const present = (claims, nonce = N, nowMs = NOW + 1_000) => {
+    w.rp.pending.set(nonce, { predicate: canonicalPredicate(PREDICATE) });
+    return w.rp.verifyResponse(signAsOp(claims), nonce, nowMs);
+  };
+  const good = { error: 'below floor', nonce: N, exp: NOW + VALIDITY_MS };
+  const control = present(good);
+  const extraKey = present({ ...good, note: 'hello' });              // closed key set
+  const missingKey = present({ error: 'below floor', nonce: N });    // ...in the other direction
+  const wrongNonce = present({ ...good, nonce: 'somebody-elses' });  // nonce binding
+  const expired = present({ ...good, exp: NOW - 1 });                // expiry
+  const broken = [extraKey, missingKey, wrongNonce, expired];
+  ok('37 REFUSAL VERIFIER IS 4/4', broken.every((v) => v.refused !== true),
+    { label: `control refuses ('${control.reason}'); +key/-key/wrong-nonce/expired all rejected: ${JSON.stringify(broken.map((v) => v.reason))}`,
+      ok: control.refused === true && control.reason === 'operator refused: below floor' });
+}
+
+// 38 THE HUB LOG FIELD SET IS CLOSED — needle-scanning the log only catches a
+// hub leaking a value the scanner happens to know. A hub adding ANY field passes
+// that scan, which is what the sweep showed. The metering record's key set is
+// the actual contract (rule 6: metering, not content), so it is pinned as a
+// closed set, and the chatty control breaks it by adding exactly one key.
+{
+  const w = await mockWorld();
+  await roundTrip(w, w.rp.buildRequest(PREDICATE, TIGHTER));
+  const shape = (log) => [...new Set(log.map((e) => Object.keys(e).sort().join(',')))];
+  const chatty = createHub();
+  chatty.route(w.keys.rpIss, w.keys.opIss, Buffer.alloc(8), { chatty: 'anything at all' });
+  ok('38 HUB LOG FIELD SET IS CLOSED', JSON.stringify(shape(w.hub.log)) === '["bill,bytes,from,seq,to"]',
+    { label: `${w.hub.log.length} entries, one shape: ${JSON.stringify(shape(w.hub.log))}; chatty control widens it to ${JSON.stringify(shape(chatty.log))}`,
+      ok: JSON.stringify(shape(chatty.log)) === '["bill,bytes,debug,from,seq,to"]' });
+}
+
 // The declared case count. A suite that silently loses the cases carrying its
 // guarantee still printed a green `RESULT: n/n` before this argument existed
 // (measured 2026-08-16 on m4-check: truncated to 18/18 exit 0, emptied to 0/0
 // exit 0).
-conclude(28);
+conclude(38);

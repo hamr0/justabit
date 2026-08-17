@@ -21,9 +21,13 @@
 //      silently re-opens "an answer can never answer a different question");
 //   3. the single-use NONCE STORE (M1's nonce check is stateless BINDING; replay
 //      rejection is the requester's job, by M1's own documented limit);
-//   4. the REASON CLAMP (M3 builds rejection reasons from wire input and does
+//   4. THE REFUSAL BUDGET (M3 builds rejection reasons from wire input and does
 //      not bound them; M2's seal() THROWS above the envelope capacity — so an
-//      unclamped refusal would crash the operator instead of refusing);
+//      unbounded refusal crashes the operator instead of refusing). The
+//      2026-08-17 adversarial review found this owned in name only: the clamp
+//      counted UTF-16 code units where seal counts BYTES, and the echoed NONCE
+//      was never bounded at all. Both are now computed from one stated
+//      arithmetic, and the answer frame is measured before it is sealed too;
 //   5. the CLOSED TOP-LEVEL REQUEST FIELD SET. The fifth was not in the plan —
 //      it was found by probing this file after it was written, green and
 //      mutation-clean, and it is the most useful thing here: every layer
@@ -114,6 +118,19 @@ export function packSigned({ payloadBytes, signature }, iss) {
 export function unpackSigned(bytes) {
   let o;
   try { o = JSON.parse(bytes.toString('utf8')); } catch { return null; }
+  // `Array.isArray` is DELIBERATELY REDUNDANT and known to be so — the same call
+  // and the same finding as M4's `plainSnapshot`. An independent mutation sweep
+  // (2026-08-17) deleted it with every suite still green, and rather than write
+  // a case that cannot fail, the redundancy was PROVED: only `JSON.parse` output
+  // reaches here, a parsed array's own keys are always the numeric indices, so
+  // it can never carry own string-valued `iss`/`payload`/`sig` and always dies
+  // on the line below. Guarded and unguarded agreed on 9 array shapes.
+  //
+  // It stays because "a list is not a record" is worth saying out loud at the
+  // top, and it is NOT relied upon. Recorded as a deliberately-unpinned
+  // defence-in-depth guard rather than counted as a killed mutant — the honest
+  // reading of an unkillable mutation is that the guard is redundant, not that
+  // the suite is weak.
   if (typeof o !== 'object' || o === null || Array.isArray(o)) return null;
   if (typeof o.iss !== 'string' || typeof o.payload !== 'string' || typeof o.sig !== 'string') return null;
   // Buffer.from(x,'base64') is LENIENT — garbage decodes to garbage and surfaces
@@ -149,15 +166,67 @@ export function canonicalPredicate(p) {
 // A refusal crosses the wire too. M3 builds its reasons from WIRE input and does
 // not bound them (deliberately — the clamp belongs on the side that knows the
 // envelope capacity), and M2's seal() THROWS above that capacity. Unclamped, a
-// long enough floor value would make the operator CRASH instead of refuse.
-// Measured at the spike: the worst reason one request envelope can provoke still
-// fits a signed refusal — but only as a coincidence of two independently chosen
-// constants (M2's 446-byte cap and M3's reason prefix), so this is cheap
-// insurance, not decoration.
-export const WIRE_REASON_MAX = 120;
+// long enough floor value makes the operator CRASH instead of refuse.
+//
+// The 2026-08-17 ADVERSARIAL REVIEW found BOTH halves of the previous version
+// wrong, and the comment that used to sit here ("measured at the spike: the
+// worst reason one request envelope can provoke still fits a signed refusal")
+// was simply false. Two independent ways to make `handle()` throw:
+//   * the clamp counted UTF-16 CODE UNITS while seal() counts BYTES, so a floor
+//     value of 40 astral characters produced a "clamped" 121-unit reason that
+//     was 363 bytes; and
+//   * the echoed NONCE was never bounded at all, so a 200-character nonce on an
+//     otherwise minimal request blew the refusal envelope on its own.
+// Neither is exotic: both arrive through the ordinary path, on a request that
+// fits one envelope, from anyone holding the operator's public envelope key.
+//
+// So the bound is COMPUTED, in BYTES, and the arithmetic is stated rather than
+// asserted (measured 2026-08-17, see docs/01-product/findings.md):
+//
+//   frame    {"iss":"<iss>","payload":"<b64>","sig":"<b64>"}
+//            32 fixed + iss 16 + sig 88 (64 raw Ed25519 bytes, base64)  = 136 B
+//   so the base64 payload gets OAEP_CAPACITY 446 - 136                  = 310 B
+//   base64 runs in multiples of 4 → 308 usable → claims 308 / 4 * 3     = 231 B
+//   claims   {"error":<E>,"nonce":<N>,"exp":<13 digits>}
+//            39 fixed + E + N, where E and N are the JSON-ENCODED sizes
+//   so                                                          E + N  <= 192 B
+//
+// Split 122 / 70. E = 122 leaves every reason pinned before this round
+// BYTE-IDENTICAL (a quote-free ASCII reason encodes to its length + 2, so the
+// old 120-character cut point does not move), and N = 70 admits a 68-byte nonce
+// against the demo's own 32 hex characters — a nonce longer than that cannot be
+// echoed inside one envelope at all, so the operator cannot sign a refusal bound
+// to it and says so in the clear instead (step 7 of the operator).
+//
+// 13 exp digits covers every millisecond timestamp until the year 5138. A longer
+// `iss` than the demo's would eat into E — which is why case 29 SEALS the worst
+// case rather than trusting this comment.
+export const WIRE_REASON_JSON_MAX = 122;
+export const NONCE_JSON_MAX = 70;
+
+// The size a string occupies once JSON puts it inside the claims: its own UTF-8
+// bytes, plus the two quotes, plus whatever escaping costs. Measuring the
+// ENCODED size is the whole point — a raw-byte bound would still be wrong,
+// because one control character costs six bytes as \u00XX and one quote costs
+// two.
+const jsonBytes = (s) => Buffer.byteLength(JSON.stringify(s), 'utf8');
+
 export function clampReason(r) {
   if (typeof r !== 'string') return 'rejected';
-  return r.length > WIRE_REASON_MAX ? `${r.slice(0, WIRE_REASON_MAX)}…` : r;
+  if (jsonBytes(r) <= WIRE_REASON_JSON_MAX) return r;
+  // Cut on a CODE POINT boundary. `for...of` yields whole code points, so an
+  // astral character is never split into a lone surrogate and a multi-byte UTF-8
+  // sequence is never cut mid-way — the two ways a naive byte slice produces
+  // bytes that are not valid UTF-8. Budget: 2 bytes of quotes + 3 for the `…`.
+  let kept = '';
+  let used = 2 + 3;
+  for (const ch of r) {
+    const w = jsonBytes(ch) - 2;        // this code point's own encoded cost
+    if (used + w > WIRE_REASON_JSON_MAX) break;
+    used += w;
+    kept += ch;
+  }
+  return `${kept}…`;
 }
 
 // ──────────────────────── M6-owned: the closed request set ───────────────────
@@ -166,6 +235,12 @@ export function clampReason(r) {
 // not. See the long note at step 7 of the operator for the exact widening this
 // found.
 export const REQUEST_FIELDS = Object.freeze(['number', 'predicate', 'floor', 'nonce']);
+
+// The ONE reason the requester gets when the operator cannot produce facts —
+// stable, carrying no operator-internal detail, and deliberately not telling
+// "unknown subject" apart from "temporarily unavailable". See decision #3 at
+// step 10 of the operator.
+export const FACTS_UNAVAILABLE = 'no facts available for this subject';
 
 // A field NAME is requester-chosen text. Rendered verbatim while it is short and
 // printable, so the common typo reads exactly as typed — naming the misspelling
@@ -270,6 +345,19 @@ export function createOperator({ keys, directory, backend, floor = PUBLISHED_FLO
     //    written, so everything past this line is signed.
     if (typeof req.nonce !== 'string') return transportReject('missing nonce');
 
+    //    ...and it has to be short enough to ECHO. Every signed refusal below
+    //    carries the nonce back inside the claims, so a nonce that does not fit
+    //    one envelope is a nonce the operator cannot sign a refusal against —
+    //    and a refusal it cannot sign is one the blind hub could have written.
+    //    There is nothing to sign, so this is a TRANSPORT reject, in the clear,
+    //    like every other frame-level fault. Found by the 2026-08-17 adversarial
+    //    review: unbounded, a 200-character nonce on an otherwise minimal
+    //    request made seal() THROW straight out of handle(), which is a remote
+    //    crash on an input anyone can send. See the clamp arithmetic above.
+    if (Buffer.byteLength(JSON.stringify(req.nonce), 'utf8') > NONCE_JSON_MAX) {
+      return transportReject('nonce too long to echo in a signed refusal');
+    }
+
     //    ...and the top-level request field set is CLOSED, for the same reason
     //    M1 closes its claims, M3 its axes and M4 its predicate fields: an
     //    IGNORED field is a constraint the requester believes is enforced and
@@ -325,7 +413,31 @@ export function createOperator({ keys, directory, backend, floor = PUBLISHED_FLO
     try {
       facts = await backend.getFacts(req.number, NOW);
     } catch (e) {
-      return signedReject(e instanceof Error ? e.message : 'facts unavailable', req.nonce);
+      // DECISION #3 (2026-08-17, adversarial review) — THE REQUESTER GETS A
+      // STABLE REASON; THE DIAGNOSTIC STAYS OPERATOR-SIDE. This used to forward
+      // the backend's exception message verbatim into a SIGNED refusal, so on
+      // the Orange path an upstream 500 would ship a core-network hostname or
+      // pool name to whoever asked — AGENT_RULES invariant 4, internal detail
+      // never reaches the client, broken in the one place the operator is most
+      // likely to be having a bad day.
+      //
+      // "Unknown subject" and "temporarily unavailable" are deliberately NOT
+      // told apart either. Distinguishing them is a subject-existence oracle
+      // built out of refusals: anyone holding the operator's public envelope key
+      // could enumerate which numbers it serves, for free, without ever getting
+      // an answer. Same reasoning that makes M2 collapse every decryption
+      // failure into one 'undecryptable'.
+      //
+      // The requester's own submitted number is NOT echoed back either. That is
+      // not a disclosure question — it is data they sent, and echoing it would
+      // reveal nothing they do not already hold. It is dropped because it is not
+      // NEEDED (the nonce already binds this refusal to that exact request) and
+      // because putting unbounded wire text into a sealed reason is the class of
+      // move that produced the nonce crash above. The operator keeps the full
+      // message locally on `operatorDetail`, which never enters the claims and
+      // is never sealed.
+      const detail = e instanceof Error ? e.message : String(e);
+      return { ...signedReject(FACTS_UNAVAILABLE, req.nonce), operatorDetail: detail };
     }
 
     // 11. M4 — facts + predicate → the BIT. Never throws; an unanswerable
@@ -345,8 +457,19 @@ export function createOperator({ keys, directory, backend, floor = PUBLISHED_FLO
     // The leaky-operator control for assertion 1: ship the age alongside the bit.
     if (controls.leakRaw) claims.swapAgeMs = facts.swapAgeMs;
 
-    // 13. M1 signs, M6 packs, M2 seals.
+    // 13. M1 signs, M6 packs, M2 seals — and the frame is MEASURED before it is
+    //     sealed. A request that fits one envelope does not guarantee an answer
+    //     that does: `roamingIn` takes a SET, and the canonical predicate string
+    //     re-escapes every quote in it, so the answer frame grows faster than the
+    //     request did. Measured 2026-08-17 (found while fixing the two crashes
+    //     above, not filed by the review): 18 two-letter codes fit a 446-byte
+    //     request and produce a 448-byte answer frame, and seal() threw straight
+    //     out of handle(). A refusal carries no predicate, so it always fits —
+    //     which is what makes "refuse instead of crash" available here at all.
     const plain = packSigned(attest(keys.opSig.privateKey, claims), keys.opIss);
+    if (plain.length > OAEP_CAPACITY) {
+      return signedReject('answer does not fit one envelope', req.nonce);
+    }
     return { kind: 'answer', claims, plain, sealed: seal(keys.rpEnc.publicKey, plain) };
   }
 
@@ -398,9 +521,20 @@ export function createRP({ keys, directory }) {
     let ok = false;
     try { ok = edVerify(null, signed.payloadBytes, pinnedKey, signed.signature); } catch { return null; }
     if (!ok) return null;
+    const text = signed.payloadBytes.toString('utf8');
     let claims;
-    try { claims = JSON.parse(signed.payloadBytes.toString('utf8')); } catch { return null; }
+    try { claims = JSON.parse(text); } catch { return null; }
     if (typeof claims !== 'object' || claims === null || Array.isArray(claims)) return null;
+    // Profile rule 2's duplicate-key scan, in M1's own order (signature → parse
+    // → scan, which is that scanner's stated precondition) with M1's own
+    // exported scanner. Found by the 2026-08-17 adversarial review, and it is
+    // the embarrassing kind: M6 exported this scanner FROM M1 this very round so
+    // that the request path would not carry a second copy — and then wrote a
+    // second verifier that did not call it. `verifyAttestation` scans; this did
+    // not. One signature over `{"error":"below floor","error":"off menu",…}`
+    // therefore read as one refusal to a last-wins parser and a different one to
+    // a first-wins parser, with the operator's real signature over both.
+    if (hasDuplicateTopLevelKey(text)) return null;
     const keys_ = Object.keys(claims).sort().join(',');
     if (keys_ !== 'error,exp,nonce') return null;
     if (typeof claims.error !== 'string' || claims.nonce !== nonce) return null;
@@ -432,13 +566,30 @@ export function createRP({ keys, directory }) {
 
     const want = expected ?? { predicate: canonicalPredicate(controls.fallbackPredicate) };
     const v = verifyAttestation(pinned, unpacked.signed, { predicate: want.predicate, nonce, nowMs });
-    // CONSUMED on any verified exchange, answer or refusal: one nonce, one
-    // exchange. The remedy for a refusal is a fresh request with a fresh nonce.
-    if (!controls.skipNonceStore) pending.delete(nonce);
-    if (v.accepted) return v;
+
+    // CONSUMED on a VERIFIED exchange — an accepted answer or a verified signed
+    // refusal — and NEVER on a merely PRESENTED one. One nonce, one exchange;
+    // the remedy for a refusal is still a fresh request with a fresh nonce.
+    //
+    // The delete used to run HERE, before the verdict below was read, and the
+    // 2026-08-17 adversarial review turned that into a one-message denial of
+    // service by exactly the party this design assumes is hostile: the untrusted
+    // hub injects a single garbage sealed response, the store burns the pending
+    // nonce, and the operator's genuine answer then arrives to 'unknown or
+    // already-used nonce'. The comment already said "consumed on any VERIFIED
+    // exchange" while the code consumed on any presented one — the contract was
+    // right and the code was not.
+    const consume = () => { if (!controls.skipNonceStore) pending.delete(nonce); };
+
+    if (v.accepted) { consume(); return v; }
 
     const refusal = verifyRefusal(pinned, unpacked.signed, nonce, nowMs);
-    if (refusal !== null) return { accepted: false, refused: true, reason: `operator refused: ${refusal}` };
+    if (refusal !== null) {
+      consume();
+      return { accepted: false, refused: true, reason: `operator refused: ${refusal}` };
+    }
+    // Neither verified: the nonce stays PENDING, so the genuine response can
+    // still land. That is the fix — an unverifiable message is not an exchange.
     return v;
   }
 
@@ -522,22 +673,46 @@ export async function roundTrip(world, request, { operator: opControls = {}, rp:
 }
 
 // ═══════════════════════════ the wire-byte scanner ═══════════════════════════
-// The raw values the operator holds and must never ship. The DAY COUNT itself
-// ("137") is deliberately NOT a needle: three digits appear inside a 32-character
-// hex nonce roughly once every 140 runs, so scanning for it would produce a
-// flaky red that says nothing. The long forms — the age in ms, the swap instant,
-// the ISO date, and the internal field names — are the values that would
-// actually leak, and they are unmistakable.
-export function rawNeedles(daysAgo) {
+// THE INVENTORY of raw values the operator holds and must never ship. The
+// 2026-08-17 adversarial review found this set was five long-form spellings of
+// the swap timestamp and nothing else, so four perfectly plausible leaks —
+// `{"swapDays":137}`, `{"c":"FR"}` (the roaming COUNTRY VALUE, a raw value under
+// profile rule 1 every bit as much as the date is), `{"m":"+990100000099"}` and
+// `{"d":"2026-04-02"}` — all scored ZERO hits while the demo printed "no raw
+// value in ANY wire artifact" over the result. The label was ahead of the check.
+//
+// So the inventory is now complete, and the SPLIT that used to be hidden inside
+// it is explicit below instead: some of these values are too short to scan
+// against opaque bytes without flaking, which is a property of the ARTIFACT, not
+// a reason to leave the value out of the inventory.
+export function rawNeedles(daysAgo, { country = 'FR', number = DEMO_NUMBER } = {}) {
   const ageMs = daysAgo * DAY_MS;
   const atMs = NOW - ageMs;
-  return [String(ageMs), String(atMs), new Date(atMs).toISOString(), 'swapAgeMs', 'roamingCountry'];
+  const iso = new Date(atMs).toISOString();
+  return [String(ageMs), String(atMs), iso, iso.slice(0, 10), 'swapAgeMs', 'roamingCountry',
+    String(daysAgo), country, number];
 }
+
+// The subset that is safe to scan against OPAQUE bytes — RSA ciphertext read as
+// latin1, and frames whose payload is base64. Measured, not guessed: a 2-char
+// country code lands inside 512 random bytes about once every 8 runs and inside
+// a 308-character base64 payload about once every 13; a 3-digit day count lands
+// inside a 32-character hex nonce about once every 140. A needle that reds a
+// clean run asserts nothing, so those two are scanned only where a hit is real.
+const OPAQUE_MIN_NEEDLE = 8;
+export const opaqueNeedles = (all) => all.filter((n) => n.length >= OPAQUE_MIN_NEEDLE);
+
+// ...and the counterpart that makes the SHORT needles usable on plaintext: the
+// nonce is 32 random hex characters, so it is the one place in a claim frame
+// where "137" can appear by chance. Blanking it is what turns the day count from
+// a flaky needle into an asserting one — the value is still scanned, in every
+// artifact byte the operator actually authored.
+export const withoutNonce = (text, nonce) => (nonce ? text.split(nonce).join('') : text);
+
 export function scan(buf, needles) {
   const s = Buffer.isBuffer(buf) ? buf.toString('latin1') : String(buf);
   return needles.filter((n) => s.includes(n));
 }
-
 // ════════════════════════════════ the report ═════════════════════════════════
 const results = [];
 const out = (s = '') => console.log(s);
@@ -566,6 +741,7 @@ export async function runDemo(backend) {
   const world = createWorld({ backend });
   const { hub, rp, keys } = world;
   const NEEDLES = rawNeedles(SWAPPED_DAYS_AGO);
+  const OPAQUE = opaqueNeedles(NEEDLES);
   const SWAP_ISO = new Date(NOW - SWAPPED_DAYS_AGO * DAY_MS).toISOString();
 
   await backend.setBackstory(DEMO_NUMBER, { swappedDaysAgo: SWAPPED_DAYS_AGO, roamingCountry: 'FR', reachable: true }, NOW);
@@ -602,15 +778,25 @@ export async function runDemo(backend) {
     `keys=${JSON.stringify(Object.keys(r1.verdict.claims ?? {}))}`);
   note(`signed bytes, verbatim: ${unpackSigned(r1.out.plain).signed.payloadBytes.toString('utf8')}`);
 
-  const artifacts1 = {
-    ciphertext: r1.atRp,
-    frame: r1.out.plain,
-    claimBytes: unpackSigned(r1.out.plain).signed.payloadBytes,
-    hubLog: Buffer.from(JSON.stringify(hub.log), 'utf8'),
+  // Two scans, because one needle set cannot honestly cover both artifact
+  // classes. The OPAQUE artifacts (ciphertext, and the base64-bearing frame) get
+  // the long-form subset, which cannot land by chance; the PLAINTEXT artifacts
+  // get the FULL inventory — day count, country code and subscriber number
+  // included — with the random hex nonce blanked out first, which is what makes
+  // a 3-digit needle assert instead of flake.
+  const opaque1 = { ciphertext: r1.atRp, frame: r1.out.plain };
+  const plain1 = {
+    claimBytes: withoutNonce(unpackSigned(r1.out.plain).signed.payloadBytes.toString('utf8'), q1.nonce),
+    hubLog: withoutNonce(JSON.stringify(hub.log), q1.nonce),
   };
-  const hits1 = Object.values(artifacts1).flatMap((a) => scan(a, NEEDLES));
-  assert('no raw value in ANY wire artifact', hits1.length === 0,
-    `scanned ${Object.keys(artifacts1).join(', ')} for [${NEEDLES.join(', ')}] → hits=${JSON.stringify(hits1)}`);
+  const hits1 = [
+    ...Object.values(opaque1).flatMap((a) => scan(a, OPAQUE)),
+    ...Object.values(plain1).flatMap((a) => scan(a, NEEDLES)),
+  ];
+  assert('no raw value on the wire — every value the operator holds, not just the long spellings',
+    hits1.length === 0,
+    `${Object.keys(opaque1).join(', ')} vs the ${OPAQUE.length} long forms; `
+    + `${Object.keys(plain1).join(', ')} (nonce blanked) vs all ${NEEDLES.length}: [${NEEDLES.join(', ')}] → hits=${JSON.stringify(hits1)}`);
 
   step('and the bit is real, not decoration: re-script the backstory and re-ask.');
   await backend.setBackstory(DEMO_NUMBER, { swappedDaysAgo: FLIPPED_DAYS_AGO, roamingCountry: 'FR', reachable: true }, NOW);
@@ -628,7 +814,7 @@ export async function runDemo(backend) {
   // defences must both fire, or the scanner above was asserting nothing.
   const q1c = rp.buildRequest(PREDICATE, { swapAgeMin: 'P180D' });
   const r1c = await roundTrip(world, q1c, { operator: { leakRaw: true } });
-  const leakHits = scan(unpackSigned(r1c.out.plain).signed.payloadBytes, NEEDLES);
+  const leakHits = scan(withoutNonce(unpackSigned(r1c.out.plain).signed.payloadBytes.toString('utf8'), q1c.nonce), NEEDLES);
   flip('a leaky operator reds the SAME scanner, and M1 rejects the response anyway',
     leakHits.length > 0 && r1c.verdict.accepted === false && r1c.verdict.reason === 'unexpected fields: swapAgeMs',
     `hits=${JSON.stringify(leakHits)}; requester verdict='${r1c.verdict.reason}' (closed claim set)`);
@@ -672,10 +858,18 @@ export async function runDemo(backend) {
   step('both legs are end-to-end encrypted between requester and operator. The hub');
   step('holds no key that opens them, so blindness is structural, not a promise.');
 
+  // NARRATION, labelled as what it is. The hub's blindness is STRUCTURAL — it
+  // is never handed a key that opens either leg — and a structural property is
+  // not something an assertion can fail. What this line actually exercises is
+  // RSA-OAEP: a key that is not the recipient's does not open the ciphertext.
+  // The 2026-08-17 review flagged the old label ("the hub opening a message it
+  // just carried gets nothing") for claiming the first while checking the
+  // second. The real evidence for blindness is the log scan below, which CAN
+  // fail, and the chatty control that shows it failing.
   const hubKeys = generateEnvelopeKeys();
   const hubTry = open(hubKeys.privateKey, r1.atRp);
-  assert('the hub opening a message it just carried gets nothing',
-    hubTry.ok === false, `hub open → '${hubTry.reason}'`);
+  assert('a key that is not the recipient\'s does not open the ciphertext (RSA-OAEP, not a blindness proof)',
+    hubTry.ok === false, `hub open → '${hubTry.reason}' — blindness itself is structural: the hub is never given a key`);
 
   out('');
   out('   the hub\'s own log, printed verbatim:');
@@ -683,7 +877,10 @@ export async function runDemo(backend) {
   out(`     … ${hub.log.length} entries total, all of this shape`);
   out('');
 
-  const LOG_NEEDLES = [...NEEDLES, DEMO_NUMBER, 'simSwapAge', 'P90D', 'P180D'];
+  // The hub log is the operator's own plaintext, so the FULL inventory applies —
+  // plus the question itself, which rule 6 removes from the metering record just
+  // as firmly as it removes the answer.
+  const LOG_NEEDLES = [...NEEDLES, 'simSwapAge', 'P90D', 'P180D'];
   const logHits = scan(JSON.stringify(hub.log), LOG_NEEDLES);
   assert('the log carries metering only: count, route, size, bill',
     logHits.length === 0, `scanned for [${LOG_NEEDLES.join(', ')}] → hits=${JSON.stringify(logHits)}`);
@@ -716,9 +913,16 @@ export async function runDemo(backend) {
 
   const q4b = rp.buildRequest(PREDICATE, { swapAgeMin: 'P180D', class: 'postpaid' });
   const r4b = await roundTrip(world, q4b);
-  assert('tightening two axes is accepted, and the effective floor is visible',
-    r4b.verdict.accepted === true,
-    `effective floor = ${JSON.stringify(checkFloor(PUBLISHED_FLOOR, { swapAgeMin: 'P180D', class: 'postpaid' }).effective)}`);
+  // The 2026-08-17 review flagged the old version of this line: it said "the
+  // effective floor is visible" and asserted only `accepted === true`, so a gate
+  // that returned the operator's own floor verbatim would have passed it. The
+  // effective floor is now READ: both tightened axes must be the REQUESTER's
+  // values, and the untouched axis must still be the operator's.
+  const eff4b = checkFloor(PUBLISHED_FLOOR, { swapAgeMin: 'P180D', class: 'postpaid' }).effective;
+  assert('tightening two axes is accepted, and the effective floor really is the tightened one',
+    r4b.verdict.accepted === true
+      && eff4b.swapAgeMin === 'P180D' && eff4b.class === 'postpaid' && eff4b.tenureMin === PUBLISHED_FLOOR.tenureMin,
+    `effective floor = ${JSON.stringify(eff4b)} — two axes from the request, ${PUBLISHED_FLOOR.tenureMin} inherited from the operator`);
 
   // NEGATIVE: the gate off. The SAME below-floor request now gets a signed answer
   // under a floor the operator never agreed to — silent widening, in one line.

@@ -232,8 +232,37 @@ checkThrows('20 PROTOTYPE PUBLISHED THROWS',
         && revoked.allowed === false && revoked.reason === dur('[unrenderable]') });
 }
 
+// 24 EVERY `render` BRANCH IS NAMED BY KIND — added 2026-08-17 after an
+// independent mutation sweep deleted `render`'s `symbol` and `function` branches
+// with every suite still green. Low severity and defence in depth by design:
+// neither shape survives a JSON round trip, so neither is wire-reachable through
+// the demo's envelope. That is exactly the argument case 23 refuses to accept —
+// "the transport happens to filter it" is a structural accident, not a contract
+// this module is entitled to lean on — so the branches get pinned rather than
+// deleted. Without them both values fall through to the structural fallback and
+// render as `object`, which names the wrong kind rather than throwing.
+//
+// This case lives HERE and not in m6-check on purpose: reverting M3's whole
+// `render` fix leaves m6-check green, because the composition's envelope is what
+// keeps these shapes off the wire. The fix belongs to M3, so its pin does too.
+{
+  const guard = (requested) => {
+    try { return checkFloor(PUB, requested); }
+    catch (e) { return { allowed: true, reason: `ESCAPED: ${e.constructor.name}` }; }
+  };
+  const dur = (rendered) => `invalid duration: swapAgeMin ${rendered} (use P<days>D or P<years>Y; months are ambiguous)`;
+  const fn = guard({ swapAgeMin: function nope() {} });
+  // The control: a real object DOES render as `object`, so the two cases above
+  // are asserting a distinct kind name and not simply "some string came back".
+  const obj = guard({ swapAgeMin: { a: 1 } });
+  check('24 RENDER NAMES EVERY KIND', false, guard({ swapAgeMin: Symbol('s') }), dur('symbol'),
+    { label: 'a function renders as `function`; a plain object still renders as `object`',
+      ok: fn.allowed === false && fn.reason === dur('function')
+        && obj.allowed === false && obj.reason === dur('object') });
+}
+
 // The declared case count. A suite that silently loses the cases carrying its
 // guarantee still printed a green `RESULT: n/n` before this argument existed
 // (measured 2026-08-16 on m4-check: truncated to 18/18 exit 0, emptied to 0/0
 // exit 0).
-conclude(23);
+conclude(24);

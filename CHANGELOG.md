@@ -2,6 +2,63 @@
 
 ## Unreleased (0.4.0 — M6)
 
+- **M6 adversarial review round (2026-08-17): five ways to crash or deny-service
+  the operator, all fixed and mutation-proven.** An independent review filed six
+  defects with a repro script; all six reproduced on the first run. Four were
+  real, and fixing them surfaced a fifth the review had not found.
+  - **The operator could be crashed remotely, three ways** — all on requests
+    that fit one envelope, from anyone holding its public envelope key, and all
+    breaking the "wire input never throws" contract: an **unbounded echoed
+    nonce** (200 characters → `seal()` threw out of `handle`); a **reason clamp
+    counting UTF-16 code units where `seal` counts BYTES** (40 astral characters
+    → a "clamped" 121-unit / 363-byte reason); and an **answer frame that
+    overflows even when the request did not** (18 `roamingIn` country codes fit a
+    446-byte request and produce a 448-byte answer, because the canonical
+    predicate re-escapes every quote). The refusal budget is now COMPUTED and the
+    arithmetic is written down (frame 136 B → payload 310 → claims 231 → reason +
+    nonce ≤ 192 B, split 122/70 as JSON-encoded sizes); the clamp bounds encoded
+    BYTES and cuts on a code-point boundary; an unechoable nonce is a transport
+    reject; an oversize answer is a signed refusal. The comment claiming the
+    worst reason had been *measured* to fit was simply false, and is replaced by
+    a case that seals the worst admissible refusal (444/446 B).
+  - **A forged response permanently burned the pending nonce.** The store
+    deleted on any PRESENTED response, not any VERIFIED one, so the untrusted hub
+    could inject one garbage sealed message and the operator's genuine answer
+    then arrived to `unknown or already-used nonce` — a one-message denial of
+    service by the party the design assumes is hostile. The in-code comment
+    already stated the correct contract; the code did not implement it.
+  - **`verifyRefusal` never ran the duplicate-key scan** that profile rule 2
+    requires and `verifyAttestation` performs — in the same round M6 exported
+    M1's scanner so the request path would not carry a second copy.
+  - **Operator-internal diagnostics were signed and shipped to the requester.**
+    The backend's exception message rode verbatim into the refusal; on the Orange
+    path an upstream 500 delivers a core-network hostname. The requester now gets
+    one stable reason, deliberately not distinguishing "unknown subject" from
+    "temporarily unavailable" (that distinction is a subject-existence oracle);
+    the full message stays operator-side.
+- **Four labels corrected where the headline claimed more than the assertion
+  checked** (no false PASS in any of them): a case whose `extra` was the literal
+  `ok: true`; a "blind hub" assertion that actually exercised RSA-OAEP
+  (blindness is structural and has no failing case — relabelled as narration);
+  an "effective floor is visible" line asserting only `accepted === true`; and
+  the backend-seam byte-identity headline, which is near-vacuous alone and now
+  ships with a leg that CAN fail (a 5-day-old replayed swap flips the bit).
+- **The wire-byte scanner was scanning one value five ways.** `rawNeedles` held
+  five long-form spellings of the swap timestamp, so `{"swapDays":137}`,
+  `{"c":"FR"}` (the roaming country VALUE), `{"m":"+990100000099"}` and
+  `{"d":"2026-04-02"}` all scored ZERO while the printed line read "no raw value
+  in ANY wire artifact". Inventory widened to nine, with a measured split:
+  opaque artifacts take the seven long forms, plaintext takes all nine with the
+  random hex nonce blanked so the 3-digit day count asserts instead of flaking.
+- **Case counts: `m6-check` 28 → 38, `m3-check` 23 → 24.** Both AGENT-RUN;
+  **user re-run PENDING**. The PRD's "every count above is from a run on the
+  user's own machine" was false the moment M6/M1/M3 landed above it — it was the
+  only place in the repo claiming user validation for M6 — and is corrected.
+- **Spec sketch: `AttestRequest` closed with `additionalProperties: false`** (the
+  outermost layer, which the code closed this round while the sketch left it
+  open), and the `value` example no longer shows `"voice+data"`, a `simType`
+  floor value left behind when `simType` left the `Predicate` enum.
+
 - **Retracted, visibly: `kyc-match` does NOT "conform as-is because scores are
   already bands".** Measured against the Orange Playground 2026-08-17: a correct
   name returns `{"nameMatch":"true"}` with no score, a wrong name returns
@@ -147,8 +204,15 @@
   and printable so an embedded newline cannot forge a log line. The general
   lesson, recorded in PRD §9: **a closed-set discipline is only as good as its
   outermost layer, and the composition owns a layer none of the modules do.**
-- **18 mutations against M6's own guards, 18 killed, 0 survivors** (plus 5
-  against the M1/M3 changes below).
+- ~~**18 mutations against M6's own guards, 18 killed, 0 survivors**~~ —
+  **corrected 2026-08-17.** An independent sweep of **34 meaningful mutations
+  found 10 survivors (29% survival)**: the original 18 were self-selected and
+  happened to hit only what the suite already pinned. Nine survivors are now
+  pinned by new cases (`m6-check` 29–38, `m3-check` 24); the tenth,
+  `unpackSigned`'s `Array.isArray`, was **proved redundant** rather than covered
+  by a case that could not fail. Left struck through rather than rewritten,
+  because a retracted measurement is worth more than a corrected one. See
+  `docs/01-product/findings.md` 2026-08-17.
 - **Spec sketch `Predicate` enum trimmed 7 → 3.**
   `spec/carrier-attestation.yaml` now lists only what the PoC wires end to end —
   `simSwapAge`, `roamingIn`, `reachable` (the boolean `value` branch stays;
