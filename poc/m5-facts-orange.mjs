@@ -42,6 +42,11 @@
 // file, token caching included (see `tokenFor`).
 
 const DAY_MS = 86400000;
+// `Date`'s widest representable instant (±8.64e15 ms from the epoch). A safe
+// integer can sit far beyond it, and `new Date(x).toISOString()` answers such
+// an `x` with a bare `RangeError: Invalid time value` — an opaque error
+// replacing this module's loud, named-input one. So `now` is bounded HERE.
+const MAX_EPOCH_MS = 8640000000000000;
 // Byte-identical to M4's bound, and deliberately duplicated for the same
 // reason M4 duplicates M3's duration parser: PRD §4.4 requires each module to
 // work alone. A real subscriber number must never reach the Playground.
@@ -129,25 +134,35 @@ function brief(value) {
 // verification FAILED", against 418 chars for the same mismatch reached with a
 // benign element). This is the sibling of the `show()` guard further down and
 // is fixed the same way — nothing caller-supplied is invoked:
-//   * a STRING is taken verbatim and clamped, NOT `brief()`-rendered: `brief()`
-//     would add JSON quotes and `"FR"` must still compare equal to `FR`. A
-//     canonical alpha-2 code is 2 chars, so the clamp cannot touch a legitimate
-//     one — it only bounds a hostile 2e7-char value (measured 691ms unclamped);
+//   * a STRING is `redact()`ed FIRST and clamped SECOND, NOT `brief()`-rendered:
+//     `brief()` would add JSON quotes and `"FR"` must still compare equal to
+//     `FR`. The order is the same rule `show()` documents below — the
+//     known-secret layer is an EXACT match, so clamping before redacting would
+//     leave a 48-char FRAGMENT of a longer echoed credential unmatched and
+//     therefore printed (found by the post-v0.3.0 review round: the fragment
+//     leak this comment warns about lived one step upstream, in this very
+//     function). `redact()` leaves a legitimate alpha-2 code untouched
+//     (secrets are ≥8 chars) and returns a ≤REDACT_MAX string, which the
+//     clamp then bounds — a hostile 2e7-char value stays bounded (measured
+//     691ms unclamped);
 //   * anything else renders as its KIND via `brief()`, which runs no user code
 //     and can never equal a canonical country, so the comparison still fails
 //     LOUD rather than silently.
 // `length` is read ONCE into `n` — re-reading it per iteration is the
 // time-of-check/time-of-use window M4 measured walking 5,000,000 indices.
 const MAX_STORED_COUNTRIES = 16;
-function joinStored(v) {
+function joinStored(v, redact) {
   if (!Array.isArray(v)) return undefined;
   const n = Math.min(v.length, MAX_STORED_COUNTRIES);
   const parts = [];
   for (let i = 0; i < n; i++) {
     const el = v[i];
-    parts.push(typeof el === 'string'
-      ? (el.length > BRIEF_MAX ? `${el.slice(0, BRIEF_MAX)}…` : el)
-      : brief(el));
+    if (typeof el === 'string') {
+      const r = redact(el);
+      parts.push(r.length > BRIEF_MAX ? `${r.slice(0, BRIEF_MAX)}…` : r);
+    } else {
+      parts.push(brief(el));
+    }
   }
   return parts.join(',');
 }
@@ -273,7 +288,17 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
       // A transport failure is loud too — never a degraded answer.
       throw new Error(`token request failed (${surface}): ${redact(e instanceof Error ? e.message : String(e))}`);
     }
-    const text = await res.text();
+    let text;
+    try {
+      // Reading the body is INSIDE a try for the same reason `post()`'s send
+      // reads it inside one: a stream that dies mid-response rejects HERE, not
+      // at `doFetch`, and its message can carry wire text. Outside a try that
+      // message escaped unredacted (the /security fix landed in `post()` only;
+      // this sibling was closed by the post-v0.3.0 review round).
+      text = await res.text();
+    } catch (e) {
+      throw new Error(`token response read failed (${surface}): ${redact(e instanceof Error ? e.message : String(e))}`);
+    }
     if (res.status !== 200) {
       throw new Error(`token rejected (${surface}, status ${res.status}): ${redact(text)} — check ORANGE_BASIC_AUTH`);
     }
@@ -363,6 +388,9 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
     if (!Number.isSafeInteger(nowMs) || nowMs < 0) {
       throw new Error(`invalid now: ${brief(nowMs)} (unix epoch ms as a safe integer — the clock is injected, never read)`);
     }
+    if (nowMs > MAX_EPOCH_MS) {
+      throw new Error(`invalid now: ${brief(nowMs)} (beyond Date's representable range of ${MAX_EPOCH_MS} epoch ms — past it, formatting the instant throws a bare RangeError instead of this message)`);
+    }
   }
 
   // -------------------------- operator-side WRITE --------------------------
@@ -437,7 +465,7 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
     const got = {
       latestSimChange: stored.simSwap?.latestSimChange,
       roaming: stored.roaming?.roaming,
-      country: joinStored(stored.roaming?.countryName),
+      country: joinStored(stored.roaming?.countryName, redact),
       reachabilityStatus: stored.reachability?.reachabilityStatus,
     };
     const want = {

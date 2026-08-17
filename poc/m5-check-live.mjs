@@ -67,7 +67,21 @@ async function rawAdmin(body) {
       headers: { Authorization: `Basic ${CRED}`, 'Content-Type': 'application/x-www-form-urlencoded' },
       body: 'grant_type=client_credentials',
     });
-    adminToken = JSON.parse(await t.text()).access_token;
+    // Guarded parse, and NEVER the body in the message: this raw path has no
+    // redaction layer, so the only safe diagnostic is the status. Unguarded,
+    // two failures were silent-or-worse (post-v0.3.0 review round): a 401 JSON
+    // error body parsed fine and cached `access_token: undefined` — and
+    // `undefined === null` is false, so every later call sent
+    // `Bearer undefined` and case 11 blamed QUOTA for an AUTH fault; a
+    // non-JSON body (gateway HTML) threw a raw SyntaxError that on Node 20+
+    // quotes a snippet of the body, contradicting the promise above.
+    let tok;
+    try { tok = JSON.parse(await t.text()).access_token; } catch { tok = undefined; }
+    if (t.status !== 200 || typeof tok !== 'string' || tok === '') {
+      throw new Error(`raw admin token exchange failed (status ${t.status}) — `
+        + 'check ORANGE_BASIC_AUTH (revoked/wrong credential) or the Playground may be down; body withheld (no redaction on this raw path)');
+    }
+    adminToken = tok;
   }
   const res = await fetch('https://api.orange.com/camara/playground/admin/v1.0/action', {
     method: 'POST',
@@ -293,14 +307,28 @@ const P90 = { type: 'simSwapAge', operator: 'gte', value: 'P90D' };
 {
   const endSlots = await slotCount();
   const deleted = gaveBack !== null && gaveBack.status >= 200 && gaveBack.status < 300;
+  // `endSlots < QUOTA_CAP` is deliberately NOT part of this assertion: being
+  // at cap is a distinct account-health property, and folding it in made an
+  // account legitimately holding 10/10 red THIS case's name — blaming the
+  // cleanup that had in fact succeeded, the exact wrong-blame shape the
+  // baseline fix above closed. At-cap is reported as a warning instead.
   ok('11 QUOTA RESTORED: the trap case gave its slot back',
-    startSlots !== null && endSlots !== null && endSlots === startSlots && endSlots < QUOTA_CAP && deleted,
+    startSlots !== null && endSlots !== null && endSlots === startSlots && deleted,
     `start=${startSlots} end=${endSlots} of ${QUOTA_CAP}, cleanup DELETE status=${gaveBack?.status}`);
-  console.log(`\nquota: ${endSlots} of ${QUOTA_CAP} custom slots in use at end (started at ${startSlots})`);
+  console.log(`\nquota: ${endSlots} of ${QUOTA_CAP} custom slots in use at end (started at ${startSlots})`
+    + (endSlots !== null && endSlots >= QUOTA_CAP ? '  (WARNING: at cap — the next CREATE on this app will fail)' : ''));
 }
 
-// Leave the slot in the demo's known state, so a re-run starts where this one did.
-await facts.setBackstory(CUSTOM, { swappedDaysAgo: 120, roamingCountry: null, reachable: true }, NOW);
-console.log(`${CUSTOM} left scripted: swapped 120 days ago, not roaming, reachable`);
+// Leave the slot in the demo's known state, so a re-run starts where this one
+// did. GUARDED: this is a courtesy write AFTER the last case — unguarded, a
+// transient failure here killed an all-green run before `conclude()` could
+// print the tally or enforce the case count (post-v0.3.0 review round). The
+// failure is still printed loudly; it just no longer eats the verdict.
+try {
+  await facts.setBackstory(CUSTOM, { swappedDaysAgo: 120, roamingCountry: null, reachable: true }, NOW);
+  console.log(`${CUSTOM} left scripted: swapped 120 days ago, not roaming, reachable`);
+} catch (e) {
+  console.log(`${CUSTOM} courtesy re-script FAILED (${e instanceof Error ? e.message : String(e)}) — a re-run's case 3 starts from a different scripted state`);
+}
 
 conclude(11);

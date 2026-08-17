@@ -698,9 +698,11 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
 // mismatch reached through a benign element gave 418. That is the module's most
 // load-bearing guard replaced by an opaque error at the moment it matters.
 //
-// The three legs matter together: a hostile element must still FAIL LOUD and
-// render as its kind, a legitimate one-element list must still COMPARE EQUAL
-// (a guard that broke `["FR"] === "FR"` would be worse than the bug), and an
+// The four legs matter together: a hostile element must still FAIL LOUD and
+// render as its kind, a benign mismatching element must still produce the loud
+// message AND name its value (a guard that broke the rendering of `'Spain'`
+// would be worse than the bug), a legitimate one-element list must still
+// COMPARE EQUAL (a guard that broke `["FR"] === "FR"` likewise), and an
 // over-long list must be bounded rather than walked.
 {
   const sim = new Date(NOW - 1 * DAY).toISOString();
