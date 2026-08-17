@@ -6,9 +6,12 @@
 // its NEGATIVE FLIP, because an assertion that cannot fail proves nothing.
 //
 // Exit 0 = everything held. Exit 1 = something failed. Exit 2 = the chosen
-// backend could not start at all (e.g. `--backend orange` with no credential):
-// a prerequisite failure is not a test result, and it is never a silent
-// fallback to the mock.
+// backend could not run (e.g. `--backend orange` with no credential): a
+// prerequisite failure is not a test result, and it is never a silent fallback
+// to the mock. Under `--backend mock` there are no prerequisites, so 2 is
+// reachable only from a bad argument — a mid-run throw there is a code
+// regression and exits 1, never 2. A gate that skips on 2 must not be able to
+// swallow a regression.
 //
 // M6 owns five things no module owns, and each one is load-bearing:
 //   1. the transport frame `{iss, payload, sig}` (M1 emits Buffers, M2 carries
@@ -357,6 +360,15 @@ export function createRP({ keys, directory }) {
   // same expected nonce verifies again, forever, until it expires. Replay
   // rejection therefore lives entirely here, which is why the negative below
   // disables THIS and not anything in M1.
+  //
+  // HONEST LIMIT: this store only ever GROWS. A nonce is deleted when its
+  // response is verified, so a request that never gets one — rejected by the
+  // hub, dropped in transit, or answered after the requester gave up — leaves
+  // its entry resident forever. Harmless in a demo that issues a handful of
+  // requests against an injected clock; unbounded memory in anything real. A
+  // deployment evicts on EXPIRY (the answer's validity window is already the
+  // natural TTL), which is deliberately not built here — the demo would have to
+  // fake elapsed time to exercise it, and a stated limit beats an untested one.
   const pending = new Map();
 
   // `nonce` is injectable for the same reason M4's clock is: a caller that
@@ -728,7 +740,7 @@ export async function runDemo(backend) {
   assert('a misspelled request field is refused, not ignored',
     typoOut.kind === 'reject' && typoOut.reason === 'unexpected request fields: floors',
     `reason='${typoOut.reason}'`);
-  const typoCtrl = await world.operator.handle(hub.route(keys.rpIss, keys.opIss, typoSealed), { operator: {}, skipRequestFields: true });
+  const typoCtrl = await world.operator.handle(hub.route(keys.rpIss, keys.opIss, typoSealed), { skipRequestFields: true });
   flip('with the set left open, the typo silently DROPS the demanded floor',
     typoCtrl.kind === 'answer',
     `answered under the operator's own ${PUBLISHED_FLOOR.swapAgeMin} while the requester believed it demanded ${typo.floors.swapAgeMin} — no error anywhere`);
@@ -799,7 +811,10 @@ export async function runDemo(backend) {
   out('      makes that omission normative; profile rule 4 generalises it catalog-wide).');
   out('   2. THE THRESHOLD MENU is this profile\'s answer to the oracle above, not a CAMARA');
   out('      requirement — the normative profile enumerates no predicate types or thresholds.');
-  out('   3. WHAT THIS IS NOT. The operator shim simulates operator-side computation and');
+  out('   3. THE NONCE STORE ONLY GROWS. A request that never receives a response leaves');
+  out('      its nonce resident forever; a real deployment evicts on expiry (the answer\'s');
+  out('      validity window is already the TTL). Stated, not built — see createRP.');
+  out('   4. WHAT THIS IS NOT. The operator shim simulates operator-side computation and');
   out('      signing; consent and legal-basis legs are out of scope. Mode A keeps the');
   out('      operator-side query log — the operator always knows who asked about whom.');
   out('      And this is attested windowed disclosure, NOT zero-knowledge: the operator');
@@ -839,7 +854,14 @@ const PREREQS = [
   '"worked" without credentials would make the live run prove nothing.',
 ];
 
-export async function main(argv = process.argv.slice(2)) {
+// `createBackendImpl` is dependency injection for the same reason `fetchImpl`
+// is, and it is the same shape: ONE code path, no test-only branch. The M6
+// check needs a backend that STARTS and then throws mid-run, because that is the
+// only way to exercise the exit-code contract below end-to-end — and the whole
+// point of that contract is that a started-then-failed mock run is a code
+// regression. A mapping table asserted in isolation would pin the arithmetic
+// while leaving the propagation untested.
+export async function main(argv = process.argv.slice(2), { createBackendImpl = createBackend } = {}) {
   const args = parseArgs(argv);
   if (args.error) {
     console.error(`${args.error}\nusage: node poc/demo.mjs [--backend mock|orange]`);
@@ -847,7 +869,7 @@ export async function main(argv = process.argv.slice(2)) {
   }
   let backend;
   try {
-    backend = await createBackend(args.backend, { basicAuth: process.env.ORANGE_BASIC_AUTH });
+    backend = await createBackendImpl(args.backend, { basicAuth: process.env.ORANGE_BASIC_AUTH });
   } catch (e) {
     console.error(`backend '${args.backend}' could not start: ${e instanceof Error ? e.message : String(e)}\n`);
     if (args.backend === 'orange') console.error(PREREQS.join('\n'));
@@ -856,13 +878,20 @@ export async function main(argv = process.argv.slice(2)) {
   try {
     return await runDemo(backend);
   } catch (e) {
-    // Only a BACKEND that cannot start is exit 2. A backend that started and
-    // then failed mid-run is still exit 2 rather than 1, because an unreachable
-    // operator is a prerequisite failure and not a falsified assertion — and
-    // reporting it as a failed assertion would be the more flattering lie.
+    // Exit 2 means THE CHOSEN BACKEND COULD NOT RUN, and it is reserved for the
+    // case where that is actually true. Under --backend orange a mid-run throw
+    // is a prerequisite failure: the live operator went unreachable, and the run
+    // proves nothing about the code. Under --backend mock there are NO
+    // prerequisites — no credential, no network, nothing to be unavailable — so
+    // the only thing a mid-run throw can be is a code regression, and that is a
+    // failed run: exit 1. Reporting it as 2 would be the flattering lie, because
+    // a gate that skips on 2 would silently swallow the regression.
     console.error(`\nrun aborted: ${e instanceof Error ? e.message : String(e)}`);
-    if (args.backend === 'orange') console.error(`\n${PREREQS.join('\n')}`);
-    return 2;
+    if (args.backend === 'orange') {
+      console.error(`\n${PREREQS.join('\n')}`);
+      return 2;
+    }
+    return 1;
   }
 }
 

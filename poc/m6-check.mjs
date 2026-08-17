@@ -391,7 +391,8 @@ const W = await mockWorld();
 ok('23 ONE EVALUATION STEP', Object.keys(M5).sort().join(',') === 'createOrangeFacts',
   { label: `M5 exports=${JSON.stringify(Object.keys(M5).sort())}`, ok: true });
 
-// 24 ENTRY POINT — argument parsing and the exit-code contract. The orange leg
+// 24 ENTRY POINT — argument parsing and the COULD-NOT-START half of the
+// exit-code contract (the started-then-crashed half is case 28). The orange leg
 // runs with ORANGE_BASIC_AUTH DELETED for the duration: on a machine that has
 // the credential, leaving it set would make this offline suite talk to the live
 // Playground, which is precisely what it must never do.
@@ -490,8 +491,54 @@ ok('23 ONE EVALUATION STEP', Object.keys(M5).sort().join(',') === 'createOrangeF
       ok: outs.every((o) => typeof o.reason === 'string' && o.reason.length <= WIRE_REASON_MAX + 1) });
 }
 
+// 28 A CRASHED MOCK RUN IS A FAILURE, NOT A SKIP — the other half of the
+// exit-code contract, and a defect found 2026-08-17 by probing what a genuine
+// regression looks like to a gate. Exit 2 means THE CHOSEN BACKEND COULD NOT
+// RUN. `--backend mock` has no prerequisites at all — no credential, no
+// network, nothing that can be unavailable — so a backend that STARTED and then
+// threw can only be a code regression, and must exit 1. It used to exit 2, and
+// a CI gate that (correctly) treats 2 as skip-on-prerequisite would have
+// swallowed the regression silently: the optimistic-rounding failure, at the
+// process boundary. Under `--backend orange` the same throw stays 2, because
+// there an unreachable live operator genuinely IS a prerequisite failure.
+//
+// The backend is injected rather than mutated: it start()s cleanly and throws
+// on first use, which is exactly the shape a regression has and NOT the shape
+// case 24 covers.
+{
+  const crashing = async () => ({
+    label: 'crashing — starts clean, throws on first use',
+    setBackstory: async () => { throw new Error('simulated mid-run regression'); },
+    getFacts: async () => { throw new Error('simulated mid-run regression'); },
+  });
+  const saved = process.env.ORANGE_BASIC_AUTH;
+  delete process.env.ORANGE_BASIC_AUTH;
+  const realErr = console.error;
+  const realLog = console.log;
+  console.error = () => {};
+  let mockCrash; let orangeCrash;
+  try {
+    console.log = () => {};
+    mockCrash = await main(['--backend', 'mock'], { createBackendImpl: crashing });
+    orangeCrash = await main(['--backend', 'orange'], { createBackendImpl: crashing });
+  } finally {
+    console.log = realLog;
+    console.error = realErr;
+    if (saved !== undefined) process.env.ORANGE_BASIC_AUTH = saved;
+  }
+  // The clean mock run is asserted alongside, so this case cannot pass by
+  // making EVERY mock run exit 1.
+  const cleanBackend = await createBackend('mock');
+  console.log = () => {};
+  let clean;
+  try { clean = await runDemo(cleanBackend); } finally { console.log = realLog; }
+  ok('28 CRASHED MOCK RUN IS 1, NOT 2', mockCrash === 1 && orangeCrash === 2,
+    { label: `mock mid-run throw=${mockCrash} (regression, must be 1), orange mid-run throw=${orangeCrash} (prerequisite, must be 2), clean mock=${clean}`,
+      ok: clean === 0 });
+}
+
 // The declared case count. A suite that silently loses the cases carrying its
 // guarantee still printed a green `RESULT: n/n` before this argument existed
 // (measured 2026-08-16 on m4-check: truncated to 18/18 exit 0, emptied to 0/0
 // exit 0).
-conclude(27);
+conclude(28);
