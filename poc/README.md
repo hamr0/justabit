@@ -302,9 +302,54 @@ Everything below is captured behaviour; where it contradicts the docs, this wins
 - **`/check`'s `maxAge` is in HOURS, capped at 2400** (≈100 days) — measured,
   not clearly documented. A 90-day floor is `maxAge: 2160`. The adapter does
   not use `/check` (a floor above ~100 days would be uncomputable there);
-  it takes the date and windows it locally. **NOT RE-TESTED 2026-08-16** —
-  unused by M5, so it is recorded as untested rather than carried forward as
-  though it had been re-verified.
+  it takes the date and windows it locally. ~~**NOT RE-TESTED 2026-08-16**~~
+  **RE-TESTED AND BOUNDARY-TESTED 2026-08-17**, on sim-swap AND device-swap:
+  `maxAge=2400` → `200`, `maxAge=2401` → `400 "maxAge" must be less than or
+  equal to 2400`. So `/check` can serve the `P30D` and `P90D` buckets of the
+  published menu and cannot express `P180D` or `P365D` at all — arithmetic, not
+  preference.
+
+### NEW 2026-08-17 — standalone endpoint sweep (`+990100000099`, no repo imports)
+
+Two throwaway probes that import nothing from this tree, so nothing below is an
+artefact of the adapter's own parsing. Full verbatim capture in
+`docs/01-product/findings.md` (dated entry). **Nothing here is wired yet.**
+
+- **`sim-swap/v1/retrieve-age-band` DOES NOT EXIST** — `400
+  {"code":"BAD_REQUEST","message":"unhandled path"}`, the same not-wired signal
+  the 2026-08-16 spike used to tell a missing route from a real one rejecting a
+  bad shape. This closes an item the docs carried as UNVERIFIED, and the answer
+  is the unflattering one: the coarse surface the profile would prefer is absent
+  here, so band → bucket mapping stays mock-only or documented, never claimed.
+- **`/check` exists and answers on both surfaces** — `sim-swap/v1/check` →
+  `{"swapped":false}`, `device-swap/v1/check` → `{"swapped":true}`.
+  `device-swap/v1/retrieve-date` → `{"latestDeviceChange":"2026-08-11T…"}`.
+- **`kyc-match/v1/match` returns a similarity GRADIENT, not a band.** Correct
+  name `"Alice Arnaud"` → `{"nameMatch":"true"}` (no score); `"Bob Wrong"` →
+  `{"nameMatch":"false","nameMatchScore":53}`; `"Alice Arnaut"` — one letter
+  changed — → `{"nameMatch":"false","nameMatchScore":97}`. A requester allowed
+  to guess repeatedly can hill-climb that to the registered name, which is
+  strictly worse than binary guessing. This is why the CAMARA proposal now
+  carries a visible retraction of "scores are already bands". On this sandbox
+  `givenName`/`familyName`/`birthdate`/`address` all answer `not_available`
+  (only `name` is stored), `email` → 400 validation error, and an empty request
+  → `400 KNOW_YOUR_CUSTOMER.INVALID_PARAM_COMBINATION`.
+- **`location-verification/v1/verify` has THREE states.** Paris r=10km →
+  `TRUE`; Tokyo r=10km → `FALSE`; Paris r=1km → `TRUE`; Paris r=100m →
+  `{"verificationResult":"PARTIAL","matchRate":100,…}`. And **every** response
+  ships `lastLocationTime`, a raw timestamp — a "boolean" catalog endpoint
+  handing back a raw value beside its verdict. Operator-internal only.
+- **`number-verification/v1/verify` exists** — `403 "Request must define a
+  phoneNumber"`, i.e. the 3-legged shape where the subject comes from the token.
+  Not a missing endpoint.
+- **No CAMARA read endpoint for tenure** — `tenure/v1/retrieve` and
+  `sim-tenure/v1/retrieve` both `400 "unhandled path"`; likewise
+  `kyc-age-verification/v1/verify` and `device-location/v1/retrieve`. The tenure
+  DATA is there operator-side (Admin READ axes: `location, reachability,
+  roaming, simSwap, deviceSwap, tenure, kyc`; `tenure` holds
+  `latestTenureChange` + `contractType:"PAYM"`, `kyc` holds
+  `name:"Alice Arnaud"`) — which is exactly why `tenure`/`simType` stay OUT of
+  the wired predicate set: admin-only is not catalog-backed.
 - **Backstories** — `POST .../camara/playground/admin/v1.0/action` with
   `LIST | CREATE | READ | UPDATE | DELETE`. `UPDATE {"data":{"simSwap":
   {"latestSimChange":"<ISO>"}}}` sets the swap date. `DELETE` answers `204`

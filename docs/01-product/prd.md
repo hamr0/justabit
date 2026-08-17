@@ -428,6 +428,15 @@ Phase ∞  Attend cadence: Backlog WG + ICM + sub-project calls;
 
 Phases 1 and 3 can overlap; Phase 5 strictly follows G4.
 
+**Immediate order of work inside Phase 1 (2026-08-17, agreed):** (1) the M6
+adversarial review round's findings land and get fixed; (2) the six-predicate
+build round (§9, dated today — signed off as DESIGN, nothing wired yet);
+(3) proposal edits, including the `kyc-match` retraction; (4) the USER
+validation run; (5) release 0.4.0. Deliberately in that order: a review round's
+findings against a 3-predicate tree are cheaper to fix than against a
+6-predicate one, and a user validation run before the build round would have to
+be repeated.
+
 ## 7. Process facts that gate the work (grounded)
 
 - **CAMARA** (Linux Foundation; participation open, no membership fee). Our
@@ -513,6 +522,84 @@ we manage here:
 
 Dated, append-only. Rationale in one line; details in the stash/history.
 
+- **2026-08-17 (latest) — The wired predicate set goes 3 → 6 (user-signed;
+  DESIGN, not yet built).** `simSwapAge`, `deviceSwapAge` (NEW — not one of the
+  original seven), `roamingIn`, `presentIn`, `numberMatch`, `reachable`. Every
+  one is backed by an endpoint **observed answering live** on the Playground
+  today (findings, dated entry: sim-swap `/check` + `/retrieve-date`,
+  device-swap `/check` + `/retrieve-date`, device-roaming-status,
+  location-verification `/verify`, kyc-match `/match`,
+  number-verification `/verify`). This is **not a reversal** of the same-day
+  trim to 3 — it is that decision's PRINCIPLE applied to new evidence: *wire
+  only what a real fact source answers.* The trim removed four types nothing
+  could compute; the sweep then found live sources for four of them, and one
+  more (`deviceSwapAge`) that was never on the list. `tenure` and `simType` stay
+  OUT: the data genuinely exists operator-side (the Admin dataset carries a
+  `tenure` axis with `latestTenureChange` + `contractType`), but **no CAMARA
+  read endpoint was found** at either `tenure/v1/retrieve` or
+  `sim-tenure/v1/retrieve` — both `400 "unhandled path"`. A predicate whose only
+  source is an operator-internal admin surface proves something about this
+  sandbox, not about the catalog.
+- **2026-08-17 (latest) — `deviceSwapAge` takes the IDENTICAL shape to
+  `simSwapAge` (user-signed; DESIGN).** Same coarse bucket menu
+  `P30D | P90D | P180D | P365D`, `/check` where the bucket fits inside the
+  measured 2400-hour (≈100-day) cap, the date path above it. Deliberately not a
+  new shape: two facts that answer the same question about different hardware
+  should not teach a reader two grammars, and a second shape is a second place
+  for the window to widen quietly.
+- **2026-08-17 (latest) — `numberMatch`: the requester declares its THRESHOLD in
+  the question, off a published menu of 60 / 70 / 80 / 90 and nothing else; the
+  operator compares internally and answers a BOOLEAN; the score never crosses
+  the wire (user-signed; DESIGN).** Two halves, both load-bearing. *Why a
+  threshold at all:* relying parties genuinely need their own tolerance — real
+  names vary by accent, middle name, transliteration and typo, and that is
+  exactly why CAMARA returns a score in the first place. Forcing one operator
+  threshold on everybody would either reject legitimate matches or accept sloppy
+  ones. Profile rule 1 already says the window belongs in the question. *Why a
+  menu and not free choice:* a free-choice threshold is binary-searchable in
+  precisely the way the M6 spike binary-searched the swap date — same oracle,
+  same nine queries, same quantisation answer. And the measured `kyc-match`
+  behaviour is worse than a threshold walk: it returns a similarity **gradient**
+  (`"Bob Wrong"` → 53, `"Alice Arnaut"` — one letter off — → 97), which lets a
+  requester hill-climb to the subscriber's real registered name. Boolean out,
+  score never on the wire, off-menu refused.
+- **2026-08-17 (latest) — `presentIn`: boolean out, and `PARTIAL` REFUSES
+  (user-signed; DESIGN).** `location-verification/v1/verify` has three states,
+  measured: `TRUE`, `FALSE`, and `PARTIAL` (Paris at a 100 m radius). `PARTIAL`
+  is the operator saying *I cannot answer at the resolution you asked for*, and
+  it is **not rounded** to yes or no — it produces a refusal, the same honest
+  outcome as a straddling band or a missing fact. Rounding it would sign a
+  confident answer indistinguishable on the wire from a real one. The operator
+  PUBLISHES its PARTIAL policy (default: refuse) and the requester may only
+  TIGHTEN it, never loosen — the existing rule-5 floor machinery, no new
+  mechanism. `lastLocationTime` (a raw timestamp that rides on *every*
+  location-verification response, including the boolean-looking ones) never
+  crosses the wire.
+- **2026-08-17 (latest) — Five rules apply to all six predicates, no exceptions
+  (user-signed; DESIGN).** (1) A signed boolean or a refusal — never a value, a
+  score or a date. (2) An off-menu threshold is refused **loudly** and never
+  rounded to the nearest bucket. (3) Anything the operator cannot answer
+  honestly is a refusal. (4) The operator publishes the floor; the requester may
+  tighten only. (5) Raw values the operator legitimately holds stay
+  operator-side. Written as one list rather than per-predicate because a rule
+  that holds for five of six is not a rule.
+- **2026-08-17 (latest) — On the probing oracle generally: the residual walk is
+  priced and bounded at the layer ABOVE this profile (user's position, recorded
+  as the project's stance).** Per-subject rate limits, per-query billing and the
+  operator's own query log are where a walk is made expensive, throttleable and
+  auditable. THIS profile's duty is narrower and absolute: **the raw value never
+  crosses the wire.** Quantisation caps resolution; it is not claimed to close
+  the oracle, and the claim is not upgraded now that the predicate set is wider.
+- **2026-08-17 (latest) — `/retrieve-age-band` DOES NOT EXIST on the Orange
+  Playground; the previous entry's "UNVERIFIED" is now CLOSED, unfavourably.**
+  `400 {"code":"BAD_REQUEST","message":"unhandled path"}` — the Playground's own
+  signal for an unwired route. The entry below recorded its availability as
+  untested rather than assumed in either direction; it has now been probed and
+  the answer is the unflattering one. Consequence: band → bucket mapping
+  **cannot be demonstrated live** — it stays mock-only or documented, never
+  claimed. The `/check` boolean surface, by contrast, does exist and answers
+  (`{"swapped":false}`), and its `maxAge` cap was boundary-tested at 2400 hours
+  (2400 → 200, 2401 → 400) on both sim-swap and device-swap.
 - **2026-08-17 — Exit 2 is reserved for a backend that COULD NOT RUN; a
   crashed mock run is a FAILURE (M6).** Not a planned decision — a defect found
   by asking what a genuine regression looks like to a CI gate. `main()` mapped

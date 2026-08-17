@@ -2,6 +2,57 @@
 
 ## Unreleased (0.4.0 — M6)
 
+- **Retracted, visibly: `kyc-match` does NOT "conform as-is because scores are
+  already bands".** Measured against the Orange Playground 2026-08-17: a correct
+  name returns `{"nameMatch":"true"}` with no score, a wrong name returns
+  `nameMatchScore: 53`, and the registered name with **one letter changed**
+  returns **97**. That is a similarity *gradient*, not a coarsening — it
+  preserves the distance to the answer and lets a requester hill-climb to the
+  subscriber's real registered name, which is strictly worse than binary
+  guessing. The claim sat in two places in the CAMARA proposal (the §3.3
+  adoption checklist and the §3.3.1 illustrative table); both are corrected, the
+  old wording left visible with the measurement beside it. The profile's answer:
+  threshold in the question off a published coarse menu, comparison
+  operator-side, **only the boolean on the wire**.
+- **Closed, unfavourably: `sim-swap/v1/retrieve-age-band` does not exist on the
+  Playground** — `400 {"code":"BAD_REQUEST","message":"unhandled path"}`. The
+  docs carried its availability as UNVERIFIED ("never probed, recorded as
+  untested rather than assumed in either direction"); it has now been probed.
+  Consequence: band → bucket mapping **cannot be demonstrated live** and stays
+  mock-only or documented. The boolean `/check` surface, by contrast, does exist
+  and answers on both sim-swap and device-swap, and its `maxAge` cap is now
+  boundary-tested (`2400` → 200, `2401` → 400) on both — so `/check` can serve
+  `P30D`/`P90D` and cannot express `P180D`/`P365D` at all.
+- **Signed off, NOT yet built: the wired predicate set goes 3 → 6.**
+  `simSwapAge`, `deviceSwapAge` (new — never one of the original seven),
+  `roamingIn`, `presentIn`, `numberMatch`, `reachable` — each backed by an
+  endpoint observed answering live. This is the same-day trim's *principle*
+  applied to new evidence (wire only what a real fact source answers), not a
+  reversal of it. `tenure` and `simType` stay out for a measured reason: the
+  data exists operator-side but **no CAMARA read endpoint was found** at either
+  `tenure/v1/retrieve` or `sim-tenure/v1/retrieve`. `spec/carrier-attestation.yaml`
+  still lists three types — the enum follows the code, never the plan.
+  `deviceSwapAge` takes the identical shape to `simSwapAge`; `numberMatch`
+  publishes a **60 | 70 | 80 | 90** threshold menu (a free-choice threshold is
+  bisectable exactly as the swap date was, and the score gradient makes it
+  worse); `presentIn` **refuses** on `location-verification`'s third state
+  `PARTIAL` rather than rounding it to yes or no. Five rules apply to all six
+  with no exceptions: boolean or refusal; off-menu refused loudly, never
+  rounded; unanswerable is a refusal; operator publishes the floor and the
+  requester may only tighten; raw values stay operator-side. Recorded in PRD §9;
+  the residual probing walk is priced and bounded at the layer above (rate
+  limits, per-query billing, the operator's query log) — quantisation caps
+  resolution and is not claimed to close the oracle.
+- **Recorded: even a predicate-shaped catalog endpoint ships a raw value.**
+  Every `location-verification/v1/verify` response carries `lastLocationTime`, an
+  exact timestamp, beside its `TRUE`/`FALSE`/`PARTIAL` verdict. "Already
+  predicate-shaped" is a statement about the headline field, not the payload.
+- **A grounding failure is recorded rather than quietly corrected.** This
+  session's orchestrator stated there was "no fact source known" for
+  `tenure`/`simType` — while `findings.md` already recorded the Admin data model
+  carrying seven axes including `tenure` and `kyc`. The conclusion survives, for
+  a different and measured reason; the claim was made without re-reading the
+  evidence log, and that is what got written down.
 - **M6 built: `poc/demo.mjs`, the one-command reader-facing demo, and
   `poc/m6-check.mjs`, 28 cases. AGENT-RUN 22/22 and 28/28 by exit code; USER
   VALIDATION PENDING, so gate G1 is NOT yet met.** `node poc/demo.mjs` needs no

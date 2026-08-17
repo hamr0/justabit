@@ -7,6 +7,177 @@ memory. A finding here is something that was RUN and OBSERVED, not reasoned.
 
 ---
 
+## 2026-08-17 (latest) — Playground endpoint sweep: the band endpoint does not exist, `kyc-match` leaks a similarity GRADIENT, location has three states (AGENT-RUN; user validation PENDING)
+
+Two standalone probes against the Orange Network APIs Playground, number
+`+990100000099`, importing nothing from this repo (so nothing here is an
+artefact of the adapter's own parsing). Every line below is a response that was
+received, pasted verbatim. **Nothing in this entry is built yet** — it is the
+evidence a build round starts from.
+
+### Which endpoints actually answer
+
+```
+sim-swap/v1/retrieve-date        200  {"latestSimChange":"2026-04-19T01:47:40.334Z"}
+sim-swap/v1/check                200  {"swapped":false}
+sim-swap/v1/retrieve-age-band    400  {"code":"BAD_REQUEST","message":"unhandled path"}
+device-swap/v1/retrieve-date     200  {"latestDeviceChange":"2026-08-11T04:00:16.516Z"}
+device-swap/v1/check             200  {"swapped":true}
+kyc-match/v1/match               200  (see the gradient below)
+location-verification/v1/verify  200  (see the three states below)
+number-verification/v1/verify    403  "Request must define a phoneNumber"
+tenure/v1/retrieve               400  "unhandled path"
+sim-tenure/v1/retrieve           400  "unhandled path"
+kyc-age-verification/v1/verify   400  "unhandled path"
+device-location/v1/retrieve      400  "unhandled path"
+```
+
+**`/retrieve-age-band` DOES NOT EXIST on the Playground.** That closes an item
+this log recorded one entry down as UNVERIFIED — "never probed, recorded as
+untested rather than assumed in either direction." It has now been probed, and
+the honest answer is the unflattering one: the surface that *would* fit the
+profile is absent, so band → bucket mapping cannot be demonstrated live at all.
+It stays mock-only or documented; it does not get claimed. `400 "unhandled
+path"` is the Playground's own signal for a route that isn't wired (the same
+signal the 2026-08-16 spike used to tell a missing endpoint from a real one
+rejecting a bad shape), so this is an absence, not a permissions problem.
+
+**The `/check` boolean surface EXISTS and works** on both sim-swap and
+device-swap — which matters, because it is the shape the profile actually
+wants, and up to now the PoC only had `/retrieve-date` measured.
+
+**`number-verification/v1/verify` exists** and 403s with *"Request must define a
+phoneNumber"* — the 3-legged shape, where the subject comes from the token. Not
+a missing endpoint.
+
+**No CAMARA read endpoint was found for tenure**, at either `tenure/v1/retrieve`
+or `sim-tenure/v1/retrieve`, even though the operator-side data is there (below).
+
+### `/check` maxAge is in HOURS, capped at 2400 — boundary-tested on both surfaces
+
+```
+maxAge=2400  → 200
+maxAge=2401  → 400  "maxAge" must be less than or equal to 2400
+```
+
+2400 hours ≈ 100 days. Consequence, stated as arithmetic rather than opinion:
+`/check` can serve the `P30D` and `P90D` buckets of the published menu and
+**cannot express `P180D` or `P365D` at all.** This is the same cap measured
+2026-08-14, now boundary-tested (the 2400/2401 pair) and confirmed identical on
+device-swap.
+
+### The `kyc-match` score gradient — the most important measurement of the round
+
+`kyc-match` does not return a match bit. It returns a *similarity score*, and
+the score moves with how close you got:
+
+```
+name = "Alice Arnaud"   (correct)      → {"nameMatch":"true"}                        no score
+name = "Bob Wrong"                     → {"nameMatch":"false","nameMatchScore":53}
+name = "Alice Arnaut"   (ONE letter)   → {"nameMatch":"false","nameMatchScore":97}
+```
+
+That is a **warmer/colder oracle**. A requester that may guess repeatedly can
+hill-climb the score to the subscriber's real registered name — which is
+strictly worse than binary guessing, because binary guessing has no gradient to
+follow. It is the repeated-query oracle again, but arriving through a single
+response field instead of a sequence of thresholds.
+
+**This forces a visible retraction.** The CAMARA proposal claims, in two places
+(the §3.3 adoption checklist and the §3.3.1 illustrative table), that
+`kyc-match` *"conforms as-is — scores are already bands (rule 7)."* That is
+measurably wrong. A band is a coarsening: it destroys resolution inside the
+bucket. A similarity score is the opposite — it *preserves* the distance to the
+answer and hands it to the requester. The retraction is in the proposal, left
+visible, with this measurement next to it. The profile's answer: return the
+boolean only, never the score, with the threshold declared in the question off a
+published coarse menu.
+
+Also measured on this sandbox: `givenName`, `familyName`, `birthdate` and
+`address` all answer `not_available` (only `name` is stored); `email` → 400
+validation error; an empty request → 400
+`KNOW_YOUR_CUSTOMER.INVALID_PARAM_COMBINATION`.
+
+### `location-verification` has THREE states, not two
+
+```
+Paris, radius 10km   → {"verificationResult":"TRUE","lastLocationTime":"2026-08-11T04:00:16.503Z"}
+Tokyo, radius 10km   → {"verificationResult":"FALSE", …}
+Paris, radius 1km    → {"verificationResult":"TRUE",  …}
+Paris, radius 100m   → {"verificationResult":"PARTIAL","matchRate":100, …}
+```
+
+`PARTIAL` is the endpoint saying *I cannot answer this at the resolution you
+asked for.* Rounding it to `TRUE` or `FALSE` is the missing-fact-as-confident-
+negative failure the proposal's §3.3.1 row 3 already has teeth about — signed,
+and indistinguishable on the wire from a real answer.
+
+And note what rides along on **every** response, including the ones that look
+purely boolean: `lastLocationTime`, a raw timestamp. Even a catalog endpoint
+whose headline field is a verdict hands back a raw value beside it. That value
+is legitimately the operator's; it must never cross the wire to a requester.
+
+### Operator-side data (Admin API), for completeness
+
+READ axes confirmed: `location, reachability, roaming, simSwap, deviceSwap,
+tenure, kyc`. `tenure` holds `latestTenureChange` + `contractType:"PAYM"`;
+`kyc` holds `name:"Alice Arnaud"`.
+
+So the tenure data **exists operator-side and has no CAMARA read endpoint**.
+That is precisely why `tenure` and `simType` stay OUT of the wired predicate set
+(PRD §9, dated today): a predicate whose only source is an operator-internal
+admin surface is not catalog-backed, and wiring it would prove something about
+this sandbox rather than about CAMARA.
+
+### A grounding failure, recorded plainly
+
+Earlier in this session the orchestrator stated there was **"no fact source
+known"** for `tenure` / `simType`. That was wrong, and *this file already said
+so*: the 2026-08-16 spike entry records the Admin data model carrying seven axes
+including `tenure` and `kyc`, with the note "M5 touches three of the seven; the
+rest are untouched, not unnoticed." The claim was made without re-reading the
+evidence log it was written into. The conclusion happens to survive — tenure
+still stays out, but for the *measured* reason above (no CAMARA endpoint), not
+the asserted one (no data). Recorded because a right answer reached by not
+checking is not evidence, and this log exists so nothing gets re-argued from
+memory.
+
+### Suite state at `e28bc0b` — ALL AGENT-RUN, user re-run PENDING
+
+```
+m1 20/20 · m2 10/10 · m3 23/23 · m4 33/33 · m5 48/48 · m6 28/28
+poc/demo.mjs 22/22
+```
+
+Every one verified by exit code by the orchestrator. **No user has run this
+tree.** An adversarial review round of M6 (blind fit-to-pass probe, independent
+mutation sweep, can-fail audit, leak/honesty audit) was IN FLIGHT while this
+entry was written; its findings are not yet known and will be recorded when they
+land, not anticipated here.
+
+### The M6 exit-code defect, independently mutation-proved — and one harness confound caught first
+
+The exit-code fix recorded in the entry below was re-proved by the orchestrator
+rather than taken from the author agent's report:
+
+```
+fix reverted   node poc/m6-check.mjs   FAIL 28 CRASHED MOCK RUN IS 1, NOT 2 …
+                                       mock mid-run throw=2 (regression, must be 1)
+                                       RESULT: 27/28    exit 1
+fix restored   git diff --quiet        clean (byte-identical restore)
+```
+
+Worth recording for its own sake: **the orchestrator's FIRST mutation attempt
+did not apply.** Its regex anchor did not match the shipped code; the script
+printed `mutation applied: False`, and the "green" run that followed proved
+exactly nothing — a passing suite against unmutated code. It was caught because
+the script reported whether the mutation landed. Standing lesson, the same one
+this log has hit before: **debug the degenerate — or the too-convenient —
+result before believing it.** A mutation harness must state whether it mutated
+anything, or a green run is indistinguishable from a no-op.
+
+---
+
 ## 2026-08-17 (later) — Exit 2 was hiding a real regression; six spec deviations recorded (AGENT-RUN; user validation PENDING)
 
 Every number here is **AGENT-RUN by exit code on this machine.** The earlier
