@@ -51,10 +51,20 @@ components:
     Predicate:
       type: object
       required: [type]
+      # TRIMMED 2026-08-17 (M6) to the three types the PoC actually wires end to
+      # end. `tenure`, `simType`, `presentIn` and `numberMatch` were aspirational
+      # entries in an illustrative sketch: nothing computes them, so a reader
+      # could send a schema-valid request the reference operator refuses. That is
+      # the enum answering for facts that do not exist — the same fabricated-fact
+      # class M4 closed by refusing to default an unknown backstory, arriving one
+      # layer up. They are recorded as future work in the profile document
+      # (docs/02-proposals/camara-attested-windowed-disclosure.md §3.3.1), not
+      # deleted. The NORMATIVE profile enumerates no predicate types at all
+      # (§3.2), so this list constrains the sketch and nothing else.
       properties:
         type:
           type: string
-          enum: [simSwapAge, tenure, simType, roamingIn, presentIn, numberMatch, reachable]
+          enum: [simSwapAge, roamingIn, reachable]
         operator:
           type: string
           enum: [gte, eq, in]

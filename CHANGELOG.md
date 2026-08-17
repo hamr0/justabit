@@ -2,6 +2,19 @@
 
 ## Unreleased (0.4.0 — M6)
 
+- **Spec sketch `Predicate` enum trimmed 7 → 3.**
+  `spec/carrier-attestation.yaml` now lists only what the PoC wires end to end —
+  `simSwapAge`, `roamingIn`, `reachable` (the boolean `value` branch stays;
+  `reachable` needs it and the reference module rejects the string spelling).
+  `tenure`, `simType`, `presentIn` and `numberMatch` were aspirational entries
+  in an illustrative artifact: nothing computes them, so a reader could send a
+  schema-valid request the reference operator refuses. They move to a
+  **future-work note** in the CAMARA proposal §3.3.1 rather than being deleted —
+  `tenure` and `simType` are still FLOOR axes, `presentIn` is
+  location-verification's existing shape, `numberMatch` is
+  number-verification's `/verify` which conforms today, and `tenure` carries the
+  unresolved MNP question the trim declines to ship as settled. The **normative**
+  profile enumerates no predicate types, so nothing normative moved.
 - **M1 exports its duplicate-top-level-key scanner
   (`hasDuplicateTopLevelKey`).** A signed REQUEST is signed bytes too, and the
   equivocation is symmetric: one signature over bytes carrying `floor` twice

@@ -466,6 +466,20 @@ we manage here:
 
 Dated, append-only. Rationale in one line; details in the stash/history.
 
+- **2026-08-17 — Spec sketch `Predicate` enum trimmed 7 → 3 (M6,
+  user-signed).** `spec/carrier-attestation.yaml` now lists only the types the
+  PoC wires end to end — `simSwapAge`, `roamingIn`, `reachable` (the boolean
+  `value` branch stays, because `reachable` needs it and the reference module
+  rejects the string spelling). `tenure`, `simType`, `presentIn` and
+  `numberMatch` were aspirational: nothing computes them, so a reader could send
+  a schema-valid request the reference operator refuses — an enum answering for
+  facts that do not exist, the fabricated-fact class M4 closed, one layer up.
+  They move to a **future-work note** in the CAMARA proposal §3.3.1 rather than
+  being deleted; `tenure` and `simType` remain FLOOR axes and are unaffected,
+  and `tenure` additionally carries the open MNP question (§9.8 of the
+  proposal), which minting it as a predicate would have shipped as settled. The
+  normative profile enumerates no predicate types (proposal §3.2), so nothing
+  normative moved. YAML re-parsed after the edit.
 - **2026-08-17 — M1 exports its duplicate-key scanner; duplicate-key REQUESTS
   are rejected outright (M6 decision #2, user-signed).** A signed request is
   signed bytes too and the equivocation is symmetric — one signature over bytes

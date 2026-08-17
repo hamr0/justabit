@@ -223,7 +223,7 @@ Three things the table is meant to make concrete:
 The middle column reflects current catalog responses (baseline verified
 2026-08-14; see §11). The right-hand column is this profile applied to them.
 
-Two limits on that, stated rather than glossed:
+Two limits and one deferral on that, stated rather than glossed:
 
 - **† The two `device-*` rows are NOT covered by the §11 baseline.** That
   baseline re-verified SimSwap v2.1.0, NumberVerification v2.1.0 and KYC r2.2
@@ -245,6 +245,22 @@ Two limits on that, stated rather than glossed:
   INSIDE the claims and a quoted `exp` — a shape M1 rejects outright
   (`unexpected fields: sig`). The claim was checkable and did not check out, so
   it is corrected here rather than dropped.
+- **Deferred, not dropped: `tenure`, `simType`, `presentIn`, `numberMatch`.**
+  The illustrative sketch's `Predicate` enum listed seven types; on 2026-08-17
+  it was **trimmed to the three the PoC wires end to end** — `simSwapAge`,
+  `roamingIn`, `reachable`. The other four were aspirational: nothing computes
+  them, so a reader could send a schema-valid request the reference operator
+  refuses, which is an enum answering for facts that do not exist. Each has a
+  real place in the profile and returns when something computes it: `tenure`
+  and `simType` are already **floor axes** (`tenureMin`, `simType` in `Floor`)
+  and belong in §3.4's agent-grade floor either way — `tenure` additionally
+  carries the unresolved MNP problem (§9.8), so minting it as a predicate ahead
+  of that would ship the open question as though it were settled;
+  `presentIn` is location-verification's shape and is already predicate-shaped
+  in the catalog (§3.3); and `numberMatch` is number-verification's `/verify`,
+  which conforms today and needs no new predicate id. The **normative** profile
+  enumerates no predicate types at all (§3.2), so this trim narrows an
+  illustrative artifact and changes nothing anyone would implement against.
 
 ### 3.4 Agent-grade floor (reference profile)
 
