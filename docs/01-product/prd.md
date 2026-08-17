@@ -565,7 +565,39 @@ we manage here:
 
 Dated, append-only. Rationale in one line; details in the stash/history.
 
-- **2026-08-17 (latest) — the same live run exposed a GROUNDING failure:
+- **2026-08-17 (latest) — a throwaway LIVE convergence probe (user-run,
+  `+990100000099`) settled the Admin `location` write shape and moved two other
+  axes from ASSUMED to MEASURED-GOOD.** After the location 400 above named
+  `lastLocationTime`, the user ran a probe that kept re-submitting the Admin
+  UPDATE, one 400 at a time, until it converged: round 1 → `400
+  "data.location.available" is required`; round 2 → `400 "data.location.radius"
+  is required`; round 3 → `200 OK`, read back intact. Recorded:
+  (1) **The settled field set is `{latitude, longitude, lastLocationTime,
+  available, radius}`.** The adapter now writes all five; `available: true`
+  (every scripted position is one the operator can currently place) and
+  `radius: 500` (the ONE decision made outright rather than copying the probe's
+  own placeholder `0` — 500 is the value the same READ showed already resident
+  in that slot, and a zero-radius write would claim a precision the operator
+  never asserted). Both join the read-after-write loop as their own axes
+  (`geoAvailable`, `geoRadius`), the same `geoAt` precedent applies for the same
+  reason: a mismatch folded into `geo` reads as the wrong bug.
+  (2) **`kyc:{name}` and `deviceSwap:{latestDeviceChange}` are corrected from
+  ASSUMED to MEASURED-GOOD**, not reopened: the same converged READ returned both
+  sub-objects verbatim, closing the "still untested" label this log carried for
+  `kyc` below. The read-after-write guard on both stays wired regardless —
+  measured once is not guaranteed forever.
+  (3) **`tenure:{latestTenureChange, contractType}` exists operator-side, with
+  no CAMARA read endpoint** (both `tenure/v1/retrieve` and
+  `sim-tenure/v1/retrieve` answer `400 "unhandled path"`) — this CONFIRMS the
+  existing decision below (2026-08-16 line, M4 spec) that `tenure` stays out of
+  the wired predicate set; it is not reopened and no predicate is wired from it.
+  (4) **The generalisable lesson from the prior entry stands, refined rather than
+  reversed**: an observed READ shape did not tell the write field set for
+  `location`, but a CONVERGING PROBE — one field named per round rather than one
+  live run per field — closed the gap in three rounds instead of three separate
+  live gates. Counts moved: m5 offline 57 → 58. Agent-run; user re-run of the
+  live gate stays PENDING.
+- **2026-08-17 — the same live run exposed a GROUNDING failure:
   `m5-check-live.mjs` was the one file the 3 → 6 round never touched (11 → 19
   cases).** Recorded:
   (1) **The mechanism is general, not a slip.** It is the only check in the tree

@@ -483,7 +483,14 @@ const W = await mockWorld();
       // READ mirrors the write, so the module's load-bearing read-after-write
       // verification passes; UPDATE echoes, exactly as the real API does.
       if (body.action === 'READ') {
-        return reply(200, JSON.stringify({ data: { simSwap: { latestSimChange: iso }, deviceSwap: { latestDeviceChange: deviceIsoAt }, location: body.data?.location ?? { latitude: SUBSCRIBER_AT.lat, longitude: SUBSCRIBER_AT.long, lastLocationTime: new Date(NOW).toISOString() }, kyc: body.data?.kyc ?? { name: REGISTERED_NAME }, roaming: { roaming: true, countryName: ['FR'] }, reachability: { reachabilityStatus: 'CONNECTED_DATA' } } }));
+        // The fallback default carries `available`/`radius` too — MEASURED
+        // 2026-08-17: the Admin store refuses a position missing either
+        // (round 2 of the convergence probe named `available`; round 3
+        // converged only once `radius` rode alongside it). `body.data?.location`
+        // is preferred whenever present, so a real M5 write (which now sends
+        // both) mirrors verbatim; this default only fires for a bare READ with
+        // no prior write in the same call chain.
+        return reply(200, JSON.stringify({ data: { simSwap: { latestSimChange: iso }, deviceSwap: { latestDeviceChange: deviceIsoAt }, location: body.data?.location ?? { latitude: SUBSCRIBER_AT.lat, longitude: SUBSCRIBER_AT.long, lastLocationTime: new Date(NOW).toISOString(), available: true, radius: 500 }, kyc: body.data?.kyc ?? { name: REGISTERED_NAME }, roaming: { roaming: true, countryName: ['FR'] }, reachability: { reachabilityStatus: 'CONNECTED_DATA' } } }));
       }
       return reply(200, JSON.stringify({ data: body.data ?? {} }));
     }

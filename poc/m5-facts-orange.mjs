@@ -571,7 +571,10 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
     // So the Admin store keeps an OBSERVATION INSTANT beside the position, and
     // will not take a position without one. That is the assumed-shape design
     // working exactly as intended: a wrong guess failed LOUD naming the axis and
-    // the status, rather than scripting a position that never took effect.
+    // the status, rather than scripting a position that never took effect. It was
+    // also not the LAST field the store demanded — a same-day convergence probe
+    // continued from here and found `available` missing too before converging;
+    // see the note at `data` for the full settled shape.
     //
     // Two rules govern the value, and neither is optional:
     //
@@ -596,49 +599,47 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
     // admin-scripted France record takes `208`, the MCC), so nothing honest can
     // be read from it and writing one would imply a mapping this PoC does not
     // have. `countryName` alone is accepted and round-trips — verified live.
-    // `deviceSwap` is written with an ASSUMED sub-object shape, and that is said
-    // out loud rather than implied. What is MEASURED: the Admin READ axis list
-    // includes `deviceSwap`, and `device-swap/v1/retrieve-date` answers
-    // `{"latestDeviceChange":"…"}`. What is NOT measured: that an Admin `UPDATE`
-    // accepts `deviceSwap:{latestDeviceChange}`. It mirrors the one write shape
-    // that IS verified (`simSwap:{latestSimChange}`), and the read-after-write
-    // verification below is exactly what makes guessing survivable: if the guess
-    // is wrong the stored value will not match and the module fails LOUD naming
-    // the axis, instead of scripting a backstory that never took effect. The live
-    // run settles it; nothing here claims it is settled.
-    // `location` carries the SECOND assumed Admin write shape of this round, and
-    // it is the weaker of the two: `deviceSwap`'s field name at least comes from a
-    // measured READ (`/retrieve-date` answers `latestDeviceChange`), while the
-    // Admin `location` axis was only ever observed EXISTING in the axis list — its
-    // stored shape has never been read. `{latitude, longitude}` is CAMARA's own
-    // spelling, and that is the whole justification. If it is wrong, the
-    // read-after-write comparison below fails LOUD naming the axis and saying so,
-    // which is the outcome this module is built for and the reason a guess is
-    // survivable at all.
-    // CORRECTED 2026-08-17 from the live 400 above: the required
-    // `lastLocationTime` now rides with the pair. The axis stays ASSUMED — the
-    // API named one missing field, which is not the same as confirming the rest
-    // of the shape — and it is still the weakest of the three. A `null` location writes nothing and verifies nothing:
-    // there is no measured spelling for "this operator cannot place the
+    //
+    // `deviceSwap:{latestDeviceChange}` and `kyc:{name}` are now MEASURED-GOOD,
+    // corrected from ASSUMED on 2026-08-17. A throwaway live convergence probe
+    // (the user, `+990100000099`, raw captures in the findings log) read the slot
+    // back after a converged write and got both sub-objects verbatim:
+    // `deviceSwap:{"latestDeviceChange":"2026-08-11T04:00:16.516Z"}` and
+    // `kyc:{"name":"Alice Arnaud"}`. That is the shape this module already wrote;
+    // only the label was wrong. The read-after-write loop below still verifies
+    // both on every run — "measured once" is not "guaranteed forever".
+    //
+    // `location` was the probe's actual subject, and it moves from the WEAKEST of
+    // the three assumed shapes to the BEST-MEASURED: the write converged over
+    // three rounds against the same slot —
+    //   round 1: 400 "data.location.lastLocationTime" is required
+    //   round 2: 400 "data.location.available" is required
+    //   round 3: 200 OK, and a READ-back returned the payload intact
+    // — settling the field set as {latitude, longitude, lastLocationTime,
+    // available, radius}, not the three-field guess this module wrote before
+    // today. `available` is written `true`: every backstory that scripts a
+    // position is scripting a subscriber the operator can currently place, and
+    // no other spelling for "position known but stale" has been measured on this
+    // Playground. `radius` is written `LOCATION_RADIUS_M` (500), matching the
+    // value the probe's READ showed already resident in that slot — deliberately
+    // NOT the probe's own placeholder `0` — because radius is the position's
+    // ACCURACY, and a zero-radius write would claim a precision the operator
+    // never asserted. A `null` location still writes nothing and verifies
+    // nothing: there is no measured spelling for "this operator cannot place the
     // subscriber", and inventing one would be a fact rather than a gap.
+    const LOCATION_RADIUS_M = 500;
     const data = {
       simSwap: { latestSimChange },
       deviceSwap: { latestDeviceChange },
-      ...(location === null ? {} : { location: { latitude: location.lat, longitude: location.long, lastLocationTime } }),
-      // The THIRD assumed write shape, and the best-supported of the three: the
-      // Admin READ axis list carries `kyc`, and it was OBSERVED holding
-      // `name:"Alice Arnaud"` — so the sub-object and its field name are measured
-      // even though writing them is not. Verified below like every other axis.
-      //
-      // STILL UNTESTED as of 2026-08-17, and said plainly because the live run
-      // that corrected the location shape ABORTED AT LOCATION — which is the axis
-      // immediately ahead of this one in the same payload, so this write has never
-      // reached the Admin API at all. "Best-supported" is a ranking among three
-      // guesses, not a claim that this one is measured, and the location 400 is
-      // the reason to read it that way: an OBSERVED READ shape does not tell you
-      // the REQUIRED WRITE field set (the store took no position without an
-      // observation instant the read shape never advertised as mandatory). If
-      // `kyc` has a companion field of its own, the same 400 will name it.
+      ...(location === null ? {} : {
+        location: {
+          latitude: location.lat,
+          longitude: location.long,
+          lastLocationTime,
+          available: true,
+          radius: LOCATION_RADIUS_M,
+        },
+      }),
       ...(registeredName === null ? {} : { kyc: { name: registeredName } }),
       roaming: roamingCountry === null ? { roaming: false } : { roaming: true, countryName: [roamingCountry] },
       reachability: { reachabilityStatus: reachable ? 'CONNECTED_DATA' : 'NOT_CONNECTED' },
@@ -681,6 +682,12 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
       // naming the instant — a mismatch folded into `geo` would read as "the
       // position did not store", which is a different bug with a different fix.
       geoAt: show(stored.location?.lastLocationTime),
+      // Joined 2026-08-17 by the convergence probe that measured the Admin store
+      // requires them. Same reasoning as `geoAt`: their OWN axes, not folded into
+      // `geo`, so a slot that stores the position but drops/rewrites either one
+      // fails naming the one that actually mismatched.
+      geoAvailable: show(stored.location?.available),
+      geoRadius: show(stored.location?.radius),
       // Redact-then-clamp, never the raw stored string: this value came off the
       // WIRE and a name field is exactly where an echoed credential would land.
       kycName: show(stored.kyc?.name),
@@ -693,6 +700,8 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
       reachabilityStatus: data.reachability.reachabilityStatus,
       geo: location === null ? undefined : `${show(location.lat)},${show(location.long)}`,
       geoAt: location === null ? undefined : show(lastLocationTime),
+      geoAvailable: location === null ? undefined : show(true),
+      geoRadius: location === null ? undefined : show(LOCATION_RADIUS_M),
       kycName: registeredName === null ? undefined : show(registeredName),
     };
     // This diagnostic quotes values that came off the WIRE, so it is the one
@@ -716,7 +725,7 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
     // RangeError ("Invalid string length") at V8's max string length, which
     // destroyed this message entirely. `brief()` bounds BEFORE it renders, which
     // is the same lesson case 43 of the offline suite already states.
-    for (const axis of ['latestSimChange', 'latestDeviceChange', 'roaming', 'reachabilityStatus', 'country', 'geo', 'geoAt', 'kycName']) {
+    for (const axis of ['latestSimChange', 'latestDeviceChange', 'roaming', 'reachabilityStatus', 'country', 'geo', 'geoAt', 'geoAvailable', 'geoRadius', 'kycName']) {
       // `country` is only compared when one was written: a stale country left
       // alongside `roaming:false` is producible (measured) and is not a write
       // failure — `roaming:false` is the authoritative half either way.
@@ -726,15 +735,16 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
       // subscriber may legitimately have a position this PoC did not script.
       if (axis === 'geo' && want.geo === undefined) continue;
       if (axis === 'geoAt' && want.geoAt === undefined) continue;
+      if (axis === 'geoAvailable' && want.geoAvailable === undefined) continue;
+      if (axis === 'geoRadius' && want.geoRadius === undefined) continue;
       if (axis === 'kycName' && want.kycName === undefined) continue;
+      // No ASSUMED-shape caveat here any more: `deviceSwap`, `location` (all five
+      // fields) and `kyc` are all MEASURED-GOOD as of the 2026-08-17 convergence
+      // probe (see the comment at `data`) — a mismatch on any axis below is a real
+      // write failure, not a shape guess to go re-check.
       if (got[axis] !== want[axis]) {
         throw new Error(
           `write verification FAILED for ${number}: stored ${axis} is ${show(got[axis])}, wrote ${show(want[axis])}` +
-          (axis === 'latestDeviceChange' || axis === 'geo' || axis === 'geoAt' || axis === 'kycName'
-            ? ' — NOTE: this axis carries an ASSUMED Admin write shape (never measured; see the comment at `data`),'
-              + ' so a mismatch here may be the shape rather than the slot. Read the Admin READ body for this number'
-              + ' and correct the shape in poc/m5-facts-orange.mjs.'
-            : '') +
           ' — the Admin API echoed the write back with a 200 and did NOT store it.' +
           ' Built-in numbers (+990100000000-05) shadow every write: CREATE succeeds, UPDATE returns 200 echoing your payload, and READ/CAMARA keep serving the built-in dataset.' +
           ' Script a CUSTOM slot (e.g. +990100000099) instead.'

@@ -7,7 +7,87 @@ memory. A finding here is something that was RUN and OBSERVED, not reasoned.
 
 ---
 
-## 2026-08-17 (latest) — the USER's LIVE Playground run of the 3 → 6 round: the assumed `location` write shape FAILED LOUD, and it was supposed to
+## 2026-08-17 (latest) — a LIVE convergence probe settled the Admin `location` write shape (three rounds, three 400s to two) and closed the `kyc`/`deviceSwap` "still untested" labels
+
+A second live measurement, again the user's — no credentials, no network on the
+agent side. Rather than script one field, run live, read the next 400, and
+repeat (the pattern the prior entry below left the reader with, one live run
+per missing field), a throwaway probe was written to keep RE-SUBMITTING the
+same Admin UPDATE against the SAME slot (`+990100000099`) until it converged in
+one sitting.
+
+### The measurement — verbatim
+
+The Admin READ of `+990100000099` (before the converging writes) returned:
+
+```
+{"data":{
+  "location":{"lastLocationTime":"2026-08-11T04:00:16.503Z","available":true,"latitude":48.8566,"longitude":2.3522,"radius":500},
+  "reachability":{"reachabilityStatus":"CONNECTED_DATA"},
+  "roaming":{"roaming":false},
+  "simSwap":{"latestSimChange":"2026-04-19T01:47:40.334Z"},
+  "deviceSwap":{"latestDeviceChange":"2026-08-11T04:00:16.516Z"},
+  "tenure":{"latestTenureChange":"2026-08-11T04:00:16.516Z","contractType":"PAYM"},
+  "kyc":{"name":"Alice Arnaud"}}}
+```
+
+The write convergence, verbatim:
+
+```
+round 1 → 400 "data.location.available" is required
+round 2 → 400 "data.location.radius" is required
+round 3 → 200 OK
+```
+
+A READ-back after the round-3 write returned the payload intact.
+
+### What this settles
+
+1. **The `location` Admin write shape is `{latitude, longitude,
+   lastLocationTime, available, radius}`.** The prior entry (below) had already
+   corrected the missing `lastLocationTime`; this run found the store also
+   demands `available` and then `radius` before it will accept a position at
+   all. The adapter and its fixtures now write and verify all five fields.
+2. **`kyc:{name}` moves from ASSUMED to MEASURED-GOOD.** It was in the
+   converged 200 payload above and read back verbatim — the same axis this log
+   ranked "best-supported of the three" purely on an observed READ shape, and
+   then correctly downgraded once the location run showed a READ shape does not
+   guarantee a WRITE field set. That downgrade is not reversed by this
+   measurement; it is SUPERSEDED by a direct write measurement, which is
+   stronger evidence than either prior reading of it.
+3. **`deviceSwap:{latestDeviceChange}` likewise moves from ASSUMED to
+   MEASURED-GOOD** — same converged write, same verbatim read-back.
+4. **`tenure:{latestTenureChange, contractType}` exists operator-side, exactly
+   as the 2026-08-17 endpoint sweep (below) already found.** This is a direct
+   observation supporting that decision, not a reopening of it: still no CAMARA
+   read endpoint for tenure, still out of the wired predicate set.
+
+### The reusable lesson
+
+The prior entry's generalisable lesson stands and gets a corollary: an OBSERVED
+READ shape does not tell you the REQUIRED WRITE field set — but a CONVERGING
+PROBE (submit, read the ONE field the 400 names, add it, resubmit, repeat)
+turns "one missing field per live gate run" into "one missing field per round
+of the same run." Three rounds against one slot settled a shape that would
+otherwise have taken three separate live-gate cycles to discover one field at a
+time — each with its own round-trip back to this log.
+
+### The one design decision made outright: `radius`
+
+`radius` is written `500`, not the probe's own placeholder `0`. Reasoning:
+radius is the position's ACCURACY, and the READ above shows `500` already
+resident in the slot — writing `0` would claim an infinite-precision fix the
+operator never asserted. If a future measurement shows `radius` interacting
+with `presentIn`/PARTIAL semantics (the location-verification verdict
+depending on the value written here), that is a new open question, not one
+this entry closes.
+
+(AGENT-RUN implementation off this finding; the measurement itself is the
+user's, as above.)
+
+---
+
+## 2026-08-17 — the USER's LIVE Playground run of the 3 → 6 round: the assumed `location` write shape FAILED LOUD, and it was supposed to
 
 The first live run of the tree at `81f8da4`. It is the only measurement in this
 log that the agent did not and could not make — no credentials, no network — so

@@ -291,19 +291,20 @@ let gaveBack = null;   // the trap case's cleanup DELETE, asserted by the last c
 // SUCCEED. Without it, case 2 would pass on an adapter that rejected every
 // write — "it stopped" is not evidence a guard is load-bearing.
 //
-// It is also the case that SETTLES the remaining ASSUMED Admin write shapes,
-// because every one of them rides this single payload and every one of them is
-// READ BACK and compared: `deviceSwap:{latestDeviceChange}`,
-// `location:{latitude, longitude, lastLocationTime}` (the shape the 2026-08-17
-// live run corrected — the bare pair was refused with `400 "…lastLocationTime is
-// required"`) and `kyc:{name}`, which has never reached the Admin API at all
-// because that run aborted at the location axis. If one of them is still wrong,
-// this case reds and the adapter's message names the axis and says the shape is
-// a suspect.
+// It is also the case that RE-PROVES the Admin write shapes a 2026-08-17
+// convergence probe already settled from ASSUMED to MEASURED-GOOD, because
+// every one of them rides this single payload and every one of them is READ
+// BACK and compared: `deviceSwap:{latestDeviceChange}`, `kyc:{name}`, and
+// `location:{latitude, longitude, lastLocationTime, available, radius}` — the
+// full five-field shape the probe converged on over three rounds (round 1:
+// `lastLocationTime` required; round 2: `available` required; round 3: 200 OK,
+// read back intact). "Measured once" is not "guaranteed forever", so this case
+// stays wired: if any axis regresses, this case reds and the adapter's message
+// names it.
 {
   const r = await athrew(() => facts.setBackstory(CUSTOM, story(), NOW));
-  ok('3 LIVE CONTROL: custom slot write VERIFIES (all assumed Admin shapes read back)',
-    !r.threw, r.threw ? r.msg : 'write stored and read back on every axis: simSwap, deviceSwap, location(+lastLocationTime), kyc, roaming, reachability');
+  ok('3 LIVE CONTROL: custom slot write VERIFIES (all measured-good Admin shapes read back)',
+    !r.threw, r.threw ? r.msg : 'write stored and read back on every axis: simSwap, deviceSwap, location(+lastLocationTime, available, radius), kyc, roaming, reachability');
 }
 
 // ============ 4-6 FR1 LIVE: the bit flips, the payload shape does not ========

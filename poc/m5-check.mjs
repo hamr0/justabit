@@ -83,13 +83,16 @@ const C = Object.freeze({
 // axes M5 never touches is arbitrary — `kyc.name` here is not the built-in
 // record's own value. Said explicitly so the "captured verbatim" claim above is
 // not over-read to cover this helper.
-// The observation instant the Admin store REQUIRES beside a position (measured
-// live 2026-08-17: writing the bare pair answers `400 "data.location.
-// lastLocationTime is required"`). It is the injected clock itself, so the
-// default stored dataset below mirrors what an honouring slot would hold — and a
-// case that wants some OTHER axis to mismatch is not derailed by this one.
+// The observation instant, availability flag and radius the Admin store
+// REQUIRES beside a position — MEASURED 2026-08-17 by a live convergence probe
+// (`+990100000099`): round 1 needed `lastLocationTime`, round 2 needed
+// `available`, round 3 (all five fields present) converged 200 OK and read back
+// intact. `lastLocationTime` is the injected clock itself, so the default stored
+// dataset below mirrors what an honouring slot would hold — and a case that
+// wants some OTHER axis to mismatch is not derailed by this one.
 const NOW_ISO = new Date(NOW).toISOString();
-const stored = ({ sim = '2026-04-01T12:00:00.000Z', device = '2026-08-11T04:00:16.516Z', roaming = { roaming: false }, reach = 'CONNECTED_DATA', geo = { latitude: PARIS.lat, longitude: PARIS.long, lastLocationTime: NOW_ISO }, kyc = { name: REGISTERED } } = {}) =>
+const LOCATION_RADIUS_M = 500;
+const stored = ({ sim = '2026-04-01T12:00:00.000Z', device = '2026-08-11T04:00:16.516Z', roaming = { roaming: false }, reach = 'CONNECTED_DATA', geo = { latitude: PARIS.lat, longitude: PARIS.long, lastLocationTime: NOW_ISO, available: true, radius: LOCATION_RADIUS_M }, kyc = { name: REGISTERED } } = {}) =>
   JSON.stringify({ data: { location: geo, reachability: { reachabilityStatus: reach }, roaming, simSwap: { latestSimChange: sim }, deviceSwap: { latestDeviceChange: device }, tenure: { contractType: 'PAYM' }, kyc } });
 
 // The stored dataset that MIRRORS a write, i.e. the READ an honouring slot
@@ -857,13 +860,14 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
       ok: deviceCalls(quietCalls) === 0 && deviceCalls(askedCalls) === 1 && f.deviceSwapAgeMs === wantAge });
 }
 
-// 52 THE DEVICE WRITE IS VERIFIED LIKE EVERY OTHER AXIS — and it is the axis whose
-// Admin write SHAPE is ASSUMED rather than measured (the READ axis list carries
-// `deviceSwap` and `/retrieve-date` answers `latestDeviceChange`, but no Admin
-// UPDATE of it has been observed). That is exactly the situation read-after-write
-// exists for: a slot that stores it verifies, and a slot that echoes it back
-// WITHOUT storing it fails LOUD naming the axis, instead of scripting a device
-// history that never took effect. Both directions, so neither can pass alone.
+// 52 THE DEVICE WRITE IS VERIFIED LIKE EVERY OTHER AXIS. `deviceSwap`'s Admin
+// write shape moved from ASSUMED to MEASURED-GOOD on 2026-08-17 (a live
+// convergence probe read it back verbatim after a converged write — see the
+// comment at `data` in m5-facts-orange.mjs), but the read-after-write guard stays
+// wired regardless: a slot that stores it verifies, and a slot that echoes it
+// back WITHOUT storing it fails LOUD naming the axis, instead of scripting a
+// device history that never took effect. Both directions, so neither can pass
+// alone — the guard does not get weaker just because the shape got stronger.
 {
   let written = null;
   const honouring = mk((url, body) => {
@@ -884,13 +888,13 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
   }).facts;
   const shadowed = await athrew(() => shadowing.setBackstory(N, { ...STORY }, NOW));
 
-  // ...and the SAME question for the location axis, which is the OTHER assumed
-  // write shape and the weaker of the two (`deviceSwap`'s field name at least
-  // comes from a measured read; the Admin `location` shape was never read at all).
-  // Added after an independent mutation sweep DELETED the geo axis from the
-  // verification loop and this suite stayed green — the guard that makes the
-  // assumption survivable was itself unpinned. This slot stores the sim and
-  // device dates and keeps its own position.
+  // ...and the SAME question for the location axis — now the BEST-MEASURED of the
+  // three (the 2026-08-17 convergence probe settled its full five-field shape;
+  // see the comment at `data`). Added after an independent mutation sweep DELETED
+  // the geo axis from the verification loop and this suite stayed green — the
+  // guard that makes the shape survivable was itself unpinned, and staying
+  // wired matters exactly as much now that the shape is measured. This slot
+  // stores the sim and device dates and keeps its own position.
   const shadowGeo = mk((url, body) => {
     if (body?.action === 'UPDATE') return { status: 200, text: stored(body.data) };
     if (body?.action === 'READ') {
@@ -908,10 +912,11 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
   // pass on a module that demanded a stored position it never wrote.
   const nullGeo = await athrew(() => shadowGeo.setBackstory(N, { ...STORY, location: null }, NOW));
 
-  // ...and the THIRD assumed shape. Added after an independent sweep deleted the
-  // kycName axis from the verification loop with this suite still green — the
-  // identical gap the geo axis had, in the identical place, which is the argument
-  // for pinning each assumed shape rather than one representative of them.
+  // ...and the THIRD axis, `kyc` — likewise moved to MEASURED-GOOD on
+  // 2026-08-17. Added after an independent sweep deleted the kycName axis from
+  // the verification loop with this suite still green — the identical gap the
+  // geo axis had, in the identical place, which is the argument for pinning each
+  // axis rather than one representative of them, measured or not.
   const shadowName = mk((url, body) => {
     if (body?.action === 'UPDATE') return { status: 200, text: stored(body.data) };
     if (body?.action === 'READ') {
@@ -926,22 +931,22 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
   const nameShadowed = await athrew(() => shadowName.setBackstory(N, { ...STORY }, NOW));
   const nullName = await athrew(() => shadowName.setBackstory(N, { ...STORY, registeredName: null }, NOW));
   const wantDevice = new Date(NOW - STORY.deviceSwappedDaysAgo * DAY).toISOString();
-  checkOk('52 ALL THREE ASSUMED WRITE SHAPES ARE READ BACK AND COMPARED', okWrite,
+  checkOk('52 ALL THREE MEASURED-GOOD WRITE SHAPES ARE STILL READ BACK AND COMPARED', okWrite,
     { label: `honoured write verifies (wrote deviceSwap ${written?.deviceSwap?.latestDeviceChange}, location ${JSON.stringify(written?.location)}); `
       + `shadowed device date=${shadowed.threw}, shadowed position=${geoShadowed.threw}, shadowed name=${nameShadowed.threw} all fail loud; `
       + `null location and null name write nothing=${!nullGeo.threw && !nullName.threw}`,
       ok: !okWrite.threw
         && written.deviceSwap.latestDeviceChange === wantDevice
+        // The full five-field location shape the convergence probe settled,
+        // including `available`/`radius` as their own write values (the ONE
+        // decision made for the whole round: 500, not the probe's placeholder 0).
+        && written.location.available === true && written.location.radius === LOCATION_RADIUS_M
         && shadowed.threw
         && shadowed.msg.includes('stored latestDeviceChange is')
         && shadowed.msg.includes('write verification FAILED')
         && geoShadowed.threw && geoShadowed.msg.includes('stored geo is')
-        // ...and BOTH assumed axes say so in the message, so a live failure names
-        // the shape as a suspect instead of sending the reader after the slot.
-        && shadowed.msg.includes('ASSUMED Admin write shape') && geoShadowed.msg.includes('ASSUMED Admin write shape')
         && !nullGeo.threw
         && nameShadowed.threw && nameShadowed.msg.includes('stored kycName is')
-        && nameShadowed.msg.includes('ASSUMED Admin write shape')
         && !nullName.threw });
 }
 
@@ -1133,13 +1138,61 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
       + `null location writes nothing=${!nullGeo.threw}; instant anywhere in the facts=${leaked.includes(NOW_ISO) || leaked.includes('lastLocationTime')}`,
       ok: !wrote.threw
         && sent.location.lastLocationTime === NOW_ISO
-        && Object.keys(sent.location).sort().join(',') === 'lastLocationTime,latitude,longitude'
+        && Object.keys(sent.location).sort().join(',') === 'available,lastLocationTime,latitude,longitude,radius'
+        && sent.location.available === true && sent.location.radius === LOCATION_RADIUS_M
         && rewritten.threw && rewritten.msg.includes('stored geoAt is')
         && rewritten.msg.includes('write verification FAILED')
-        && rewritten.msg.includes('ASSUMED Admin write shape')
         && !nullGeo.threw
         && !leaked.includes(NOW_ISO) && !leaked.includes('lastLocationTime')
         && !leaked.includes(String(NOW)) && f.presentVerdict === 'TRUE' });
 }
 
-conclude(57);
+// 58 `available` AND `radius` ARE THEIR OWN VERIFIED AXES, NOT FOLDED INTO `geo`.
+// MEASURED 2026-08-17 by the same convergence probe as case 57: round 2 of the
+// live write refused `data.location.available`, and round 3 converged only once
+// `radius` rode too — so the Admin store demands BOTH beside the pair `geo`
+// already covers. Two shadowing slots, each wrong on exactly one of the two new
+// fields, so a bug that dropped either verification arm (or conflated it with
+// `geo`/`geoAt`) reds here without touching the other.
+{
+  const wantSim = new Date(NOW - STORY.swappedDaysAgo * DAY).toISOString();
+  const wantDevice = new Date(NOW - STORY.deviceSwappedDaysAgo * DAY).toISOString();
+  // Stores everything but flips `available` to false — the honest "not known"
+  // spelling this module never writes, so a slot answering it back is a mismatch.
+  const shadowAvailable = mk((url, body) => {
+    if (body?.action === 'UPDATE') return { status: 200, text: stored(body.data) };
+    if (body?.action === 'READ') {
+      return { status: 200, text: stored({
+        sim: wantSim, device: wantDevice,
+        geo: { latitude: PARIS.lat, longitude: PARIS.long, lastLocationTime: NOW_ISO, available: false, radius: LOCATION_RADIUS_M },
+      }) };
+    }
+    return { status: 200, text: '{}' };
+  }).facts;
+  const availableMismatch = await athrew(() => shadowAvailable.setBackstory(N, { ...STORY }, NOW));
+
+  // Stores everything but keeps the PROBE's OWN placeholder radius (0) rather
+  // than the 500 this module writes — the exact wrong number the ONE DECISION
+  // above this axis exists to avoid signing.
+  const shadowRadius = mk((url, body) => {
+    if (body?.action === 'UPDATE') return { status: 200, text: stored(body.data) };
+    if (body?.action === 'READ') {
+      return { status: 200, text: stored({
+        sim: wantSim, device: wantDevice,
+        geo: { latitude: PARIS.lat, longitude: PARIS.long, lastLocationTime: NOW_ISO, available: true, radius: 0 },
+      }) };
+    }
+    return { status: 200, text: '{}' };
+  }).facts;
+  const radiusMismatch = await athrew(() => shadowRadius.setBackstory(N, { ...STORY }, NOW));
+
+  check('58 available AND radius ARE THEIR OWN VERIFIED AXES', true, { answered: true, reason: 'ok' }, 'ok',
+    { label: `available flip fails loud naming geoAvailable=${availableMismatch.threw && availableMismatch.msg.includes('stored geoAvailable is')}; `
+      + `radius flip (0 vs 500) fails loud naming geoRadius=${radiusMismatch.threw && radiusMismatch.msg.includes('stored geoRadius is')}`,
+      ok: availableMismatch.threw && availableMismatch.msg.includes('stored geoAvailable is')
+        && availableMismatch.msg.includes('write verification FAILED')
+        && radiusMismatch.threw && radiusMismatch.msg.includes('stored geoRadius is')
+        && radiusMismatch.msg.includes('write verification FAILED') });
+}
+
+conclude(58);

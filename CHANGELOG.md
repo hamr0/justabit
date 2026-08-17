@@ -2,6 +2,40 @@
 
 ## Unreleased (0.4.0 — M6)
 
+- **MEASURED FIX: a live convergence probe settled the Admin `location` write
+  shape and corrected two ASSUMED labels to MEASURED-GOOD.** Following on from
+  the `LIVE FIX` entry below (which found `lastLocationTime` missing), the user
+  ran a throwaway probe against `+990100000099` that kept re-submitting the
+  same Admin UPDATE: round 1 → `400 "data.location.available" is required`;
+  round 2 → `400 "data.location.radius" is required`; round 3 → `200 OK`, READ
+  back intact. **This closes the "still untested" claim the entry below made
+  about `kyc`** — the same converged READ returned `kyc:{name}` and
+  `deviceSwap:{latestDeviceChange}` verbatim, so both move from ASSUMED to
+  MEASURED-GOOD; the code comment, `poc/README.md` and the PRD decisions log are
+  corrected in the same commit.
+  - The settled `location` write shape is `{latitude, longitude,
+    lastLocationTime, available, radius}` — two more fields than this repo
+    wrote before today.
+  - `available` is written `true` (every scripted position is one the operator
+    can currently place). `radius` is written **`500`, not the probe's own
+    placeholder `0`** — the ONE decision made outright for the round: 500
+    matches the value the same READ showed already resident in the slot, and a
+    zero-radius write would claim a precision the operator never asserted.
+  - Both join the read-after-write verification loop as their OWN axes
+    (`geoAvailable`, `geoRadius`) — the same `geoAt` precedent applies for the
+    same reason: a mismatch folded into `geo` reads as the wrong bug.
+  - The read-after-write guard on `deviceSwap`/`kyc`/`location` stays wired
+    exactly as before — a measured-good shape still gets verified on every run,
+    because "measured once" is not "guaranteed forever". The ASSUMED-shape
+    caveat text in the write-verify diagnostic is removed, since no axis in
+    that loop is assumed any more.
+  - **Two new offline cases, both mutation-proven to red**: case 58 pins
+    `available`/`radius` as their own axes (a shadow slot that flips either
+    fails loud naming it), and case 52's assertions now also pin the written
+    values directly. Counts moved: **m5 offline 57 → 58**. m6 stays 45 (its
+    orange-replay READ fixture now carries the two new fields so the write it
+    mirrors matches what M5 actually sends). All AGENT-RUN; a user re-run of
+    the live gate stays PENDING.
 - **GROUNDING FIX: `m5-check-live.mjs` was never updated by the 3 → 6 round
   (11 → 19 cases).** `git log 8238d02..81f8da4 -- poc/m5-check-live.mjs` is
   EMPTY: every sibling suite was widened to the six-field backstory and this one
