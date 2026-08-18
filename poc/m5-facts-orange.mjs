@@ -296,6 +296,29 @@ function isPlainData(o) {
   }
 }
 
+// The bound on a claimed/registered NAME, and the bound on an AREA — both
+// duplicated from M4 rather than imported, per §4.4 (each module works alone),
+// exactly as the duration parser and the geo check in `setBackstory` already are.
+// They exist on the READ path because `getFacts` builds OUTBOUND HTTP from the
+// query it is handed: `createOrangeFacts` is this module's only export, so a
+// caller that never went through `factQuery` reaches those bodies directly, and
+// `{latitude: undefined}` or a megabyte name is a request this file must not
+// send. `NaN`/`Infinity` compare false against every bound, so an unguarded pair
+// would travel as a position that is not a place.
+const MAX_NAME = 120;
+const MAX_RADIUS_M = 200000;
+const inRange = (v, lo, hi) => typeof v === 'number' && Number.isFinite(v) && v >= lo && v <= hi;
+// The validated area, or `undefined` for "no answerable area was asked about" —
+// which leaves the axis absent and is refused downstream, never a guessed bit.
+function validArea(a) {
+  if (a === undefined || a === null) return undefined;
+  if (!isPlainData(a)) return undefined;
+  if (Object.keys(a).sort().join(',') !== 'lat,long,radiusM') return undefined;
+  if (!inRange(a.lat, -90, 90) || !inRange(a.long, -180, 180)) return undefined;
+  if (!Number.isSafeInteger(a.radiusM) || a.radiusM < 1 || a.radiusM > MAX_RADIUS_M) return undefined;
+  return a;
+}
+
 // ============================== redaction ==================================
 
 // Anything this module can print or throw goes through here first. Three
@@ -820,12 +843,16 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
       if (Number.isSafeInteger(atMs) && atMs <= nowMs) facts[axis.ageFact] = nowMs - atMs;
     };
 
-    await readSwapAxis(SWAP_AXES.sim);
-    // The DEVICE axis is read only when a device question was asked. Not an
+    // Both swap axes are read only when THAT axis was asked about. Not an
     // optimisation: every read is a metered live call about one subscriber, and
     // reading a fact nobody asked for is an operator query with no question
-    // behind it. The SIM axis stays unconditional — it is the axis this module has
-    // always answered and the demo's headline question.
+    // behind it. `reachable`/`roamingIn`/`presentIn`/`numberMatch` carry no SIM
+    // threshold at all, so an unconditional SIM read was pulling a raw
+    // /retrieve-date value operator-side for a question that never needed it —
+    // undercutting the proposal's own argument that `/check` has no raw value
+    // to leak in the first place, since a reference operator would still be
+    // fetching one nobody asked for.
+    if (hasOwn(q, SWAP_AXES.sim.thresholdKey)) await readSwapAxis(SWAP_AXES.sim);
     if (hasOwn(q, SWAP_AXES.device.thresholdKey)) await readSwapAxis(SWAP_AXES.device);
 
     const roamOut = await post('camara', READS.roaming.url, READS.roaming.body(number));
@@ -851,7 +878,14 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
     // The location axis is read ONLY when an area was asked about, for the reason
     // the device axis is conditional and one more besides: this endpoint takes the
     // QUESTION as its input, so there is no such thing as reading it "in general".
-    const area = q.area;
+    // ...and it is RE-CHECKED here, not trusted, for the reason stated at `q`
+    // above: this file decides what goes on the wire, and "the caller validated
+    // it" is not a property this file can verify. `createOrangeFacts` is M5's one
+    // export, so a caller that never went through `factQuery` reaches this line
+    // too. A shape that fails leaves the axis ABSENT — a refusal downstream — the
+    // same outcome an unrecognised verdict already gets, never a request built
+    // out of `undefined` and sent to a live operator.
+    const area = validArea(q.area);
     if (area !== undefined) {
       const locOut = await post('camara', READS.location.url, READS.location.body(number, area));
       classify(locOut, number, 'location-verification verify');
@@ -874,8 +908,15 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
     // endpoint takes the requester's claim as its input, so like location there is
     // no reading it "in general". The SCORE stops here: it goes on the facts
     // (operator-internal) and `evaluatePredicate` turns it into a bit.
-    if (typeof q.claimedName === 'string') {
-      const kycOut = await post('camara', READS.kyc.url, READS.kyc.body(number, q.claimedName));
+    // Bounded here as well as by `factQuery`, and for the same reason the area
+    // is: an unbounded claim is a string this file would put on a live operator's
+    // wire. 120 characters is M4's own bound, duplicated per §4.4 (each module
+    // works alone) exactly as the duration parser and the geo bound are.
+    const claimedName = typeof q.claimedName === 'string' && q.claimedName.length >= 1 && q.claimedName.length <= MAX_NAME
+      ? q.claimedName
+      : undefined;
+    if (claimedName !== undefined) {
+      const kycOut = await post('camara', READS.kyc.url, READS.kyc.body(number, claimedName));
       classify(kycOut, number, 'kyc-match');
       const kyc = parseJson(kycOut, 'kyc-match');
       // `nameMatch` is a STRING on the wire. The string `"false"` is TRUTHY, so

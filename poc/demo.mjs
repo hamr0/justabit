@@ -460,9 +460,20 @@ export function createOperator({ keys, directory, backend, floor = PUBLISHED_FLO
     if (typeof req.number !== 'string') return signedReject('missing subscriber', req.nonce);
 
     // 8. M3 — the monotone floor gate, BEFORE any fact is touched.
+    //    The gate's `effective` floor — per axis the tighter of published and
+    //    requested — is carried out on the operator's own return, NEVER into the
+    //    claims and never into the envelope: it is operator-side evidence, like
+    //    `operatorDetail`, and the wire still carries only the bit. It is
+    //    returned rather than discarded because a caller (or a case) asserting
+    //    "the tightened floor is the one that was enforced" has to be able to
+    //    read what THIS operator enforced; recomputing `checkFloor` beside it
+    //    asserts M3 in isolation and would hold identically for an operator that
+    //    threw the verdict away.
+    let effectiveFloor;
     if (!controls.skipFloorGate) {
       const verdict = checkFloor(floor, req.floor);
       if (!verdict.allowed) return { ...signedReject(verdict.reason, req.nonce), floorRejected: true };
+      effectiveFloor = verdict.effective;
     }
 
     // 9. The published threshold menu (decision #1), also before any fact is
@@ -562,7 +573,7 @@ export function createOperator({ keys, directory, backend, floor = PUBLISHED_FLO
     if (plain.length > OAEP_CAPACITY) {
       return signedReject('answer does not fit one envelope', req.nonce);
     }
-    return { kind: 'answer', claims, plain, sealed: seal(keys.rpEnc.publicKey, plain) };
+    return { kind: 'answer', claims, effectiveFloor, plain, sealed: seal(keys.rpEnc.publicKey, plain) };
   }
 
   return { handle };
@@ -599,11 +610,18 @@ export function createRP({ keys, directory }) {
     // where identifier omission is already normative, generalised by profile
     // rule 4.
     const req = { number, predicate, floor: floorDemanded, nonce };
-    pending.set(nonce, { predicate: canonicalPredicate(predicate) });
+    const want = { predicate: canonicalPredicate(predicate) };
     const plain = packSigned(attest(keys.rpSig.privateKey, req), keys.rpIss);
     // seal() THROWS if the RP's own request will not fit one envelope — the
     // sender's own fault per M2, loud here, never a truncated half-request.
-    return { nonce, plain, sealed: seal(keys.opEnc.publicKey, plain) };
+    // The store is written AFTER it, and deliberately: the nonce is only pending
+    // once a request actually exists to be answered. Registering first left an
+    // entry that nothing could ever verify or consume in a store the comment
+    // above already admits only GROWS — a caller retrying an oversize request in
+    // a loop leaks one entry per attempt.
+    const sealed = seal(keys.opEnc.publicKey, plain);
+    pending.set(nonce, want);
+    return { nonce, plain, sealed };
   }
 
   // A signed operator REFUSAL. Deliberately a separate function from
@@ -656,6 +674,14 @@ export function createRP({ keys, directory }) {
       ? directory[unpacked.iss].sigPub
       : directory[keys.opIss].sigPub;
 
+    // With the store bypassed there is no remembered question, so the caller has
+    // to supply one. Without it there is nothing to compare against, and
+    // canonicalising `undefined` used to throw a bare TypeError straight out of a
+    // function whose whole contract is "untrusted input gets a verdict, never a
+    // throw" — the control knob crashing the verifier it exists to instrument.
+    if (expected === undefined && controls.fallbackPredicate === undefined) {
+      return { accepted: false, reason: 'unknown or already-used nonce' };
+    }
     const want = expected ?? { predicate: canonicalPredicate(controls.fallbackPredicate) };
     const v = verifyAttestation(pinned, unpacked.signed, { predicate: want.predicate, nonce, nowMs });
 
@@ -1096,7 +1122,12 @@ export async function runDemo(backend) {
   // that returned the operator's own floor verbatim would have passed it. The
   // effective floor is now READ: both tightened axes must be the REQUESTER's
   // values, and the untouched axis must still be the operator's.
-  const eff4b = checkFloor(PUBLISHED_FLOOR, { swapAgeMin: 'P180D', class: 'postpaid' }).effective;
+  // ...and it is read off THE OPERATOR'S OWN return, not recomputed here.
+  // Recomputing `checkFloor` beside the round trip was the second half of the
+  // same defect: it asserts M3 in isolation (which m3-check already does) and
+  // holds byte-identically for an operator that computes the effective floor and
+  // throws it away — which is exactly what this one used to do.
+  const eff4b = r4b.out.effectiveFloor ?? {};
   assert('tightening two axes is accepted, and the effective floor really is the tightened one',
     r4b.verdict.accepted === true
       && eff4b.swapAgeMin === 'P180D' && eff4b.class === 'postpaid' && eff4b.tenureMin === PUBLISHED_FLOOR.tenureMin,

@@ -46,6 +46,16 @@ components:
       # carrying `floors` (one letter off) had its floor silently dropped and got
       # a signed answer under the operator's own weaker floor. The sketch was
       # still leaving that door open while the code shut it.
+      #
+      # ONE DELIBERATE DIVERGENCE FROM THE PoC, stated because closing the set is
+      # what makes it bite: the reference demo's request also carries `number`,
+      # and the operator REQUIRES it ('missing subscriber'). That field is a demo
+      # stand-in for token-derived identity and is absent here on purpose — this
+      # sketch models the 3-legged shape, where the subject comes from the access
+      # token and MUST NOT appear in the request (see the operation description
+      # and profile rule 4). So a PoC request is deliberately NOT valid against
+      # this schema; the PoC's own closed set is `{number, predicate, floor,
+      # nonce}` and is enforced in poc/demo.mjs (REQUEST_FIELDS).
       additionalProperties: false
       properties:
         predicate:

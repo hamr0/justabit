@@ -81,6 +81,18 @@ function render(value) {
   }
 }
 
+// An UNKNOWN axis NAME is requester-chosen text, and it is the one thing in this
+// module's diagnostics that reaches a reason verbatim: every VALUE goes through
+// `render` (which JSON-quotes a string, so a newline becomes `\n`) and every
+// known axis name is one of this module's own literals. The unknown-axis name is
+// neither. Rendered verbatim while it is short and printable, so the common typo
+// reads exactly as typed — naming the misspelling is the actionable half — and
+// replaced otherwise, so an embedded newline or NUL cannot forge a line in
+// whatever log the reason lands in. Same helper, same reason and the same 40-char
+// printable-ASCII rule as M6's request-field check and M4's `describeKey`; this
+// was the sibling of that guard that the closed-set sweep left unswept.
+const fieldName = (k) => (/^[\x20-\x7e]{1,40}$/.test(k) ? k : '(unprintable field name)');
+
 // Why `value` is invalid for `axis`, or null if it is fine.
 function invalidValue(axis, value) {
   const spec = AXES[axis];
@@ -165,7 +177,7 @@ export function checkFloor(published, requested) {
   // as an own key and is caught here as unknown — same behavior M1 probes proved.)
   for (const k of Object.keys(requested)) {
     if (!Object.prototype.hasOwnProperty.call(AXES, k)) {
-      return { allowed: false, reason: `unknown floor field: ${k}` };
+      return { allowed: false, reason: `unknown floor field: ${fieldName(k)}` };
     }
     const bad = invalidValue(k, requested[k]);
     if (bad) return { allowed: false, reason: bad };

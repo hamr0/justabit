@@ -20,6 +20,13 @@ const DAY = 86400000;
 const N = '+990100000099';                                  // the custom slot
 const BUILTIN = '+990100000000';
 
+// A SIM-swap question, above the `/check` cap so it exercises the date surface —
+// the SAME surface every un-guarded `getFacts(N, NOW)` call below used to reach
+// unconditionally, before the SIM axis became conditional (case 59 pins that
+// change). Cases probing generic sim-swap error classification / age math need
+// SOMETHING that asks the SIM question, or the axis is simply never read.
+const SIM_Q = { swapAgeThresholdMs: 365 * DAY };
+
 // A SYNTHETIC credential of the real shape (base64 of `clientId:secret`). Never
 // the real one — a fixture that needed a secret could not run on a clone.
 const CLIENT_ID = 'CLIENTID0000000000000000000000AA';
@@ -260,10 +267,11 @@ checkThrew('2 BLANK CREDENTIAL THROWS',
 // ======================= ERROR CLASSIFICATION ==============================
 
 // 10 403 + "does not exist for" MEANS UNKNOWN NUMBER, and the message says so —
-// reading it as an auth failure sends you debugging the wrong thing.
+// reading it as an auth failure sends you debugging the wrong thing. A SIM
+// question is asked explicitly (SIM_Q) since the axis is conditional (case 59).
 {
   const { facts } = mk((url) => (url.includes('sim-swap') ? { status: 403, text: C.forbiddenUnknown } : { status: 200, text: '{}' }));
-  const r = await athrew(() => facts.getFacts(N, NOW));
+  const r = await athrew(() => facts.getFacts(N, NOW, SIM_Q));
   checkThrew('10 403 UNKNOWN NUMBER CLASSIFIED', r, names(r, 'unknown number', N, 'not bad auth'));
 }
 
@@ -271,10 +279,11 @@ checkThrew('2 BLANK CREDENTIAL THROWS',
 // 2026-08-16 re-verification: the recorded finding said every sim-swap 403
 // means unknown number. It does not — a request carrying the WRONG SURFACE's
 // token answers `403 "Request must be authorized"`. Collapsing the two would
-// have the operator hunting a backstory bug over a token bug.
+// have the operator hunting a backstory bug over a token bug. A SIM question is
+// asked explicitly (SIM_Q) since the axis is conditional (case 59).
 {
   const { facts } = mk((url) => (url.includes('sim-swap') ? { status: 403, text: C.forbiddenAuth } : { status: 200, text: '{}' }));
-  const r = await athrew(() => facts.getFacts(N, NOW));
+  const r = await athrew(() => facts.getFacts(N, NOW, SIM_Q));
   // Asserted on the CLASSIFICATION, not a loose substring: the unknown-number
   // error is the one that opens `unknown number: <num>`, and this message
   // deliberately contains the words "not an unknown number" in its explanation.
@@ -284,14 +293,15 @@ checkThrew('2 BLANK CREDENTIAL THROWS',
 }
 
 // 12 A 401 REFRESHES THE TOKEN ONCE AND RETRIES — the only signal that a token
-// is stale (there is no clock in this module, by design).
+// is stale (there is no clock in this module, by design). A SIM question is
+// asked explicitly (SIM_Q) since the axis is conditional (case 59).
 {
   let first = true;
   const { facts, calls } = mk((url) => {
     if (url.includes('sim-swap') && first) { first = false; return { status: 401, text: C.unauthenticated }; }
     return reads()(url);
   });
-  const r = await athrew(() => facts.getFacts(N, NOW));
+  const r = await athrew(() => facts.getFacts(N, NOW, SIM_Q));
   const tokenCalls = calls.filter((c) => c.isToken).length;
   checkOk('12 401 REFRESHES TOKEN AND RETRIES', r,
     { label: `token calls=${tokenCalls}, swapAgeMs present=${r.value && 'swapAgeMs' in r.value}`, ok: !r.threw && tokenCalls === 2 && 'swapAgeMs' in r.value });
@@ -309,18 +319,22 @@ checkThrew('2 BLANK CREDENTIAL THROWS',
     { label: `token calls=${tokenCalls}`, ok: r.threw && tokenCalls === 2 && r.msg.includes('401') });
 }
 
-// 14 AN UNEXPECTED STATUS FAILS LOUD AND NAMES IT.
+// 14 AN UNEXPECTED STATUS FAILS LOUD AND NAMES IT. A SIM question is asked
+// explicitly (SIM_Q) since the axis is conditional (case 59) — the 503 hits
+// the first live call this transport makes either way (the token endpoint is
+// unaffected, so this stays a general request-path assertion).
 {
   const { facts } = mk(() => ({ status: 503, text: '{"code":"UNAVAILABLE"}' }));
-  const r = await athrew(() => facts.getFacts(N, NOW));
+  const r = await athrew(() => facts.getFacts(N, NOW, SIM_Q));
   checkThrew('14 UNEXPECTED STATUS FAILS LOUD', r, names(r, '503', 'sim-swap'));
 }
 
 // 15 A 200 WITH A NON-JSON BODY FAILS LOUD rather than yielding `undefined`
-// facts. `res.json()` would throw a bare SyntaxError naming nothing.
+// facts. `res.json()` would throw a bare SyntaxError naming nothing. A SIM
+// question is asked explicitly (SIM_Q) since the axis is conditional (case 59).
 {
   const { facts } = mk((url) => (url.includes('sim-swap') ? { status: 200, text: '<html>maintenance</html>' } : reads()(url)));
-  const r = await athrew(() => facts.getFacts(N, NOW));
+  const r = await athrew(() => facts.getFacts(N, NOW, SIM_Q));
   checkThrew('15 NON-JSON 200 FAILS LOUD', r, names(r, 'non-JSON', 'sim-swap'));
 }
 
@@ -433,27 +447,32 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
 
 // 27 THE AGE IS DIFFERENCED AGAINST THE INJECTED CLOCK — the one line M5
 // replaces in M4, now doing real work: an absolute ISO instant from Orange
-// minus the same `now` the caller supplied.
+// minus the same `now` the caller supplied. A SIM question is asked explicitly
+// (SIM_Q) since the axis is conditional (case 59).
 {
   const swappedAt = NOW - 120 * DAY;
   const { facts } = mk(reads({ swap: JSON.stringify({ latestSimChange: new Date(swappedAt).toISOString() }) }));
-  const f = await facts.getFacts(N, NOW);
+  const f = await facts.getFacts(N, NOW, SIM_Q);
   check('27 swapAgeMs = injected now − latestSimChange', true, { answered: true, reason: 'ok' }, 'ok',
     { label: `days=${f.swapAgeMs / DAY}`, ok: f.swapAgeMs === 120 * DAY });
 }
 
 // 28 AN UNPARSEABLE DATE → ABSENT. `Date.parse('nonsense')` is NaN, and a NaN
 // age compares `false` against every floor — a signed "not old enough" about a
-// SIM nobody could date.
+// SIM nobody could date. A SIM question is asked explicitly (SIM_Q) since the
+// axis is conditional (case 59) — without it the axis is simply never read,
+// which would make this case pass VACUOUSLY rather than for the reason it names.
 {
-  const f = await mk(reads({ swap: '{"latestSimChange":"not-a-date"}' })).facts.getFacts(N, NOW);
+  const f = await mk(reads({ swap: '{"latestSimChange":"not-a-date"}' })).facts.getFacts(N, NOW, SIM_Q);
   check('28 unparseable latestSimChange → swapAgeMs ABSENT', true, { answered: true, reason: 'ok' }, 'ok',
     { label: `present=${'swapAgeMs' in f}`, ok: !('swapAgeMs' in f) });
 }
 
-// 29 A FUTURE SWAP DATE → ABSENT, never a negative age.
+// 29 A FUTURE SWAP DATE → ABSENT, never a negative age. A SIM question is asked
+// explicitly (SIM_Q) since the axis is conditional (case 59) — same vacuous-pass
+// risk as case 28.
 {
-  const f = await mk(reads({ swap: JSON.stringify({ latestSimChange: new Date(NOW + 5 * DAY).toISOString() }) })).facts.getFacts(N, NOW);
+  const f = await mk(reads({ swap: JSON.stringify({ latestSimChange: new Date(NOW + 5 * DAY).toISOString() }) })).facts.getFacts(N, NOW, SIM_Q);
   check('29 future latestSimChange → swapAgeMs ABSENT', true, { answered: true, reason: 'ok' }, 'ok',
     { label: `present=${'swapAgeMs' in f}`, ok: !('swapAgeMs' in f) });
 }
@@ -794,8 +813,9 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
 // bucket, and what `maxAge` rode with it. P30D and P90D fit under 2400 hours;
 // P180D and P365D cannot be expressed by `/check` AT ALL, so asking it anyway —
 // or rounding down to a window it can express — would answer a question nobody
-// asked, signed. The control is the no-threshold call: with no bucket named, the
-// date surface answers, which is how every case above this one still works.
+// asked, signed. The control is the no-threshold call: with no bucket named,
+// the SIM axis is not read AT ALL (case 59 pins that change) — there is no
+// surface to choose between when nobody asked the question.
 {
   const buckets = [[30, 'check', 720], [90, 'check', 2160], [180, 'date', null], [365, 'date', null]];
   const seen = [];
@@ -807,13 +827,13 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
   }
   const { facts: plain, calls: plainCalls } = mk(reads());
   await plain.getFacts(N, NOW);
-  const noThreshold = plainCalls.find((x) => !x.isToken && x.url.includes('sim-swap'));
+  const noThresholdCalls = plainCalls.filter((x) => !x.isToken && x.url.includes('sim-swap')).length;
   check('49 /check UNDER THE MEASURED CAP, THE DATE SURFACE ABOVE IT', true, { answered: true, reason: 'ok' }, 'ok',
     { label: `P30D/P90D/P180D/P365D -> ${JSON.stringify(seen.map((x) => `${x.surface}${x.maxAge ? `:${x.maxAge}h` : ''}`))}; `
-      + `no threshold -> ${noThreshold.url.endsWith('/check') ? 'check' : 'date'}`,
+      + `no threshold -> ${noThresholdCalls} sim-swap calls`,
       ok: seen.every((x, i) => x.surface === buckets[i][1] && x.maxAge === buckets[i][2] && x.n === 1)
         && seen.every((x) => x.maxAge === null || x.maxAge <= 2400)
-        && !noThreshold.url.endsWith('/check') });
+        && noThresholdCalls === 0 });
 }
 
 // 50 THE `/check` POLARITY, BOTH WAYS, AND NO COERCION. `swapped:false` means NOT
@@ -1195,4 +1215,54 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
         && radiusMismatch.msg.includes('write verification FAILED') });
 }
 
-conclude(58);
+// 59 THE SIM AXIS IS READ ONLY WHEN A SIM QUESTION WAS ASKED — the same
+// conditional pattern case 51 pins for the device axis, now applied to the SIM
+// axis it was deliberately exempted from. `reachable`/`roamingIn`/`presentIn`/
+// `numberMatch` carry no SIM threshold, so an unconditional read was pulling a
+// raw `/retrieve-date` value operator-side for a question that never needed it —
+// undercutting the `/check` argument that there is no raw value to leak in the
+// first place. The negative: a non-SIM question makes ZERO sim-swap calls. The
+// positive: a SIM question still makes exactly one.
+{
+  const { facts: quiet, calls: quietCalls } = mk(reads());
+  await quiet.getFacts(N, NOW);                              // e.g. reachable / roamingIn / presentIn / numberMatch: no SIM threshold at all
+  const { facts: asked, calls: askedCalls } = mk(reads());
+  const f = await asked.getFacts(N, NOW, { swapAgeThresholdMs: 90 * DAY });
+  const simCalls = (cs) => cs.filter((x) => !x.isToken && x.url.includes('sim-swap')).length;
+  check('59 THE SIM AXIS IS READ ONLY WHEN ASKED', true, { answered: true, reason: 'ok' }, 'ok',
+    { label: `non-sim question -> ${simCalls(quietCalls)} sim-swap calls; sim question -> ${simCalls(askedCalls)}; swapAgeAtLeast=${f.swapAgeAtLeast}`,
+      ok: simCalls(quietCalls) === 0 && simCalls(askedCalls) === 1 && 'swapAgeAtLeast' in f });
+}
+
+// 60 getFacts RE-VALIDATES `q.area` AND `q.claimedName` ITSELF, never trusting a
+// caller that skipped `factQuery` — the reason stated at `q` in
+// m5-facts-orange.mjs: `createOrangeFacts` is M5's ONE export, so a caller that
+// never went through `factQuery` reaches these bodies directly. Reproduced from
+// a proven gap (2026-08-18, mutation-tested offline): with the re-validation
+// removed, a hostile `q.area = {lat:'north', long:{}, radiusM:-1}` builds and
+// SENDS `{"areaType":"CIRCLE","center":{"latitude":"north","longitude":{}},
+// "radius":-1}` to `location-verification`, and a 50,041-character
+// `claimedName` is sent verbatim as `name` to `kyc-match` — both scored 58/58
+// (this suite's own pre-fix count) whether the guard was present or reverted,
+// because no case pinned the OUTBOUND BODY. Fixed, NEITHER call is sent at all:
+// the axis is simply absent, so there is no wire body to inspect — asserted
+// here as zero calls to each endpoint (what actually reaches the wire), not
+// merely on the returned fact.
+{
+  const HOSTILE_AREA = { lat: 'north', long: {}, radiusM: -1 };
+  const HOSTILE_NAME = 'x'.repeat(50041);
+  const { facts: areaFacts, calls: areaCalls } = mk(reads());
+  const af = await areaFacts.getFacts(N, NOW, { area: HOSTILE_AREA });
+  const { facts: nameFacts, calls: nameCalls } = mk(reads());
+  const nf = await nameFacts.getFacts(N, NOW, { claimedName: HOSTILE_NAME });
+  const locSent = areaCalls.filter((x) => !x.isToken && x.url.includes('location-verification'));
+  const kycSent = nameCalls.filter((x) => !x.isToken && x.url.includes('kyc-match'));
+  check('60 getFacts RE-VALIDATES q.area / q.claimedName, NEVER TRUSTS THE CALLER', true, { answered: true, reason: 'ok' }, 'ok',
+    { label: `hostile area -> ${locSent.length} location-verification calls (would-be body ${JSON.stringify(locSent[0]?.body?.area)}); `
+      + `50041-char claimedName -> ${kycSent.length} kyc-match calls (would-be name len ${kycSent[0]?.body?.name?.length});`
+      + ` presentVerdict present=${'presentVerdict' in af}, nameMatch present=${'nameMatch' in nf}`,
+      ok: locSent.length === 0 && kycSent.length === 0
+        && !('presentVerdict' in af) && !('nameMatch' in nf) });
+}
+
+conclude(60);

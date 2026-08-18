@@ -292,4 +292,21 @@ checkThrows('20 PROTOTYPE PUBLISHED THROWS',
         && typo.allowed === false && typo.reason === 'unknown floor field: partialpolicy' });
 }
 
-conclude(25);
+// 26 A HOSTILE AXIS NAME IS NEVER RENDERED VERBATIM — the `fieldName` guard
+// (m3-floor.mjs) that case 4/5's plain typos never exercise, because a plain
+// typo IS printable ASCII and passes the guard unchanged. A literal newline
+// inside the key is the reproduction: proven live (2026-08-18) to score 25/25
+// whether `fieldName`'s bound is present or reverted to the raw key — reverted,
+// the reason renders the control character verbatim (a fake log line an
+// operator's log scraper could be fooled by); fixed, it renders the fixed
+// placeholder instead. Case 25 pins the SIBLING typo unaffected by this guard.
+{
+  const hostile = checkFloor(PUB, { 'a\nFAKE LOG LINE b': 'x' });
+  check('26 HOSTILE FLOOR AXIS NAME NEVER RENDERED VERBATIM', false, hostile,
+    'unknown floor field: (unprintable field name)',
+    { label: `reason='${JSON.stringify(hostile.reason)}'`,
+      ok: hostile.allowed === false && hostile.reason === 'unknown floor field: (unprintable field name)'
+        && !hostile.reason.includes('\n') });
+}
+
+conclude(26);
