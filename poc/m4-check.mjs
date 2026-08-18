@@ -4,6 +4,10 @@
 // not hypotheses — each one ended in a confident, wrong, signable answer.
 import { createMockFacts, evaluatePredicate, factQuery } from './m4-facts-mock.mjs';
 import { makeHarness } from './check-harness.mjs';
+import { readFileSync, writeFileSync, unlinkSync } from 'node:fs';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const { check, checkThrows, conclude } = makeHarness({ field: 'answered', okWord: 'ANSWER' });
 
@@ -739,8 +743,14 @@ check('14 WRONG OPERATOR REJECTED', false,
   check('36 factQuery HANDS THE BACKEND VALIDATED PRIMITIVES OR NOTHING', true,
     { answered: true, reason: 'ok' }, 'ok', {
       label: `P90D -> ${JSON.stringify(good)}; ${empties.length} unusable shapes all -> {} and none threw`,
-      ok: good.swapAgeThresholdMs === 90 * DAY && Object.keys(good).join(',') === 'swapAgeThresholdMs'
-        && dev.deviceSwapAgeThresholdMs === 365 * DAY && Object.keys(dev).join(',') === 'deviceSwapAgeThresholdMs'
+      // CHANGED 2026-08-18 (closing the open design item): a validated predicate
+      // now ALSO carries its axis signal (`needSim`/`needDevice`/…, see
+      // `PREDICATES[type].axes`), which is exactly what lets M5 gate the
+      // roaming/reachability reads the same way the two swap axes already are.
+      // The exact-shape assertion changes on purpose; the "unusable shapes yield
+      // {} and never throw" half does not.
+      ok: good.swapAgeThresholdMs === 90 * DAY && Object.keys(good).sort().join(',') === 'needSim,swapAgeThresholdMs'
+        && dev.deviceSwapAgeThresholdMs === 365 * DAY && Object.keys(dev).sort().join(',') === 'deviceSwapAgeThresholdMs,needDevice'
         && Object.isFrozen(good)
         && empties.every((r) => r.threw === false && Object.keys(r.value).length === 0),
     });
@@ -867,4 +877,135 @@ check('14 WRONG OPERATOR REJECTED', false,
     });
 }
 
-conclude(40);
+// 41 factQuery's AXIS SIGNAL FIRES ONLY WHEN THE PREDICATE'S OWN VALUE
+// VALIDATED — closing the 2026-08-18 open design item (roaming/reachability
+// reads were unconditional on `getFacts`). `PREDICATES[type].axes` is the
+// single mapping (simSwapAge→sim, deviceSwapAge→device, roamingIn→roaming,
+// reachable→reachability, presentIn→location, numberMatch→kyc), and the axis
+// signal must NOT ride along on a malformed value: a `roamingIn` with an empty
+// or non-array country set, or a `reachable` with a non-boolean value, is not a
+// question, and handing an adapter `needRoaming`/`needReachability` for it would
+// make it read a fact for a question that was never actually asked.
+{
+  const roamOk = factQuery({ type: 'roamingIn', operator: 'in', value: ['FR'] });
+  const roamEmpty = factQuery({ type: 'roamingIn', operator: 'in', value: [] });
+  const roamNotArray = factQuery({ type: 'roamingIn', operator: 'in', value: 'FR' });
+  const reachOk = factQuery({ type: 'reachable', operator: 'eq', value: true });
+  const reachBad = factQuery({ type: 'reachable', operator: 'eq', value: 'true' });
+  const locOk = factQuery({ type: 'presentIn', operator: 'in', value: AREA(10000) });
+  const locBad = factQuery({ type: 'presentIn', operator: 'in', value: { ...AREA(10000), radiusM: -1 } });
+  const kycOk = factQuery({ type: 'numberMatch', operator: 'gte', value: 90, claimed: 'Alice Arnaud' });
+  const kycBad = factQuery({ type: 'numberMatch', operator: 'gte', value: 90, claimed: '' });
+  check('41 AXIS SIGNAL ONLY WHEN THE PREDICATE VALIDATED', true, { answered: true, reason: 'ok' }, 'ok', {
+    label: `roamingIn valid -> ${JSON.stringify(roamOk)}, empty set -> ${JSON.stringify(roamEmpty)}, non-array -> ${JSON.stringify(roamNotArray)}; `
+      + `reachable valid -> ${JSON.stringify(reachOk)}, non-boolean -> ${JSON.stringify(reachBad)}; `
+      + `presentIn valid keys=${Object.keys(locOk).sort().join(',')}, invalid -> ${JSON.stringify(locBad)}; `
+      + `numberMatch valid keys=${Object.keys(kycOk).sort().join(',')}, invalid -> ${JSON.stringify(kycBad)}`,
+    ok: Object.keys(roamOk).sort().join(',') === 'needRoaming' && roamOk.needRoaming === true
+      && Object.keys(roamEmpty).length === 0 && Object.keys(roamNotArray).length === 0
+      && Object.keys(reachOk).sort().join(',') === 'needReachability' && reachOk.needReachability === true
+      && Object.keys(reachBad).length === 0
+      && Object.keys(locOk).sort().join(',') === 'area,needLocation' && locOk.needLocation === true
+      && Object.keys(locBad).length === 0
+      && Object.keys(kycOk).sort().join(',') === 'claimedName,needKyc' && kycOk.needKyc === true
+      && Object.keys(kycBad).length === 0,
+  });
+}
+
+// 42 A PREDICATE TABLE ENTRY WITH NO `axes` FIELD DOES NOT CRASH `factQuery` —
+// the axes-iteration guard at the loop in `m4-facts-mock.mjs`, added
+// 2026-08-18 with the roaming/reachability axis-signal round and until now
+// UNTESTED: the main session reverted it (dropping the guard so the loop
+// iterates `spec.axes` directly) and every offline suite, including this
+// one, stayed green — because every CURRENT `PREDICATES` entry happens to
+// declare `axes`, so the reverted line is never actually reached with an
+// undefined value by any case that calls `factQuery` through its normal
+// public surface. That made the fix provably untested, not merely unlikely
+// to matter: a future predicate type added without an `axes` field would
+// crash this function outright (`TypeError: spec.axes is not iterable`,
+// verified by hand at the time), and nothing here would have caught it.
+//
+// This case pins BEHAVIOUR, not spelling: it does not search for any
+// particular guard expression in the source. It builds the scenario the
+// comment describes against the REAL file on disk rather than a copy
+// authored to contain the result: it reads `m4-facts-mock.mjs`'s actual
+// source at run time, surgically removes the `reachable` entry's
+// `axes: ['reachability']` sub-field (nothing else), and dynamically imports
+// THAT — a predicate table with one axes-less entry, running whatever the
+// guard expression the real file currently uses, however it is spelled. If
+// that guard is intact — under `?? []`, an `Array.isArray` ternary, or any
+// other correct guard — `factQuery` on a valid `reachable` predicate must
+// return `{}` (no `needReachability` — the axis-less entry earns no axis
+// signal, the documented fail-closed outcome) rather than throwing.
+//
+// The negative control, so this is not just "it didn't throw": a SEPARATE
+// variant locates the `for (const axis of ...) {` loop header by its
+// syntactic shape (not by matching one specific guard expression) and
+// replaces whatever is between `of` and `)` with the bare, unguarded
+// `spec.axes` — i.e. deliberately removing whatever guard is currently
+// there. That variant, run against the same axes-stripped predicate table,
+// must throw `TypeError`. Two source variants, built independently of how
+// the guard is spelled, opposite outcomes: that is what proves the guard is
+// load-bearing rather than a no-op, and it is what will go RED if someone
+// reverts the real line to an unguarded iteration — regardless of what the
+// guard used to look like.
+{
+  const here = fileURLToPath(import.meta.url);
+  const mockSrc = readFileSync(join(here, '..', 'm4-facts-mock.mjs'), 'utf8');
+  const axesField = ", axes: ['reachability']";
+  if (!mockSrc.includes(axesField)) {
+    throw new Error(`case 42 fixture assumption broken: ${JSON.stringify(axesField)} not found verbatim in m4-facts-mock.mjs — the source shape moved, update this case`);
+  }
+  const axesLessSrc = mockSrc.replace(axesField, '');           // `reachable` entry now has no `axes` field at all
+
+  // Locate the axis-iteration loop header by its syntactic shape — the
+  // `for (const axis of <whatever guard expression>) {` line — rather than
+  // by matching one specific spelling of the guard. This is what keeps the
+  // negative control independent of how the guard is written.
+  const loopHeaderRe = /for \(const axis of [^\n]+\) \{/;
+  if (!loopHeaderRe.test(axesLessSrc)) {
+    throw new Error('case 42 fixture assumption broken: no `for (const axis of ...) {` loop header found in m4-facts-mock.mjs — the source shape moved, update this case');
+  }
+  const revertedSrc = axesLessSrc.replace(loopHeaderRe, 'for (const axis of spec.axes) {');   // strips whatever guard is present, however spelled
+
+  const stamp = `${process.pid}-${Date.now()}`;
+  const guardedPath = join(tmpdir(), `m4-mock-case42-guarded-${stamp}.mjs`);
+  const revertedPath = join(tmpdir(), `m4-mock-case42-reverted-${stamp}.mjs`);
+  writeFileSync(guardedPath, axesLessSrc);
+  writeFileSync(revertedPath, revertedSrc);
+
+  let guardedResult;
+  let guardedThrew = false;
+  let guardedMsg = '';
+  try {
+    const { factQuery: fqGuarded } = await import(pathToFileURL(guardedPath).href);
+    guardedResult = fqGuarded({ type: 'reachable', operator: 'eq', value: true });
+  } catch (e) {
+    guardedThrew = true;
+    guardedMsg = e instanceof Error ? e.message : String(e);
+  }
+
+  let revertedThrew = false;
+  let revertedIsTypeError = false;
+  let revertedMsg = '';
+  try {
+    const { factQuery: fqReverted } = await import(pathToFileURL(revertedPath).href);
+    fqReverted({ type: 'reachable', operator: 'eq', value: true });
+  } catch (e) {
+    revertedThrew = true;
+    revertedIsTypeError = e instanceof TypeError;
+    revertedMsg = e instanceof Error ? e.message : String(e);
+  }
+
+  unlinkSync(guardedPath);
+  unlinkSync(revertedPath);
+
+  check('42 `spec.axes ?? []` GUARD: AXES-LESS ENTRY DOES NOT THROW; THE GUARD IS LOAD-BEARING', true, { answered: true, reason: 'ok' }, 'ok', {
+    label: `guarded + axes-less reachable -> threw=${guardedThrew}${guardedThrew ? ` (${guardedMsg})` : ''}, result=${JSON.stringify(guardedResult)}; `
+      + `reverted (guard also stripped) -> threw=${revertedThrew}, TypeError=${revertedIsTypeError}, msg="${revertedMsg}"`,
+    ok: guardedThrew === false && guardedResult && Object.keys(guardedResult).length === 0
+      && revertedThrew === true && revertedIsTypeError === true && /axes is not iterable/.test(revertedMsg),
+  });
+}
+
+conclude(42);

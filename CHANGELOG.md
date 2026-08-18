@@ -1,5 +1,187 @@
 # Changelog
 
+## Unreleased
+
+- **User ran the full validation suite on their own machine against the
+  CURRENT uncommitted working tree: every suite clean, zero `FAIL`, zero
+  `TypeError`, zero `Error:` lines in either log. BOTH gates MET on this
+  tree.** Offline (user-run, by exit code, all exit 0): `m1-check.mjs`
+  20/20, `m2-check.mjs` 10/10, `m3-check.mjs` 26/26, `m4-check.mjs` 42/42,
+  `m5-check.mjs` 66/66, `m6-check.mjs` 46/46, `demo.mjs` (mock backend)
+  33/33. Live (user-run, real Orange Network APIs Playground, injected
+  clock `2026-08-18T16:25:49.263Z`, quota 1 of 10 custom slots in use at
+  start, all exit 0): `m5-check-live.mjs` 19/19, `demo.mjs --backend
+  orange` 33/33 — every count user-run, none agent-run. G1 (M1–M4 + M6
+  user-validated) MET at 20/10/26/42/46 plus `demo.mjs` (mock) 33/33. G2
+  (M5 user-validated live) MET on both legs (offline 66/66, live 19/19).
+  Notably, `m5-check-live.mjs` had two cases edited this session and had
+  never been executed until this run — it passed 19/19 on its first ever
+  execution against the real Playground. The first attempt at the live
+  legs exited 2 (missing `ORANGE_BASIC_AUTH`) and was correctly NOT a
+  pass — the successful re-run above is the one that counts. **This
+  record covers the uncommitted working tree it was run against ONLY**:
+  per this repo's own rule, a user validation covers only the exact tree
+  it ran at, and any later change to a file either gate covers re-opens
+  that gate, commit or no commit. Two known open items surfaced by this
+  round are recorded, not quietly dropped: (1) the call-count saving that
+  motivated the axis-signal unification is proven only OFFLINE (injected
+  transport) — no live case asserts it; (2) `m6-check.mjs` gives no
+  signal on the roaming/reachability-gating change — it stayed 46/46
+  before and after; only `m4-check.mjs` catches a wrong `axes` mapping
+  (flipping `roamingIn` to `['reachability']` left `m5-check.mjs` fully
+  green at 63/63, measured before this round's 66/66 count). Also still
+  open, pre-existing and unaffected by this round: `poc/m4-check.mjs`
+  case 42 searches the source for the literal `", axes: ['reachability']"`
+  to build its fixture — same brittleness class as the guard-text search
+  already removed elsewhere, now aimed at the predicate table instead;
+  `poc/m2-envelope.mjs:26` hardcodes `OAEP_CAPACITY = 446` rather than
+  deriving it from the recipient key; and the `r6b` scan frame in
+  `poc/demo.mjs` structurally cannot red because `rawNeedles` is built
+  from `DEVICE_SWAPPED_DAYS_AGO` while `r6b` answers about
+  `DEVICE_FLIPPED_DAYS_AGO`, so the value it could leak is not in the
+  needle inventory. Full record: `docs/01-product/prd.md`, Decisions log.
+
+- **Finishes the axis-signal unification: ALL SIX operator axes now gate on
+  `PREDICATES.axes`/`needXxx`, not two.** The entry below closed the
+  roaming/reachability over-read by moving THOSE two axes onto the
+  `needRoaming`/`needReachability` signal, but left the claimed single-mapping
+  design only half true: SIM, device, location and KYC still gated on the OLD
+  pattern (`hasOwn(q, thresholdKey)` for SIM/device, `q.area`/`q.claimedName`
+  value-presence for location/KYC) — two live sources of truth for the same
+  question, the exact thing `axes` was supposed to remove.
+  - **`poc/m5-facts-orange.mjs`**: SIM/device reads now gate on
+    `hasOwn(q, 'needSim') && q.needSim === true` /
+    `needDevice`, re-checked exactly as `needRoaming`/`needReachability`
+    already were. `readSwapAxis` gained an explicit, FIRST guard —
+    `!Number.isSafeInteger(thresholdMs) || thresholdMs <= 0` → no read at
+    all — because moving the gate off the threshold key means the function
+    can now be entered with `needSim: true` and no valid threshold at all;
+    before this guard, a present-but-invalid threshold fell straight into
+    the `/retrieve-date` branch (a raw-date read for a window nobody
+    validated) rather than being refused. Location/KYC now gate on
+    `needLocation`/`needKyc === true` **as well as** their existing value
+    validation (`validArea(q.area)`, the claimed-name bound) — the signal
+    decides WHETHER to read, the value still decides what body to send, and
+    either one failing leaves the axis absent, never a guessed bit.
+  - Tests (`poc/m5-check.mjs`, 63 → 66): every hand-built query literal
+    that exercises a SIM/device/location/KYC read
+    (`SIM_Q`, cases 49–51/53–57/59/60) now carries the matching `needXxx:
+    true` alongside its value — without it, the axis is no longer read at
+    all under the new gate. New case 64 pins the `readSwapAxis` fail-closed
+    guard (missing/negative/zero/non-numeric threshold with `needSim`/
+    `needDevice: true` → zero calls on either surface); new case 65 pins
+    the location/KYC fail-closed outcome when the signal is true but the
+    value is absent (complements case 60, which already covered a
+    signal-true, value-malformed shape — case 60 itself was updated to
+    carry `needLocation`/`needKyc: true` so it keeps testing value
+    re-validation rather than going vacuous under the new gate); new case
+    66 is the direct negative for the unification itself — a well-formed
+    threshold/area/claim with the `needXxx` flag OMITTED now makes ZERO
+    calls on all four axes, where the pre-unification code would have
+    read anyway.
+  - Mutation-proven (revert → confirm RED with a non-zero exit → restore →
+    confirm GREEN), against the real files, not a copy: reverting the
+    SIM/device/location/KYC gates back to their old threshold-key/value-only
+    pattern reds `m5-check.mjs` case 66 (exit 1, dies on an unhandled 404
+    before even reaching the tally — `location-verification` gets called
+    with no route wired for it); reverting only the `readSwapAxis` threshold
+    guard reds case 64 alone (65/66, exit 1). Both restores verified green
+    at 66/66, exit 0.
+  - **`m5-check-live.mjs` is unaffected and stays UNRUN**: every query it
+    builds already goes through `factQuery(predicate)` (the real seam), so
+    it was never on the old per-axis pattern to begin with. Not run this
+    round — live Orange, quota + GPG cache, out of scope for this change.
+  - **`m4-check.mjs` gains case 42**, closing a SEPARATE, pre-existing gap:
+    the `spec.axes ?? []` guard added with the roaming/reachability round
+    (below) had NO test able to detect it — reverting it to `spec.axes` left
+    every offline suite green, because every CURRENT `PREDICATES` entry
+    happens to declare `axes`, so the reverted line was never reached with
+    an undefined value through the public API. Case 42 reads the real
+    `m4-facts-mock.mjs` source at run time, dynamically imports a variant
+    with one entry's `axes` field surgically stripped (proving the guard
+    tolerates an axes-less table entry: `factQuery` returns `{}`, no throw)
+    and a second variant that additionally locates the `for (const axis of
+    ...) {` loop header by shape (not by matching one guard spelling) and
+    replaces it with the bare, unguarded `spec.axes` — proving the identical
+    input then throws `TypeError: spec.axes is not iterable` (the negative
+    control). Mutation-proven against the real file, twice: reverting the
+    real guard to bare `spec.axes` reds the whole suite at exit 1 (case 42's
+    own behavioural assertion fails — the "guarded" variant, built from
+    whatever the real file currently says, now throws too); restored, green
+    at 42/42. **Fixed 2026-08-18 (this round):** the initial version of case
+    42 additionally searched for the guard's exact source text
+    (`'spec.axes ?? []'`) and threw a "fixture assumption broken" error if
+    that string was absent — which meant the case pinned the guard's
+    SPELLING, not its behaviour, and went red on a behaviourally identical
+    refactor (`spec.axes ?? []` → `Array.isArray(spec.axes) ? spec.axes :
+    []`) that broke nothing. That verbatim-text search and throw were
+    removed; the negative-control variant now locates the loop by its
+    syntactic shape instead, so case 42 passes under any correct guard
+    spelling and still reds if the guard is dropped entirely. Re-proven:
+    revert to bare `spec.axes` → RED (41/42, exit 1); restore → GREEN;
+    swap to the `Array.isArray` ternary spelling → stays GREEN (42/42, exit
+    0, the fix's whole point); restore original spelling → GREEN again.
+  - **G1 and G2 stay PENDING.** This change touches executable code covered
+    by both gates and has NOT been run by the user at this commit — nothing
+    here claims user validation. (SUPERSEDED — see the top entry above: the
+    user's full run on the uncommitted tree subsequently MET both gates.)
+
+- **Closes the open design item recorded at the 2026-08-18 code-review
+  round: `roaming`/`reachability` axes are now conditional on `getFacts`,
+  the same way the SIM/device axes already were.** `m5-facts-orange.mjs`
+  read `device-roaming-status` and `device-reachability-status` on EVERY
+  live `getFacts` call, whether or not the predicate being answered asked a
+  question those axes could answer — two extra billed operator calls for a
+  question that never asked them, and (for `roaming`) a raw-ish upstream
+  read for no reason at all.
+  - **`poc/m4-facts-mock.mjs`**: `PREDICATES` gains an `axes` field — the
+    single place the predicate → operator-axis mapping lives
+    (`simSwapAge`→`sim`, `deviceSwapAge`→`device`, `roamingIn`→`roaming`,
+    `reachable`→`reachability`, `presentIn`→`location`,
+    `numberMatch`→`kyc`). `factQuery` now emits the axis as a flat
+    top-level boolean (`needRoaming: true`, `needReachability: true`, …)
+    whenever — and ONLY whenever — the predicate's own value validated; a
+    malformed or unknown predicate still yields `{}`, unchanged.
+  - **`poc/m5-facts-orange.mjs`**: the roaming and reachability reads are
+    now gated on `hasOwn(q, 'needRoaming')`/`hasOwn(q, 'needReachability')`
+    with the value re-checked `=== true` (this file re-validates every
+    query field rather than trusting the caller, exactly as it already did
+    for `q.area`/`q.claimedName`) — the identical pattern the SIM/device
+    axes already used against their threshold keys.
+  - Tests: `m4-check.mjs` 40 → 41 (new case 41, the "axis signal only when
+    the predicate's own value validated" guard, mutation-proven); `m5-check.mjs`
+    60 → 63 (15 existing cases rewired to declare the axis they exercise —
+    `factsWith`/individual reachability cases now carry `ROAM_Q`/`REACH_Q`,
+    generic auth/redaction cases 3–9/13/47 carry `REACH_Q` so `getFacts`
+    still makes a live call to test against — plus 3 new cases: 61/62 the
+    read-only-when-asked guard for each axis with a negative control, 63
+    the fail-closed chain end to end (no query → zero live calls →
+    `evaluatePredicate` refusal, never a guessed bit)); `m6-check.mjs`
+    stays 46/46, case 40's incidental key-count expectation for the
+    `roamingIn` query moves from 0 to 1 (it now correctly carries
+    `needRoaming: true`) — `plain()` itself is unchanged. `m5-check-live.mjs`
+    cases 17/18 updated to ask an explicit question (`factQuery`) so
+    `getFacts` still reaches the Playground; **not run by this change** (no
+    live credentials in this session) — flagged for the next live G2 run.
+  - Six rewired/added `m5-check.mjs` cases were mutation-proven (revert →
+    red → restore → green): removing the roaming gate reds cases 61/63
+    (61/63, exit 1); removing the reachability gate reds cases 62/63
+    (61/63, exit 1); dropping `REACH_Q` from case 5 reds case 5 alone
+    (62/63, exit 1); dropping `ROAM_Q` from the `factsWith` helper reds
+    cases 16/17/21/22 (59/63, exit 1). The underlying `factQuery`
+    "only-emit-when-ok" logic was mutation-proven too: forcing
+    `ok = true` unconditionally for the `countries`/`boolean` branches reds
+    `m4-check.mjs` case 41 (40/41) and `m6-check.mjs` case 40 (45/46). All
+    six restores verified green at their full counts.
+  - **G1 and G2 are RE-OPENED (PENDING)**: this change touches executable
+    code covered by both gates (`poc/m4-facts-mock.mjs`,
+    `poc/m5-facts-orange.mjs`, and their check suites), and per this
+    repo's own rule a user validation covers only the exact commit it ran
+    at — the user has not yet run this change. `poc/demo.mjs` was not
+    touched and its suite is unaffected (33/33), but that does not carry
+    the gate forward on its own. (SUPERSEDED — see the top entry above: the
+    user's full run on the uncommitted tree subsequently MET both gates.)
+
 ## 0.4.0 — 2026-08-18 — M6
 
 - **User ran the full validation suite at code commit `4446517` / docs

@@ -103,17 +103,26 @@ const validName = (v) => typeof v === 'string' && v.length >= 1 && v.length <= M
 // guard: without it an adapter could answer "not swapped in 30 days" to a
 // "90 days?" question and the bit would look perfect on the wire.
 // `queryKey` is what `factQuery` hands the adapter so it can choose the surface.
+// ADDED 2026-08-18, closing the open design item recorded at the 2026-08-18
+// code-review round: `m5-facts-orange.mjs` read the `roaming` and
+// `reachability` axes UNCONDITIONALLY on every `getFacts` call, the same class
+// of over-read the SIM/device axes were already fixed for. `axes` is the
+// SINGLE place this predicate → operator-axis mapping lives — `factQuery`
+// (below) turns it into the flat `needXxx` boolean signal an adapter gates its
+// live reads on, and nothing else in the PoC re-derives the mapping.
 const PREDICATES = Object.freeze({
   simSwapAge: {
     operator: 'gte', value: 'duration', fact: 'swapAgeMs',
     atLeastFact: 'swapAgeAtLeast', atLeastMsFact: 'swapAgeAtLeastMs', queryKey: 'swapAgeThresholdMs',
+    axes: ['sim'],
   },
   deviceSwapAge: {
     operator: 'gte', value: 'duration', fact: 'deviceSwapAgeMs',
     atLeastFact: 'deviceSwapAgeAtLeast', atLeastMsFact: 'deviceSwapAgeAtLeastMs', queryKey: 'deviceSwapAgeThresholdMs',
+    axes: ['device'],
   },
-  roamingIn: { operator: 'in', value: 'countries', fact: 'roamingCountry' },
-  presentIn: { operator: 'in', value: 'area', fact: 'presentVerdict', queryKey: 'area' },
+  roamingIn: { operator: 'in', value: 'countries', fact: 'roamingCountry', axes: ['roaming'] },
+  presentIn: { operator: 'in', value: 'area', fact: 'presentVerdict', queryKey: 'area', axes: ['location'] },
   // The ONLY predicate with a fourth field. `claimed` is the attribute value the
   // REQUESTER holds and wants compared — it is an input to the question, not a
   // window, so it cannot ride in `value` (which carries the threshold and is what
@@ -123,9 +132,9 @@ const PREDICATES = Object.freeze({
   // means something and does not.
   numberMatch: {
     operator: 'gte', value: 'matchThreshold', fact: 'nameMatch',
-    claimed: 'name', queryKey: 'claimedName',
+    claimed: 'name', queryKey: 'claimedName', axes: ['kyc'],
   },
-  reachable: { operator: 'eq', value: 'boolean', fact: 'reachable' },
+  reachable: { operator: 'eq', value: 'boolean', fact: 'reachable', axes: ['reachability'] },
 });
 const PREDICATE_KEYS = Object.freeze(['type', 'operator', 'value']);
 // Per-type allowed key set: the base three, plus `claimed` for the one type that
@@ -625,18 +634,43 @@ export function factQuery(predicate) {
   if (typeof p.type !== 'string' || !hasOwn(PREDICATES, p.type)) return Object.freeze({});
   const spec = PREDICATES[p.type];
   const q = {};
+  // Whether THIS predicate's own value validated — the "only emit when ok"
+  // logic the spike flagged as the non-obvious piece. A malformed predicate
+  // (an unparseable duration, an unclaimed name, a bad area, an empty country
+  // set, a non-boolean) must still yield `{}`: it is not a question, so it
+  // gets no axis signal and no adapter read follows from it.
+  let ok = false;
   if (spec.value === 'duration') {
     const ms = durationMs(p.value);
-    if (ms !== null) q[spec.queryKey] = ms;
+    if (ms !== null) { q[spec.queryKey] = ms; ok = true; }
   } else if (spec.value === 'matchThreshold') {
-    if (validName(p.claimed)) q[spec.queryKey] = p.claimed;
+    if (validName(p.claimed)) { q[spec.queryKey] = p.claimed; ok = true; }
   } else if (spec.value === 'area') {
     // The one query value that is not a primitive. It is a FROZEN rebuild in a
     // fixed key order carrying three validated numbers — never the requester's
     // object — so an adapter iterating it cannot run caller code and cannot see a
     // key nobody validated.
     const a = areaOf(p.value);
-    if (a !== null) q[spec.queryKey] = a;
+    if (a !== null) { q[spec.queryKey] = a; ok = true; }
+  } else if (spec.value === 'countries') {
+    ok = countrySet(p.value) !== null;
+  } else if (spec.value === 'boolean') {
+    ok = typeof p.value === 'boolean';
+  }
+  // The axis signal: FLAT top-level boolean keys (`needRoaming`, never an
+  // array or a nested object), so the wire-object-primitives invariant M6's
+  // case 40 pins (`Object.values(q).every(v => v === null || typeof v !==
+  // 'object')`) holds for this shape exactly as it does for the others.
+  // `?? []` is not decoration: this function's contract, stated above, is that
+  // it NEVER throws on any input. A predicate added to `PREDICATES` without an
+  // `axes` field would make this loop throw `TypeError: spec.axes is not
+  // iterable` (verified) — a crash inside the one function whose whole job is
+  // to turn anything unvalidatable into `{}`. An axis-less predicate simply
+  // gets no axis signal, which is the correct fail-closed outcome.
+  if (ok) {
+    for (const axis of spec.axes ?? []) {
+      q[`need${axis.charAt(0).toUpperCase()}${axis.slice(1)}`] = true;
+    }
   }
   return Object.freeze(q);
 }

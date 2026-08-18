@@ -530,8 +530,13 @@ const P90 = { type: 'simSwapAge', operator: 'gte', value: 'P90D' };
 
 // 17 AN UNKNOWN NUMBER IS CLASSIFIED AS ONE, LIVE — `403 FORBIDDEN` here means
 // UNKNOWN NUMBER, and saying so is what stops the next person debugging auth.
+// A reachability question is asked explicitly (via `factQuery`) since that
+// axis is conditional now (2026-08-18, closing the open design item that was
+// still open when this file was last touched) — with no query at all
+// `getFacts` makes zero live calls and this case would never reach the
+// Playground to observe the 403 at all.
 {
-  const r = await athrew(() => facts.getFacts('+990100000077', NOW));
+  const r = await athrew(() => facts.getFacts('+990100000077', NOW, factQuery({ type: 'reachable', operator: 'eq', value: true })));
   threw('17 LIVE unknown number → classified, not read as bad auth', r,
     r.threw && r.msg.includes('unknown number') && r.msg.includes('not bad auth'),
     `msg starts: ${r.threw ? r.msg.slice(0, 48) : r.msg}`);
@@ -564,7 +569,11 @@ const P90 = { type: 'simSwapAge', operator: 'gte', value: 'P90D' };
   // `includes('undefined')`, which would pass this case without ever having a
   // token to look for.
   const tokUsable = typeof tok === 'string' && tok.length > 20;
-  const r = await athrew(() => facts.getFacts('+990100000077', NOW));
+  // The adapter's own call is asked the SAME sim-swap question the raw fetch
+  // above just demonstrated leaking, via `factQuery` (P90) — with no query at
+  // all `getFacts` makes zero live calls now that the SIM axis is conditional,
+  // and this case would never reach the branch its message is about.
+  const r = await athrew(() => facts.getFacts('+990100000077', NOW, factQuery(P90)));
   ok('18 LIVE redaction: raw body carries the client id, the error does not',
     leaks === true && tokUsable && r.threw && !r.msg.includes(clientId) && !r.msg.includes(CRED) && !r.msg.includes(tok),
     `raw body leaks client id=${leaks}, adapter message leaks=${r.threw && clientId !== '' && r.msg.includes(clientId)}`);

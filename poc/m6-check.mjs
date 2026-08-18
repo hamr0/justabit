@@ -1056,9 +1056,14 @@ ok('23 ONE EVALUATION STEP', Object.keys(M5).sort().join(',') === 'createOrangeF
     seen.length === 9 && seen.every(plain),
     { label: `${seen.length} queries handed to the backend, all frozen plain primitives; legal → `
       + `${JSON.stringify(legal)}; hostile → ${JSON.stringify(fromHostile)}`,
+      // CHANGED 2026-08-18 (closing the open design item): `legal[2]` is the
+      // roamingIn query, which now ALSO carries `needRoaming: true` — the axis
+      // signal M5 gates its roaming read on, the same way it already gates the
+      // SIM/device reads on their threshold keys. `plain()` above is unchanged;
+      // only this incidental key-count expectation moves from 0 to 1.
       ok: legal[0].swapAgeThresholdMs === 90 * DAY_MS
         && legal[1].deviceSwapAgeThresholdMs === 90 * DAY_MS
-        && Object.keys(legal[2]).length === 0
+        && Object.keys(legal[2]).length === 1 && legal[2].needRoaming === true
         && fromHostile.length === 6 && fromHostile.every((q) => Object.keys(q).length === 0)
         && menudReached === 0 });
 }
