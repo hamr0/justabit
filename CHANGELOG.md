@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (0.4.0 — M6)
+## 0.4.0 — 2026-08-18 — M6
 
 - **User ran the full validation suite at code commit `4446517` / docs
   commit `c921508` (log timestamped 2026-08-18 08:16): every suite clean,
