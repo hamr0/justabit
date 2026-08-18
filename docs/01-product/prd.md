@@ -489,6 +489,47 @@ scripting). So:
    operator-side predicate computation and signing; consent/legal-basis legs
    are out of scope.
 
+### 4.6 Known limits of the PoC (accepted, parked)
+
+Standing home for the PoC's honest limits — so a reader does not have to dig
+through the append-only Decisions log (§9) to find what is still weak. These
+are **accepted limits, parked by user decision (2026-08-18)**, not open
+defects: "for the sake of demoing I think they can be parked, we are not
+seeking perfection but valid and solid code/prototype." The PoC's job is to
+make the proposal text undeniable, not to be production-hardened. Per this
+repo's stated discipline (CLAUDE.md, "Honest limits stay in the text"),
+neither item below is softened.
+
+1. **The raw-value leak scan cannot test very short values.**
+   `poc/demo.mjs`'s raw-value leak scan drops needles shorter than
+   `PLAIN_MIN_NEEDLE = 2` — a value whose every spelling is under 2
+   characters cannot be leak-tested by this scan at all. Accepted because the
+   alternative is worse: `DEVICE_FLIPPED_DAYS_AGO = 4` produces the bare
+   needle `"4"`, which matches ordinary digit content (epoch timestamps, byte
+   counts, billing counters) in nearly every frame — a needle that reds a
+   clean run asserts nothing, the same reasoning already applied at
+   `OPAQUE_MIN_NEEDLE = 8`. Still covered: that value's LONG spellings
+   (`345600000`, its ISO instant, `2026-08-13`) remain in the leak inventory
+   and are scanned, so the value itself is not unguarded — only its
+   1-character spelling is. **What would make it bite:** a future secret
+   whose ONLY meaningful spelling is a single character; that value would be
+   structurally unreachable by this scan and would need a dedicated check.
+   First recorded 2026-08-18 (§9, `d85d3cf`-tree entry).
+
+2. **`m5-check.mjs` case 67 proves itself by crashing, not by asserting.**
+   The case pins that the axis-signal gate requires strictly `=== true`, not
+   merely truthy. Under mutation (relaxing the gate to `hasOwn(q, key)`
+   alone) the case does go RED with a non-zero exit — but via an UNCAUGHT
+   `location-verification` 404 escaping to the wire, not via its own
+   assertion evaluating false. The failure IS detected, and fail-loud on an
+   unexpected live call is itself correct defence-in-depth, but the case's
+   designed proof path (its own assertion firing) has never been observed
+   exercised. **What would make it bite:** if that stray call ever returned
+   success instead of a 404, the crash would not happen, and detection would
+   rest entirely on the case's own assertion — which would then need to have
+   actually been proven to fire. First recorded 2026-08-18 (§9, the
+   `/code-review medium --fix` round entry that introduced case 67).
+
 ## 5. No-go list
 
 Explicit and binding. "Useful" is not a defense for any of these.
