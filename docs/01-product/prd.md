@@ -585,7 +585,41 @@ we manage here:
 
 Dated, append-only. Rationale in one line; details in the stash/history.
 
-- **2026-08-18 (latest) — `/code-review medium --fix` round + `/security`
+- **2026-08-18 (latest) — second `/code-review medium --fix` round:
+  cross-requester sealing fixed (m6 45 → 46), spec closure — G1 and G2
+  remain PENDING, now at `4446517`.** The round-1 tree (`c15fcc0`) had the
+  operator sealing every signed refusal AND every answer to a hardcoded
+  `keys.rpEnc.publicKey` instead of the envelope key of the issuer step 3/4
+  had just authenticated — the directory already carried `encPub` for
+  exactly this and nothing read it. With a second directory-listed
+  requester, that requester's query passes signature verification and the
+  operator encrypts the answer under the FIRST requester's key: cross-requester
+  disclosure between two authenticated principals, invisible with one RP in
+  the world. Fixed by resolving `entry.encPub` at step 3 and threading it as
+  `recipientEnc` through every seal call site; an issuer with no `encPub`
+  now reports `unknown issuer`. Also closed `spec/carrier-attestation.yaml`'s
+  `Predicate` schema to `additionalProperties: false`, matching what
+  `evaluatePredicate` already enforces in code. New case m6 46 CROSS-REQUESTER
+  SEALING (`twoRpWorld()`, both directions/both reply kinds) is
+  mutation-proven — reverting the fix alone gives 45/46, exit 1 — and is the
+  THIRD fix in this project's history to ship with no net until its own
+  case existed. **One item surfaced and deliberately NOT built this round:**
+  `m5-facts-orange.mjs`'s `roaming`/`reachability` reads are still
+  unconditional on every `getFacts` call (same class as the SIM/device axes
+  round 1 already conditioned), which needs a `factQuery`-carrying signal
+  for predicates with no query value — **OPEN DESIGN ITEM, awaiting the
+  user's decision**, not a defect. Two further items recorded as stated
+  limits (the `r6b` scan frame structurally cannot red against `NEEDLES`;
+  the pre-seal size guard uses the module `OAEP_CAPACITY` constant rather
+  than a key-derived capacity, an M2-owned fix). `/security` re-run: clean,
+  did NOT catch the sealing defect — not proof. Verified green by exit
+  code: m1 20/20, m2 10/10, m3 26/26, m4 40/40, m5 60/60, **m6 46/46**,
+  demo(mock) 33/33. **Consequence: this round changed `poc/demo.mjs` again
+  — one of the two files the last user validation (`3276ed0`) covered — so
+  G1 and G2 remain PENDING**, and the tree has now moved three times since
+  that validation (`9b04854`, `c15fcc0`, `4446517`). Full record:
+  `findings.md`, 2026-08-18 (latest); commit `4446517`.
+- **2026-08-18 — `/code-review medium --fix` round + `/security`
   (6 fixes, 1 user-approved behaviour change): m3 25 → 26, m5 58 → 60; G1 AND
   G2 BOTH RE-OPENED (PENDING) at `9b04854`.** Reviewed the six live-touching
   files (`poc/demo.mjs`, `poc/m3-check.mjs`, `poc/m3-floor.mjs`,

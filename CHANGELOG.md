@@ -2,6 +2,58 @@
 
 ## Unreleased (0.4.0 — M6)
 
+- **Second `/code-review medium --fix` round: cross-requester sealing fixed
+  (m6 45 → 46), spec closure — G1 AND G2 STILL PENDING, now at `4446517`.**
+  Reviewed the round-1 tree (`c15fcc0`) and found the operator sealed EVERY
+  signed refusal AND every answer to a hardcoded `keys.rpEnc.publicKey`
+  instead of the envelope key of the issuer step 3/4 had just authenticated
+  — the trust directory already carried `encPub` for exactly this and
+  nothing read it. Concrete failure: with a second directory-listed
+  requester B, B's query passes signature verification and the operator
+  encrypts the answer under requester A's key — A can decrypt an answer to
+  a query it never made, and B cannot read its own. Cross-requester
+  disclosure between two authenticated principals, invisible in the demo
+  only because it has ever had one RP. **Fixed:** `createOperator` now
+  resolves `entry.encPub` off the directory at step 3 and threads it as
+  `recipientEnc` through every `signedReject`/answer call site; a directory
+  entry with no `encPub` reports `unknown issuer`. **Also fixed:**
+  `spec/carrier-attestation.yaml`'s `Predicate` schema was the one shape
+  still missing `additionalProperties: false`, while `evaluatePredicate`
+  genuinely enforces a closed predicate field set in code — the sketch left
+  open the exact door the code closes.
+  - **New case, mutation-proven: m6 case 46 CROSS-REQUESTER SEALING (m6
+    45 → 46).** A `twoRpWorld()` helper mints a second requester B sharing
+    A's operator; the case asserts both directions and both reply kinds — B
+    opens its own answer and its own signed refusal, A opens neither
+    (`reason='undecryptable'`). Reverting the fix alone (keeping the case)
+    gives `RESULT: 45/46`, exit 1, `answer-for-A=opened,
+    refusal-for-A=opened`; cases 1–45 unaffected. The fix shipped with NO
+    net to catch it until this case — every existing suite scored
+    identically with the fix present or reverted, since a single-RP world
+    structurally cannot exercise it. Third fix in this project's history to
+    ship with no net at the time it landed (after m3-floor's hostile-key
+    bound and m5's `getFacts` re-validation) — a finding about the suite,
+    not only the code.
+  - **Skipped, recorded not dropped:** (1) `m5-facts-orange.mjs`'s
+    `roaming`/`reachability` reads are still unconditional on every
+    `getFacts` — same class as the SIM/device axes just fixed in round 1,
+    needs a `factQuery`-carrying signal design change, recorded as an OPEN
+    item for the user. (2) `demo.mjs`'s `r6b` scan frame structurally
+    cannot red against `NEEDLES` (3-digit-instant collision avoidance is
+    the measured reason), a stated limit. (3) the pre-seal answer-size
+    guard compares against the module constant `OAEP_CAPACITY` rather than
+    a capacity derived from the actual recipient key — correct today
+    (fixed RSA-4096), more reachable now the recipient key comes from the
+    directory; needs an M2-owned capacity helper, a stated limit.
+  - `/security` ran on this code earlier in the session and returned
+    clean; it did NOT catch the cross-requester sealing defect. A clean
+    security pass is not proof.
+  - Verified green independently by exit code: m1 20/20, m2 10/10, m3
+    26/26, m4 40/40, m5 60/60, **m6 46/46**, demo(mock) 33/33. **G1 and G2
+    remain PENDING** — this round changed `poc/demo.mjs` again, one of the
+    exact files the last user validation (`3276ed0`) covered; no user
+    record transfers forward across a tree change. See
+    `docs/01-product/findings.md`, 2026-08-18 (latest).
 - **`/code-review medium --fix` round + `/security`: 6 fixes, 1
   user-approved behaviour change, m3 25 → 26, m5 58 → 60 — G1 AND G2 BOTH
   RE-OPENED (PENDING) at `9b04854`.** Reviewed the six live-touching files

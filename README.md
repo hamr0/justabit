@@ -164,17 +164,19 @@ Network APIs Playground with a free Orange developer account. Each module also h
 check, negatives first, exit code 0 only if every case holds: `m1-check.mjs` (20 cases),
 `m2-check.mjs` (10), `m3-check.mjs` (26), `m4-check.mjs` (40), `m5-check.mjs` (60, an
 offline replay of live-captured responses; `m5-check-live.mjs` re-proves 19 cases against
-the real Playground) and `m6-check.mjs` (45, offline in both backend modes).
-**Every count above, and the demo's own mock/live runs, is AGENT-RUN only as of the
-2026-08-18 `/code-review` round (commit `9b04854`).** The maintainer's most recent
-validated tree was `3276ed0` — where `m2-check.mjs` (10/10), `demo.mjs --backend orange`
-(33/33) and `m5-check-live.mjs` (19/19) were all maintainer-confirmed, meeting gates G1's
-M2 leg and G2 in full — but that round's own `/code-review` pass changed `poc/demo.mjs`
-and `poc/m5-facts-orange.mjs` (also moving M3 25 → 26 and M5's offline count 58 → 60), so
-by this repo's own rule none of those records transfer forward: **both G1 (M1–M4 + M6 all
-user-validated) and G2 (M5 user-validated live) are PENDING again**, including for the
-modules whose counts did not move. See `docs/01-product/findings.md`, 2026-08-18 (latest),
-for the exact re-run commands and reasoning.
+the real Playground) and `m6-check.mjs` (46, offline in both backend modes).
+**Every count above, and the demo's own mock/live runs, is AGENT-RUN only as of a
+second 2026-08-18 `/code-review` round (commit `4446517`).** The maintainer's most
+recent validated tree was `3276ed0` — where `m2-check.mjs` (10/10), `demo.mjs
+--backend orange` (33/33) and `m5-check-live.mjs` (19/19) were all
+maintainer-confirmed, meeting gates G1's M2 leg and G2 in full — but two
+`/code-review` rounds since then changed `poc/demo.mjs` and
+`poc/m5-facts-orange.mjs` (moving M3 25 → 26, M5's offline count 58 → 60, and
+now M6 45 → 46), so by this repo's own rule none of those records transfer
+forward: **both G1 (M1–M4 + M6 all user-validated) and G2 (M5 user-validated
+live) are PENDING again**, including for the modules whose counts did not
+move. See `docs/01-product/findings.md`, 2026-08-18 (latest), for the exact
+re-run commands and reasoning.
 Requirements live in the [PRD §4](docs/01-product/prd.md); status, setup and caveats in
 [`poc/README.md`](poc/README.md).
 

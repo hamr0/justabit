@@ -62,8 +62,11 @@ ORANGE_BASIC_AUTH="$(pass camara/orange_network | head -1)" node poc/m5-check-li
                         # docs/01-product/findings.md, 2026-08-18. That record does
                         # NOT transfer forward: the 2026-08-18 code-review round
                         # changed poc/m5-facts-orange.mjs (this file's own adapter)
-                        # after `3276ed0`, so G2 is RE-OPENED (PENDING) again at
-                        # `9b04854` — see findings.md, 2026-08-18 (latest).
+                        # after `3276ed0`, so G2 is RE-OPENED (PENDING); a second
+                        # code-review round then changed poc/demo.mjs again (the
+                        # OTHER file G2's own definition covers), so PENDING carries
+                        # forward through `9b04854` to `4446517` — see findings.md,
+                        # 2026-08-18 (latest).
                         # exit 2 + printed prerequisites if the credential is absent —
                         # never a silent pass, never a mock fallback.
                         # COSTS QUOTA: consumes and returns one of the app's 10 custom
@@ -71,8 +74,10 @@ ORANGE_BASIC_AUTH="$(pass camara/orange_network | head -1)" node poc/m5-check-li
                         # interrupted run does not leak one), prints the count at both
                         # ends, and case 19 asserts it came back.
 
-node poc/m6-check.mjs   # M6 integration — 45 cases (AGENT-RUN 45/45, user run
-                        #   PENDING). Zero credentials, zero network in BOTH
+node poc/m6-check.mjs   # M6 integration — 46 cases (AGENT-RUN 46/46, user run
+                        #   PENDING — case 46 CROSS-REQUESTER SEALING added
+                        #   2026-08-18, second code-review round, 45 -> 46).
+                        #   Zero credentials, zero network in BOTH
                         #   backend modes: the `--backend orange` seam runs
                         #   through an injected transport replaying captured
                         #   Playground bytes, exactly like m5-check. It also runs
@@ -156,7 +161,7 @@ re-establishing G2 at that state. A post-gate code review round (2026-08-17)
 then fixed three more adapter defects and three live-check faults (counts
 unchanged), so **the user re-ran once more at `8e842c3` — the shipped v0.3.0
 state — and reported both clean. Nothing is pending.** Each
-check declares its case count (`conclude(20|10|26|40|60|19|45)`) so a suite that
+check declares its case count (`conclude(20|10|26|40|60|19|46)`) so a suite that
 silently loses cases exits 1 with
 `FAIL CASE COUNT` instead of printing a smaller green tally — mutation-proven
 per module.

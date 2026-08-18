@@ -7,7 +7,127 @@ memory. A finding here is something that was RUN and OBSERVED, not reasoned.
 
 ---
 
-## 2026-08-18 (latest) — `/code-review medium --fix` round + `/security`: 6 fixes, 1 user-approved behaviour change, m3 25→26, m5 58→60 — G1 AND G2 BOTH RE-OPENED (PENDING) at `9b04854`
+## 2026-08-18 (latest) — Second `/code-review medium --fix` round: cross-requester sealing fixed, m6 45→46 — G1 AND G2 STILL PENDING, now at `4446517`
+
+A second code-review round on the round-1 tree (`c15fcc0`) found the
+operator sealing EVERY signed refusal AND every answer to a hardcoded
+`keys.rpEnc.publicKey`, instead of the envelope key of the issuer that step
+3/4 had just authenticated. The trust directory already carried `encPub`
+for exactly this purpose and nothing in the repo read it (`grep encPub`
+returned 2 hits before this fix, both writes).
+
+**Concrete failure this closes:** with a second directory-listed requester
+`rp:demo-agent-02`, B's query passes the operator's own signature check at
+step 4, and the operator encrypts the answer under requester A's key
+instead — A can decrypt an answer to a query it never made, and B cannot
+read its own. Cross-requester disclosure between two fully authenticated
+principals. This was invisible in every prior run of this demo purely
+because it has only ever had one RP: the hardcoded key and the correct key
+were byte-identical with one requester in the world.
+
+**Fix (`poc/demo.mjs`, `createOperator`):** step 3 now resolves
+`entry.encPub` off the directory entry for the authenticated issuer and
+rejects an issuer with no `encPub` as `unknown issuer` (it cannot be sealed
+to, so it is unusable as a correspondent the same way an unlisted issuer
+is). The resolved `recipientEnc` is threaded as a new parameter through
+`signedReject` and both `seal()` call sites (refusal path and answer path)
+— every branch that used to reach `keys.rpEnc.publicKey` directly now reads
+the authenticated issuer's own key instead.
+
+**Also fixed (`spec/carrier-attestation.yaml`):** the `Predicate` schema
+was the one shape in the sketch still missing `additionalProperties:
+false`, while `AttestRequest`, `Floor` and the area object all already
+have it, and `evaluatePredicate` genuinely enforces a closed predicate
+field set in code (`poc/m4-facts-mock.mjs`, `unexpected predicate fields:
+…`). The sketch left open the exact door the code closes.
+
+**New case, mutation-proven: `m6-check.mjs` case 46 CROSS-REQUESTER
+SEALING (m6 45 → 46).** `createWorld` only ever mints one RP, so no
+existing case could see this defect. A new `twoRpWorld()` helper mints a
+second requester B sharing A's operator key pair, with its own
+`rpSig`/`rpEnc`/`rpIss`, both A and B listed in the same directory. The
+case asserts BOTH directions and BOTH reply kinds, because asserting only
+"B can read it" would still pass a fix that seals to a key both A and B
+happen to hold: B asks a question that is answered, and opens that answer
+with its own key; B asks a question that is refused (below the published
+floor — the original defect covered `signedReject` too, not only
+answers), and opens that signed refusal with its own key; A attempts to
+open both replies with A's own key and gets `reason='undecryptable'` on
+both.
+
+Reverting the sealing fix alone, with the new case left in place, was run
+and observed directly:
+
+```
+FAIL 46 CROSS-REQUESTER SEALING: … answer-for-A=opened, refusal-for-A=opened
+RESULT: 45/46
+EXIT:1
+```
+
+Cases 1–45 are unaffected by the revert, isolating case 46 to exactly this
+defect. **The fix shipped with NO test able to catch it until this case
+existed** — every one of the six existing suites (m1–m6, demo mock) scored
+identically with the fix present or reverted, because a single-RP world
+structurally cannot exercise cross-requester sealing. This is the THIRD fix
+in this project's history to land with no net at the time it shipped
+(after m3-floor's hostile-key bound, closed by m3 case 26, and m5's
+`getFacts` re-validation, closed by m5 case 60) — recorded here as a
+finding about the suite's own blind spots, not only about the code.
+
+**Skipped, recorded rather than dropped:**
+
+1. `poc/m5-facts-orange.mjs` — `roaming` and `reachability` are STILL read
+   unconditionally on every `getFacts` call, so a `numberMatch` or
+   `presentIn` query still makes two extra billed live calls about the
+   subscriber nobody asked about. Not a regression (both were always
+   unconditional), but the same class the SIM/device swap axes were just
+   fixed for in round 1, and it works against the proposal's own argument
+   that an operator should not hold facts nobody asked for. Conditioning
+   them needs a new `factQuery` signal for predicates carrying no query
+   value — a design change, recorded as an OPEN item in `prd.md` §9 for
+   the user to decide, not as a defect.
+2. `poc/demo.mjs`'s `setFrames` array includes `r6b`, produced after the
+   story is re-scripted to `DEVICE_FLIPPED_DAYS_AGO = 4`, but scanned
+   against `NEEDLES`, which spells the 211-day instant — so that frame's
+   device-axis scan structurally cannot red. Not fixable the obvious way:
+   single-digit spellings would collide with `exp` on every clean run,
+   which is the measured reason 3-digit counts were chosen in the first
+   place. Recorded as an honest stated limit.
+3. `poc/demo.mjs`'s pre-seal answer-size guard (~line 573) compares
+   against the module constant `OAEP_CAPACITY` (446, the RSA-4096 value)
+   while `seal()` itself derives capacity from the actual recipient key.
+   Correct today because `generateEnvelopeKeys()` is fixed at 4096, but
+   more reachable now that the recipient key comes from the directory
+   rather than a single fixed pair. Fixing it properly needs a capacity
+   helper exported from M2 — M2's call, not this round's. Recorded as a
+   stated limit.
+
+Also worth recording honestly: `/security` ran on this exact code earlier
+in the session and returned clean — it did NOT catch the cross-requester
+sealing defect. A clean security pass is not proof.
+
+**Verified green independently by exit code** on the fixed tree: m1
+20/20, m2 10/10, m3 26/26, m4 40/40, m5 60/60, **m6 46/46**, demo(mock)
+33/33.
+
+**Consequence for both gates — do not round this up.** This round changed
+`poc/demo.mjs` again — one of the exact two files the last user
+validation (tip `3276ed0`) was run against. Per this repo's own rule, a
+user record covers only the tree it was run on, and the tree has now
+moved THREE times since (`9b04854`, `c15fcc0`, and now `4446517`):
+
+- **G1 (M1–M4 + M6 all user-validated) remains PENDING.** It was already
+  PENDING before this round.
+- **G2 (M5 user-validated live) remains PENDING.** `poc/m5-facts-orange.mjs`
+  was not touched this round, but `poc/demo.mjs` was, and G2's own
+  definition includes `node poc/demo.mjs --backend orange`.
+- m6's count moved again this round (45 → 46, on top of round 1's m3/m5
+  moves) — no maintainer record exists for 46 at any tip.
+
+See `CHANGELOG.md` (Unreleased) for the same round in changelog form, and
+commit `4446517` for the full diff-level record.
+
+## 2026-08-18 — `/code-review medium --fix` round + `/security`: 6 fixes, 1 user-approved behaviour change, m3 25→26, m5 58→60 — G1 AND G2 BOTH RE-OPENED (PENDING) at `9b04854`
 
 A code-review round on the six live-touching files (`poc/demo.mjs`,
 `poc/m3-check.mjs`, `poc/m3-floor.mjs`, `poc/m5-check.mjs`,
