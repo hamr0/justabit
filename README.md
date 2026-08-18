@@ -165,11 +165,20 @@ check, negatives first, exit code 0 only if every case holds: `m1-check.mjs` (20
 `m2-check.mjs` (10), `m3-check.mjs` (25), `m4-check.mjs` (40), `m5-check.mjs` (58, an
 offline replay of live-captured responses; `m5-check-live.mjs` re-proves 19 cases against
 the real Playground) and `m6-check.mjs` (45, offline in both backend modes).
-M2 is validated by a run on the maintainer's own machine at the count above. **M1, M3, M4,
-M5 and M6 are not**: the maintainer's runs cover M1 at 19, M3 at 22, M4 at 33 and M5 at
-48+11, and the 2026-08-17 rounds took M1 to 20 and M3 to 25, built M6, and then widened the
-wired predicate set — so those counts are agent-run, and that is marked pending rather than
-rounded up.
+M2 is validated by a run on the maintainer's own machine at the count above (10/10).
+**M1, M3 and M4 are not, at their current counts**: the maintainer's runs cover M1 at 19,
+M3 at 22 and M4 at **33** — all OLDER than the counts above (20, 25 and 40). The 2026-08-17
+rounds moved M1 to 20 and M3 to 25, and the 3 → 6 predicate round moved M4 33 → 40; none of
+the three has been re-run by the maintainer at its new count, so all three stay agent-run at
+the counts above and are marked pending rather than rounded up. `m5-check.mjs`'s offline
+count (58) is likewise agent-run — the maintainer's last offline M5 run was at 48. **What
+the maintainer HAS validated live, as of a 2026-08-18 run at the current tip:**
+`node poc/demo.mjs --backend orange` reported 33/33 — the maintainer's SECOND live run of
+the demo and its first clean one (the first, on 2026-08-17, scored 32/33 and is what
+surfaced the vacuous leaky-operator control fixed at this tip) — and `node
+poc/m5-check-live.mjs` reported 19/19 against the real Playground, both at their current
+counts. `m6-check.mjs`'s own offline count (45) is separate from the demo and stays
+agent-run.
 Requirements live in the [PRD §4](docs/01-product/prd.md); status, setup and caveats in
 [`poc/README.md`](poc/README.md).
 

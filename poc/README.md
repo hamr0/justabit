@@ -7,11 +7,13 @@ per-module user validation; see PRD §4.4 and the decision log) and the ladder
 since then has held: each module is POC'd against its toughest assumption,
 built, proven end-to-end on its own, and **validated by the user before the
 next module starts**. M1–M5 were user-validated at the trees noted below;
-**M6 is AGENT-RUN only, and every module the 3 -> 6 predicate round and the
-2026-08-17 live-run fixes touched is AGENT-RUN again with a user re-run
-PENDING** — so gate G1 (M1–M4 + M6 all user-validated) is NOT met, and neither
-is G2. Every check runs on its own (negatives first, exit 0 only if
-every case holds):
+**M6 is AGENT-RUN only, and M1/M3/M4's offline suites (widened by the 3 -> 6
+predicate round and the M6 round) are AGENT-RUN again with a user re-run
+PENDING** — so gate G1 (M1–M4 + M6 all user-validated) is NOT met. **Gate G2
+(M5 user-validated live) IS MET at the current tip `3276ed0`** — the user
+re-ran `m5-check-live.mjs` live against the real Playground there, 19/19; see
+below and `docs/01-product/findings.md`, 2026-08-18. Every check runs on its
+own (negatives first, exit 0 only if every case holds):
 
 ```
 node poc/m1-check.mjs   # M1 attestation core — 20 cases (user-validated 19/19 at the
@@ -46,8 +48,12 @@ ORANGE_BASIC_AUTH="$(pass camara/orange_network | head -1)" node poc/m5-check-li
                         # (11 -> 19, all six predicates on the live path, plus an
                         # OFFLINE case 1 pinning the story against the adapter's
                         # closed field set). AGENT-RUN 19/19 through an
-                        # injected-transport REPLAY only — never against Orange.
-                        # G2 is PENDING the user's re-run.)
+                        # injected-transport REPLAY only, at the time of that rewrite.
+                        # SINCE LIVE-CONFIRMED: the user re-ran this file live against
+                        # the real Playground at the current tip `3276ed0` and got
+                        # 19/19 (quota clean, start=1 end=1 of 10) — see
+                        # docs/01-product/findings.md, 2026-08-18. G2 IS MET at
+                        # `3276ed0`; nothing here is pending.
                         # exit 2 + printed prerequisites if the credential is absent —
                         # never a silent pass, never a mock fallback.
                         # COSTS QUOTA: consumes and returns one of the app's 10 custom
@@ -110,9 +116,13 @@ defect: it asked a `P90D` question, which runs `/check` on orange and never
 holds a raw date to leak, so the control's asserted condition was false. Fixed
 in `poc/demo.mjs` (dedicated `LEAK_PREDICATE` at `P365D`, which forces
 `/retrieve-date`) and mutation-proven offline via an injected-transport
-replay — see `docs/01-product/findings.md`, 2026-08-17. The fix is
-**AGENT-RUN; a live 33/33 re-run is PENDING** — `poc/m6-check.mjs` proves the
-seam offline, it cannot prove the Playground still answers today.
+replay — see `docs/01-product/findings.md`, 2026-08-17. **The fix is now
+LIVE-CONFIRMED: the user re-ran `node poc/demo.mjs --backend orange` at tip
+`3276ed0` and reported `RESULT: 33/33`** — the vacuous control now reds the
+leak for real on the live backend. Nothing about the demo's own live run is
+PENDING any more; see `docs/01-product/findings.md`, 2026-08-18 (latest),
+which also records the same-tip user live 19/19 of `m5-check-live.mjs` that
+re-establishes gate G2.
 
 The **M6 round (2026-08-17)** then changed two of those modules, so two counts
 moved: M1 gained case 20 (its duplicate-key scanner is now EXPORTED, so a signed
@@ -150,11 +160,15 @@ cases; the three added cases pin exactly those guards, and the user run above
 covers them. Nothing is pending.
 
 **M5 was user-validated LIVE at `8e842c3`, the shipped v0.3.0 state — that IS
-gate G2, and it WAS met at that tree. It is NOT met at this one.** The 3 → 6
-predicate round changed the module, and the user's live run of that round found
-the Admin `location` write shape was wrong (`400 "data.location.lastLocationTime
-is required"`); the fix landed after the run, so **G2 is PENDING a re-run** and
-`8e842c3`'s record is not transferred forward. That run also exposed a
+gate G2, and it WAS met at that tree.** The 3 → 6 predicate round then changed
+the module, and the user's live run of that round found the Admin `location`
+write shape was wrong (`400 "data.location.lastLocationTime is required"`); the
+fix landed after the run, so `8e842c3`'s record did not transfer forward and G2
+went PENDING a re-run. **That re-run has since happened: the user ran
+`m5-check-live.mjs` live against the real Playground at the current tip
+`3276ed0` and got 19/19 (quota clean) — G2 IS MET again, at `3276ed0`, and
+nothing about it is pending.** See `docs/01-product/findings.md`, 2026-08-18.
+That earlier run also exposed a
 **grounding failure**: `m5-check-live.mjs` was the ONE file the 3 → 6 round never
 updated (`git log 8238d02..81f8da4` on it is empty), so all eight of its
 `setBackstory` calls still passed the old three-field story and the gate died on

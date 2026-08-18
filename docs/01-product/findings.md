@@ -7,7 +7,55 @@ memory. A finding here is something that was RUN and OBSERVED, not reasoned.
 
 ---
 
-## 2026-08-17 (latest) — a LIVE Orange run at 32/33 caught a vacuous negative control, fixed, and an accidental argument FOR `/check`
+## 2026-08-18 (latest) — LIVE-CONFIRMED at `3276ed0`: `demo.mjs --backend orange` 33/33 AND `m5-check-live.mjs` 19/19 — gate G2's M5 leg is USER-VALIDATED again
+
+The user ran, on their own machine, live against the Orange Playground, at
+tip `3276ed0`:
+
+```
+node poc/demo.mjs --backend orange
+RESULT: 33/33
+```
+
+This confirms the fix in the entry directly below: the vacuous leaky-operator
+control now reds the leak for real on the live backend, not just in the
+offline mutation-proof.
+
+A second live run, timestamped `2026-08-18T00:00:56.098Z` (POSTDATES
+`19b2644`, which last touched `poc/m5-check-live.mjs` and
+`poc/m5-facts-orange.mjs`):
+
+```
+ORANGE_BASIC_AUTH=... node poc/m5-check-live.mjs
+RESULT: 19/19
+```
+
+All 19 passed, including the quota check (start=1, end=1 of 10, cleanup
+DELETE status=204). Because this run postdates `19b2644`, it settles the
+question the entry below left open: **gate G2's M5 leg is USER-VALIDATED at
+`3276ed0`**, not merely at some earlier, possibly-stale tree. Both counts
+above are USER-RUN, not agent-run.
+
+Worth noting on its own — live corroboration, not a new finding — is case 6
+of that run, verbatim:
+
+```
+PASS 6 LIVE SURFACE CHOICE: /check under the cap, /retrieve-date above it: expected OK, got OK — reason expected 'ok', got 'ok' (match=true); P90D → check maxAge=2160h → true; P365D → retrieve-date maxAge=null → false=true
+```
+
+This is exactly the cap boundary the `LEAK_PREDICATE` fix below depends on
+(P90D routes to `/check`, which holds no raw date to leak; P365D routes to
+`/retrieve-date`, which does), now measured live on the wire rather than
+inferred from `m5-facts-orange.mjs`'s recorded cap.
+
+Also this session, the offline suites were re-run at the same tip by exit
+code (AGENT-RUN, not user-run, unchanged counts): `m1` 20/20, `m2` 10/10,
+`m3` 25/25, `m4` 40/40, `m5` 58/58, `m6` 45/45, `demo --backend mock` 33/33 —
+all exit 0.
+
+---
+
+## 2026-08-17 — a LIVE Orange run at 32/33 caught a vacuous negative control, fixed, and an accidental argument FOR `/check`
 
 The user ran `node poc/demo.mjs --backend orange` live against the Orange
 Playground: 32/33. Everything held except one negative control:
@@ -20,6 +68,8 @@ negative flip → FAIL: a leaky operator reds the SAME scanner, and M1 rejects t
 `m5-check-live.mjs` passed 19/19 live in the same session, and every offline
 suite was green (m1 20, m2 10, m3 25, m4 40, m5 58, m6 45, demo 33/33 on mock)
 — so this was not a regression in the profile core, it was the control itself.
+(The question of whether this particular 19/19 run carried forward to the
+current tip was open as of this entry; it is settled by the entry above.)
 
 ### The mechanism
 

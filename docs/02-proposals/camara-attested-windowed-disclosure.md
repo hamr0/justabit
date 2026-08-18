@@ -349,7 +349,11 @@ Two limits and one deferral on that, stated rather than glossed:
   still catches it, but on `/check` there is a SECOND, structural reason it
   cannot happen: the value is absent, not merely rejected. `/retrieve-date`
   (`P180D`/`P365D`) has no such structural floor and relies on the closed claim
-  set alone. See `docs/01-product/findings.md`, 2026-08-17, for the mechanism.
+  set alone. **Corroborated live, 2026-08-18** (user run at tip `3276ed0`,
+  `node poc/m5-check-live.mjs` 19/19): the cap boundary is confirmed on the
+  wire itself — `P90D` routes through `check maxAge=2160h` → `true`, `P365D`
+  routes through `retrieve-date` (no `maxAge`) → `false`. See
+  `docs/01-product/findings.md`, 2026-08-17/18, for the full mechanism.
 
   `presentIn` and `numberMatch` follow in the same round.
 

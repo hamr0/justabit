@@ -381,13 +381,33 @@ normative surface enumerates predicate types, so nothing else moved).
 counts on the shipped tree. **M1, M3 and M6 do**: the 2026-08-17 rounds moved
 M1 to 20 and M3 to 24 and built M6, and none of those counts has been run by the
 user yet. (Amended 2026-08-17 — this line said "all five are user-validated" and
-had not been re-read against the rounds that landed after it.) M5's asterisk was raised twice and
+had not been re-read against the rounds that landed after it.) **Amended again,
+2026-08-18: M4 no longer belongs in the no-asterisk group either.** The 3 → 6
+predicate round (same day, landing after this line was written) moved
+`m4-check.mjs` 33 → 40 without a user re-run — the maintainer's last M4 run
+was still at 33 — so M4 carries an asterisk too, same as M1 and M3. (M3's own
+count also moved again the same round, 24 → 25, per the `presentIn` entry
+below; still no user re-run at either count.) M5's asterisk was raised twice and
 retired twice by runs, not by argument: G2 was met at `69b6f2e`, re-opened by
 the release-gate fixes and re-established at `4ac60e9`, re-opened again by the
 2026-08-17 post-gate review round (all three M5 files touched) and re-closed at
 `8e842c3`. Keeping the asterisk visible until a run retires it is deliberate —
 the alternative is to ship fixes unmentioned and let an earlier G2 record
 appear to cover code it never saw.
+
+**M5's asterisk was raised a third time and retired a third time, same rule
+(2026-08-18).** The 3 → 6 predicate round moved `m5-check-live.mjs` 11 → 19
+cases without a user re-run at the time (recorded PENDING in the decisions
+log below); the user then ran it live at tip `3276ed0` and reported 19/19,
+retiring it again. The same live session also produced **M6's first CLEAN
+user run of `poc/demo.mjs` itself**, `--backend orange` → 33/33 — but not its
+first user run: the user had already run it live on 2026-08-17 and scored
+**32/33**, and that run is what surfaced the vacuous leaky-operator control
+(the fix this whole entry is about). M6's asterisk stayed up through that
+first, failing run and is retired only now, by the second, clean one.
+`m6-check.mjs`'s own offline count (45) and M1's (20) and M3's (25) are
+unaffected by either run and stay asterisked. Full detail in the 2026-08-18
+decisions-log entry.
 
 (For the record, an earlier version of this note said the `/code-review` round
 "changed exactly four files … verified by `git diff --stat`". `git show --stat
@@ -565,7 +585,42 @@ we manage here:
 
 Dated, append-only. Rationale in one line; details in the stash/history.
 
-- **2026-08-17 (latest) — a throwaway LIVE convergence probe (user-run,
+- **2026-08-18 (latest) — a LIVE Orange run at 32/33 caught a vacuous
+  negative control; fixed, and then RE-RUN LIVE at 33/33 (USER-RUN, tip
+  `3276ed0`).** Assertion 1's leaky-operator control reused the section's
+  shared `simSwapAge ≥ P90D` predicate. P90D is 2160 hours, under M5's
+  measured 2400-hour `/check` cap, so on the orange backend that question
+  answers via `/check` — a surface that never reads or holds a raw date at
+  all. `facts.swapAgeMs` was `undefined` on that path, so the control's
+  asserted condition ("a leaky operator reds the scanner") was structurally
+  false, not merely unmet: there was no raw age operator-side to leak. The
+  harness did the right thing — it failed loudly (`hits=[]`, `verdict='ok'`)
+  instead of passing vacuously. **Fix:** the leaky-operator control now asks
+  a dedicated `LEAK_PREDICATE` at `P365D` (8760h, above the cap), which
+  forces `/retrieve-date` on both backends, where a real raw date genuinely
+  exists to leak. Mutation-proven offline first (an injected-transport
+  replay reproduced the exact vacuous pass under the old P90D shape and
+  reds cleanly under the new one), no case count moved (still 33 — this
+  fixes an existing assertion, not a new one). **Then the user re-ran `node
+  poc/demo.mjs --backend orange` live and reported 33/33** — the SECOND user
+  run of `poc/demo.mjs` (M6) against the real Playground and the first CLEAN
+  one (the first, on 2026-08-17, is the 32/33 run above that surfaced the
+  vacuous control being fixed here), meeting G2's literal definition ("same
+  demo, `--backend orange`, against Orange Playground") for the composition.
+  **The user then also re-ran
+  `ORANGE_BASIC_AUTH=… node poc/m5-check-live.mjs` live at the same tip and
+  reported 19/19** — the current 6-predicate count, closing the "G2 stays
+  PENDING" mark the 3 → 6 round's `m5-check-live` grounding-failure entry
+  (below) had left open. **G2 is therefore MET at `3276ed0`, on both its M5
+  and its M6 legs; nothing pending.** `m6-check.mjs`'s and the other
+  modules' own offline counts stay agent-run (m1 20, m2 10, m3 25, m4 40, m5
+  58, m6 45, demo-mock 33) — these two live runs validate the demo and the
+  M5 live gate, not the offline module checks. Full mechanism, the accidental
+  `/check`-narrows-operator-attack-surface finding this bug surfaced, and the
+  live `/check`-vs-`/retrieve-date` cap-boundary measurement (`P90D` →
+  `check maxAge=2160h` → `true`; `P365D` → `retrieve-date` → `false`):
+  `findings.md`, 2026-08-17/18, and the addendum in the CAMARA proposal §3.5.
+- **2026-08-17 — a throwaway LIVE convergence probe (user-run,
   `+990100000099`) settled the Admin `location` write shape and moved two other
   axes from ASSUMED to MEASURED-GOOD.** After the location 400 above named
   `lastLocationTime`, the user ran a probe that kept re-submitting the Admin
@@ -615,8 +670,11 @@ Dated, append-only. Rationale in one line; details in the stash/history.
   (4) **The live path now covers all six predicates**, each with its negative,
   including the `/check`-vs-`/retrieve-date` surface choice read off the wire.
   Evidence is an injected-transport REPLAY (19/19 exit 0) plus five killed
-  mutations, and it is labelled as proving control flow only. **G2 stays
-  PENDING** — nothing here is a live measurement.
+  mutations, and it is labelled as proving control flow only. **G2 stood
+  PENDING at this round** — nothing here was a live measurement. **Superseded
+  2026-08-18: the user ran `node poc/m5-check-live.mjs` live at tip `3276ed0`
+  and reported 19/19, re-meeting G2 at the current 6-predicate count — see the
+  latest entry above.**
 - **2026-08-17 — the FIRST LIVE run of the 3 → 6 tree corrected the
   Admin `location` write shape (measured by the USER; agent has no credentials).**
   `admin UPDATE` answered `400 BAD_REQUEST "\"data.location.lastLocationTime\" is

@@ -24,9 +24,18 @@
   `docs/01-product/findings.md` and `docs/02-proposals/camara-attested-windowed-disclosure.md`,
   2026-08-17: `/check` structurally closes off this whole class of operator
   mistake (nothing to leak), where `/retrieve-date` relies on the closed
-  claim set alone. AGENT-RUN; the user's live 32/33 orange run and offline
-  greens elsewhere are theirs and stand; this fix itself is PENDING a live
-  re-run.
+  claim set alone. **LIVE-CONFIRMED at `3276ed0`, USER-RUN: `node
+  poc/demo.mjs --backend orange` → `RESULT: 33/33`**, and, in the same
+  session, `ORANGE_BASIC_AUTH=… node poc/m5-check-live.mjs` → `RESULT: 19/19`
+  (quota clean: start=1, end=1 of 10, cleanup DELETE status=204) — the
+  vacuous control now reds the leak for real on the live backend, not just in
+  the offline mutation-proof. The `m5-check-live.mjs` run postdates `19b2644`,
+  so it settles gate G2's M5 leg forward to the current tip: **G2 (M5
+  user-validated live) IS MET at `3276ed0`.** That run's own PASS 6 (`LIVE
+  SURFACE CHOICE`) independently corroborates, on the wire, the cap-boundary
+  premise this fix depends on: `P90D → check maxAge=2160h → true; P365D →
+  retrieve-date maxAge=null → false=true`. See `docs/01-product/findings.md`,
+  2026-08-18 (latest). Nothing about this fix, or G2, is PENDING any more.
 - **MEASURED FIX: a live convergence probe settled the Admin `location` write
   shape and corrected two ASSUMED labels to MEASURED-GOOD.** Following on from
   the `LIVE FIX` entry below (which found `lastLocationTime` missing), the user
@@ -59,8 +68,9 @@
     fails loud naming it), and case 52's assertions now also pin the written
     values directly. Counts moved: **m5 offline 57 → 58**. m6 stays 45 (its
     orange-replay READ fixture now carries the two new fields so the write it
-    mirrors matches what M5 actually sends). All AGENT-RUN; a user re-run of
-    the live gate stays PENDING.
+    mirrors matches what M5 actually sends). Offline counts AGENT-RUN; the
+    live gate itself was PENDING a user re-run as of this bullet — since MET
+    at `3276ed0` (see the top bullet of this section).
 - **GROUNDING FIX: `m5-check-live.mjs` was never updated by the 3 → 6 round
   (11 → 19 cases).** `git log 8238d02..81f8da4 -- poc/m5-check-live.mjs` is
   EMPTY: every sibling suite was widened to the six-field backstory and this one
@@ -86,8 +96,11 @@
     pass-through transport.
   - Evidence is an **injected-transport REPLAY** (19/19, exit 0; the old file
     under the same replay reds exactly as the user's run did) plus five killed
-    mutations. **It proves control flow, not the Playground** — the live run is
-    the user's and G2 stays PENDING.
+    mutations. **It proves control flow, not the Playground** — that is a
+    distinct claim from the actual live run, which is the user's; the live
+    run against the real Playground, at this rewritten file, happened
+    afterward at tip `3276ed0` (19/19, quota clean) and MET G2 — see the top
+    bullet of this section.
 - **LIVE FIX: the Admin `location` write shape was wrong, and it said so.** The
   user's first live Playground run of the 3 → 6 tree measured
   `admin UPDATE failed (status 400): {"code":"BAD_REQUEST","status":400,
