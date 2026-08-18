@@ -1,11 +1,188 @@
 # Changelog
 
-## Unreleased
+## 0.5.0 — 2026-08-18
 
 - **User ran the full validation suite on their own machine against the
-  CURRENT uncommitted working tree: every suite clean, zero `FAIL`, zero
-  `TypeError`, zero `Error:` lines in either log. BOTH gates MET on this
-  tree.** Offline (user-run, by exit code, all exit 0): `m1-check.mjs`
+  CURRENT uncommitted tree (the tree this file's remaining entries below
+  describe) — every suite clean, zero `FAIL`, zero `TypeError`, zero
+  `Error:` lines in either log. BOTH GATES MET on this tree.** The main
+  session verified with `find poc -newer` that no `.mjs` file changed after
+  the run, so this record covers exactly this tree. Offline (user-run, by
+  exit code, all exit 0): `m1-check.mjs` 20/20, `m2-check.mjs` 10/10,
+  `m3-check.mjs` 26/26, `m4-check.mjs` 42/42, `m5-check.mjs` 67/67,
+  `m6-check.mjs` 47/47, `demo.mjs` (mock backend) 35/35. Live (user-run,
+  real Orange Network APIs Playground, injected clock
+  `2026-08-18T19:24:42.422Z`, quota 1 of 10 custom slots in use at start
+  AND at end — no slot leaked, all exit 0): `m5-check-live.mjs` 20/20,
+  `demo.mjs --backend orange` 35/35 — every count user-run, none agent-run.
+  G1 (M1–M4 + M6 user-validated) is MET at 20/10/26/42/47 plus `demo.mjs`
+  (mock) 35/35. G2 (M5 user-validated live) is MET on both legs (offline
+  67/67, live 20/20). **The headline: `m5-check-live.mjs` case 20 — written
+  blind in this session and never executed until this run — PASSED live
+  with `sim-swap calls=1, device-roaming-status calls=0,
+  device-reachability-status calls=0`.** That is the FIRST live evidence
+  for the call-count saving that motivated this whole round; until now the
+  saving was proven only offline against an injected transport, recorded
+  at `bb0b52f` as a known open item. That open item is now CLOSED by
+  measurement, not by argument. Of the five open items recorded at
+  `bb0b52f`: **CLOSED** — the saving proven live (above); case 42's
+  source-text search replaced by a shape-based regex; `m6-check.mjs` now
+  has case 47 pinning conditional reads through the full composed path;
+  `m5-check.mjs` now catches a wrong axes mapping (`ROAM_Q`/`REACH_Q`
+  built via `factQuery`); the `demo.mjs` pre-seal guard now derives
+  capacity from the recipient key with its own persisted case; the `r6b`
+  scan frame can now genuinely red. **NEW STATED LIMIT, kept visible, not
+  softened:** the raw-value leak scan now drops needles shorter than
+  `PLAIN_MIN_NEEDLE = 2`, so a value whose every spelling is under 2
+  characters cannot be leak-tested by this scan at all. **STILL OPEN:**
+  `poc/m5-check.mjs` case 67 reddens under mutation via an uncaught 404
+  escaping to the wire rather than by its own assertion firing — a genuine
+  red, but a scruffier proof than the others; recorded as a known
+  weakness, not overstated as clean. **This record covers THIS TREE ONLY**:
+  per this repo's own rule, any later change to a file either gate covers
+  re-opens that gate, commit or no commit. Full record:
+  `docs/01-product/prd.md`, Decisions log.
+
+- **`/code-review medium --fix` round on the uncommitted fix round below
+  (agent-run, NOT user-validated — G1 and G2 stay RE-OPENED/PENDING at the
+  new counts).** Two DRY consolidations applied, both mutation-proved, plus
+  two coordinator-directed test-coverage closures that change suite counts:
+  (1) `poc/m5-facts-orange.mjs`'s six hand-copied axis re-checks
+  (`hasOwn(q,'needXxx') && q.needXxx === true`, one per axis) consolidated
+  into a single `asked(key)` helper — mutation-proved: forcing it to always
+  return `true` reds both `m5-check.mjs` and `m6-check.mjs` (exit 1);
+  restored → both green;
+  (2) `poc/demo.mjs`'s byte-identical `plainNeedles`/`opaqueNeedles`
+  filters consolidated into one `atLeast(min)` factory — this refactor was
+  NOT independently pinned by any existing case at review time (nothing
+  reds if its comparison operator flips); closed by finding (4) below,
+  which now pins it — mutation-proved: changing `atLeast`'s `>=` to `>`
+  reds `demo.mjs` (34/35, exit 1) via the new assertion's count check;
+  restored → green;
+  (3) **new case in `poc/m5-check.mjs`** pinning that the axis-signal gate
+  requires the signal to be EXACTLY `true`, not merely truthy — a gap the
+  review found by mutation (relaxing `asked` to `hasOwn(q,key)` alone left
+  the whole suite green, 66/66). Case 67 sends `needSim:1`,
+  `needDevice:'yes'`, `needRoaming:{}`, `needReachability:1`,
+  `needLocation:'yes'`, `needKyc:{}` against otherwise well-formed values
+  and asserts ZERO live calls and an absent axis on all six. **`m5-check.mjs`
+  moves from 66 to 67 cases.** Mutation-proved: reverting `asked` to
+  `hasOwn(q,key)` alone reds it (exit 1, an uncaught `location-verification`
+  404 surfaces because the gate let a non-`true` signal through); restored →
+  67/67, exit 0, `m5-facts-orange.mjs` byte-identical (md5) to
+  pre-mutation;
+  (4) **new case in `poc/demo.mjs`** pinning the exact set `PLAIN_MIN_NEEDLE`
+  drops from the leak scan, not merely the count — `droppedPlain =
+  RAW_NEEDLES.filter(n => n.length < PLAIN_MIN_NEEDLE)` asserted to equal
+  `['4']` (the single-digit `DEVICE_FLIPPED_DAYS_AGO` spelling, the one
+  documented drop) and nothing else. **`demo.mjs` moves from 34 to 35
+  cases.** Mutation-proved: raising `PLAIN_MIN_NEEDLE` to 3 reds it (34/35,
+  exit 1; dropped set becomes `["4","FR","97"]` — the country code and a
+  score needle silently falling out of the scan); restored → 35/35, exit 0.
+  Both new cases are agent-run only; G1/G2 were already RE-OPENED by the
+  fix round below and stay PENDING at these new counts — no standing
+  user-validation record was invalidated by the count change, since none
+  covered this tree.
+  Full offline suite by exit code, both before and after this round: m1
+  20/20, m2 10/10, m3 26/26, m4 42/42, **m5 66/66 → 67/67**, m6 47/47,
+  **demo(mock) 34/34 → 35/35** — all exit 0. `poc/m5-check-live.mjs`
+  (case 20) stays UNRUN this round too — no credentials, no live Orange
+  legs. Full record: `docs/01-product/prd.md`, Decisions log.
+  (SUPERSEDED — see the top entry above: the user's full run on this exact
+  tree subsequently MET both gates at these counts, including case 20
+  live.)
+
+- **Fix round on the five open items recorded at `bb0b52f`, now COMPLETE
+  (agent-run, NOT yet user-validated — G1 and G2 stay RE-OPENED/PENDING).**
+  All six agreed fixes, in two passes (the second after a coordinator
+  decision on items 5 and 6):
+  (1) `m5-check-live.mjs` gained case 20, asserting live that a `simSwapAge`
+  question calls `sim-swap` and never `device-roaming-status`/
+  `device-reachability-status` — WRITTEN, NOT RUN this session (no
+  `ORANGE_BASIC_AUTH` credential available; stays unrun, per instruction, no
+  live Orange legs this round);
+  (2) `m4-check.mjs` case 42's fixture now locates the `reachable` predicate
+  table entry and its `axes:[...]` sub-field by SHAPE (regex), not the
+  verbatim literal `", axes: ['reachability']"` — mutation-proved both ways:
+  reverting the real guard to bare `spec.axes` still reds (41/42, exit 1),
+  and rewriting it as `Array.isArray(spec.axes) ? spec.axes : []` still stays
+  green (42/42, exit 0);
+  (3) `m6-check.mjs` gained case 47, driving a `simSwapAge` question through
+  the FULL composed path (floor/menu/seal/hub/RP, the same injected Orange
+  transport rig case 22 uses) and asserting no roaming/reachability call
+  appears — mutation-proved: forcing the `needRoaming` gate in
+  `m5-facts-orange.mjs` open unconditionally reds it (46/47, exit 1);
+  restore → green (47/47, exit 0);
+  (4) `m5-check.mjs`'s `ROAM_Q`/`REACH_Q` are now built via `factQuery` on
+  the real `roamingIn`/`reachable` predicates instead of hand-written
+  `{needRoaming:true}` literals — mutation-proved: flipping `roamingIn`'s
+  `axes` to `['reachability']` now reds BOTH `m4-check.mjs` (41/42) and
+  `m5-check.mjs` (61/66, 5 new failures), closing the gap where only
+  `m4-check.mjs` caught it before;
+  (5) `poc/demo.mjs`'s pre-seal capacity guard (inside `createOperator`'s
+  `handle`) now derives capacity from `recipientEnc`'s own
+  `asymmetricKeyDetails.modulusLength` — exactly as `seal()` in
+  `m2-envelope.mjs` already does — instead of comparing against the module
+  constant `OAEP_CAPACITY` (446, the RSA-4096 demo value); `m2-envelope.mjs`'s
+  crypto was NOT touched, it was already correct — the gap was only the
+  caller-side guard disagreeing with it for a non-4096 recipient. A
+  PERSISTED regression case was added to `runDemo()` (an RSA-3072 recipient,
+  real cap 318 B, gets a graceful signed refusal instead of a thrown
+  exception) — **`demo.mjs` moves from 33 to 34 cases as a result: agent-run
+  only, NOT user-validated at this new count.** Mutation-proved on the
+  persisted case itself: reverting the guard to the constant makes the SAME
+  scenario throw an uncaught `seal()` exception and ABORT THE WHOLE RUN
+  (exit 1); restored → graceful refusal, 34/34, exit 0. An earlier throwaway
+  `/tmp` repro script used mid-session to prove the mechanism before the
+  persisted case existed has been deleted — it does not count as coverage;
+  (6) `rawNeedles()` gained a `deviceFlippedDaysAgo` parameter so the `r6b`
+  negative-control frame's own re-scripted value has spellings in the scan
+  inventory. Adding those spellings first turned the suite red
+  (`demo.mjs` 29/33, cascading to `m6-check.mjs` 45/47) and was escalated
+  rather than silently fixed by trimming the needle set. Audited before
+  being believed a leak: every failing hit was exactly the single character
+  `"4"` (`DEVICE_FLIPPED_DAYS_AGO`'s own decimal spelling) — including the
+  FIRST assertion in `runDemo()`, whose frame is built and scanned BEFORE
+  the device-flip scenario ever runs, making it structurally impossible for
+  that frame to carry the flipped value. Confirmed independently as a
+  harness confound, not a leak. **Resolved per coordinator decision: a
+  `PLAIN_MIN_NEEDLE = 2` cutoff (new `plainNeedles()` helper beside the
+  existing `opaqueNeedles()`/`OPAQUE_MIN_NEEDLE = 8`) drops bare
+  single-character needles from the plaintext scan, while keeping every
+  2+-character needle already proven not to false-positive across this
+  suite's run history — the 2-letter country code `FR` (kept deliberately,
+  per this file's own comment, as the requester-echo case) and the 3-digit
+  day counts (`137`/`211`).** `PLAIN_MIN_NEEDLE` is calibrated separately
+  from `OPAQUE_MIN_NEEDLE` and says why in a comment: 8 is measured against
+  RANDOM bytes/base64, where even a short needle is genuinely rare; this
+  scan runs against STRUCTURED, low-entropy JSON text, where a bare digit
+  is common (an `exp` timestamp alone makes a 1-character digit needle
+  near-certain to collide) but a 2+-character token is not. **Stated as an
+  honest limit, not softened: a value whose EVERY spelling is shorter than
+  2 characters (i.e. a single-digit day count with no other spelling at
+  all) cannot be leak-tested by this scan.** `DEVICE_FLIPPED_DAYS_AGO`
+  itself is unaffected in practice — its longer spellings (its millisecond
+  age `345600000`, its ISO instant, its date) were already in the inventory
+  and remain fully leak-testable; only its bare `"4"` spelling is dropped.
+  PROVED the frame can still genuinely fail: temporarily made `r6b`'s answer
+  carry `facts.deviceSwapAgeMs` (the flipped value's millisecond spelling,
+  reusing the existing `leakRaw` control) — the scan reds (exit 1, hits
+  include `"345600000"`); reverted the temporary instrumentation — green
+  again (exit 0, 33/33 at that point, before FIX 5's case was added).
+  Full offline suite by exit code: BEFORE this whole round — m1 20/20,
+  m2 10/10, m3 26/26, m4 42/42, m5 66/66, m6 46/46, demo(mock) 33/33 (all
+  green). AFTER both passes — m1 20/20, m2 10/10, m3 26/26, m4 42/42,
+  m5 66/66, m6 47/47, demo(mock) 34/34 — **all exit 0.** No case outside
+  what each fix names was touched; no existing assertion was weakened or
+  deleted. Full record: `docs/01-product/prd.md`, Decisions log.
+  (SUPERSEDED — see the top entry above: the user's full run on the
+  current uncommitted tree subsequently MET both gates.)
+
+- **User ran the full validation suite on their own machine against the tree
+  at `bb0b52f` (this record predates the fix round in the entry above, which
+  changed executable code both gates cover — it does NOT carry forward to
+  the current tree): every suite clean, zero `FAIL`, zero `TypeError`, zero
+  `Error:` lines in either log. BOTH gates MET on that tree.** Offline (user-run, by exit code, all exit 0): `m1-check.mjs`
   20/20, `m2-check.mjs` 10/10, `m3-check.mjs` 26/26, `m4-check.mjs` 42/42,
   `m5-check.mjs` 66/66, `m6-check.mjs` 46/46, `demo.mjs` (mock backend)
   33/33. Live (user-run, real Orange Network APIs Playground, injected
@@ -40,6 +217,9 @@
   from `DEVICE_SWAPPED_DAYS_AGO` while `r6b` answers about
   `DEVICE_FLIPPED_DAYS_AGO`, so the value it could leak is not in the
   needle inventory. Full record: `docs/01-product/prd.md`, Decisions log.
+  (SUPERSEDED — see the top entry above: the user's full run on the
+  current uncommitted tree subsequently MET both gates again, at new
+  counts, on a tree this record does not cover.)
 
 - **Finishes the axis-signal unification: ALL SIX operator axes now gate on
   `PREDICATES.axes`/`needXxx`, not two.** The entry below closed the

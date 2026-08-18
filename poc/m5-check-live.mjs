@@ -605,6 +605,31 @@ const P90 = { type: 'simSwapAge', operator: 'gte', value: 'P90D' };
     + (endSlots !== null && endSlots >= QUOTA_CAP ? '  (WARNING: at cap — the next CREATE on this app will fail)' : ''));
 }
 
+// 20 THE CALL-COUNT SAVING IS PROVEN LIVE, NOT JUST OFFLINE (2026-08-18). Every
+// case above already goes through `recordingFetch`, which is itself a call
+// counter keyed by URL (`wire`, `mark()`, `hit()`) — the same instrument cases
+// 6, 7 and 17/18 already rely on to prove which endpoint answered. This case
+// spends it on the claim that motivated the whole 2026-08-18 conditional-axes
+// change: a `simSwapAge` question must reach ONLY `sim-swap`, never
+// `device-roaming-status` or `device-reachability-status`. `m4-check.mjs` and
+// `m6-check.mjs` prove the same shape offline, against an injected transport;
+// this is the one live case that proves the SAME adapter, talking to the SAME
+// real Playground the other 19 cases just used, still makes the reduced call
+// count today rather than the three-call count the pre-2026-08-18 code always
+// made. It costs exactly ONE extra live query — the `ask()` call below is the
+// only network round-trip this case makes.
+{
+  const m = mark();
+  const { a } = await ask(P90);
+  const simCalls = hit(m, 'sim-swap');
+  const roamCalls = hit(m, 'device-roaming-status');
+  const reachCalls = hit(m, 'device-reachability-status');
+  ok('20 LIVE CALL-COUNT: a simSwapAge question calls sim-swap and NEVER roaming/reachability',
+    a.answered === true && simCalls.length === 1 && roamCalls.length === 0 && reachCalls.length === 0,
+    `sim-swap calls=${simCalls.length}, device-roaming-status calls=${roamCalls.length}, `
+    + `device-reachability-status calls=${reachCalls.length} (answered=${a.answered} result=${a.result})`);
+}
+
 // Leave the slot in the demo's known state, so a re-run starts where this one
 // did. GUARDED: this is a courtesy write AFTER the last case — unguarded, a
 // transient failure here killed an all-green run before `conclude()` could
@@ -617,4 +642,4 @@ try {
   console.log(`${CUSTOM} courtesy re-script FAILED (${e instanceof Error ? e.message : String(e)}) — a re-run's case 4 starts from a different scripted state`);
 }
 
-conclude(19);
+conclude(20);

@@ -622,7 +622,18 @@ ok('23 ONE EVALUATION STEP', Object.keys(M5).sort().join(',') === 'createOrangeF
   const zk = lines.filter((l) => /zero.knowledge|\bZK\b/i.test(l));
   const allNegated = zk.length > 0 && zk.every((l) => /never|not |NOT |reserved for Mode B/.test(l));
   const result = lines.find((l) => l.startsWith('RESULT: '));
-  ok('25 THE DEMO ITSELF', code === 0 && result === 'RESULT: 33/33',
+  // PARSE the count rather than matching a hardcoded 'RESULT: 33/33' literal
+  // (2026-08-18 fix round) — the same "test pins a spelling, not a behaviour"
+  // defect class already fixed twice this session (case 42's guard text, then
+  // its table text). Pinning the literal count froze demo.mjs's case count
+  // from THIS file: any new demo.mjs case would have been a breaking change
+  // here for no behavioural reason. This still fails demo.mjs failing: a
+  // non-zero exit, a missing/malformed RESULT line, or a passed count short
+  // of the total all fail this case exactly as the literal match did.
+  const parsed = result ? result.match(/^RESULT: (\d+)\/(\d+)$/) : null;
+  const passedN = parsed ? Number(parsed[1]) : null;
+  const totalN = parsed ? Number(parsed[2]) : null;
+  ok('25 THE DEMO ITSELF', code === 0 && parsed !== null && totalN > 0 && passedN === totalN,
     { label: `${zk.length} ZK mentions, all negations=${allNegated}; ${result}`, ok: allNegated });
 }
 
@@ -1249,8 +1260,64 @@ ok('23 ONE EVALUATION STEP', Object.keys(M5).sort().join(',') === 'createOrangeF
         && refuseForA.ok === false && refuseForA.reason === 'undecryptable' });
 }
 
+// 47 CONDITIONAL AXIS READ SURVIVES THE FULL COMPOSED PATH (2026-08-18 fix
+// round). `m4-check.mjs` case 42 proves the `factQuery` guard does not crash on
+// an axes-less entry; `m5-check-live.mjs` case 20 proves it live. Neither
+// proves it through the WHOLE composed path this suite exists to exercise —
+// floor gate, menu, seal, hub, RP — the way `wo`/`orange` in case 22 drives M5
+// through M6 without a live call. A `simSwapAge` question through that full
+// path must call `sim-swap` and must NEVER call `device-roaming-status` or
+// `device-reachability-status`, even though `setBackstory` above it writes all
+// six backstory fields (roaming and reachability included) — the assertion is
+// scoped to the calls made DURING the query, not during setup, for exactly
+// that reason. Mutation-proved: forcing the roaming gate at
+// `m5-facts-orange.mjs` (`if (hasOwn(q, 'needRoaming') && q.needRoaming ===
+// true)`) open unconditionally must turn this case RED.
+{
+  const CRED47 = `Basic ${Buffer.from('CLIENTID0000000000000000000000AA:SECRET000000000000000000000000000000000000BB').toString('base64')}`;
+  const swapIso47 = new Date(NOW - SWAPPED_DAYS_AGO * DAY_MS).toISOString();
+  const deviceIso47 = new Date(NOW - DEVICE_SWAPPED_DAYS_AGO * DAY_MS).toISOString();
+  const calls47 = [];
+  const fetch47 = async (url, opts) => {
+    const isToken = String(opts?.headers?.['Content-Type']).includes('urlencoded');
+    const body = !isToken && typeof opts?.body === 'string' ? JSON.parse(opts.body) : null;
+    calls47.push({ url, action: body?.action });
+    const reply = (status, text) => ({ status, text: async () => text });
+    if (isToken) return reply(200, '{"token_type":"Bearer","access_token":"T.OK.0000","expires_in":3600}');
+    if (url.includes('/admin/')) {
+      if (body.action === 'READ') {
+        return reply(200, JSON.stringify({ data: { simSwap: { latestSimChange: swapIso47 }, deviceSwap: { latestDeviceChange: deviceIso47 }, location: body.data?.location ?? { latitude: SUBSCRIBER_AT.lat, longitude: SUBSCRIBER_AT.long, lastLocationTime: new Date(NOW).toISOString(), available: true, radius: 500 }, kyc: body.data?.kyc ?? { name: REGISTERED_NAME }, roaming: { roaming: true, countryName: ['FR'] }, reachability: { reachabilityStatus: 'CONNECTED_DATA' } } }));
+      }
+      return reply(200, JSON.stringify({ data: body.data ?? {} }));
+    }
+    if (url.includes('sim-swap/v1/check')) return reply(200, JSON.stringify({ swapped: SWAPPED_DAYS_AGO * DAY_MS < body.maxAge * 3600000 }));
+    if (url.includes('sim-swap')) return reply(200, JSON.stringify({ latestSimChange: swapIso47 }));
+    if (url.includes('device-swap/v1/check')) return reply(200, JSON.stringify({ swapped: false }));
+    if (url.includes('device-swap')) return reply(200, JSON.stringify({ latestDeviceChange: deviceIso47 }));
+    if (url.includes('location-verification')) return reply(200, '{"verificationResult":"TRUE","lastLocationTime":"2026-08-11T04:00:16.503Z"}');
+    if (url.includes('kyc-match')) return reply(200, '{"nameMatch":"true"}');
+    if (url.includes('roaming')) return reply(200, '{"roaming":true,"countryName":["FR"]}');
+    if (url.includes('reachability')) return reply(200, '{"reachabilityStatus":"CONNECTED_DATA"}');
+    return reply(404, '{}');
+  };
+  const orange47 = await createBackend('orange', { basicAuth: CRED47, fetchImpl: fetch47 });
+  await orange47.setBackstory(DEMO_NUMBER, STORY, NOW);
+  const w47 = createWorld({ backend: orange47, keys: KEYS });
+  const mark47 = calls47.length;   // only the QUERY's own calls matter, not setBackstory's writes
+  const r47 = await roundTrip(w47, w47.rp.buildRequest(PREDICATE, TIGHTER, { nonce: 'axis-gate-47' }));
+  const since47 = calls47.slice(mark47);
+  const simHits47 = since47.filter((c) => c.url.includes('sim-swap'));
+  const roamHits47 = since47.filter((c) => c.url.includes('device-roaming-status'));
+  const reachHits47 = since47.filter((c) => c.url.includes('device-reachability-status'));
+  ok('47 CONDITIONAL AXIS READ: simSwapAge QUESTION NEVER CALLS roaming/reachability THROUGH THE FULL COMPOSED PATH',
+    r47.verdict.accepted === true && r47.out.kind === 'answer' && simHits47.length >= 1,
+    { label: `query-time calls: sim-swap=${simHits47.length}, device-roaming-status=${roamHits47.length}, `
+        + `device-reachability-status=${reachHits47.length} (of ${since47.length} total)`,
+      ok: roamHits47.length === 0 && reachHits47.length === 0 });
+}
+
 // The declared case count. A suite that silently loses the cases carrying its
 // guarantee still printed a green `RESULT: n/n` before this argument existed
 // (measured 2026-08-16 on m4-check: truncated to 18/18 exit 0, emptied to 0/0
 // exit 0).
-conclude(46);
+conclude(47);

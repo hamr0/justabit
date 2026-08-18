@@ -31,8 +31,17 @@ const SIM_Q = { needSim: true, swapAgeThresholdMs: 365 * DAY };
 // wants a generic transport/auth/redaction path exercised, or the roaming/
 // reachability behaviour itself, needs one of these or `getFacts` makes zero
 // live calls at all and never reaches the code under test.
-const ROAM_Q = { needRoaming: true };
-const REACH_Q = { needReachability: true };
+// Built via `factQuery` on the REAL predicates now (2026-08-18 fix round),
+// not a hand-written `{needRoaming:true}` literal: a literal pins the axis
+// signal's SHAPE but not the predicate -> adapter chain that is supposed to
+// produce it, so a wrong `axes` mapping on `roamingIn`/`reachable` in
+// `m4-facts-mock.mjs`'s `PREDICATES` table (e.g. `roamingIn`'s axes flipped to
+// `['reachability']`) left this whole suite green while `m4-check.mjs` caught
+// it. Going through `factQuery` end to end closes that gap: it still produces
+// the same `{needRoaming:true}` / `{needReachability:true}` shape today, and a
+// flipped mapping now reds here too.
+const ROAM_Q = factQuery({ type: 'roamingIn', operator: 'in', value: ['FR'] });
+const REACH_Q = factQuery({ type: 'reachable', operator: 'eq', value: true });
 
 // A SYNTHETIC credential of the real shape (base64 of `clientId:secret`). Never
 // the real one — a fixture that needed a secret could not run on a clone.
@@ -1461,4 +1470,55 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
         && kycCalls(kycNoSignalCalls) === 0 && !('nameMatch' in fKycNoSignal) });
 }
 
-conclude(66);
+// 67 THE AXIS SIGNAL MUST BE EXACTLY BOOLEAN `true` — NOT MERELY TRUTHY. Case
+// 66 pins the `hasOwn(q, key)` half of `asked = (key) => hasOwn(q, key) &&
+// q[key] === true`; this pins the `=== true` half, found missing by mutation
+// (2026-08-18 review round): relaxing the helper to `hasOwn(q, key)` alone
+// left this ENTIRE suite green (66/66), because no prior case supplied a
+// signal that was present, an own property, and truthy, but not strictly
+// `true`. A well-formed value paired with a truthy-but-not-`true` signal
+// (`1`, `'yes'`, `{}`) must make ZERO calls and leave the axis absent on every
+// one of the six gated axes, exactly as an omitted signal does.
+{
+  const simCalls = (cs) => cs.filter((x) => !x.isToken && x.url.includes('sim-swap')).length;
+  const deviceCalls = (cs) => cs.filter((x) => !x.isToken && x.url.includes('device-swap')).length;
+  const roamCalls = (cs) => cs.filter((x) => !x.isToken && x.url.includes('roaming')).length;
+  const reachCalls = (cs) => cs.filter((x) => !x.isToken && x.url.includes('reachability')).length;
+  const locCalls = (cs) => cs.filter((x) => !x.isToken && x.url.includes('location-verification')).length;
+  const kycCalls = (cs) => cs.filter((x) => !x.isToken && x.url.includes('kyc-match')).length;
+
+  const { facts: simTruthy, calls: simTruthyCalls } = mk(reads());
+  const fSimTruthy = await simTruthy.getFacts(N, NOW, { needSim: 1, swapAgeThresholdMs: 90 * DAY });
+
+  const { facts: deviceTruthy, calls: deviceTruthyCalls } = mk(reads());
+  const fDeviceTruthy = await deviceTruthy.getFacts(N, NOW, { needDevice: 'yes', deviceSwapAgeThresholdMs: 90 * DAY });
+
+  const { facts: roamTruthy, calls: roamTruthyCalls } = mk(reads());
+  const fRoamTruthy = await roamTruthy.getFacts(N, NOW, { needRoaming: {} });
+
+  const { facts: reachTruthy, calls: reachTruthyCalls } = mk(reads());
+  const fReachTruthy = await reachTruthy.getFacts(N, NOW, { needReachability: 1 });
+
+  const AREA = { lat: 48.86, long: 2.35, radiusM: 10000 };
+  const { facts: locTruthy, calls: locTruthyCalls } = mk(reads());
+  const fLocTruthy = await locTruthy.getFacts(N, NOW, { needLocation: 'yes', area: AREA });
+
+  const { facts: kycTruthy, calls: kycTruthyCalls } = mk(reads());
+  const fKycTruthy = await kycTruthy.getFacts(N, NOW, { needKyc: {}, claimedName: 'Alice Arnaut' });
+
+  check('67 THE AXIS SIGNAL MUST BE EXACTLY true, A TRUTHY-BUT-NOT-true VALUE IS REFUSED', true, { answered: true, reason: 'ok' }, 'ok',
+    { label: `needSim:1 -> ${simCalls(simTruthyCalls)} sim calls, axis present=${'swapAgeAtLeast' in fSimTruthy || 'swapAgeMs' in fSimTruthy}; `
+      + `needDevice:'yes' -> ${deviceCalls(deviceTruthyCalls)} device calls, axis present=${'deviceSwapAgeAtLeast' in fDeviceTruthy || 'deviceSwapAgeMs' in fDeviceTruthy}; `
+      + `needRoaming:{} -> ${roamCalls(roamTruthyCalls)} roaming calls, roamingCountry present=${'roamingCountry' in fRoamTruthy}; `
+      + `needReachability:1 -> ${reachCalls(reachTruthyCalls)} reachability calls, reachable present=${'reachable' in fReachTruthy}; `
+      + `needLocation:'yes' -> ${locCalls(locTruthyCalls)} location calls, presentVerdict present=${'presentVerdict' in fLocTruthy}; `
+      + `needKyc:{} -> ${kycCalls(kycTruthyCalls)} kyc calls, nameMatch present=${'nameMatch' in fKycTruthy}`,
+      ok: simCalls(simTruthyCalls) === 0 && !('swapAgeAtLeast' in fSimTruthy) && !('swapAgeMs' in fSimTruthy)
+        && deviceCalls(deviceTruthyCalls) === 0 && !('deviceSwapAgeAtLeast' in fDeviceTruthy) && !('deviceSwapAgeMs' in fDeviceTruthy)
+        && roamCalls(roamTruthyCalls) === 0 && !('roamingCountry' in fRoamTruthy)
+        && reachCalls(reachTruthyCalls) === 0 && !('reachable' in fReachTruthy)
+        && locCalls(locTruthyCalls) === 0 && !('presentVerdict' in fLocTruthy)
+        && kycCalls(kycTruthyCalls) === 0 && !('nameMatch' in fKycTruthy) });
+}
+
+conclude(67);

@@ -952,11 +952,22 @@ check('14 WRONG OPERATOR REJECTED', false,
 {
   const here = fileURLToPath(import.meta.url);
   const mockSrc = readFileSync(join(here, '..', 'm4-facts-mock.mjs'), 'utf8');
-  const axesField = ", axes: ['reachability']";
-  if (!mockSrc.includes(axesField)) {
-    throw new Error(`case 42 fixture assumption broken: ${JSON.stringify(axesField)} not found verbatim in m4-facts-mock.mjs — the source shape moved, update this case`);
+  // SHAPE-based, not a verbatim literal: locate the `reachable` predicate
+  // table entry by its syntactic shape first (so this survives a reformat of
+  // the entry's own spacing/quoting), then strip whatever `axes: [...]`
+  // sub-field it holds — however that sub-field is spaced or quoted — rather
+  // than matching one exact spelling of it.
+  const entryRe = /reachable:\s*\{[^}]*\}/;
+  const entryMatch = mockSrc.match(entryRe);
+  if (!entryMatch) {
+    throw new Error('case 42 fixture assumption broken: no `reachable: { ... }` predicate table entry found in m4-facts-mock.mjs — the source shape moved, update this case');
   }
-  const axesLessSrc = mockSrc.replace(axesField, '');           // `reachable` entry now has no `axes` field at all
+  const axesSubfieldRe = /,\s*axes:\s*\[[^\]]*\]/;
+  if (!axesSubfieldRe.test(entryMatch[0])) {
+    throw new Error(`case 42 fixture assumption broken: no axes:[...] sub-field found in the reachable entry (${JSON.stringify(entryMatch[0])}) — the source shape moved, update this case`);
+  }
+  const axesLessEntry = entryMatch[0].replace(axesSubfieldRe, '');   // `reachable` entry now has no `axes` field at all
+  const axesLessSrc = mockSrc.replace(entryMatch[0], axesLessEntry);
 
   // Locate the axis-iteration loop header by its syntactic shape — the
   // `for (const axis of <whatever guard expression>) {` line — rather than

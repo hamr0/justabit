@@ -799,6 +799,17 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
     // not a property this file can verify.
     const q = isPlainData(query) ? query : {};
 
+    // The axis-signal re-check, stated ONCE. Every axis below asks the same two
+    // questions of `q` — is the signal present as an OWN property, and is it
+    // EXACTLY boolean `true` — and until this helper each of the six spelled
+    // that pair out by hand. That is the same class of second source of truth
+    // this round removed from the gates themselves: the SIM/device axes drifted
+    // onto an older pattern precisely because there was no one place to change.
+    // `hasOwn` stays belt-and-braces (no inherited `Object.prototype` member is
+    // `=== true`, so the strict check alone would do) because this file's
+    // contract is that it re-validates every field it did not itself produce.
+    const asked = (key) => hasOwn(q, key) && q[key] === true;
+
     // ONE swap axis, TWO surfaces, and the choice is made HERE from the measured
     // cap. This is the only place in the PoC where the profile's own preference
     // is expressible on a real endpoint: `/check` answers a bit about a window
@@ -876,8 +887,8 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
     // never went through `factQuery` reaches this line too. The threshold's own
     // validity is now `readSwapAxis`'s job (see the guard added there) — this
     // gate decides WHETHER to read at all, not which surface to read from.
-    if (hasOwn(q, 'needSim') && q.needSim === true) await readSwapAxis(SWAP_AXES.sim);
-    if (hasOwn(q, 'needDevice') && q.needDevice === true) await readSwapAxis(SWAP_AXES.device);
+    if (asked('needSim')) await readSwapAxis(SWAP_AXES.sim);
+    if (asked('needDevice')) await readSwapAxis(SWAP_AXES.device);
 
     // The roaming axis is read ONLY when `roamingIn` asked for it. Same class as
     // the two swap axes above (M4's `factQuery` axis signal, closing the
@@ -887,7 +898,7 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
     // is re-validated to `=== true` for the same reason the area/name shapes
     // are: this file decides what goes on the wire, and "the caller validated
     // it" is not a property this file can verify.
-    if (hasOwn(q, 'needRoaming') && q.needRoaming === true) {
+    if (asked('needRoaming')) {
       const roamOut = await post('camara', READS.roaming.url, READS.roaming.body(number));
       classify(roamOut, number, 'device-roaming-status');
       const roam = parseJson(roamOut, 'device-roaming-status');
@@ -921,7 +932,7 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
     // absent, or the value malformed — leaves the axis ABSENT and this endpoint
     // is never called: a refusal downstream, never a request built out of a
     // guessed or unvalidated area and sent to a live operator.
-    const area = (hasOwn(q, 'needLocation') && q.needLocation === true) ? validArea(q.area) : undefined;
+    const area = asked('needLocation') ? validArea(q.area) : undefined;
     if (area !== undefined) {
       const locOut = await post('camara', READS.location.url, READS.location.body(number, area));
       classify(locOut, number, 'location-verification verify');
@@ -953,7 +964,7 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
     // string this file would put on a live operator's wire. 120 characters is
     // M4's own bound, duplicated per §4.4 (each module works alone) exactly as
     // the duration parser and the geo bound are.
-    const claimedName = (hasOwn(q, 'needKyc') && q.needKyc === true
+    const claimedName = (asked('needKyc')
       && typeof q.claimedName === 'string' && q.claimedName.length >= 1 && q.claimedName.length <= MAX_NAME)
       ? q.claimedName
       : undefined;
@@ -980,7 +991,7 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
 
     // The reachability axis, read only when `reachable` asked for it — same
     // pattern and same reason as the roaming axis just above.
-    if (hasOwn(q, 'needReachability') && q.needReachability === true) {
+    if (asked('needReachability')) {
       const reachOut = await post('camara', READS.reachability.url, READS.reachability.body(number));
       classify(reachOut, number, 'device-reachability-status');
       const reach = parseJson(reachOut, 'device-reachability-status');
