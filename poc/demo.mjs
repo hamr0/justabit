@@ -368,10 +368,18 @@ export function createOperator({ keys, directory, backend, floor = PUBLISHED_FLO
   // nonce is known. Signing refusals matters — otherwise the blind hub could
   // forge a denial-of-service by inventing rejections, and the requester could
   // not tell that from an operator that genuinely refused.
-  const signedReject = (reason, nonce) => {
+  //
+  // `recipientEnc` is the ENVELOPE key of the issuer that step 4 just
+  // authenticated, read out of the directory — never a fixed one. Sealing to a
+  // hardcoded `keys.rpEnc.publicKey` is byte-identical in a one-requester demo
+  // and wrong the moment there are two: the answer to requester B would be
+  // encrypted under requester A's key, so A could read a query it never made and
+  // B could not read its own. The directory already carried `encPub` for exactly
+  // this and nothing read it.
+  const signedReject = (reason, nonce, recipientEnc) => {
     const claims = { error: clampReason(reason), nonce, exp: NOW + VALIDITY_MS };
     const bytes = packSigned(attest(keys.opSig.privateKey, claims), keys.opIss);
-    return { kind: 'reject', stage: 'operator', reason: claims.error, claims, plain: bytes, sealed: seal(keys.rpEnc.publicKey, bytes) };
+    return { kind: 'reject', stage: 'operator', reason: claims.error, claims, plain: bytes, sealed: seal(recipientEnc, bytes) };
   };
 
   // `controls` exists so each negative can be shown FAILING as well as holding:
@@ -390,8 +398,13 @@ export function createOperator({ keys, directory, backend, floor = PUBLISHED_FLO
     //    an issuer is exactly right: the operator is deciding whether it knows
     //    this requester at all. (The RESPONSE side must never do this — see the
     //    pinning comment in createRP.)
+    //    An issuer with no envelope key is not usable as a correspondent: every
+    //    reply past this point is sealed TO it, so "listed but unsealable" is
+    //    unknown for this purpose, and it is reported the same way rather than
+    //    as a distinct reason a prober could learn something from.
     const entry = hasOwn(directory, unpacked.iss) ? directory[unpacked.iss] : null;
-    if (entry === null) return transportReject('unknown issuer');
+    if (entry === null || entry.encPub === undefined) return transportReject('unknown issuer');
+    const recipientEnc = entry.encPub;
 
     // 4. Request authenticity, over the exact bytes, before anything is parsed.
     //    This is the seam that closes M2's audit open item: without it, anyone
@@ -454,10 +467,10 @@ export function createOperator({ keys, directory, backend, floor = PUBLISHED_FLO
     //    module because no module owns this envelope.
     const unknown = Object.keys(req).filter((k) => !REQUEST_FIELDS.includes(k));
     if (!controls.skipRequestFields && unknown.length > 0) {
-      return signedReject(`unexpected request fields: ${unknown.map(fieldName).join(', ')}`, req.nonce);
+      return signedReject(`unexpected request fields: ${unknown.map(fieldName).join(', ')}`, req.nonce, recipientEnc);
     }
 
-    if (typeof req.number !== 'string') return signedReject('missing subscriber', req.nonce);
+    if (typeof req.number !== 'string') return signedReject('missing subscriber', req.nonce, recipientEnc);
 
     // 8. M3 — the monotone floor gate, BEFORE any fact is touched.
     //    The gate's `effective` floor — per axis the tighter of published and
@@ -472,7 +485,7 @@ export function createOperator({ keys, directory, backend, floor = PUBLISHED_FLO
     let effectiveFloor;
     if (!controls.skipFloorGate) {
       const verdict = checkFloor(floor, req.floor);
-      if (!verdict.allowed) return { ...signedReject(verdict.reason, req.nonce), floorRejected: true };
+      if (!verdict.allowed) return { ...signedReject(verdict.reason, req.nonce, recipientEnc), floorRejected: true };
       effectiveFloor = verdict.effective;
     }
 
@@ -484,7 +497,7 @@ export function createOperator({ keys, directory, backend, floor = PUBLISHED_FLO
     if (!controls.skipMenu) {
       const type = typeof req.predicate?.type === 'string' ? req.predicate.type : null;
       if (type !== null && hasOwn(menu, type) && !menu[type].includes(req.predicate.value)) {
-        return { ...signedReject(`threshold not on the published menu for ${type} (allowed: ${menu[type].join(', ')})`, req.nonce), menuRejected: true };
+        return { ...signedReject(`threshold not on the published menu for ${type} (allowed: ${menu[type].join(', ')})`, req.nonce, recipientEnc), menuRejected: true };
       }
     }
 
@@ -540,13 +553,13 @@ export function createOperator({ keys, directory, backend, floor = PUBLISHED_FLO
       // message locally on `operatorDetail`, which never enters the claims and
       // is never sealed.
       const detail = e instanceof Error ? e.message : String(e);
-      return { ...signedReject(FACTS_UNAVAILABLE, req.nonce), operatorDetail: detail };
+      return { ...signedReject(FACTS_UNAVAILABLE, req.nonce, recipientEnc), operatorDetail: detail };
     }
 
     // 11. M4 — facts + predicate → the BIT. Never throws; an unanswerable
     //     predicate comes back refused, never as a defaulted `false`.
     const ev = evaluatePredicate(facts, req.predicate);
-    if (!ev.answered) return signedReject(ev.reason, req.nonce);
+    if (!ev.answered) return signedReject(ev.reason, req.nonce, recipientEnc);
 
     // 12. Canonicalise AFTER M4 has validated — canonicalising first would run
     //     caller-supplied code (Array.prototype.join over a wire array) on
@@ -571,9 +584,9 @@ export function createOperator({ keys, directory, backend, floor = PUBLISHED_FLO
     //     which is what makes "refuse instead of crash" available here at all.
     const plain = packSigned(attest(keys.opSig.privateKey, claims), keys.opIss);
     if (plain.length > OAEP_CAPACITY) {
-      return signedReject('answer does not fit one envelope', req.nonce);
+      return signedReject('answer does not fit one envelope', req.nonce, recipientEnc);
     }
-    return { kind: 'answer', claims, effectiveFloor, plain, sealed: seal(keys.rpEnc.publicKey, plain) };
+    return { kind: 'answer', claims, effectiveFloor, plain, sealed: seal(recipientEnc, plain) };
   }
 
   return { handle };

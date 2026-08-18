@@ -20,7 +20,7 @@ import {
   REGISTERED_NAME, NEAR_MISS_SCORE,
   WIRE_REASON_JSON_MAX, NONCE_JSON_MAX, FACTS_UNAVAILABLE,
   packSigned, unpackSigned, canonicalPredicate, clampReason, rawNeedles, opaqueNeedles, withoutNonce, withoutAsked, scan,
-  createBackend, createWorld, createHub, generateKeys, roundTrip, parseArgs, main, runDemo,
+  createBackend, createWorld, createHub, createOperator, createRP, generateKeys, roundTrip, parseArgs, main, runDemo,
 } from './demo.mjs';
 
 const { check, conclude } = makeHarness({ field: 'ok', okWord: 'OK' });
@@ -67,6 +67,31 @@ async function mockWorld() {
   const backend = await createBackend('mock');
   await backend.setBackstory(DEMO_NUMBER, STORY, NOW);
   return createWorld({ backend, keys: KEYS });
+}
+
+// A SECOND directory-listed requester, sharing the one operator, for case 46 —
+// `createWorld` only ever mints one RP, so the sealing-key regression (every
+// answer/refusal encrypted to a hardcoded key instead of the authenticated
+// issuer's own `encPub`) has no other case that can see it: with exactly one RP
+// in the directory the hardcoded key and the correct one are byte-identical.
+// B shares A's operator key pair (one operator, two correspondents) and gets its
+// own sig/enc pair and its own `rpIss`, both listed in the SAME directory the
+// operator looks issuers up in.
+async function twoRpWorld() {
+  const backend = await createBackend('mock');
+  await backend.setBackstory(DEMO_NUMBER, STORY, NOW);
+  const keysA = generateKeys();
+  const keysB = { ...keysA, rpSig: generateKeyPairSync('ed25519'), rpEnc: generateEnvelopeKeys(), rpIss: 'rp:demo-agent-02' };
+  const directory = Object.freeze({
+    [keysA.opIss]: { sigPub: keysA.opSig.publicKey, encPub: keysA.opEnc.publicKey },
+    [keysA.rpIss]: { sigPub: keysA.rpSig.publicKey, encPub: keysA.rpEnc.publicKey },
+    [keysB.rpIss]: { sigPub: keysB.rpSig.publicKey, encPub: keysB.rpEnc.publicKey },
+  });
+  const operator = createOperator({ keys: keysA, directory, backend });
+  const hub = createHub();
+  const worldA = { keys: keysA, directory, hub, operator, rp: createRP({ keys: keysA, directory }) };
+  const worldB = { keys: keysB, directory, hub, operator, rp: createRP({ keys: keysB, directory }) };
+  return { worldA, worldB };
 }
 const ok = (name, pass, extra) => check(name, true, { ok: pass === true, reason: pass === true ? 'ok' : 'failed' }, 'ok', extra);
 const rejects = (name, verdict, expectedReason, extra) =>
@@ -1190,8 +1215,37 @@ ok('23 ONE EVALUATION STEP', Object.keys(M5).sort().join(',') === 'createOrangeF
         && swapped.out.claims.predicate === c(bob) });
 }
 
+// 46 CROSS-REQUESTER SEALING (2026-08-18 fix). Every SEALED reply — an answer
+// and a signed refusal alike — must go to the ENVELOPE key of the issuer step 4
+// just authenticated, never a fixed key. A second directory-listed requester B
+// sends its own legitimate queries; both directions are asserted for both reply
+// kinds, because asserting only "B can read it" would still pass a fix that
+// seals to a key both A and B happen to hold.
+{
+  const { worldA, worldB } = await twoRpWorld();
+
+  // Answer path: B asks a question that is answered.
+  const qAnswer = worldB.rp.buildRequest(PREDICATE, TIGHTER);
+  const rAnswer = await roundTrip(worldB, qAnswer);
+  const answerForA = open(worldA.keys.rpEnc.privateKey, rAnswer.atRp);
+
+  // Refusal path: B asks something that is refused (below the published floor)
+  // — the ORIGINAL defect covered `signedReject` too, not only the answer.
+  const qRefuse = worldB.rp.buildRequest(PREDICATE, { swapAgeMin: 'P30D' });
+  const rRefuse = await roundTrip(worldB, qRefuse);
+  const refuseForA = open(worldA.keys.rpEnc.privateKey, rRefuse.atRp);
+
+  ok('46 CROSS-REQUESTER SEALING', true,
+    { label: 'B opens both replies with its own key; A opens neither with its own key'
+        + ` (answer-for-A=${answerForA.reason ?? 'opened'}, refusal-for-A=${refuseForA.reason ?? 'opened'})`,
+      ok: rAnswer.out.kind === 'answer' && rAnswer.verdict.accepted === true
+        && rRefuse.verdict.accepted === false && rRefuse.verdict.refused === true
+        && answerForA.ok === false && answerForA.reason === 'undecryptable'
+        && refuseForA.ok === false && refuseForA.reason === 'undecryptable' });
+}
+
 // The declared case count. A suite that silently loses the cases carrying its
 // guarantee still printed a green `RESULT: n/n` before this argument existed
 // (measured 2026-08-16 on m4-check: truncated to 18/18 exit 0, emptied to 0/0
 // exit 0).
-conclude(45);
+conclude(46);

@@ -89,6 +89,16 @@ components:
       # `tenure` and `simType` stay OUT for a MEASURED reason — the operator-side
       # data exists, and no CAMARA read endpoint for it does (`tenure/v1/retrieve`
       # and `sim-tenure/v1/retrieve` both `400 "unhandled path"`).
+      #
+      # CLOSED, like `AttestRequest`, `Floor` and the area object below. The
+      # reference operator already enforces a closed PREDICATE field set
+      # (poc/m4-facts-mock.mjs, `unexpected predicate fields: …`), and the sketch
+      # was the last layer still leaving it open — the same "an IGNORED field is
+      # a constraint the requester believes is enforced and is not" door, one
+      # level in. What JSON Schema cannot express here is the PER-TYPE half:
+      # `claimed` is legal only on `numberMatch`, and that restriction lives in
+      # the code, not in this list.
+      additionalProperties: false
       properties:
         type:
           type: string
