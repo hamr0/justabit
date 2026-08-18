@@ -7,7 +7,100 @@ memory. A finding here is something that was RUN and OBSERVED, not reasoned.
 
 ---
 
-## 2026-08-18 (latest) — LIVE-CONFIRMED at `3276ed0`: `demo.mjs --backend orange` 33/33 AND `m5-check-live.mjs` 19/19 — gate G2's M5 leg is USER-VALIDATED again
+## 2026-08-18 (latest) — `/code-review medium --fix` round + `/security`: 6 fixes, 1 user-approved behaviour change, m3 25→26, m5 58→60 — G1 AND G2 BOTH RE-OPENED (PENDING) at `9b04854`
+
+A code-review round on the six live-touching files (`poc/demo.mjs`,
+`poc/m3-check.mjs`, `poc/m3-floor.mjs`, `poc/m5-check.mjs`,
+`poc/m5-facts-orange.mjs`, `spec/carrier-attestation.yaml`) found 7 issues
+and fixed 6:
+
+1. `m3-floor.mjs` — an unknown floor field name reached the refusal reason
+   RAW; a key containing a newline/NUL forged a fake log line. Bounded to 40
+   chars printable ASCII (`fieldName()`), same rule as M6's request-field
+   check and M4's `describeKey`.
+2. `demo.mjs` — the "effective floor is the tightened one" assertion
+   recomputed `checkFloor` locally beside the round trip instead of reading
+   the operator's own return, so it passed identically for an operator that
+   computed the effective floor and discarded it. `handle()` now returns
+   `effectiveFloor` (operator-side only, never onto the wire) and the
+   assertion reads it off that return.
+3. `m5-facts-orange.mjs` — `getFacts` re-validated `thresholdMs` but trusted
+   `q.area`/`q.claimedName` verbatim; a caller bypassing `factQuery` could
+   push a malformed area or a 50,041-char name straight to a live metered
+   operator call. Both are now re-validated on the read path.
+4. `demo.mjs` — the RP registered a pending nonce BEFORE `seal()`, leaking
+   one permanently-unconsumable store entry per oversize-retry. Seal first,
+   register after.
+5. `demo.mjs` — `verifyResponse` with `skipNonceStore` and no
+   `fallbackPredicate` threw a bare `TypeError` out of a function contracted
+   to "untrusted input gets a verdict, never a throw". Now returns the
+   verdict.
+6. `spec/carrier-attestation.yaml` — documentation only: stated the
+   deliberate divergence where `additionalProperties:false` omits `number`
+   (the sketch models the 3-legged shape; the PoC's `number` stands in for
+   token-derived identity) instead of leaving it as an unstated trap.
+
+**Finding 7, escalated and USER-APPROVED as a behaviour change:**
+`m5-facts-orange.mjs` read the SIM-swap axis unconditionally, so a
+`reachable`/`roamingIn`/`presentIn`/`numberMatch` question — none of which
+carry a SIM threshold — still made a metered `/retrieve-date` call and
+pulled a raw SIM-swap date into the operator's fact set for a question
+nobody asked. Now conditional, matching the existing device-axis pattern.
+Reasoning (the user's stated basis): a reference operator holding a raw
+date it was never asked for undercuts the CAMARA proposal's own argument
+that `/check` leaves no raw value operator-side to leak in the first place.
+
+That change broke 7 pre-existing pinned cases (m5 10, 11, 12, 14, 15, 27,
+49), which had relied on the unconditional SIM read for their setup. They
+were REPAIRED, not weakened: an explicit SIM-question fixture (`SIM_Q`)
+threads a real SIM question through each so every assertion still exercises
+what it did before; case 49's control now asserts zero sim-swap calls when
+no threshold is named.
+
+Three new cases, each mutation-proven RED when its fix is reverted:
+`m3-check` case 26 (hostile floor key `"a\nFAKE LOG LINE b"`; reverted
+renders the raw control char, 25/26), `m5-check` case 59 (non-SIM question
+→ 0 sim-swap calls, SIM question → exactly 1; reverted, 57/59), and
+`m5-check` case 60 (malformed area + 50,041-char name never reach the wire;
+reverted, the suite crashes on an attempted outbound call). Two coverage
+gaps this surfaced and closed: before cases 26/60, `m3-check` scored 25/25
+and `m5-check` scored 58/58 whether fixes 1 and 3 were present OR
+reverted — real fixes with no net under them.
+
+**Counts moved: m3 25 → 26, m5 58 → 60.** Independently re-verified by exit
+code, agent-run: m1 20/20, m2 10/10, m3 26/26, m4 40/40, m5 60/60, m6 45/45,
+demo(mock) 33/33.
+
+`/security` was re-run across the round for the first time (it had not run
+before this): clean. No new findings; fixes 1/3/4/5 above each close a real
+class (log-line forging, unbounded outbound request, unbounded store
+growth, uncontracted throw). Nothing Critical/High.
+
+**Consequence for both gates — do not round this up.** This round changed
+`poc/demo.mjs` and `poc/m5-facts-orange.mjs`, which are exactly the files
+the two prior user-run gates (G1, G2) were validated against at tip
+`3276ed0`. Per this repo's own rule, a user record covers only the tree it
+was run on. This tree is a different tree (`9b04854`), with different code
+on the live paths and different counts on m3/m5. So:
+
+- **G1 (M1–M4 + M6 all user-validated) is PENDING again.** It was already
+  PENDING at `3276ed0` (M1/M3/M4 offline counts were agent-run there too).
+- **G2 (M5 user-validated live) is PENDING again**, even though it was MET
+  at `3276ed0` — the tree that met it no longer matches HEAD, because
+  `m5-facts-orange.mjs` (the file the live check exercises) changed under
+  it.
+- The user's `3276ed0` records for M1 (20/20), M2 (10/10), M4 (40/40), M6
+  (45/45) — and the demo mock 33/33 — do NOT transfer forward either, even
+  where their counts are unchanged, because the tree changed under all of
+  them (`poc/demo.mjs` moved; a shared module change can affect a suite that
+  imports it even when that suite's own file didn't move). All six modules
+  plus the demo need a fresh user run at `9b04854` (or later) to close G1
+  and G2.
+
+See `CHANGELOG.md` (Unreleased) for the same round in changelog form, and
+the commit `9b04854` for the full diff-level record.
+
+## 2026-08-18 — LIVE-CONFIRMED at `3276ed0`: `demo.mjs --backend orange` 33/33 AND `m5-check-live.mjs` 19/19 — gate G2's M5 leg is USER-VALIDATED again
 
 The user ran, on their own machine, live against the Orange Playground, at
 tip `3276ed0`:

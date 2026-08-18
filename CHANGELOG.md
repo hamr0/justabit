@@ -2,6 +2,64 @@
 
 ## Unreleased (0.4.0 — M6)
 
+- **`/code-review medium --fix` round + `/security`: 6 fixes, 1
+  user-approved behaviour change, m3 25 → 26, m5 58 → 60 — G1 AND G2 BOTH
+  RE-OPENED (PENDING) at `9b04854`.** Reviewed the six live-touching files
+  (`poc/demo.mjs`, `poc/m3-check.mjs`, `poc/m3-floor.mjs`,
+  `poc/m5-check.mjs`, `poc/m5-facts-orange.mjs`,
+  `spec/carrier-attestation.yaml`).
+  - **Six review fixes:** (1) an unknown floor field name reached the
+    refusal reason RAW — a newline/NUL could forge a fake log line; bounded
+    to 40 chars printable ASCII. (2) the "effective floor is the tightened
+    one" assertion recomputed `checkFloor` locally instead of reading the
+    operator's own return, so it passed identically for an operator that
+    computed and discarded the effective floor; `handle()` now returns
+    `effectiveFloor` (operator-side only, never onto the wire). (3)
+    `getFacts` re-validated `thresholdMs` but trusted `q.area`/
+    `q.claimedName` verbatim; a caller bypassing `factQuery` could push a
+    malformed area or a 50,041-char name straight to a live operator call —
+    both now re-validated on the read path. (4) the RP registered a pending
+    nonce BEFORE `seal()`, leaking one unconsumable store entry per
+    oversize retry — seal first, register after. (5) `verifyResponse` with
+    `skipNonceStore` and no `fallbackPredicate` threw a bare `TypeError`
+    instead of returning a verdict, breaking its own "never throw on
+    untrusted input" contract. (6) `carrier-attestation.yaml` — docs only:
+    stated the deliberate `number`-field divergence instead of leaving it
+    an unstated trap.
+  - **Finding 7, escalated and USER-APPROVED as a behaviour change:** the
+    SIM-swap axis was read UNCONDITIONALLY in `m5-facts-orange.mjs`, so a
+    `reachable`/`roamingIn`/`presentIn`/`numberMatch` question — none of
+    which carry a SIM threshold — still made a metered `/retrieve-date`
+    call and pulled a raw SIM-swap date operator-side for a question nobody
+    asked. Now conditional, matching the existing device-axis pattern.
+    Reasoning: a reference operator holding an unrequested raw value
+    undercuts the CAMARA proposal's own argument that `/check` leaves no
+    raw value operator-side to leak in the first place. That change broke 7
+    pre-existing pinned m5 cases (10, 11, 12, 14, 15, 27, 49) — REPAIRED,
+    not weakened, via an explicit SIM-question fixture threaded through
+    each so every assertion still exercises what it did before.
+  - **Three new cases, each mutation-proven RED when its fix is reverted:**
+    m3 case 26 (hostile floor key with an embedded newline), m5 case 59
+    (SIM axis read only when asked), m5 case 60 (malformed area / oversize
+    name never reach the wire). Two coverage gaps this closed: m3 and m5
+    scored their old full counts whether fixes 1 and 3 were present or
+    reverted, before these cases existed.
+  - **Counts moved: m3 25 → 26, m5 58 → 60.** Independently re-verified by
+    exit code (agent-run): m1 20/20, m2 10/10, m3 26/26, m4 40/40, m5
+    60/60, m6 45/45, demo(mock) 33/33.
+  - **`/security` re-run for the first time across this round: clean.** No
+    new findings; fixes 1/3/4/5 above each close a real class (log-line
+    forging, unbounded outbound request, unbounded store growth,
+    uncontracted throw). Nothing Critical/High.
+  - **Both gates re-opened.** This round changed exactly the two files
+    (`poc/demo.mjs`, `poc/m5-facts-orange.mjs`) that gates G1 and G2 were
+    user-validated against at tip `3276ed0`. A user record covers only the
+    tree it was run on — this is a different tree (`9b04854`) — so **G1 and
+    G2 are BOTH PENDING again**, and the `3276ed0` records for M1 (20/20),
+    M2 (10/10), M4 (40/40), M6 (45/45) and the demo mock run (33/33) do NOT
+    transfer forward either, even where their counts are unchanged, because
+    the tree changed under all of them. See `docs/01-product/findings.md`,
+    2026-08-18 (latest).
 - **LIVE FIX: the assertion-1 leaky-operator negative control was VACUOUS on
   the orange backend (user's live `--backend orange` run: 32/33) — fixed
   offline, mutation-proven.** The control reused the section's shared

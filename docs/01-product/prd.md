@@ -585,7 +585,45 @@ we manage here:
 
 Dated, append-only. Rationale in one line; details in the stash/history.
 
-- **2026-08-18 (latest) — a LIVE Orange run at 32/33 caught a vacuous
+- **2026-08-18 (latest) — `/code-review medium --fix` round + `/security`
+  (6 fixes, 1 user-approved behaviour change): m3 25 → 26, m5 58 → 60; G1 AND
+  G2 BOTH RE-OPENED (PENDING) at `9b04854`.** Reviewed the six live-touching
+  files (`poc/demo.mjs`, `poc/m3-check.mjs`, `poc/m3-floor.mjs`,
+  `poc/m5-check.mjs`, `poc/m5-facts-orange.mjs`,
+  `spec/carrier-attestation.yaml`). Six fixes: an unknown floor field name
+  reaching a refusal reason RAW (log-line-forging via newline/NUL, bounded
+  to 40 chars printable ASCII); the "effective floor" assertion recomputing
+  `checkFloor` locally instead of reading the operator's own return (passed
+  identically for an operator that discarded the effective floor);
+  `getFacts` trusting `q.area`/`q.claimedName` verbatim on a path a caller
+  could reach without going through `factQuery` (now re-validated); the RP
+  registering a pending nonce BEFORE `seal()` (leaked one unconsumable entry
+  per oversize retry); `verifyResponse` throwing a bare `TypeError` instead
+  of returning a verdict under `skipNonceStore`+no-fallback; and a spec-doc
+  divergence (`additionalProperties:false` omitting `number`) now stated
+  instead of left as a trap. **Finding 7, escalated and USER-APPROVED as a
+  behaviour change:** the SIM-swap axis was read UNCONDITIONALLY in
+  `m5-facts-orange.mjs`, so a `reachable`/`roamingIn`/`presentIn`/
+  `numberMatch` question — none of which carry a SIM threshold — still made
+  a metered `/retrieve-date` call and pulled a raw SIM-swap date
+  operator-side for a question nobody asked; now conditional, matching the
+  device-axis pattern, on the user's stated reasoning that a reference
+  operator holding an unrequested raw value undercuts the CAMARA proposal's
+  own no-raw-value-to-leak argument for `/check`. That change REPAIRED (not
+  weakened) 7 pinned m5 cases (10, 11, 12, 14, 15, 27, 49) via an explicit
+  SIM-question fixture threaded through each. Three new mutation-proven
+  cases (m3 26, m5 59, m5 60) closed two real coverage gaps (m3/m5 scored
+  25/25 and 58/58 whether fixes 1 and 3 were present or reverted, before
+  these cases existed). `/security` re-run for the first time across this
+  round: clean, no new findings. **Consequence: this round changed exactly
+  the two files (`poc/demo.mjs`, `poc/m5-facts-orange.mjs`) that gates G1
+  and G2 were user-validated against at tip `3276ed0` — by this repo's own
+  rule a user record covers only the tree it was run on, so BOTH gates are
+  PENDING again at `9b04854`, and the `3276ed0` records for M1/M2/M4/M6/demo
+  do not transfer forward either, even where their counts (20/10/40/45/33)
+  are unchanged — the tree changed under them.** Full record:
+  `findings.md`, 2026-08-18 (latest); commit `9b04854`.
+- **2026-08-18 — a LIVE Orange run at 32/33 caught a vacuous
   negative control; fixed, and then RE-RUN LIVE at 33/33 (USER-RUN, tip
   `3276ed0`).** Assertion 1's leaky-operator control reused the section's
   shared `simSwapAge ≥ P90D` predicate. P90D is 2160 hours, under M5's

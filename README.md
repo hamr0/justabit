@@ -162,23 +162,19 @@ monotone floor (looser queries rejected, never silently widened).
 with scriptable backstories; `--backend orange` re-proves the same code path live on the
 Network APIs Playground with a free Orange developer account. Each module also has its own
 check, negatives first, exit code 0 only if every case holds: `m1-check.mjs` (20 cases),
-`m2-check.mjs` (10), `m3-check.mjs` (25), `m4-check.mjs` (40), `m5-check.mjs` (58, an
+`m2-check.mjs` (10), `m3-check.mjs` (26), `m4-check.mjs` (40), `m5-check.mjs` (60, an
 offline replay of live-captured responses; `m5-check-live.mjs` re-proves 19 cases against
 the real Playground) and `m6-check.mjs` (45, offline in both backend modes).
-M2 is validated by a run on the maintainer's own machine at the count above (10/10).
-**M1, M3 and M4 are not, at their current counts**: the maintainer's runs cover M1 at 19,
-M3 at 22 and M4 at **33** — all OLDER than the counts above (20, 25 and 40). The 2026-08-17
-rounds moved M1 to 20 and M3 to 25, and the 3 → 6 predicate round moved M4 33 → 40; none of
-the three has been re-run by the maintainer at its new count, so all three stay agent-run at
-the counts above and are marked pending rather than rounded up. `m5-check.mjs`'s offline
-count (58) is likewise agent-run — the maintainer's last offline M5 run was at 48. **What
-the maintainer HAS validated live, as of a 2026-08-18 run at the current tip:**
-`node poc/demo.mjs --backend orange` reported 33/33 — the maintainer's SECOND live run of
-the demo and its first clean one (the first, on 2026-08-17, scored 32/33 and is what
-surfaced the vacuous leaky-operator control fixed at this tip) — and `node
-poc/m5-check-live.mjs` reported 19/19 against the real Playground, both at their current
-counts. `m6-check.mjs`'s own offline count (45) is separate from the demo and stays
-agent-run.
+**Every count above, and the demo's own mock/live runs, is AGENT-RUN only as of the
+2026-08-18 `/code-review` round (commit `9b04854`).** The maintainer's most recent
+validated tree was `3276ed0` — where `m2-check.mjs` (10/10), `demo.mjs --backend orange`
+(33/33) and `m5-check-live.mjs` (19/19) were all maintainer-confirmed, meeting gates G1's
+M2 leg and G2 in full — but that round's own `/code-review` pass changed `poc/demo.mjs`
+and `poc/m5-facts-orange.mjs` (also moving M3 25 → 26 and M5's offline count 58 → 60), so
+by this repo's own rule none of those records transfer forward: **both G1 (M1–M4 + M6 all
+user-validated) and G2 (M5 user-validated live) are PENDING again**, including for the
+modules whose counts did not move. See `docs/01-product/findings.md`, 2026-08-18 (latest),
+for the exact re-run commands and reasoning.
 Requirements live in the [PRD §4](docs/01-product/prd.md); status, setup and caveats in
 [`poc/README.md`](poc/README.md).
 
