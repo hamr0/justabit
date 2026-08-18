@@ -6,40 +6,30 @@
 per-module user validation; see PRD §4.4 and the decision log) and the ladder
 since then has held: each module is POC'd against its toughest assumption,
 built, proven end-to-end on its own, and **validated by the user before the
-next module starts**. M1–M5 were user-validated at the trees noted below;
-**M6 is AGENT-RUN only, and M1/M3/M4's offline suites (widened by the 3 -> 6
-predicate round and the M6 round) are AGENT-RUN again with a user re-run
-PENDING** — so gate G1 (M1–M4 + M6 all user-validated) is NOT met. **Gate G2
-(M5 user-validated live) was MET at tip `3276ed0` and is RE-OPENED (PENDING)
-as of the `9b04854` code-review round** — that round changed
-`poc/demo.mjs` and `poc/m5-facts-orange.mjs`, exactly the files G1's and
-G2's user runs were validated against, so neither the `3276ed0` M5-live
-record nor any of the other modules' `3276ed0` records transfer forward.
-Both gates need a fresh user run at `9b04854` or later; see
-`docs/01-product/findings.md`, 2026-08-18 (latest). Every check runs on its
-own (negatives first, exit 0 only if every case holds):
+next module starts**. **Both gates are now MET at code commit `4446517` /
+docs commit `c921508`: the user ran the full validation suite on their own
+machine (log timestamped 2026-08-18 08:16) — every suite clean, zero `FAIL`,
+zero `TypeError`, zero `Error:` lines in the entire log.** Gate G1 (M1–M4 + M6
+all user-validated) is MET at the current counts; gate G2 (M5 user-validated
+live) is MET on both legs (offline and live). This is the first time in this
+project both gates have been met at the same commit, on a tree that had
+already been through two `/code-review` rounds with every fix
+mutation-proven. This record covers `4446517`/`c921508` only, per this
+repo's standing rule that a user record does not transfer to a later change;
+see `docs/01-product/findings.md`, 2026-08-18 (latest). Every check runs on
+its own (negatives first, exit 0 only if every case holds):
 
 ```
-node poc/m1-check.mjs   # M1 attestation core — 20 cases (user-validated 19/19 at the
-                        #   19-case tree; case 20 added by the M6 round —
-                        #   AGENT-RUN 20/20, user re-run PENDING)
-node poc/m2-check.mjs   # M2 blind envelope — 10 cases (module user-validated 10/10)
-node poc/m3-check.mjs   # M3 floor gate — 26 cases (user-validated 22/22 at the
-                        #   22-case tree; cases 23-25 added by the M6 and
-                        #   3 -> 6 predicate rounds, case 26 by the
-                        #   2026-08-18 code-review round (hostile floor axis
-                        #   name) — AGENT-RUN 26/26, user re-run PENDING)
-node poc/m4-check.mjs   # M4 mock facts adapter — 40 cases (user-validated 33/33 at the
-                        #   33-case tree; cases 34-40 added by the 3 -> 6 predicate
-                        #   round — AGENT-RUN 40/40, user re-run PENDING)
+node poc/m1-check.mjs   # M1 attestation core — 20 cases (user-validated 20/20 at
+                        #   `4446517`, 2026-08-18)
+node poc/m2-check.mjs   # M2 blind envelope — 10 cases (user-validated 10/10 at
+                        #   `4446517`, 2026-08-18)
+node poc/m3-check.mjs   # M3 floor gate — 26 cases (user-validated 26/26 at
+                        #   `4446517`, 2026-08-18)
+node poc/m4-check.mjs   # M4 mock facts adapter — 40 cases (user-validated 40/40 at
+                        #   `4446517`, 2026-08-18)
 node poc/m5-check.mjs   # M5 orange facts adapter, OFFLINE — 60 cases (user-validated
-                        #   48/48 at 8e842c3, the shipped v0.3.0 state; cases 49-56
-                        #   added by the 3 -> 6 predicate round, case 57 by the
-                        #   live location-write fix, case 58 by the
-                        #   available/radius convergence probe, and cases 59-60
-                        #   by the 2026-08-18 code-review round (conditional SIM
-                        #   read, getFacts re-validation) — AGENT-RUN 60/60,
-                        #   user re-run PENDING).
+                        #   60/60 at `4446517`, 2026-08-18).
                         #   Zero credentials, zero network:
                         #   an injected transport replays responses captured live on
                         #   2026-08-16, so it runs on a clean clone.
@@ -54,19 +44,15 @@ ORANGE_BASIC_AUTH="$(pass camara/orange_network | head -1)" node poc/m5-check-li
                         # M5's own closed-field validation, so it was rewritten
                         # (11 -> 19, all six predicates on the live path, plus an
                         # OFFLINE case 1 pinning the story against the adapter's
-                        # closed field set). AGENT-RUN 19/19 through an
-                        # injected-transport REPLAY only, at the time of that rewrite.
-                        # LIVE-CONFIRMED at `3276ed0`: the user re-ran this file live
-                        # against the real Playground there and got 19/19 (quota
-                        # clean, start=1 end=1 of 10) — see
-                        # docs/01-product/findings.md, 2026-08-18. That record does
-                        # NOT transfer forward: the 2026-08-18 code-review round
-                        # changed poc/m5-facts-orange.mjs (this file's own adapter)
-                        # after `3276ed0`, so G2 is RE-OPENED (PENDING); a second
-                        # code-review round then changed poc/demo.mjs again (the
-                        # OTHER file G2's own definition covers), so PENDING carries
-                        # forward through `9b04854` to `4446517` — see findings.md,
-                        # 2026-08-18 (latest).
+                        # closed field set). LIVE-CONFIRMED at `3276ed0`: the user
+                        # re-ran this file live against the real Playground there and
+                        # got 19/19 (quota clean, start=1 end=1 of 10). Two
+                        # code-review rounds then changed poc/m5-facts-orange.mjs and
+                        # poc/demo.mjs after `3276ed0`, re-opening G2 through
+                        # `9b04854` and `4446517` — closed again by a fresh full user
+                        # run: LIVE-CONFIRMED AGAIN at `4446517`/`c921508`
+                        # (2026-08-18 08:16), 19/19. G2 IS MET at `4446517` — see
+                        # docs/01-product/findings.md, 2026-08-18 (latest).
                         # exit 2 + printed prerequisites if the credential is absent —
                         # never a silent pass, never a mock fallback.
                         # COSTS QUOTA: consumes and returns one of the app's 10 custom
@@ -74,9 +60,9 @@ ORANGE_BASIC_AUTH="$(pass camara/orange_network | head -1)" node poc/m5-check-li
                         # interrupted run does not leak one), prints the count at both
                         # ends, and case 19 asserts it came back.
 
-node poc/m6-check.mjs   # M6 integration — 46 cases (AGENT-RUN 46/46, user run
-                        #   PENDING — case 46 CROSS-REQUESTER SEALING added
-                        #   2026-08-18, second code-review round, 45 -> 46).
+node poc/m6-check.mjs   # M6 integration — 46 cases (user-validated 46/46 at
+                        #   `4446517`, 2026-08-18 — case 46 CROSS-REQUESTER SEALING
+                        #   added the same day, second code-review round, 45 -> 46).
                         #   Zero credentials, zero network in BOTH
                         #   backend modes: the `--backend orange` seam runs
                         #   through an injected transport replaying captured
@@ -137,17 +123,20 @@ LIVE-CONFIRMED: the user re-ran `node poc/demo.mjs --backend orange` at tip
 leak for real on the live backend. That record does NOT transfer forward:
 the 2026-08-18 code-review round changed `poc/demo.mjs` itself after
 `3276ed0` (four fixes landed in this file — see the count/gate note above),
-so the demo's own live run is PENDING again at `9b04854`; see
+so the demo's own live run went PENDING again at `9b04854`. **That has since
+been closed: the user re-ran `node poc/demo.mjs --backend orange` at
+`4446517`/`c921508` (2026-08-18 08:16) and reported `RESULT: 33/33` — see
 `docs/01-product/findings.md`, 2026-08-18 (latest), which also records why
-gate G2 is re-opened.
+gate G2 is now MET.**
 
 The **M6 round (2026-08-17)** then changed two of those modules, so two counts
 moved: M1 gained case 20 (its duplicate-key scanner is now EXPORTED, so a signed
 REQUEST can be checked for the same equivocation) and M3 gained case 23 (its
 declared fix point — the rejection-message builder threw a bare `TypeError`
-instead of producing the loud named-input rejection). Both are **AGENT-RUN by
-exit code and PENDING a user re-run**; the user records below stand for the trees
-they were run on and are not transferred forward.
+instead of producing the loud named-input rejection). Both were **AGENT-RUN by
+exit code with a user re-run PENDING at the time** — since closed, along with
+every later count move, by the full user run at `4446517`/`c921508`
+(2026-08-18 08:16): see the status note at the top of this file.
 
 All four were run by the user on their own machine after the v0.2.0 release
 (main at `7c41c83`, tag `v0.2.0` — dated findings record, 2026-08-16): 19/19,
@@ -185,9 +174,12 @@ went PENDING a re-run. **That re-run has since happened: the user ran
 `m5-check-live.mjs` live against the real Playground at the current tip
 `3276ed0` and got 19/19 (quota clean) — G2 IS MET again, at `3276ed0`, and
 nothing about it is pending.** See `docs/01-product/findings.md`, 2026-08-18.
-**That record has since gone PENDING again** — the 2026-08-18 code-review
-round changed `poc/m5-facts-orange.mjs` after `3276ed0`; see the status note
-at the top of this file and `findings.md`, 2026-08-18 (latest).
+**That record then went PENDING again** — the 2026-08-18 code-review
+round changed `poc/m5-facts-orange.mjs` after `3276ed0` — **and has since been
+closed a third time: the user re-ran `m5-check-live.mjs` live at
+`4446517`/`c921508` (2026-08-18 08:16) and got 19/19. G2 IS MET at
+`4446517`.** See the status note at the top of this file and `findings.md`,
+2026-08-18 (latest).
 That earlier run also exposed a
 **grounding failure**: `m5-check-live.mjs` was the ONE file the 3 → 6 round never
 updated (`git log 8238d02..81f8da4` on it is empty), so all eight of its

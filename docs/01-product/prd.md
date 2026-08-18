@@ -409,6 +409,18 @@ first, failing run and is retired only now, by the second, clean one.
 unaffected by either run and stay asterisked. Full detail in the 2026-08-18
 decisions-log entry.
 
+**All asterisks retired (2026-08-18, superseding the four paragraphs
+above).** Two `/code-review` rounds the same day moved M1 to 20, M3 to 26,
+M4 to 40, M5's offline count to 60, M5's live count to 19 and built M6 to 46
+— every count above this paragraph is now stale by module count, not just
+by asterisk. The user then ran the FULL suite at code commit `4446517` /
+docs commit `c921508` (2026-08-18 08:16) and reported every module clean at
+its current count: M1 20/20, M2 10/10, M3 26/26, M4 40/40, M5 60/60 offline
++ 19/19 live, M6 46/46, `demo.mjs` 33/33 mock and 33/33 live. **M1–M6 all
+carry no asterisk as of `4446517`/`c921508`** — this is the first time every
+module has been user-validated at its current count on the same tree. See
+`findings.md`, 2026-08-18 (latest).
+
 (For the record, an earlier version of this note said the `/code-review` round
 "changed exactly four files … verified by `git diff --stat`". `git show --stat
 5d5e8aa` reports **seven**: those four plus `findings.md`, `prd.md` and
@@ -585,9 +597,28 @@ we manage here:
 
 Dated, append-only. Rationale in one line; details in the stash/history.
 
-- **2026-08-18 (latest) — second `/code-review medium --fix` round:
+- **2026-08-18 (latest) — user ran the FULL validation suite on their own
+  machine at `4446517`/`c921508`, log timestamped 08:16: every suite clean,
+  zero `FAIL`, zero `TypeError`, zero `Error:` lines in the entire log.
+  BOTH gates MET at `4446517`, for the first time at the same commit.**
+  `m1-check.mjs` 20/20, `m2-check.mjs` 10/10, `m3-check.mjs` 26/26,
+  `m4-check.mjs` 40/40, `m5-check.mjs` 60/60, `m6-check.mjs` 46/46,
+  `demo.mjs` (mock) 33/33, `demo.mjs --backend orange` (live, real Orange
+  Playground) 33/33, `m5-check-live.mjs` (live, real Orange Playground)
+  19/19 — verified directly against the user's log by the main session.
+  Every count is user-run; none is agent-run. G1 (M1–M4 + M6 all
+  user-validated) is MET at the current counts (20/10/26/40/46). G2 (M5
+  user-validated live) is MET on both legs (offline 60/60, live 19/19).
+  This is the first time both gates have been met at the same commit on a
+  tree that had already been through two `/code-review` rounds with every
+  fix mutation-proven — see the two entries directly below for what those
+  rounds changed. Per this repo's own rule, this record covers `4446517`
+  (code) / `c921508` (docs) and nothing later; a future change to any
+  covered file re-opens the relevant gate the same way the two rounds
+  below did. Full record: `findings.md`, 2026-08-18 (latest).
+- **2026-08-18 — second `/code-review medium --fix` round:
   cross-requester sealing fixed (m6 45 → 46), spec closure — G1 and G2
-  remain PENDING, now at `4446517`.** The round-1 tree (`c15fcc0`) had the
+  were PENDING at `4446517` until the full user run above.** The round-1 tree (`c15fcc0`) had the
   operator sealing every signed refusal AND every answer to a hardcoded
   `keys.rpEnc.publicKey` instead of the envelope key of the issuer step 3/4
   had just authenticated — the directory already carried `encPub` for
@@ -616,12 +647,16 @@ Dated, append-only. Rationale in one line; details in the stash/history.
   code: m1 20/20, m2 10/10, m3 26/26, m4 40/40, m5 60/60, **m6 46/46**,
   demo(mock) 33/33. **Consequence: this round changed `poc/demo.mjs` again
   — one of the two files the last user validation (`3276ed0`) covered — so
-  G1 and G2 remain PENDING**, and the tree has now moved three times since
+  G1 and G2 remained PENDING at this commit** (SUPERSEDED — see the
+  2026-08-18 (latest) entry above: the user's full run at `4446517`
+  subsequently MET both gates), and the tree had moved three times since
   that validation (`9b04854`, `c15fcc0`, `4446517`). Full record:
   `findings.md`, 2026-08-18 (latest); commit `4446517`.
 - **2026-08-18 — `/code-review medium --fix` round + `/security`
   (6 fixes, 1 user-approved behaviour change): m3 25 → 26, m5 58 → 60; G1 AND
-  G2 BOTH RE-OPENED (PENDING) at `9b04854`.** Reviewed the six live-touching
+  G2 BOTH RE-OPENED (PENDING) at `9b04854`.** (SUPERSEDED — see the
+  2026-08-18 (latest) entry above: the user's full run at `4446517`
+  subsequently MET both gates.) Reviewed the six live-touching
   files (`poc/demo.mjs`, `poc/m3-check.mjs`, `poc/m3-floor.mjs`,
   `poc/m5-check.mjs`, `poc/m5-facts-orange.mjs`,
   `spec/carrier-attestation.yaml`). Six fixes: an unknown floor field name

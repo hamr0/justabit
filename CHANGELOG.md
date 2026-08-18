@@ -2,8 +2,21 @@
 
 ## Unreleased (0.4.0 — M6)
 
+- **User ran the full validation suite at code commit `4446517` / docs
+  commit `c921508` (log timestamped 2026-08-18 08:16): every suite clean,
+  zero `FAIL`, zero `TypeError`, zero `Error:` lines in the entire log.
+  BOTH gates MET at `4446517`, for the first time at the same commit.**
+  `m1-check.mjs` 20/20, `m2-check.mjs` 10/10, `m3-check.mjs` 26/26,
+  `m4-check.mjs` 40/40, `m5-check.mjs` 60/60, `m6-check.mjs` 46/46,
+  `demo.mjs` (mock) 33/33, `demo.mjs --backend orange` (live, real Orange
+  Playground) 33/33, `m5-check-live.mjs` (live, real Orange Playground)
+  19/19 — every count user-run. G1 (M1–M4 + M6 all user-validated) MET at
+  the current counts; G2 (M5 user-validated live) MET on both legs. This
+  record covers `4446517`/`c921508` only. See
+  `docs/01-product/findings.md`, 2026-08-18 (latest).
 - **Second `/code-review medium --fix` round: cross-requester sealing fixed
-  (m6 45 → 46), spec closure — G1 AND G2 STILL PENDING, now at `4446517`.**
+  (m6 45 → 46), spec closure — G1 AND G2 were PENDING at `4446517` until
+  the full user run above.**
   Reviewed the round-1 tree (`c15fcc0`) and found the operator sealed EVERY
   signed refusal AND every answer to a hardcoded `keys.rpEnc.publicKey`
   instead of the envelope key of the issuer step 3/4 had just authenticated
@@ -50,13 +63,17 @@
     security pass is not proof.
   - Verified green independently by exit code: m1 20/20, m2 10/10, m3
     26/26, m4 40/40, m5 60/60, **m6 46/46**, demo(mock) 33/33. **G1 and G2
-    remain PENDING** — this round changed `poc/demo.mjs` again, one of the
-    exact files the last user validation (`3276ed0`) covered; no user
-    record transfers forward across a tree change. See
+    remained PENDING at this commit** (SUPERSEDED — see the entry above:
+    the user's full run at `4446517` subsequently MET both gates) — this
+    round changed `poc/demo.mjs` again, one of the exact files the last
+    user validation (`3276ed0`) covered; no user record transfers forward
+    across a tree change. See
     `docs/01-product/findings.md`, 2026-08-18 (latest).
 - **`/code-review medium --fix` round + `/security`: 6 fixes, 1
   user-approved behaviour change, m3 25 → 26, m5 58 → 60 — G1 AND G2 BOTH
-  RE-OPENED (PENDING) at `9b04854`.** Reviewed the six live-touching files
+  RE-OPENED (PENDING) at `9b04854`.** (SUPERSEDED — see the top entry
+  above: the user's full run at `4446517` subsequently MET both gates.)
+  Reviewed the six live-touching files
   (`poc/demo.mjs`, `poc/m3-check.mjs`, `poc/m3-floor.mjs`,
   `poc/m5-check.mjs`, `poc/m5-facts-orange.mjs`,
   `spec/carrier-attestation.yaml`).

@@ -7,7 +7,41 @@ memory. A finding here is something that was RUN and OBSERVED, not reasoned.
 
 ---
 
-## 2026-08-18 (latest) — Second `/code-review medium --fix` round: cross-requester sealing fixed, m6 45→46 — G1 AND G2 STILL PENDING, now at `4446517`
+## 2026-08-18 (latest) — Full user validation run at `4446517`/`c921508`: BOTH gates MET, first time at the same commit
+
+The user ran the full validation suite on their own machine at code commit
+`4446517` (docs commit `c921508`), log timestamped 08:16. Every suite clean:
+zero `FAIL` lines, zero `TypeError`, zero `Error:` lines in the entire log.
+Verified by the main session by reading the log directly:
+
+```
+m1-check.mjs            RESULT: 20/20
+m2-check.mjs            RESULT: 10/10
+m3-check.mjs            RESULT: 26/26
+m4-check.mjs            RESULT: 40/40
+m5-check.mjs            RESULT: 60/60
+m6-check.mjs            RESULT: 46/46
+demo.mjs (mock)         RESULT: 33/33
+demo.mjs --backend orange   RESULT: 33/33   (live, real Orange Playground)
+m5-check-live.mjs           RESULT: 19/19   (live, real Orange Playground)
+```
+
+Every count above is user-run, not agent-run.
+
+**Consequence: both gates are now MET at `4446517`.** G1 (M1–M4 + M6 all
+user-validated) is MET at the current counts (20/10/26/40/46). G2 (M5
+user-validated live) is MET on both legs — offline 60/60 and live 19/19.
+This is the first time in this project both gates have been met at the same
+commit, on a tree that had already been through two `/code-review` rounds
+(recorded in the two entries directly below) with every fix
+mutation-proven.
+
+**Scope of this record, stated per this repo's own rule:** it covers
+`4446517` (code) / `c921508` (docs) and nothing later. A future change to
+any file either gate's validation depends on re-opens that gate, the same
+way the two rounds below did to the `3276ed0` record.
+
+## 2026-08-18 — Second `/code-review medium --fix` round: cross-requester sealing fixed, m6 45→46 — G1 AND G2 were PENDING, at `4446517`, until the full user run above
 
 A second code-review round on the round-1 tree (`c15fcc0`) found the
 operator sealing EVERY signed refusal AND every answer to a hardcoded
