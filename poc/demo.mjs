@@ -583,7 +583,20 @@ export function createOperator({ keys, directory, backend, floor = PUBLISHED_FLO
     //     out of handle(). A refusal carries no predicate, so it always fits —
     //     which is what makes "refuse instead of crash" available here at all.
     const plain = packSigned(attest(keys.opSig.privateKey, claims), keys.opIss);
-    if (plain.length > OAEP_CAPACITY) {
+    // Capacity DERIVED from the actual recipient key here too (2026-08-18 fix
+    // round), not the module constant `OAEP_CAPACITY` (446, the RSA-4096 demo
+    // value): `seal()` in m2-envelope.mjs already derives the real capacity
+    // from `recipientEnc` (`modulusBits / 8 - 66`), so against a non-4096
+    // recipient this guard and `seal()`'s own check used to disagree — turning
+    // this intended graceful `signedReject` into `seal()` throwing straight out
+    // of `handle()`. Falls back to `OAEP_CAPACITY` only if the key shape is not
+    // a recognisable RSA KeyObject, in which case `seal()` below throws its own
+    // clear error exactly as it did before this fix — unchanged behaviour for
+    // that edge case, and unchanged behaviour for RSA-4096 either way.
+    const recipientCapacity = typeof recipientEnc?.asymmetricKeyDetails?.modulusLength === 'number'
+      ? recipientEnc.asymmetricKeyDetails.modulusLength / 8 - 66
+      : OAEP_CAPACITY;
+    if (plain.length > recipientCapacity) {
       return signedReject('answer does not fit one envelope', req.nonce, recipientEnc);
     }
     return { kind: 'answer', claims, effectiveFloor, plain, sealed: seal(recipientEnc, plain) };
@@ -829,7 +842,7 @@ export const instantSpellings = (atMs) => {
   return [String(atMs), iso, iso.slice(0, 10)];
 };
 
-export function rawNeedles(daysAgo, { country = 'FR', number = DEMO_NUMBER, deviceDaysAgo = null } = {}) {
+export function rawNeedles(daysAgo, { country = 'FR', number = DEMO_NUMBER, deviceDaysAgo = null, deviceFlippedDaysAgo = null } = {}) {
   const spellings = (d) => {
     const ageMs = d * DAY_MS;
     const atMs = NOW - ageMs;
@@ -839,9 +852,18 @@ export function rawNeedles(daysAgo, { country = 'FR', number = DEMO_NUMBER, devi
   // now holds gets its own spellings, because the review's lesson was that an
   // inventory covering one value five ways reads as complete and is not. The
   // DEVICE swap instant is a second raw timestamp, as disclosive as the first.
+  //
+  // WIDENED AGAIN 2026-08-18 (fix round): `deviceFlippedDaysAgo` covers the
+  // device axis's RE-SCRIPTED instant (the r6b negative re-scripts ONLY the
+  // device axis to a different day count before asking the same question).
+  // Without its own spellings here, the frame that answers about that
+  // re-scripted instant is scanned against needles for a value the subscriber
+  // was never re-scripted to at that point — a scan that could not have found
+  // that value even if it had leaked.
   return [
     ...spellings(daysAgo),
     ...(deviceDaysAgo === null ? [] : spellings(deviceDaysAgo)),
+    ...(deviceFlippedDaysAgo === null ? [] : spellings(deviceFlippedDaysAgo)),
     'swapAgeMs', 'deviceSwapAgeMs', 'roamingCountry', country, number,
     // The OBSERVATION INSTANT that rides with the position — added 2026-08-17,
     // when the user's live Playground run measured that the Admin store REQUIRES
@@ -871,8 +893,36 @@ export function rawNeedles(daysAgo, { country = 'FR', number = DEMO_NUMBER, devi
 // a 308-character base64 payload about once every 13; a 3-digit day count lands
 // inside a 32-character hex nonce about once every 140. A needle that reds a
 // clean run asserts nothing, so those two are scanned only where a hit is real.
+// Both cutoffs below are the SAME operation at two calibrations, so the filter
+// itself is written once: only the threshold differs, and each threshold's own
+// justification stays with its constant.
+const atLeast = (min) => (all) => all.filter((n) => n.length >= min);
+
 const OPAQUE_MIN_NEEDLE = 8;
-export const opaqueNeedles = (all) => all.filter((n) => n.length >= OPAQUE_MIN_NEEDLE);
+export const opaqueNeedles = atLeast(OPAQUE_MIN_NEEDLE);
+
+// The plaintext counterpart, added 2026-08-18 (fix round) after the widened
+// device-flip inventory (`DEVICE_FLIPPED_DAYS_AGO` below) exposed the same
+// class of problem OPAQUE_MIN_NEEDLE already guards against, one size class
+// down: `String(4)` is a ONE-CHARACTER needle, and a single decimal digit is
+// all but guaranteed to appear somewhere in a claim frame that carries several
+// numeric fields (`exp`, thresholds, day counts) even with the nonce blanked —
+// measured directly: it reds every plaintext scan in this file, including the
+// very first one, whose frame predates the device-flip scenario entirely and
+// so cannot possibly carry that value. That is not 8 (OPAQUE_MIN_NEEDLE is
+// calibrated against RANDOM bytes/base64, where even a short needle is
+// genuinely rare); this scan runs against STRUCTURED, low-entropy JSON text,
+// where the needles already proven not to false-positive across this suite's
+// whole run history are two- and three-character (`FR`, the 2-letter country
+// code kept deliberately per the note below; `137`/`211`, the day counts) —
+// so the cutoff is set at the shortest of those, 2, dropping ONLY a bare
+// single-character spelling. A day count short enough that even its "N days"
+// form is one character (as `DEVICE_FLIPPED_DAYS_AGO` is) cannot be
+// leak-tested by this scan via that spelling — an honest limit, not silently
+// smoothed over: the value's LONGER spellings (its millisecond age, its ISO
+// instant, its date) are unaffected and stay fully leak-testable.
+const PLAIN_MIN_NEEDLE = 2;
+export const plainNeedles = atLeast(PLAIN_MIN_NEEDLE);
 
 // ...and the counterpart that makes the SHORT needles usable on plaintext: the
 // nonce is 32 random hex characters, so it is the one place in a claim frame
@@ -941,8 +991,27 @@ export async function runDemo(backend) {
   results.length = 0;   // so a second call in one process reports its own tally
   const world = createWorld({ backend });
   const { hub, rp, keys } = world;
-  const NEEDLES = rawNeedles(SWAPPED_DAYS_AGO, { deviceDaysAgo: DEVICE_SWAPPED_DAYS_AGO });
-  const OPAQUE = opaqueNeedles(NEEDLES);
+  // RAW carries every spelling, including any too-short-to-assert ones (see
+  // PLAIN_MIN_NEEDLE above); NEEDLES is the plaintext-usable subset actually
+  // scanned below, and OPAQUE (a stricter subset again) is derived from RAW
+  // rather than NEEDLES so a future plaintext cutoff change cannot silently
+  // narrow the opaque scan too.
+  const RAW_NEEDLES = rawNeedles(SWAPPED_DAYS_AGO, { deviceDaysAgo: DEVICE_SWAPPED_DAYS_AGO, deviceFlippedDaysAgo: DEVICE_FLIPPED_DAYS_AGO });
+  const NEEDLES = plainNeedles(RAW_NEEDLES);
+  const OPAQUE = opaqueNeedles(RAW_NEEDLES);
+
+  // PLAIN_MIN_NEEDLE's own drop, pinned on the SET it drops, not merely the
+  // count — a count-only check would pass identically if a DIFFERENT needle
+  // had dropped instead. Hardcoded to the one spelling this inventory is
+  // documented to drop (`String(DEVICE_FLIPPED_DAYS_AGO)`, the single-digit
+  // day count), so a future change that widens the drop (the cutoff moving,
+  // or a new short spelling entering RAW_NEEDLES) reds here instead of
+  // silently leaving the leak scan with one fewer needle than the docs claim.
+  const droppedPlain = RAW_NEEDLES.filter((n) => n.length < PLAIN_MIN_NEEDLE);
+  assert('PLAIN_MIN_NEEDLE drops exactly the needle set it is documented to drop, nothing else',
+    JSON.stringify(droppedPlain) === JSON.stringify(['4']) && NEEDLES.length === RAW_NEEDLES.length - 1,
+    `raw=${RAW_NEEDLES.length} -> plain=${NEEDLES.length}; dropped=${JSON.stringify(droppedPlain)}`);
+
   const SWAP_ISO = new Date(NOW - SWAPPED_DAYS_AGO * DAY_MS).toISOString();
 
   await backend.setBackstory(DEMO_NUMBER, story(), NOW);
@@ -1400,6 +1469,23 @@ export async function runDemo(backend) {
   flip('letting the unsigned `iss` pick the key ACCEPTS that same answer',
     rp.verifyResponse(sideSealed, 'side-nonce', NOW + 1_000, { trustIssHint: true }).accepted === true,
     'profile rule 3\'s exact attack, live in the composition: any listed operator could answer for any other');
+
+  out('');
+  step('ENVELOPE CAPACITY IS THE RECIPIENT\'S, NOT A CONSTANT (2026-08-18 fix round).');
+  step('`OAEP_CAPACITY` (446 B) is only correct for an RSA-4096 recipient; the pre-seal');
+  step('guard above derives the real cap from `recipientEnc` itself, exactly as `seal()`');
+  step('does — so a smaller-key requester gets a graceful, signed refusal, never a crash.');
+  const smallKeys = generateKeys();
+  smallKeys.rpEnc = generateKeyPairSync('rsa', { modulusLength: 3072 });   // real cap 318 B, under the 446 B constant
+  const smallWorld = createWorld({ backend, keys: smallKeys });
+  const q7 = smallWorld.rp.buildRequest(
+    { type: 'roamingIn', operator: 'in', value: ['AB', 'BC', 'CD', 'DE', 'EF'] },
+    { swapAgeMin: 'P180D' },
+  );
+  const r7 = await roundTrip(smallWorld, q7);
+  assert('a recipient with a SMALLER-than-4096 envelope key gets a graceful refusal, not a thrown exception',
+    r7.out.kind === 'reject' && r7.verdict.refused === true && r7.out.reason === 'answer does not fit one envelope',
+    `RSA-3072 real cap 318 B < the RSA-4096 OAEP_CAPACITY constant (446 B); requester saw: '${r7.verdict.reason}'`);
 
   // ───────────────────────────────────────────────────────────── the notes
   section('Notes the reader is owed');

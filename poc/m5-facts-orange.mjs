@@ -799,6 +799,17 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
     // not a property this file can verify.
     const q = isPlainData(query) ? query : {};
 
+    // The axis-signal re-check, stated ONCE. Every axis below asks the same two
+    // questions of `q` — is the signal present as an OWN property, and is it
+    // EXACTLY boolean `true` — and until this helper each of the six spelled
+    // that pair out by hand. That is the same class of second source of truth
+    // this round removed from the gates themselves: the SIM/device axes drifted
+    // onto an older pattern precisely because there was no one place to change.
+    // `hasOwn` stays belt-and-braces (no inherited `Object.prototype` member is
+    // `=== true`, so the strict check alone would do) because this file's
+    // contract is that it re-validates every field it did not itself produce.
+    const asked = (key) => hasOwn(q, key) && q[key] === true;
+
     // ONE swap axis, TWO surfaces, and the choice is made HERE from the measured
     // cap. This is the only place in the PoC where the profile's own preference
     // is expressible on a real endpoint: `/check` answers a bit about a window
@@ -809,8 +820,21 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
     // a question nobody asked, signed.
     const readSwapAxis = async (axis) => {
       const thresholdMs = q[axis.thresholdKey];
-      const fits = Number.isSafeInteger(thresholdMs) && thresholdMs > 0
-        && thresholdMs % HOUR_MS === 0 && thresholdMs / HOUR_MS <= CHECK_MAX_HOURS;
+      // FAIL CLOSED on the threshold itself, now that entry to this function is
+      // gated on the `needXxx` SIGNAL rather than on the threshold key's mere
+      // presence. Before this unification the two were the same test (the old
+      // gate WAS `hasOwn(q, thresholdKey)`), so a present-but-invalid value could
+      // only ever reach here already knowing SOMETHING was asked, and — the bug
+      // this guard closes — it then fell straight into the `/retrieve-date`
+      // branch below (raw date, no window) rather than being refused. Under the
+      // signal-based gate that gap would widen: `needSim: true` with no
+      // threshold at all (or a garbage one) would reach this function too. So the
+      // validity check is now unconditional and FIRST: no safe positive integer
+      // threshold means no read at all, on EITHER surface — this axis stays
+      // absent, which `evaluatePredicate` refuses downstream, exactly as if it
+      // had never been asked about.
+      if (!Number.isSafeInteger(thresholdMs) || thresholdMs <= 0) return;
+      const fits = thresholdMs % HOUR_MS === 0 && thresholdMs / HOUR_MS <= CHECK_MAX_HOURS;
       if (fits) {
         const hours = thresholdMs / HOUR_MS;
         const r = READS[axis.check];
@@ -852,40 +876,63 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
     // undercutting the proposal's own argument that `/check` has no raw value
     // to leak in the first place, since a reference operator would still be
     // fetching one nobody asked for.
-    if (hasOwn(q, SWAP_AXES.sim.thresholdKey)) await readSwapAxis(SWAP_AXES.sim);
-    if (hasOwn(q, SWAP_AXES.device.thresholdKey)) await readSwapAxis(SWAP_AXES.device);
+    //
+    // UNIFIED 2026-08-18 onto the same `needXxx === true` signal every other
+    // axis below now gates on — `PREDICATES.axes` in M4's `factQuery` was
+    // supposed to be the ONE place the predicate → operator-axis mapping lives,
+    // but until this change these two axes still gated on the OLD pattern (the
+    // threshold key's presence), a second, silently-diverging source of truth.
+    // Re-checked here, not trusted, for the same reason every other gate below
+    // is: `createOrangeFacts` is this module's only export, so a caller that
+    // never went through `factQuery` reaches this line too. The threshold's own
+    // validity is now `readSwapAxis`'s job (see the guard added there) — this
+    // gate decides WHETHER to read at all, not which surface to read from.
+    if (asked('needSim')) await readSwapAxis(SWAP_AXES.sim);
+    if (asked('needDevice')) await readSwapAxis(SWAP_AXES.device);
 
-    const roamOut = await post('camara', READS.roaming.url, READS.roaming.body(number));
-    classify(roamOut, number, 'device-roaming-status');
-    const roam = parseJson(roamOut, 'device-roaming-status');
-    if (roam?.roaming === false) {
-      // The honest NO. A present key with a null value: "not roaming".
-      facts.roamingCountry = null;
-    } else if (roam?.roaming === true) {
-      const names = roam.countryName;
-      // Exactly one canonical alpha-2 code, or the axis stays ABSENT. All three
-      // rejected shapes are real: `{"roaming":true}` with no country at all
-      // (measured), a country NAME rather than a code (`["Spain"]`, the
-      // built-in records' own spelling), and a MULTI-country list
-      // (`["FR","MC"]`, producible) where no single country is the answer.
-      // Every one of them is "roaming, country unknown" — the opposite of the
-      // `null` above, and the whole reason the two are spelled differently.
-      if (Array.isArray(names) && names.length === 1 && typeof names[0] === 'string' && COUNTRY.test(names[0])) {
-        facts.roamingCountry = names[0];
+    // The roaming axis is read ONLY when `roamingIn` asked for it. Same class as
+    // the two swap axes above (M4's `factQuery` axis signal, closing the
+    // 2026-08-18 open design item): every read is a metered live call about one
+    // subscriber, and reading a fact nobody asked about is an operator query
+    // with no question behind it. Re-checked here, not trusted — `q.needRoaming`
+    // is re-validated to `=== true` for the same reason the area/name shapes
+    // are: this file decides what goes on the wire, and "the caller validated
+    // it" is not a property this file can verify.
+    if (asked('needRoaming')) {
+      const roamOut = await post('camara', READS.roaming.url, READS.roaming.body(number));
+      classify(roamOut, number, 'device-roaming-status');
+      const roam = parseJson(roamOut, 'device-roaming-status');
+      if (roam?.roaming === false) {
+        // The honest NO. A present key with a null value: "not roaming".
+        facts.roamingCountry = null;
+      } else if (roam?.roaming === true) {
+        const names = roam.countryName;
+        // Exactly one canonical alpha-2 code, or the axis stays ABSENT. All three
+        // rejected shapes are real: `{"roaming":true}` with no country at all
+        // (measured), a country NAME rather than a code (`["Spain"]`, the
+        // built-in records' own spelling), and a MULTI-country list
+        // (`["FR","MC"]`, producible) where no single country is the answer.
+        // Every one of them is "roaming, country unknown" — the opposite of the
+        // `null` above, and the whole reason the two are spelled differently.
+        if (Array.isArray(names) && names.length === 1 && typeof names[0] === 'string' && COUNTRY.test(names[0])) {
+          facts.roamingCountry = names[0];
+        }
       }
     }
 
-    // The location axis is read ONLY when an area was asked about, for the reason
-    // the device axis is conditional and one more besides: this endpoint takes the
-    // QUESTION as its input, so there is no such thing as reading it "in general".
-    // ...and it is RE-CHECKED here, not trusted, for the reason stated at `q`
-    // above: this file decides what goes on the wire, and "the caller validated
-    // it" is not a property this file can verify. `createOrangeFacts` is M5's one
-    // export, so a caller that never went through `factQuery` reaches this line
-    // too. A shape that fails leaves the axis ABSENT — a refusal downstream — the
-    // same outcome an unrecognised verdict already gets, never a request built
-    // out of `undefined` and sent to a live operator.
-    const area = validArea(q.area);
+    // The location axis is read ONLY when `needLocation` asked for it — UNIFIED
+    // 2026-08-18 onto the same signal as every other axis, closing the second
+    // source of truth this file used to keep (area-value presence alone). The
+    // signal decides WHETHER to read; the VALUE still has to validate to build
+    // the request body, so both are required — and it is RE-CHECKED here, not
+    // trusted, for the reason stated at `q` above: this file decides what goes
+    // on the wire, and "the caller validated it" is not a property this file can
+    // verify. `createOrangeFacts` is M5's one export, so a caller that never
+    // went through `factQuery` reaches this line too. Either FAIL — the signal
+    // absent, or the value malformed — leaves the axis ABSENT and this endpoint
+    // is never called: a refusal downstream, never a request built out of a
+    // guessed or unvalidated area and sent to a live operator.
+    const area = asked('needLocation') ? validArea(q.area) : undefined;
     if (area !== undefined) {
       const locOut = await post('camara', READS.location.url, READS.location.body(number, area));
       classify(locOut, number, 'location-verification verify');
@@ -904,15 +951,21 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
       // that reads it, so there is nothing to filter.
     }
 
-    // The KYC comparison, read only when a name was actually claimed — this
-    // endpoint takes the requester's claim as its input, so like location there is
-    // no reading it "in general". The SCORE stops here: it goes on the facts
-    // (operator-internal) and `evaluatePredicate` turns it into a bit.
-    // Bounded here as well as by `factQuery`, and for the same reason the area
-    // is: an unbounded claim is a string this file would put on a live operator's
-    // wire. 120 characters is M4's own bound, duplicated per §4.4 (each module
-    // works alone) exactly as the duration parser and the geo bound are.
-    const claimedName = typeof q.claimedName === 'string' && q.claimedName.length >= 1 && q.claimedName.length <= MAX_NAME
+    // The KYC comparison, read only when `needKyc` asked for it — UNIFIED
+    // 2026-08-18 onto the same signal as every other axis, for the same reason
+    // location just above is: a claimed-name-value-presence check was a second
+    // source of truth for "was this axis asked about". Like location, the
+    // signal decides WHETHER to read and the VALUE still has to validate to
+    // build the request body — this endpoint takes the requester's claim as its
+    // input, so like location there is no reading it "in general". The SCORE
+    // stops here: it goes on the facts (operator-internal) and
+    // `evaluatePredicate` turns it into a bit. Bounded here as well as by
+    // `factQuery`, and for the same reason the area is: an unbounded claim is a
+    // string this file would put on a live operator's wire. 120 characters is
+    // M4's own bound, duplicated per §4.4 (each module works alone) exactly as
+    // the duration parser and the geo bound are.
+    const claimedName = (asked('needKyc')
+      && typeof q.claimedName === 'string' && q.claimedName.length >= 1 && q.claimedName.length <= MAX_NAME)
       ? q.claimedName
       : undefined;
     if (claimedName !== undefined) {
@@ -936,12 +989,16 @@ export function createOrangeFacts({ basicAuth, fetchImpl } = {}) {
       }
     }
 
-    const reachOut = await post('camara', READS.reachability.url, READS.reachability.body(number));
-    classify(reachOut, number, 'device-reachability-status');
-    const reach = parseJson(reachOut, 'device-reachability-status');
-    const status = reach?.reachabilityStatus;
-    if (typeof status === 'string' && hasOwn(REACHABLE, status)) {
-      facts.reachable = REACHABLE[status];
+    // The reachability axis, read only when `reachable` asked for it — same
+    // pattern and same reason as the roaming axis just above.
+    if (asked('needReachability')) {
+      const reachOut = await post('camara', READS.reachability.url, READS.reachability.body(number));
+      classify(reachOut, number, 'device-reachability-status');
+      const reach = parseJson(reachOut, 'device-reachability-status');
+      const status = reach?.reachabilityStatus;
+      if (typeof status === 'string' && hasOwn(REACHABLE, status)) {
+        facts.reachable = REACHABLE[status];
+      }
     }
 
     // Frozen for M4's reason: an M6 caller mutating facts in place would

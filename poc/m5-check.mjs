@@ -10,7 +10,7 @@
 // Negatives first, as in every module: each fail-open the spike could produce
 // is shown being refused before a single happy path runs.
 import { createOrangeFacts } from './m5-facts-orange.mjs';
-import { evaluatePredicate } from './m4-facts-mock.mjs';
+import { evaluatePredicate, factQuery } from './m4-facts-mock.mjs';
 import { makeHarness } from './check-harness.mjs';
 
 const { check, conclude } = makeHarness({ field: 'answered', okWord: 'OK' });
@@ -25,7 +25,23 @@ const BUILTIN = '+990100000000';
 // unconditionally, before the SIM axis became conditional (case 59 pins that
 // change). Cases probing generic sim-swap error classification / age math need
 // SOMETHING that asks the SIM question, or the axis is simply never read.
-const SIM_Q = { swapAgeThresholdMs: 365 * DAY };
+const SIM_Q = { needSim: true, swapAgeThresholdMs: 365 * DAY };
+// The roaming/reachability axis signals, mirroring SIM_Q's role now that both
+// are conditional too (closing the 2026-08-18 open design item): a case that
+// wants a generic transport/auth/redaction path exercised, or the roaming/
+// reachability behaviour itself, needs one of these or `getFacts` makes zero
+// live calls at all and never reaches the code under test.
+// Built via `factQuery` on the REAL predicates now (2026-08-18 fix round),
+// not a hand-written `{needRoaming:true}` literal: a literal pins the axis
+// signal's SHAPE but not the predicate -> adapter chain that is supposed to
+// produce it, so a wrong `axes` mapping on `roamingIn`/`reachable` in
+// `m4-facts-mock.mjs`'s `PREDICATES` table (e.g. `roamingIn`'s axes flipped to
+// `['reachability']`) left this whole suite green while `m4-check.mjs` caught
+// it. Going through `factQuery` end to end closes that gap: it still produces
+// the same `{needRoaming:true}` / `{needReachability:true}` shape today, and a
+// flipped mapping now reds here too.
+const ROAM_Q = factQuery({ type: 'roamingIn', operator: 'in', value: ['FR'] });
+const REACH_Q = factQuery({ type: 'reachable', operator: 'eq', value: true });
 
 // A SYNTHETIC credential of the real shape (base64 of `clientId:secret`). Never
 // the real one — a fixture that needed a secret could not run on a clone.
@@ -187,18 +203,23 @@ checkThrew('2 BLANK CREDENTIAL THROWS',
 // so a naive `Basic ${cred}` sends `Basic Basic …` and BOTH token endpoints
 // answer 400/401 "Basic authentication is malformed". This case reads the
 // header that actually went out — the negative is a header with two `Basic`s.
+// A reachability question is asked explicitly (REACH_Q), since that axis is
+// now conditional too (closing the 2026-08-18 open design item) — with no
+// query at all `getFacts` would make zero live calls and never mint a header.
 {
   const { facts, calls } = mk(reads());
-  await facts.getFacts(N, NOW);
+  await facts.getFacts(N, NOW, REACH_Q);
   const auth = calls.find((c) => c.isToken)?.auth;
   check('3 BASIC PREFIX NORMALIZED (not doubled)', true, { answered: true, reason: 'ok' }, 'ok',
     { label: `header=${auth === `Basic ${B64}`}`, ok: auth === `Basic ${B64}` });
 }
 
-// 4 A REJECTED CREDENTIAL FAILS LOUD, AND SAYS WHICH KNOB TO TURN.
+// 4 A REJECTED CREDENTIAL FAILS LOUD, AND SAYS WHICH KNOB TO TURN. A
+// reachability question is asked explicitly (REACH_Q) for the same reason
+// case 3 does — see there.
 {
   const bad = createOrangeFacts({ basicAuth: CRED, fetchImpl: async () => ({ status: 401, text: async () => C.malformedBasic }) });
-  const r = await athrew(() => bad.getFacts(N, NOW));
+  const r = await athrew(() => bad.getFacts(N, NOW, REACH_Q));
   checkThrew('4 REJECTED CREDENTIAL FAILS LOUD', r, names(r, 'token rejected', 'ORANGE_BASIC_AUTH'));
 }
 
@@ -206,29 +227,32 @@ checkThrew('2 BLANK CREDENTIAL THROWS',
 
 // 5 THE CREDENTIAL NEVER SURVIVES INTO A MESSAGE. The probe is the realistic
 // one: a server that echoes the request back. Without the secret set, the whole
-// credential rides into the throw and from there into any log.
+// credential rides into the throw and from there into any log. A reachability
+// question is asked explicitly (REACH_Q) for the same reason case 3 does.
 {
   const { facts } = mk(() => ({ status: 500, text: `upstream said: ${B64} and ${CRED}` }));
-  const r = await athrew(() => facts.getFacts(N, NOW));
+  const r = await athrew(() => facts.getFacts(N, NOW, REACH_Q));
   check('5 CREDENTIAL REDACTED FROM ERRORS', false, { answered: !r.threw, reason: r.threw ? 'threw' : 'did not throw' }, 'threw',
     { label: 'no credential substring', ok: r.threw && !r.msg.includes(B64) && !r.msg.includes(SECRET) && r.msg.includes('[REDACTED]') });
 }
 
 // 6 THE BEARER TOKEN NEVER SURVIVES EITHER — it is guarded the moment it is
-// minted, BEFORE the first request that could echo it back.
+// minted, BEFORE the first request that could echo it back. A reachability
+// question is asked explicitly (REACH_Q) for the same reason case 3 does.
 {
   const { facts } = mk(() => ({ status: 500, text: `echo of your header: Bearer ${TOKEN}` }));
-  const r = await athrew(() => facts.getFacts(N, NOW));
+  const r = await athrew(() => facts.getFacts(N, NOW, REACH_Q));
   check('6 BEARER TOKEN REDACTED FROM ERRORS', false, { answered: !r.threw, reason: r.threw ? 'threw' : 'did not throw' }, 'threw',
     { label: 'no token substring', ok: r.threw && !r.msg.includes(TOKEN) });
 }
 
 // 7 THE CLIENT ID NEVER SURVIVES. Not hypothetical: Orange ECHOES the client id
 // inside every unknown-number 403, and a 403 body is exactly what a diagnostic
-// wants to quote.
+// wants to quote. A reachability question is asked explicitly (REACH_Q) for
+// the same reason case 3 does.
 {
   const { facts } = mk(() => ({ status: 403, text: C.forbiddenAuth.replace('Request must be authorized', `denied for ${CLIENT_ID}`) }));
-  const r = await athrew(() => facts.getFacts(N, NOW));
+  const r = await athrew(() => facts.getFacts(N, NOW, REACH_Q));
   check('7 CLIENT ID REDACTED FROM 403 BODY', false, { answered: !r.threw, reason: r.threw ? 'threw' : 'did not throw' }, 'threw',
     { label: 'no client id substring', ok: r.threw && !r.msg.includes(CLIENT_ID) });
 }
@@ -244,22 +268,25 @@ checkThrew('2 BLANK CREDENTIAL THROWS',
 // and never quotes the body at all — so the client id could not have leaked
 // however the redactor behaved. Caught by the mutation sweep (deleting the
 // pattern layer left the case green). A 500 reaches the branch that DOES quote
-// the body, which is the branch the pattern layer exists to protect.
+// the body, which is the branch the pattern layer exists to protect. A
+// reachability question is asked explicitly (REACH_Q) for the same reason
+// case 3 does.
 {
   const raw = 'not-base64-at-all-just-a-string';
   const t = transport(() => ({ status: 500, text: `{"message":"+990100000077 does not exist for ${CLIENT_ID}"}` }));
   const facts = createOrangeFacts({ basicAuth: raw, fetchImpl: t.fetchImpl });
-  const r = await athrew(() => facts.getFacts(N, NOW));
+  const r = await athrew(() => facts.getFacts(N, NOW, REACH_Q));
   check('8 CLIENT ID REDACTED WITH NO DERIVABLE SECRET', false, { answered: !r.threw, reason: r.threw ? 'threw' : 'did not throw' }, 'threw',
     { label: 'pattern layer alone', ok: r.threw && r.msg.includes('does not exist for [REDACTED]') && !r.msg.includes(CLIENT_ID) });
 }
 
 // 9 A DIAGNOSTIC BUILT FROM A RESPONSE BODY IS CLAMPED. M4 measured a 100KB
 // reason string from wire input; a response body is the same footgun on the
-// operator side, and it lands in logs verbatim.
+// operator side, and it lands in logs verbatim. A reachability question is
+// asked explicitly (REACH_Q) for the same reason case 3 does.
 {
   const { facts } = mk(() => ({ status: 500, text: 'x'.repeat(50000) }));
-  const r = await athrew(() => facts.getFacts(N, NOW));
+  const r = await athrew(() => facts.getFacts(N, NOW, REACH_Q));
   check('9 ERROR BODY CLAMPED', false, { answered: !r.threw, reason: r.threw ? 'threw' : 'did not throw' }, 'threw',
     { label: `len=${r.msg.length}`, ok: r.threw && r.msg.length < 400 });
 }
@@ -308,12 +335,14 @@ checkThrew('2 BLANK CREDENTIAL THROWS',
 }
 
 // 13 A SECOND 401 FAILS LOUD — exactly one retry. Spinning on a credential
-// problem turns an auth fault into a quota burn and never recovers.
+// problem turns an auth fault into a quota burn and never recovers. A
+// reachability question is asked explicitly (REACH_Q) for the same reason
+// case 3 does.
 {
   let tokenCalls = 0;
   const t = transport(() => ({ status: 401, text: C.unauthenticated }));
   const facts = createOrangeFacts({ basicAuth: CRED, fetchImpl: t.fetchImpl });
-  const r = await athrew(() => facts.getFacts(N, NOW));
+  const r = await athrew(() => facts.getFacts(N, NOW, REACH_Q));
   tokenCalls = t.calls.filter((c) => c.isToken).length;
   check('13 SECOND 401 FAILS LOUD (one retry only)', false, { answered: !r.threw, reason: r.threw ? 'threw' : 'did not throw' }, 'threw',
     { label: `token calls=${tokenCalls}`, ok: r.threw && tokenCalls === 2 && r.msg.includes('401') });
@@ -340,7 +369,11 @@ checkThrew('2 BLANK CREDENTIAL THROWS',
 
 // ============ THE HEADLINE: null MEANS NOT ROAMING, ABSENT MEANS UNKNOWN ====
 
-const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, NOW));
+// ROAM_Q is required now that the roaming axis is conditional too (closing the
+// 2026-08-18 open design item) — without it `getFacts` never reads the axis
+// this helper exists to exercise, and every case below would pass vacuously
+// on an always-absent `roamingCountry` instead of on the scripted response.
+const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, NOW, ROAM_Q));
 
 // 16 roaming:false → THE KEY IS PRESENT AND null. An honest "not roaming".
 {
@@ -410,9 +443,15 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
 
 // ============================ reachability =================================
 
+// REACH_Q is required now that the reachability axis is conditional too
+// (closing the 2026-08-18 open design item) — without it `getFacts` never
+// reads the axis these four cases exist to exercise, and each would pass
+// vacuously on an always-absent `reachable` instead of on the scripted
+// response.
+
 // 23 NOT_CONNECTED → false (a real answer, not an absence).
 {
-  const f = await mk(reads({ reach: C.reachNone })).facts.getFacts(N, NOW);
+  const f = await mk(reads({ reach: C.reachNone })).facts.getFacts(N, NOW, REACH_Q);
   check('23 NOT_CONNECTED → reachable false', true, { answered: true, reason: 'ok' }, 'ok',
     { label: `value=${String(f.reachable)}`, ok: f.reachable === false });
 }
@@ -420,7 +459,7 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
 // 24 CONNECTED_SMS → true. Both CONNECTED_* spellings are reachable; a table
 // missing one would silently report an SMS-reachable subscriber as unknown.
 {
-  const f = await mk(reads({ reach: C.reachSms })).facts.getFacts(N, NOW);
+  const f = await mk(reads({ reach: C.reachSms })).facts.getFacts(N, NOW, REACH_Q);
   check('24 CONNECTED_SMS → reachable true', true, { answered: true, reason: 'ok' }, 'ok',
     { label: `value=${String(f.reachable)}`, ok: f.reachable === true });
 }
@@ -428,7 +467,7 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
 // 25 AN UNKNOWN STATUS → ABSENT, never a guessed polarity. A new enum value
 // added upstream must not silently become `false`.
 {
-  const f = await mk(reads({ reach: '{"reachabilityStatus":"CONNECTED_SATELLITE"}' })).facts.getFacts(N, NOW);
+  const f = await mk(reads({ reach: '{"reachabilityStatus":"CONNECTED_SATELLITE"}' })).facts.getFacts(N, NOW, REACH_Q);
   check('25 unknown reachability status → ABSENT', true, { answered: true, reason: 'ok' }, 'ok',
     { label: `present=${'reachable' in f}`, ok: !('reachable' in f) });
 }
@@ -438,7 +477,7 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
 // make `reachable` a FUNCTION, which `evaluatePredicate` then refuses — but
 // only by luck. Guarded at the source instead.
 {
-  const f = await mk(reads({ reach: '{"reachabilityStatus":"constructor"}' })).facts.getFacts(N, NOW);
+  const f = await mk(reads({ reach: '{"reachabilityStatus":"constructor"}' })).facts.getFacts(N, NOW, REACH_Q);
   check('26 prototype key is not a reachability status', true, { answered: true, reason: 'ok' }, 'ok',
     { label: `present=${'reachable' in f}`, ok: !('reachable' in f) });
 }
@@ -733,7 +772,10 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
 // whichever token was minted FIRST would break whichever call happened to come
 // second — and the failure would surface as an auth fault far from its cause.
 // One adapter instance drives BOTH surfaces here, which is the only arrangement
-// that can tell a per-surface cache from a shared one.
+// that can tell a per-surface cache from a shared one. A reachability question
+// is asked explicitly (REACH_Q) since that axis is conditional too (closing
+// the 2026-08-18 open design item) — without it the camara surface would
+// never be reached at all and this case would be checking nothing on that side.
 {
   let written = null;
   const { facts, calls } = mk((url, body) => {
@@ -742,7 +784,7 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
     return reads()(url);
   });
   await facts.setBackstory(N, { ...STORY, swappedDaysAgo: 1 }, NOW);  // admin surface
-  await facts.getFacts(N, NOW);                                                                    // camara surface
+  await facts.getFacts(N, NOW, REACH_Q);                                                            // camara surface
   const adminCalls = calls.filter((c) => !c.isToken && c.url.includes('/admin/'));
   const camaraCalls = calls.filter((c) => !c.isToken && c.url.includes('/playground/api/'));
   const adminOk = adminCalls.length > 0 && adminCalls.every((c) => c.auth === `Bearer ${ADMIN_TOKEN}`);
@@ -821,7 +863,7 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
   const seen = [];
   for (const [days] of buckets) {
     const { facts, calls } = mk(reads());
-    await facts.getFacts(N, NOW, { swapAgeThresholdMs: days * DAY });
+    await facts.getFacts(N, NOW, { needSim: true, swapAgeThresholdMs: days * DAY });
     const c = calls.filter((x) => !x.isToken && x.url.includes('sim-swap'));
     seen.push({ surface: c[0].url.endsWith('/check') ? 'check' : 'date', maxAge: c[0].body.maxAge ?? null, n: c.length });
   }
@@ -845,7 +887,7 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
 {
   const ask = async (text) => {
     const { facts } = mk(reads({ swapCheck: text }));
-    return facts.getFacts(N, NOW, { swapAgeThresholdMs: 90 * DAY });
+    return facts.getFacts(N, NOW, { needSim: true, swapAgeThresholdMs: 90 * DAY });
   };
   const notSwapped = await ask(C.checkNotSwapped);
   const swapped = await ask(C.checkSwapped);
@@ -870,9 +912,9 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
 // "unavailable" rather than as the bug it is.
 {
   const { facts: quiet, calls: quietCalls } = mk(reads());
-  await quiet.getFacts(N, NOW, { swapAgeThresholdMs: 90 * DAY });
+  await quiet.getFacts(N, NOW, { needSim: true, swapAgeThresholdMs: 90 * DAY });
   const { facts: asked, calls: askedCalls } = mk(reads());
-  const f = await asked.getFacts(N, NOW, { deviceSwapAgeThresholdMs: 365 * DAY });
+  const f = await asked.getFacts(N, NOW, { needDevice: true, deviceSwapAgeThresholdMs: 365 * DAY });
   const deviceCalls = (cs) => cs.filter((x) => !x.isToken && x.url.includes('device-swap')).length;
   const wantAge = NOW - Date.parse(JSON.parse(C.deviceDate).latestDeviceChange);
   check('51 THE DEVICE AXIS IS READ ONLY WHEN ASKED', true, { answered: true, reason: 'ok' }, 'ok',
@@ -990,7 +1032,7 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
     const { facts } = mk((url) => (url.includes('location-verification')
       ? { status: 200, text: verify }
       : reads()(url)));
-    return facts.getFacts(N, NOW, { area: AREA });
+    return facts.getFacts(N, NOW, { needLocation: true, area: AREA });
   };
   const yes = await ask(`{"verificationResult":"TRUE","lastLocationTime":"${ts}"}`);
   const no = await ask(`{"verificationResult":"FALSE","lastLocationTime":"${ts}"}`);
@@ -1025,7 +1067,7 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
   const { facts: asked, calls: askedCalls } = mk((url) => (url.includes('location-verification')
     ? { status: 200, text: '{"verificationResult":"TRUE","lastLocationTime":"2026-08-11T04:00:16.503Z"}' }
     : reads()(url)));
-  await asked.getFacts(N, NOW, { area: AREA });
+  await asked.getFacts(N, NOW, { needLocation: true, area: AREA });
   const locCalls = (cs) => cs.filter((x) => !x.isToken && x.url.includes('location-verification'));
   const sent = locCalls(askedCalls)[0]?.body;
   check('54 THE LOCATION ENDPOINT IS CALLED ONLY WITH A QUESTION', true, { answered: true, reason: 'ok' }, 'ok',
@@ -1050,7 +1092,7 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
 {
   const ask = async (text) => {
     const { facts } = mk((url) => (url.includes('kyc-match') ? { status: 200, text } : reads()(url)));
-    return facts.getFacts(N, NOW, { claimedName: 'Alice Arnaut' });
+    return facts.getFacts(N, NOW, { needKyc: true, claimedName: 'Alice Arnaut' });
   };
   const yes = await ask('{"nameMatch":"true"}');
   const no = await ask('{"nameMatch":"false","nameMatchScore":97}');
@@ -1083,7 +1125,7 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
   const { facts: asked, calls: askedCalls } = mk((url) => (url.includes('kyc-match')
     ? { status: 200, text: '{"nameMatch":"false","nameMatchScore":97}' }
     : reads()(url)));
-  await asked.getFacts(N, NOW, { claimedName: CLAIM });
+  await asked.getFacts(N, NOW, { needKyc: true, claimedName: CLAIM });
   const kycCalls = (cs) => cs.filter((x) => !x.isToken && x.url.includes('kyc-match'));
   const sent = kycCalls(askedCalls)[0]?.body;
   check('56 THE KYC ENDPOINT IS CALLED ONLY WITH A CLAIM', true, { answered: true, reason: 'ok' }, 'ok',
@@ -1149,7 +1191,7 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
   const { facts: reader } = mk((url) => (url.includes('location-verification')
     ? { status: 200, text: `{"verificationResult":"TRUE","lastLocationTime":"${NOW_ISO}"}` }
     : reads()(url)));
-  const f = await reader.getFacts(N, NOW, { area: AREA });
+  const f = await reader.getFacts(N, NOW, { needLocation: true, area: AREA });
   const leaked = JSON.stringify(f);
 
   check('57 THE POSITION CARRIES AN INSTANT OFF THE INJECTED CLOCK, OPERATOR-SIDE ONLY', true, { answered: true, reason: 'ok' }, 'ok',
@@ -1227,7 +1269,7 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
   const { facts: quiet, calls: quietCalls } = mk(reads());
   await quiet.getFacts(N, NOW);                              // e.g. reachable / roamingIn / presentIn / numberMatch: no SIM threshold at all
   const { facts: asked, calls: askedCalls } = mk(reads());
-  const f = await asked.getFacts(N, NOW, { swapAgeThresholdMs: 90 * DAY });
+  const f = await asked.getFacts(N, NOW, { needSim: true, swapAgeThresholdMs: 90 * DAY });
   const simCalls = (cs) => cs.filter((x) => !x.isToken && x.url.includes('sim-swap')).length;
   check('59 THE SIM AXIS IS READ ONLY WHEN ASKED', true, { answered: true, reason: 'ok' }, 'ok',
     { label: `non-sim question -> ${simCalls(quietCalls)} sim-swap calls; sim question -> ${simCalls(askedCalls)}; swapAgeAtLeast=${f.swapAgeAtLeast}`,
@@ -1252,9 +1294,9 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
   const HOSTILE_AREA = { lat: 'north', long: {}, radiusM: -1 };
   const HOSTILE_NAME = 'x'.repeat(50041);
   const { facts: areaFacts, calls: areaCalls } = mk(reads());
-  const af = await areaFacts.getFacts(N, NOW, { area: HOSTILE_AREA });
+  const af = await areaFacts.getFacts(N, NOW, { needLocation: true, area: HOSTILE_AREA });
   const { facts: nameFacts, calls: nameCalls } = mk(reads());
-  const nf = await nameFacts.getFacts(N, NOW, { claimedName: HOSTILE_NAME });
+  const nf = await nameFacts.getFacts(N, NOW, { needKyc: true, claimedName: HOSTILE_NAME });
   const locSent = areaCalls.filter((x) => !x.isToken && x.url.includes('location-verification'));
   const kycSent = nameCalls.filter((x) => !x.isToken && x.url.includes('kyc-match'));
   check('60 getFacts RE-VALIDATES q.area / q.claimedName, NEVER TRUSTS THE CALLER', true, { answered: true, reason: 'ok' }, 'ok',
@@ -1265,4 +1307,218 @@ const factsWith = async (roam) => (await mk(reads({ roam })).facts.getFacts(N, N
         && !('presentVerdict' in af) && !('nameMatch' in nf) });
 }
 
-conclude(60);
+// 61 THE ROAMING AXIS IS READ ONLY WHEN ASKED — closing the 2026-08-18 open
+// design item, the same conditional pattern cases 51/59 pin for the device and
+// SIM axes, now applied to the two axes that had NO query value of their own
+// (`roamingIn`/`reachable`) and so were exempted from the earlier round. The
+// negative: a query with no roaming signal makes ZERO `device-roaming-status`
+// calls. The positive: `needRoaming: true` still makes exactly one.
+{
+  const { facts: quiet, calls: quietCalls } = mk(reads());
+  await quiet.getFacts(N, NOW, SIM_Q);                          // a SIM question, no roaming signal at all
+  const { facts: asked, calls: askedCalls } = mk(reads());
+  const f = await asked.getFacts(N, NOW, ROAM_Q);
+  const roamCalls = (cs) => cs.filter((x) => !x.isToken && x.url.includes('roaming')).length;
+  check('61 THE ROAMING AXIS IS READ ONLY WHEN ASKED', true, { answered: true, reason: 'ok' }, 'ok',
+    { label: `non-roaming question -> ${roamCalls(quietCalls)} roaming calls; roaming question -> ${roamCalls(askedCalls)}; roamingCountry present=${'roamingCountry' in f}`,
+      ok: roamCalls(quietCalls) === 0 && roamCalls(askedCalls) === 1 && 'roamingCountry' in f });
+}
+
+// 62 THE REACHABILITY AXIS IS READ ONLY WHEN ASKED — same closing fix, same
+// pattern, the other exempted axis.
+{
+  const { facts: quiet, calls: quietCalls } = mk(reads());
+  await quiet.getFacts(N, NOW, SIM_Q);                          // a SIM question, no reachability signal at all
+  const { facts: asked, calls: askedCalls } = mk(reads());
+  const f = await asked.getFacts(N, NOW, REACH_Q);
+  const reachCalls = (cs) => cs.filter((x) => !x.isToken && x.url.includes('reachability')).length;
+  check('62 THE REACHABILITY AXIS IS READ ONLY WHEN ASKED', true, { answered: true, reason: 'ok' }, 'ok',
+    { label: `non-reachability question -> ${reachCalls(quietCalls)} reachability calls; reachability question -> ${reachCalls(askedCalls)}; reachable present=${'reachable' in f}`,
+      ok: reachCalls(quietCalls) === 0 && reachCalls(askedCalls) === 1 && 'reachable' in f });
+}
+
+// 63 FAIL-CLOSED: NO QUERY -> ZERO LIVE CALLS -> REFUSAL, NEVER A GUESSED BIT.
+// The negative control for cases 61/62 taken to its actual consequence: a
+// caller that asks `roamingIn`/`reachable` through the real seam (`factQuery`)
+// without the predicate's own value validating gets no axis signal, `getFacts`
+// makes NO live call for either axis, and `evaluatePredicate` REFUSES rather
+// than answering from an absent fact — the fail-closed chain end to end, not
+// just the call count in isolation.
+{
+  const { facts, calls } = mk(reads());
+  // A malformed roamingIn (empty set) and a well-formed reachable predicate
+  // that the caller simply never asked about (no query built from it at all):
+  // both must leave `getFacts` making zero calls for their own axis.
+  const f = await facts.getFacts(N, NOW, factQuery({ type: 'roamingIn', operator: 'in', value: [] }));
+  const roamVerdict = evaluatePredicate(f, { type: 'roamingIn', operator: 'in', value: ['FR'] });
+  const reachVerdict = evaluatePredicate(f, { type: 'reachable', operator: 'eq', value: true });
+  const roamCalls = calls.filter((x) => !x.isToken && x.url.includes('roaming')).length;
+  const reachCalls = calls.filter((x) => !x.isToken && x.url.includes('reachability')).length;
+  check('63 FAIL-CLOSED: NO QUERY -> ZERO CALLS -> REFUSAL', false,
+    { answered: roamVerdict.answered, reason: roamVerdict.reason }, 'fact unavailable: roamingCountry', {
+      label: `roaming calls=${roamCalls}, reachability calls=${reachCalls}; `
+        + `roamingIn -> ${roamVerdict.answered}/'${roamVerdict.reason}'; reachable -> ${reachVerdict.answered}/'${reachVerdict.reason}'`,
+      ok: roamCalls === 0 && reachCalls === 0
+        && roamVerdict.answered === false && roamVerdict.reason === 'fact unavailable: roamingCountry'
+        && reachVerdict.answered === false && reachVerdict.reason === 'fact unavailable: reachable',
+    });
+}
+
+// 64 SIM/DEVICE FAIL CLOSED WHEN `needSim`/`needDevice` IS TRUE BUT THE
+// THRESHOLD DOES NOT VALIDATE. Added with the 2026-08-18 signal unification:
+// gating moved from "the threshold key is present" (under which an invalid
+// value could never arrive without entry being denied at all) to
+// `needSim`/`needDevice === true`, which a caller can set without ever
+// supplying a valid threshold. Before `readSwapAxis`'s own guard was added, a
+// present-but-invalid threshold fell straight into the `/retrieve-date`
+// branch — a raw-date read for a window nobody validated. Fixed, a MISSING
+// threshold, a non-integer one, and a negative/zero one all make ZERO calls on
+// EITHER surface, for BOTH axes: this axis was never asked a question `/check`
+// or `/retrieve-date` could honestly answer.
+{
+  const simCalls = (cs) => cs.filter((x) => !x.isToken && x.url.includes('sim-swap')).length;
+  const deviceCalls = (cs) => cs.filter((x) => !x.isToken && x.url.includes('device-swap')).length;
+
+  const { facts: missing, calls: missingCalls } = mk(reads());
+  const fMissing = await missing.getFacts(N, NOW, { needSim: true });
+
+  const { facts: negative, calls: negativeCalls } = mk(reads());
+  const fNegative = await negative.getFacts(N, NOW, { needSim: true, swapAgeThresholdMs: -1 });
+
+  const { facts: zero, calls: zeroCalls } = mk(reads());
+  const fZero = await zero.getFacts(N, NOW, { needSim: true, swapAgeThresholdMs: 0 });
+
+  const { facts: stringy, calls: stringyCalls } = mk(reads());
+  const fStringy = await stringy.getFacts(N, NOW, { needSim: true, swapAgeThresholdMs: '90' });
+
+  const { facts: deviceMissing, calls: deviceMissingCalls } = mk(reads());
+  const fDeviceMissing = await deviceMissing.getFacts(N, NOW, { needDevice: true });
+
+  const noAxis = (f) => !('swapAgeAtLeast' in f) && !('swapAgeAtLeastMs' in f) && !('swapAgeMs' in f);
+  const noDeviceAxis = (f) => !('deviceSwapAgeAtLeast' in f) && !('deviceSwapAgeAtLeastMs' in f) && !('deviceSwapAgeMs' in f);
+
+  check('64 SIM/DEVICE FAIL CLOSED: needXxx TRUE BUT THE THRESHOLD DOES NOT VALIDATE', true, { answered: true, reason: 'ok' }, 'ok',
+    { label: `missing threshold -> ${simCalls(missingCalls)} sim calls, axis present=${!noAxis(fMissing)}; `
+      + `negative -> ${simCalls(negativeCalls)} sim calls, axis present=${!noAxis(fNegative)}; `
+      + `zero -> ${simCalls(zeroCalls)} sim calls, axis present=${!noAxis(fZero)}; `
+      + `string "90" -> ${simCalls(stringyCalls)} sim calls, axis present=${!noAxis(fStringy)}; `
+      + `device, missing threshold -> ${deviceCalls(deviceMissingCalls)} device calls, axis present=${!noDeviceAxis(fDeviceMissing)}`,
+      ok: simCalls(missingCalls) === 0 && noAxis(fMissing)
+        && simCalls(negativeCalls) === 0 && noAxis(fNegative)
+        && simCalls(zeroCalls) === 0 && noAxis(fZero)
+        && simCalls(stringyCalls) === 0 && noAxis(fStringy)
+        && deviceCalls(deviceMissingCalls) === 0 && noDeviceAxis(fDeviceMissing) });
+}
+
+// 65 LOCATION/KYC FAIL CLOSED WHEN `needLocation`/`needKyc` IS TRUE BUT THE
+// VALUE IS ABSENT. Complements case 60, which pins a signal-true, VALUE-
+// MALFORMED shape (a hostile area / an oversized claim): this pins the other
+// half — the signal true with no `area`/`claimedName` field at all. Both must
+// make zero calls to the endpoint they claim to be asking about, the same
+// fail-closed outcome as a malformed value.
+{
+  const { facts: noArea, calls: noAreaCalls } = mk(reads());
+  const fNoArea = await noArea.getFacts(N, NOW, { needLocation: true });
+  const { facts: noClaim, calls: noClaimCalls } = mk(reads());
+  const fNoClaim = await noClaim.getFacts(N, NOW, { needKyc: true });
+  const locCalls = (cs) => cs.filter((x) => !x.isToken && x.url.includes('location-verification')).length;
+  const kycCalls = (cs) => cs.filter((x) => !x.isToken && x.url.includes('kyc-match')).length;
+  check('65 LOCATION/KYC FAIL CLOSED: needXxx TRUE BUT THE VALUE IS ABSENT', true, { answered: true, reason: 'ok' }, 'ok',
+    { label: `needLocation, no area -> ${locCalls(noAreaCalls)} calls, presentVerdict present=${'presentVerdict' in fNoArea}; `
+      + `needKyc, no claimedName -> ${kycCalls(noClaimCalls)} calls, nameMatch present=${'nameMatch' in fNoClaim}`,
+      ok: locCalls(noAreaCalls) === 0 && !('presentVerdict' in fNoArea)
+        && kycCalls(noClaimCalls) === 0 && !('nameMatch' in fNoClaim) });
+}
+
+// 66 ALL FOUR VALUE-BEARING AXES ARE GATED ON THE SIGNAL, NOT ON THEIR OWN
+// VALUE'S PRESENCE — the actual unification this round makes. Before it, SIM
+// and DEVICE gated on `hasOwn(q, thresholdKey)` and location/KYC gated on
+// `validArea(q.area) !== undefined` / a valid `q.claimedName`, so a query
+// carrying a well-formed VALUE with no `needXxx` signal at all still triggered
+// a live read under the old code. This is the negative that pins the gate
+// moved onto the SIGNAL: a well-formed threshold/area/claim with its `needXxx`
+// flag OMITTED must make ZERO calls on every one of the four axes, mirroring
+// what cases 61/62 already prove for roaming/reachability (which never had a
+// value of their own to gate on in the first place).
+{
+  const simCalls = (cs) => cs.filter((x) => !x.isToken && x.url.includes('sim-swap')).length;
+  const deviceCalls = (cs) => cs.filter((x) => !x.isToken && x.url.includes('device-swap')).length;
+  const locCalls = (cs) => cs.filter((x) => !x.isToken && x.url.includes('location-verification')).length;
+  const kycCalls = (cs) => cs.filter((x) => !x.isToken && x.url.includes('kyc-match')).length;
+
+  const { facts: simNoSignal, calls: simNoSignalCalls } = mk(reads());
+  const fSimNoSignal = await simNoSignal.getFacts(N, NOW, { swapAgeThresholdMs: 90 * DAY });   // no needSim
+
+  const { facts: deviceNoSignal, calls: deviceNoSignalCalls } = mk(reads());
+  const fDeviceNoSignal = await deviceNoSignal.getFacts(N, NOW, { deviceSwapAgeThresholdMs: 90 * DAY });   // no needDevice
+
+  const AREA = { lat: 48.86, long: 2.35, radiusM: 10000 };
+  const { facts: locNoSignal, calls: locNoSignalCalls } = mk(reads());
+  const fLocNoSignal = await locNoSignal.getFacts(N, NOW, { area: AREA });   // no needLocation
+
+  const { facts: kycNoSignal, calls: kycNoSignalCalls } = mk(reads());
+  const fKycNoSignal = await kycNoSignal.getFacts(N, NOW, { claimedName: 'Alice Arnaut' });   // no needKyc
+
+  check('66 SIM/DEVICE/LOCATION/KYC GATE ON THE SIGNAL, NOT ON THEIR OWN VALUE', true, { answered: true, reason: 'ok' }, 'ok',
+    { label: `well-formed threshold, no needSim -> ${simCalls(simNoSignalCalls)} sim calls, axis present=${'swapAgeAtLeast' in fSimNoSignal || 'swapAgeMs' in fSimNoSignal}; `
+      + `well-formed threshold, no needDevice -> ${deviceCalls(deviceNoSignalCalls)} device calls, axis present=${'deviceSwapAgeAtLeast' in fDeviceNoSignal || 'deviceSwapAgeMs' in fDeviceNoSignal}; `
+      + `well-formed area, no needLocation -> ${locCalls(locNoSignalCalls)} location calls, presentVerdict present=${'presentVerdict' in fLocNoSignal}; `
+      + `well-formed claim, no needKyc -> ${kycCalls(kycNoSignalCalls)} kyc calls, nameMatch present=${'nameMatch' in fKycNoSignal}`,
+      ok: simCalls(simNoSignalCalls) === 0 && !('swapAgeAtLeast' in fSimNoSignal) && !('swapAgeMs' in fSimNoSignal)
+        && deviceCalls(deviceNoSignalCalls) === 0 && !('deviceSwapAgeAtLeast' in fDeviceNoSignal) && !('deviceSwapAgeMs' in fDeviceNoSignal)
+        && locCalls(locNoSignalCalls) === 0 && !('presentVerdict' in fLocNoSignal)
+        && kycCalls(kycNoSignalCalls) === 0 && !('nameMatch' in fKycNoSignal) });
+}
+
+// 67 THE AXIS SIGNAL MUST BE EXACTLY BOOLEAN `true` — NOT MERELY TRUTHY. Case
+// 66 pins the `hasOwn(q, key)` half of `asked = (key) => hasOwn(q, key) &&
+// q[key] === true`; this pins the `=== true` half, found missing by mutation
+// (2026-08-18 review round): relaxing the helper to `hasOwn(q, key)` alone
+// left this ENTIRE suite green (66/66), because no prior case supplied a
+// signal that was present, an own property, and truthy, but not strictly
+// `true`. A well-formed value paired with a truthy-but-not-`true` signal
+// (`1`, `'yes'`, `{}`) must make ZERO calls and leave the axis absent on every
+// one of the six gated axes, exactly as an omitted signal does.
+{
+  const simCalls = (cs) => cs.filter((x) => !x.isToken && x.url.includes('sim-swap')).length;
+  const deviceCalls = (cs) => cs.filter((x) => !x.isToken && x.url.includes('device-swap')).length;
+  const roamCalls = (cs) => cs.filter((x) => !x.isToken && x.url.includes('roaming')).length;
+  const reachCalls = (cs) => cs.filter((x) => !x.isToken && x.url.includes('reachability')).length;
+  const locCalls = (cs) => cs.filter((x) => !x.isToken && x.url.includes('location-verification')).length;
+  const kycCalls = (cs) => cs.filter((x) => !x.isToken && x.url.includes('kyc-match')).length;
+
+  const { facts: simTruthy, calls: simTruthyCalls } = mk(reads());
+  const fSimTruthy = await simTruthy.getFacts(N, NOW, { needSim: 1, swapAgeThresholdMs: 90 * DAY });
+
+  const { facts: deviceTruthy, calls: deviceTruthyCalls } = mk(reads());
+  const fDeviceTruthy = await deviceTruthy.getFacts(N, NOW, { needDevice: 'yes', deviceSwapAgeThresholdMs: 90 * DAY });
+
+  const { facts: roamTruthy, calls: roamTruthyCalls } = mk(reads());
+  const fRoamTruthy = await roamTruthy.getFacts(N, NOW, { needRoaming: {} });
+
+  const { facts: reachTruthy, calls: reachTruthyCalls } = mk(reads());
+  const fReachTruthy = await reachTruthy.getFacts(N, NOW, { needReachability: 1 });
+
+  const AREA = { lat: 48.86, long: 2.35, radiusM: 10000 };
+  const { facts: locTruthy, calls: locTruthyCalls } = mk(reads());
+  const fLocTruthy = await locTruthy.getFacts(N, NOW, { needLocation: 'yes', area: AREA });
+
+  const { facts: kycTruthy, calls: kycTruthyCalls } = mk(reads());
+  const fKycTruthy = await kycTruthy.getFacts(N, NOW, { needKyc: {}, claimedName: 'Alice Arnaut' });
+
+  check('67 THE AXIS SIGNAL MUST BE EXACTLY true, A TRUTHY-BUT-NOT-true VALUE IS REFUSED', true, { answered: true, reason: 'ok' }, 'ok',
+    { label: `needSim:1 -> ${simCalls(simTruthyCalls)} sim calls, axis present=${'swapAgeAtLeast' in fSimTruthy || 'swapAgeMs' in fSimTruthy}; `
+      + `needDevice:'yes' -> ${deviceCalls(deviceTruthyCalls)} device calls, axis present=${'deviceSwapAgeAtLeast' in fDeviceTruthy || 'deviceSwapAgeMs' in fDeviceTruthy}; `
+      + `needRoaming:{} -> ${roamCalls(roamTruthyCalls)} roaming calls, roamingCountry present=${'roamingCountry' in fRoamTruthy}; `
+      + `needReachability:1 -> ${reachCalls(reachTruthyCalls)} reachability calls, reachable present=${'reachable' in fReachTruthy}; `
+      + `needLocation:'yes' -> ${locCalls(locTruthyCalls)} location calls, presentVerdict present=${'presentVerdict' in fLocTruthy}; `
+      + `needKyc:{} -> ${kycCalls(kycTruthyCalls)} kyc calls, nameMatch present=${'nameMatch' in fKycTruthy}`,
+      ok: simCalls(simTruthyCalls) === 0 && !('swapAgeAtLeast' in fSimTruthy) && !('swapAgeMs' in fSimTruthy)
+        && deviceCalls(deviceTruthyCalls) === 0 && !('deviceSwapAgeAtLeast' in fDeviceTruthy) && !('deviceSwapAgeMs' in fDeviceTruthy)
+        && roamCalls(roamTruthyCalls) === 0 && !('roamingCountry' in fRoamTruthy)
+        && reachCalls(reachTruthyCalls) === 0 && !('reachable' in fReachTruthy)
+        && locCalls(locTruthyCalls) === 0 && !('presentVerdict' in fLocTruthy)
+        && kycCalls(kycTruthyCalls) === 0 && !('nameMatch' in fKycTruthy) });
+}
+
+conclude(67);

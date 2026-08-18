@@ -530,8 +530,13 @@ const P90 = { type: 'simSwapAge', operator: 'gte', value: 'P90D' };
 
 // 17 AN UNKNOWN NUMBER IS CLASSIFIED AS ONE, LIVE — `403 FORBIDDEN` here means
 // UNKNOWN NUMBER, and saying so is what stops the next person debugging auth.
+// A reachability question is asked explicitly (via `factQuery`) since that
+// axis is conditional now (2026-08-18, closing the open design item that was
+// still open when this file was last touched) — with no query at all
+// `getFacts` makes zero live calls and this case would never reach the
+// Playground to observe the 403 at all.
 {
-  const r = await athrew(() => facts.getFacts('+990100000077', NOW));
+  const r = await athrew(() => facts.getFacts('+990100000077', NOW, factQuery({ type: 'reachable', operator: 'eq', value: true })));
   threw('17 LIVE unknown number → classified, not read as bad auth', r,
     r.threw && r.msg.includes('unknown number') && r.msg.includes('not bad auth'),
     `msg starts: ${r.threw ? r.msg.slice(0, 48) : r.msg}`);
@@ -564,7 +569,11 @@ const P90 = { type: 'simSwapAge', operator: 'gte', value: 'P90D' };
   // `includes('undefined')`, which would pass this case without ever having a
   // token to look for.
   const tokUsable = typeof tok === 'string' && tok.length > 20;
-  const r = await athrew(() => facts.getFacts('+990100000077', NOW));
+  // The adapter's own call is asked the SAME sim-swap question the raw fetch
+  // above just demonstrated leaking, via `factQuery` (P90) — with no query at
+  // all `getFacts` makes zero live calls now that the SIM axis is conditional,
+  // and this case would never reach the branch its message is about.
+  const r = await athrew(() => facts.getFacts('+990100000077', NOW, factQuery(P90)));
   ok('18 LIVE redaction: raw body carries the client id, the error does not',
     leaks === true && tokUsable && r.threw && !r.msg.includes(clientId) && !r.msg.includes(CRED) && !r.msg.includes(tok),
     `raw body leaks client id=${leaks}, adapter message leaks=${r.threw && clientId !== '' && r.msg.includes(clientId)}`);
@@ -596,6 +605,31 @@ const P90 = { type: 'simSwapAge', operator: 'gte', value: 'P90D' };
     + (endSlots !== null && endSlots >= QUOTA_CAP ? '  (WARNING: at cap — the next CREATE on this app will fail)' : ''));
 }
 
+// 20 THE CALL-COUNT SAVING IS PROVEN LIVE, NOT JUST OFFLINE (2026-08-18). Every
+// case above already goes through `recordingFetch`, which is itself a call
+// counter keyed by URL (`wire`, `mark()`, `hit()`) — the same instrument cases
+// 6, 7 and 17/18 already rely on to prove which endpoint answered. This case
+// spends it on the claim that motivated the whole 2026-08-18 conditional-axes
+// change: a `simSwapAge` question must reach ONLY `sim-swap`, never
+// `device-roaming-status` or `device-reachability-status`. `m4-check.mjs` and
+// `m6-check.mjs` prove the same shape offline, against an injected transport;
+// this is the one live case that proves the SAME adapter, talking to the SAME
+// real Playground the other 19 cases just used, still makes the reduced call
+// count today rather than the three-call count the pre-2026-08-18 code always
+// made. It costs exactly ONE extra live query — the `ask()` call below is the
+// only network round-trip this case makes.
+{
+  const m = mark();
+  const { a } = await ask(P90);
+  const simCalls = hit(m, 'sim-swap');
+  const roamCalls = hit(m, 'device-roaming-status');
+  const reachCalls = hit(m, 'device-reachability-status');
+  ok('20 LIVE CALL-COUNT: a simSwapAge question calls sim-swap and NEVER roaming/reachability',
+    a.answered === true && simCalls.length === 1 && roamCalls.length === 0 && reachCalls.length === 0,
+    `sim-swap calls=${simCalls.length}, device-roaming-status calls=${roamCalls.length}, `
+    + `device-reachability-status calls=${reachCalls.length} (answered=${a.answered} result=${a.result})`);
+}
+
 // Leave the slot in the demo's known state, so a re-run starts where this one
 // did. GUARDED: this is a courtesy write AFTER the last case — unguarded, a
 // transient failure here killed an all-green run before `conclude()` could
@@ -608,4 +642,4 @@ try {
   console.log(`${CUSTOM} courtesy re-script FAILED (${e instanceof Error ? e.message : String(e)}) — a re-run's case 4 starts from a different scripted state`);
 }
 
-conclude(19);
+conclude(20);
