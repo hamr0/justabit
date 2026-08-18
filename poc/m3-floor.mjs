@@ -14,6 +14,19 @@ const AXES = Object.freeze({
   tenureMin: { kind: 'duration' },
   swapAgeMin: { kind: 'duration' },
   class: { kind: 'enum', legal: 'postpaid' },
+  // ADDED 2026-08-17 with the 3 → 6 predicate round (PRD §9, user-signed).
+  // `location-verification/v1/verify` has a measured THIRD state, `PARTIAL` — the
+  // operator saying "I cannot answer at the resolution you asked for". Under this
+  // profile it is REFUSED, never rounded to yes or no, because a rounded answer
+  // is signed and indistinguishable on the wire from a real one.
+  //
+  // The operator PUBLISHES that policy and the requester may only TIGHTEN it,
+  // which is this module's existing rule-5 machinery and deliberately NOT a new
+  // mechanism. `refuse` is the only legal value today, exactly as `simType` and
+  // `class` carry one legal value each: a request demanding anything else — a
+  // request asking to have PARTIAL rounded for it — is a LOOSENING and is
+  // rejected by the same closed-set gate that rejects a misspelled axis.
+  partialPolicy: { kind: 'enum', legal: 'refuse' },
 });
 
 // Strict ISO-8601 duration subset: P<int>D or P<int>Y ONLY (decision 2026-08-15).
@@ -33,17 +46,66 @@ function durationDays(value) {
   return Number.isSafeInteger(days) ? days : null;
 }
 
+// Render a REJECTED value for the diagnostic. `JSON.stringify` looks safe here
+// and is not — measured 2026-08-17 at the M6 composition spike, which is why
+// this is the module's declared fix point:
+//   * it THROWS on a BigInt ("Do not know how to serialize a BigInt"), and
+//   * it CALLS a caller-supplied `toJSON`, so a throwing one throws here too.
+// Either replaced this module's loud, named-input rejection with a bare
+// TypeError escaping `checkFloor` — breaking the ONE contract the untrusted side
+// states ("wire input never throws"), and doing it in the rejection path, i.e.
+// exactly when the caller most needs the reason. Neither is reachable through a
+// JSON round-trip (`JSON.parse` produces neither a BigInt nor a function), so
+// the envelope's transit is what kept it unreachable in the demo — a structural
+// accident, not a guarantee this module is entitled to lean on.
+//
+// So nothing caller-supplied is invoked: primitives render directly and anything
+// else is named by KIND. Same shape as M4's `describe()` after its release gate,
+// and the `[unrenderable]` floor is here for the same reason — `Array.isArray`
+// itself throws on a REVOKED Proxy, which arrives as a plain `typeof 'object'`.
+// Length is deliberately NOT clamped: every currently-pinned reason stays
+// byte-identical, and bounding the wire-derived reason before it is sealed is
+// M6's job (M2's envelope throws above its capacity, so the clamp has to live on
+// the side that knows the envelope).
+function render(value) {
+  const t = typeof value;
+  if (t === 'string') return JSON.stringify(value);
+  if (t === 'number' || t === 'boolean' || t === 'undefined' || value === null) return String(value);
+  if (t === 'bigint') return `${value}n`;      // named as a BigInt, not as the number it prints like
+  if (t === 'symbol') return 'symbol';
+  if (t === 'function') return 'function';
+  try {
+    return Array.isArray(value) ? 'array' : 'object';
+  } catch {
+    return '[unrenderable]';
+  }
+}
+
+// An UNKNOWN axis NAME is requester-chosen text, and it is the one thing in this
+// module's diagnostics that reaches a reason verbatim: every VALUE goes through
+// `render` (which JSON-quotes a string, so a newline becomes `\n`) and every
+// known axis name is one of this module's own literals. The unknown-axis name is
+// neither. Rendered verbatim while it is short and printable, so the common typo
+// reads exactly as typed — naming the misspelling is the actionable half — and
+// replaced otherwise, so an embedded newline or NUL cannot forge a line in
+// whatever log the reason lands in. Same helper, same reason and the same 40-char
+// printable-ASCII rule as M6's request-field check and M4's `describeKey`; this
+// was the sibling of that guard that the closed-set sweep left unswept.
+const fieldName = (k) => (/^[\x20-\x7e]{1,40}$/.test(k) ? k : '(unprintable field name)');
+
 // Why `value` is invalid for `axis`, or null if it is fine.
 function invalidValue(axis, value) {
   const spec = AXES[axis];
   if (spec.kind === 'duration') {
     return durationDays(value) === null
-      ? `invalid duration: ${axis} ${JSON.stringify(value)} (use P<days>D or P<years>Y; months are ambiguous)`
+      ? `invalid duration: ${axis} ${render(value)} (use P<days>D or P<years>Y; months are ambiguous)`
       : null;
   }
   return value === spec.legal
     ? null
-    : `invalid ${axis}: ${JSON.stringify(value)} (profile allows only ${JSON.stringify(spec.legal)})`;
+    // `spec.legal` is the module's OWN frozen literal, never caller data, so it
+    // is rendered with the same helper only for one spelling of quotes.
+    : `invalid ${axis}: ${render(value)} (profile allows only ${render(spec.legal)})`;
 }
 
 // The published floor is the OPERATOR'S OWN config — a broken one must fail
@@ -115,7 +177,7 @@ export function checkFloor(published, requested) {
   // as an own key and is caught here as unknown — same behavior M1 probes proved.)
   for (const k of Object.keys(requested)) {
     if (!Object.prototype.hasOwnProperty.call(AXES, k)) {
-      return { allowed: false, reason: `unknown floor field: ${k}` };
+      return { allowed: false, reason: `unknown floor field: ${fieldName(k)}` };
     }
     const bad = invalidValue(k, requested[k]);
     if (bad) return { allowed: false, reason: bad };

@@ -205,8 +205,108 @@ checkThrows('20 PROTOTYPE PUBLISHED THROWS',
       ok: pubVerdict.threw === true && pubVerdict.msg.includes('invalid duration') });
 }
 
+// 23 NON-JSON VALUE REJECTED, NEVER THROWN — the module's declared fix point
+// (2026-08-17, found by the M6 composition spike). The rejection-message builder
+// used `JSON.stringify` on the requested value, which THROWS on a BigInt and
+// RUNS a caller-supplied `toJSON`. Either way a bare TypeError escaped
+// `checkFloor` and replaced the loud named-input rejection — breaking "wire
+// input never throws" in the rejection path itself, i.e. exactly when the caller
+// most needs the reason. Three shapes, one defect: a BigInt (stringify throws), a
+// throwing `toJSON` (stringify runs caller code), and a revoked Proxy (where the
+// structural fallback's own `Array.isArray` throws). None survives a JSON round
+// trip — which is precisely the point: the envelope's transit is what kept this
+// unreachable in the demo, and a transport accident is not a contract.
+{
+  const guard = (requested) => {
+    try { return checkFloor(PUB, requested); }
+    catch (e) { return { allowed: true, reason: `ESCAPED: ${e.constructor.name}` }; }
+  };
+  const evil = guard({ swapAgeMin: { toJSON() { throw new Error('boom'); } } });
+  const { proxy, revoke } = Proxy.revocable({}, {});
+  revoke();
+  const revoked = guard({ swapAgeMin: proxy });
+  const dur = (rendered) => `invalid duration: swapAgeMin ${rendered} (use P<days>D or P<years>Y; months are ambiguous)`;
+  check('23 NON-JSON VALUE REJECTED', false, guard({ swapAgeMin: 10n }), dur('10n'),
+    { label: 'throwing toJSON + revoked proxy also rejected, never thrown',
+      ok: evil.allowed === false && evil.reason === dur('object')
+        && revoked.allowed === false && revoked.reason === dur('[unrenderable]') });
+}
+
+// 24 EVERY `render` BRANCH IS NAMED BY KIND — added 2026-08-17 after an
+// independent mutation sweep deleted `render`'s `symbol` and `function` branches
+// with every suite still green. Low severity and defence in depth by design:
+// neither shape survives a JSON round trip, so neither is wire-reachable through
+// the demo's envelope. That is exactly the argument case 23 refuses to accept —
+// "the transport happens to filter it" is a structural accident, not a contract
+// this module is entitled to lean on — so the branches get pinned rather than
+// deleted. Without them both values fall through to the structural fallback and
+// render as `object`, which names the wrong kind rather than throwing.
+//
+// This case lives HERE and not in m6-check on purpose: reverting M3's whole
+// `render` fix leaves m6-check green, because the composition's envelope is what
+// keeps these shapes off the wire. The fix belongs to M3, so its pin does too.
+{
+  const guard = (requested) => {
+    try { return checkFloor(PUB, requested); }
+    catch (e) { return { allowed: true, reason: `ESCAPED: ${e.constructor.name}` }; }
+  };
+  const dur = (rendered) => `invalid duration: swapAgeMin ${rendered} (use P<days>D or P<years>Y; months are ambiguous)`;
+  const fn = guard({ swapAgeMin: function nope() {} });
+  // The control: a real object DOES render as `object`, so the two cases above
+  // are asserting a distinct kind name and not simply "some string came back".
+  const obj = guard({ swapAgeMin: { a: 1 } });
+  check('24 RENDER NAMES EVERY KIND', false, guard({ swapAgeMin: Symbol('s') }), dur('symbol'),
+    { label: 'a function renders as `function`; a plain object still renders as `object`',
+      ok: fn.allowed === false && fn.reason === dur('function')
+        && obj.allowed === false && obj.reason === dur('object') });
+}
+
 // The declared case count. A suite that silently loses the cases carrying its
 // guarantee still printed a green `RESULT: n/n` before this argument existed
 // (measured 2026-08-16 on m4-check: truncated to 18/18 exit 0, emptied to 0/0
 // exit 0).
-conclude(22);
+// 25 THE PARTIAL POLICY IS A FLOOR AXIS, TIGHTEN-ONLY — added 2026-08-17 with the
+// 3 -> 6 predicate round. `location-verification/v1/verify` has a measured third
+// state, PARTIAL, and this profile refuses it rather than rounding it to yes or
+// no. The operator publishes that policy and a requester may only tighten it,
+// which is this module's EXISTING machinery and not a new mechanism — so what is
+// pinned here is that the axis behaves like every other closed-set enum axis:
+//   * restating the published value is allowed and lands in `effective`;
+//   * asking for anything else is a LOOSENING and is refused by name (this is the
+//     request "round PARTIAL for me", which is precisely the thing that must not
+//     be answerable);
+//   * omitting it inherits the operator's value VISIBLY, so a requester can see
+//     which policy was enforced rather than assuming one.
+{
+  const PUBP = { ...PUB, partialPolicy: 'refuse' };
+  const same = checkFloor(PUBP, { partialPolicy: 'refuse' });
+  const loosen = checkFloor(PUBP, { partialPolicy: 'round' });
+  const omitted = checkFloor(PUBP, { swapAgeMin: 'P180D' });
+  const typo = checkFloor(PUBP, { partialpolicy: 'refuse' });
+  check('25 PARTIAL POLICY IS A TIGHTEN-ONLY FLOOR AXIS', false, loosen,
+    'invalid partialPolicy: "round" (profile allows only "refuse")',
+    { label: `restating it is allowed (effective=${same.effective?.partialPolicy}); omitting it inherits `
+      + `(${omitted.effective?.partialPolicy}); a typo'd axis is refused ('${typo.reason}')`,
+      ok: same.allowed === true && same.effective.partialPolicy === 'refuse'
+        && omitted.allowed === true && omitted.effective.partialPolicy === 'refuse'
+        && typo.allowed === false && typo.reason === 'unknown floor field: partialpolicy' });
+}
+
+// 26 A HOSTILE AXIS NAME IS NEVER RENDERED VERBATIM — the `fieldName` guard
+// (m3-floor.mjs) that case 4/5's plain typos never exercise, because a plain
+// typo IS printable ASCII and passes the guard unchanged. A literal newline
+// inside the key is the reproduction: proven live (2026-08-18) to score 25/25
+// whether `fieldName`'s bound is present or reverted to the raw key — reverted,
+// the reason renders the control character verbatim (a fake log line an
+// operator's log scraper could be fooled by); fixed, it renders the fixed
+// placeholder instead. Case 25 pins the SIBLING typo unaffected by this guard.
+{
+  const hostile = checkFloor(PUB, { 'a\nFAKE LOG LINE b': 'x' });
+  check('26 HOSTILE FLOOR AXIS NAME NEVER RENDERED VERBATIM', false, hostile,
+    'unknown floor field: (unprintable field name)',
+    { label: `reason='${JSON.stringify(hostile.reason)}'`,
+      ok: hostile.allowed === false && hostile.reason === 'unknown floor field: (unprintable field name)'
+        && !hostile.reason.includes('\n') });
+}
+
+conclude(26);

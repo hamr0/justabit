@@ -1,5 +1,597 @@
 # Changelog
 
+## 0.4.0 — 2026-08-18 — M6
+
+- **User ran the full validation suite at code commit `4446517` / docs
+  commit `c921508` (log timestamped 2026-08-18 08:16): every suite clean,
+  zero `FAIL`, zero `TypeError`, zero `Error:` lines in the entire log.
+  BOTH gates MET at `4446517`, for the first time at the same commit.**
+  `m1-check.mjs` 20/20, `m2-check.mjs` 10/10, `m3-check.mjs` 26/26,
+  `m4-check.mjs` 40/40, `m5-check.mjs` 60/60, `m6-check.mjs` 46/46,
+  `demo.mjs` (mock) 33/33, `demo.mjs --backend orange` (live, real Orange
+  Playground) 33/33, `m5-check-live.mjs` (live, real Orange Playground)
+  19/19 — every count user-run. G1 (M1–M4 + M6 all user-validated) MET at
+  the current counts; G2 (M5 user-validated live) MET on both legs. This
+  record covers `4446517`/`c921508` only. See
+  `docs/01-product/findings.md`, 2026-08-18 (latest).
+- **Second `/code-review medium --fix` round: cross-requester sealing fixed
+  (m6 45 → 46), spec closure — G1 AND G2 were PENDING at `4446517` until
+  the full user run above.**
+  Reviewed the round-1 tree (`c15fcc0`) and found the operator sealed EVERY
+  signed refusal AND every answer to a hardcoded `keys.rpEnc.publicKey`
+  instead of the envelope key of the issuer step 3/4 had just authenticated
+  — the trust directory already carried `encPub` for exactly this and
+  nothing read it. Concrete failure: with a second directory-listed
+  requester B, B's query passes signature verification and the operator
+  encrypts the answer under requester A's key — A can decrypt an answer to
+  a query it never made, and B cannot read its own. Cross-requester
+  disclosure between two authenticated principals, invisible in the demo
+  only because it has ever had one RP. **Fixed:** `createOperator` now
+  resolves `entry.encPub` off the directory at step 3 and threads it as
+  `recipientEnc` through every `signedReject`/answer call site; a directory
+  entry with no `encPub` reports `unknown issuer`. **Also fixed:**
+  `spec/carrier-attestation.yaml`'s `Predicate` schema was the one shape
+  still missing `additionalProperties: false`, while `evaluatePredicate`
+  genuinely enforces a closed predicate field set in code — the sketch left
+  open the exact door the code closes.
+  - **New case, mutation-proven: m6 case 46 CROSS-REQUESTER SEALING (m6
+    45 → 46).** A `twoRpWorld()` helper mints a second requester B sharing
+    A's operator; the case asserts both directions and both reply kinds — B
+    opens its own answer and its own signed refusal, A opens neither
+    (`reason='undecryptable'`). Reverting the fix alone (keeping the case)
+    gives `RESULT: 45/46`, exit 1, `answer-for-A=opened,
+    refusal-for-A=opened`; cases 1–45 unaffected. The fix shipped with NO
+    net to catch it until this case — every existing suite scored
+    identically with the fix present or reverted, since a single-RP world
+    structurally cannot exercise it. Third fix in this project's history to
+    ship with no net at the time it landed (after m3-floor's hostile-key
+    bound and m5's `getFacts` re-validation) — a finding about the suite,
+    not only the code.
+  - **Skipped, recorded not dropped:** (1) `m5-facts-orange.mjs`'s
+    `roaming`/`reachability` reads are still unconditional on every
+    `getFacts` — same class as the SIM/device axes just fixed in round 1,
+    needs a `factQuery`-carrying signal design change, recorded as an OPEN
+    item for the user. (2) `demo.mjs`'s `r6b` scan frame structurally
+    cannot red against `NEEDLES` (3-digit-instant collision avoidance is
+    the measured reason), a stated limit. (3) the pre-seal answer-size
+    guard compares against the module constant `OAEP_CAPACITY` rather than
+    a capacity derived from the actual recipient key — correct today
+    (fixed RSA-4096), more reachable now the recipient key comes from the
+    directory; needs an M2-owned capacity helper, a stated limit.
+  - `/security` ran on this code earlier in the session and returned
+    clean; it did NOT catch the cross-requester sealing defect. A clean
+    security pass is not proof.
+  - Verified green independently by exit code: m1 20/20, m2 10/10, m3
+    26/26, m4 40/40, m5 60/60, **m6 46/46**, demo(mock) 33/33. **G1 and G2
+    remained PENDING at this commit** (SUPERSEDED — see the entry above:
+    the user's full run at `4446517` subsequently MET both gates) — this
+    round changed `poc/demo.mjs` again, one of the exact files the last
+    user validation (`3276ed0`) covered; no user record transfers forward
+    across a tree change. See
+    `docs/01-product/findings.md`, 2026-08-18 (latest).
+- **`/code-review medium --fix` round + `/security`: 6 fixes, 1
+  user-approved behaviour change, m3 25 → 26, m5 58 → 60 — G1 AND G2 BOTH
+  RE-OPENED (PENDING) at `9b04854`.** (SUPERSEDED — see the top entry
+  above: the user's full run at `4446517` subsequently MET both gates.)
+  Reviewed the six live-touching files
+  (`poc/demo.mjs`, `poc/m3-check.mjs`, `poc/m3-floor.mjs`,
+  `poc/m5-check.mjs`, `poc/m5-facts-orange.mjs`,
+  `spec/carrier-attestation.yaml`).
+  - **Six review fixes:** (1) an unknown floor field name reached the
+    refusal reason RAW — a newline/NUL could forge a fake log line; bounded
+    to 40 chars printable ASCII. (2) the "effective floor is the tightened
+    one" assertion recomputed `checkFloor` locally instead of reading the
+    operator's own return, so it passed identically for an operator that
+    computed and discarded the effective floor; `handle()` now returns
+    `effectiveFloor` (operator-side only, never onto the wire). (3)
+    `getFacts` re-validated `thresholdMs` but trusted `q.area`/
+    `q.claimedName` verbatim; a caller bypassing `factQuery` could push a
+    malformed area or a 50,041-char name straight to a live operator call —
+    both now re-validated on the read path. (4) the RP registered a pending
+    nonce BEFORE `seal()`, leaking one unconsumable store entry per
+    oversize retry — seal first, register after. (5) `verifyResponse` with
+    `skipNonceStore` and no `fallbackPredicate` threw a bare `TypeError`
+    instead of returning a verdict, breaking its own "never throw on
+    untrusted input" contract. (6) `carrier-attestation.yaml` — docs only:
+    stated the deliberate `number`-field divergence instead of leaving it
+    an unstated trap.
+  - **Finding 7, escalated and USER-APPROVED as a behaviour change:** the
+    SIM-swap axis was read UNCONDITIONALLY in `m5-facts-orange.mjs`, so a
+    `reachable`/`roamingIn`/`presentIn`/`numberMatch` question — none of
+    which carry a SIM threshold — still made a metered `/retrieve-date`
+    call and pulled a raw SIM-swap date operator-side for a question nobody
+    asked. Now conditional, matching the existing device-axis pattern.
+    Reasoning: a reference operator holding an unrequested raw value
+    undercuts the CAMARA proposal's own argument that `/check` leaves no
+    raw value operator-side to leak in the first place. That change broke 7
+    pre-existing pinned m5 cases (10, 11, 12, 14, 15, 27, 49) — REPAIRED,
+    not weakened, via an explicit SIM-question fixture threaded through
+    each so every assertion still exercises what it did before.
+  - **Three new cases, each mutation-proven RED when its fix is reverted:**
+    m3 case 26 (hostile floor key with an embedded newline), m5 case 59
+    (SIM axis read only when asked), m5 case 60 (malformed area / oversize
+    name never reach the wire). Two coverage gaps this closed: m3 and m5
+    scored their old full counts whether fixes 1 and 3 were present or
+    reverted, before these cases existed.
+  - **Counts moved: m3 25 → 26, m5 58 → 60.** Independently re-verified by
+    exit code (agent-run): m1 20/20, m2 10/10, m3 26/26, m4 40/40, m5
+    60/60, m6 45/45, demo(mock) 33/33.
+  - **`/security` re-run for the first time across this round: clean.** No
+    new findings; fixes 1/3/4/5 above each close a real class (log-line
+    forging, unbounded outbound request, unbounded store growth,
+    uncontracted throw). Nothing Critical/High.
+  - **Both gates re-opened.** This round changed exactly the two files
+    (`poc/demo.mjs`, `poc/m5-facts-orange.mjs`) that gates G1 and G2 were
+    user-validated against at tip `3276ed0`. A user record covers only the
+    tree it was run on — this is a different tree (`9b04854`) — so **G1 and
+    G2 are BOTH PENDING again**, and the `3276ed0` records for M1 (20/20),
+    M2 (10/10), M4 (40/40), M6 (45/45) and the demo mock run (33/33) do NOT
+    transfer forward either, even where their counts are unchanged, because
+    the tree changed under all of them. See `docs/01-product/findings.md`,
+    2026-08-18 (latest).
+- **LIVE FIX: the assertion-1 leaky-operator negative control was VACUOUS on
+  the orange backend (user's live `--backend orange` run: 32/33) — fixed
+  offline, mutation-proven.** The control reused the section's shared
+  `simSwapAge gte P90D` predicate. P90D is 2160 hours, under M5's measured
+  2400-hour `/check` cap, so on orange this question runs `/check` — which
+  never reads a raw date at all, so `facts.swapAgeMs` was `undefined` and
+  there was nothing for `leakRaw` to leak. The control's asserted condition
+  was false, not because the profile leaked but because a raw age was
+  structurally absent on that path; the harness failed loudly rather than
+  passing vacuously, which is correct — but a control that cannot fail must
+  never be asserted as though it did. `poc/demo.mjs`'s `q1c`/`r1c` now ask a
+  dedicated `LEAK_PREDICATE` at `P365D` (above the `/check` cap, forcing
+  `/retrieve-date`, where a real raw date exists to leak on both backends).
+  Verified offline, zero network, via an injected-transport replay mirroring
+  `m6-check.mjs` case 22: the fixed control reds the leak on both mock and
+  replayed-orange; replaying the OLD `P90D` shape against the same orange
+  transport reproduces the exact live-observed vacuous pass offline. No
+  offline case counts moved (demo stays 33/33) — the fix is inside an
+  existing assertion, not a new one. Accidental finding recorded in
+  `docs/01-product/findings.md` and `docs/02-proposals/camara-attested-windowed-disclosure.md`,
+  2026-08-17: `/check` structurally closes off this whole class of operator
+  mistake (nothing to leak), where `/retrieve-date` relies on the closed
+  claim set alone. **LIVE-CONFIRMED at `3276ed0`, USER-RUN: `node
+  poc/demo.mjs --backend orange` → `RESULT: 33/33`**, and, in the same
+  session, `ORANGE_BASIC_AUTH=… node poc/m5-check-live.mjs` → `RESULT: 19/19`
+  (quota clean: start=1, end=1 of 10, cleanup DELETE status=204) — the
+  vacuous control now reds the leak for real on the live backend, not just in
+  the offline mutation-proof. The `m5-check-live.mjs` run postdates `19b2644`,
+  so it settles gate G2's M5 leg forward to the current tip: **G2 (M5
+  user-validated live) IS MET at `3276ed0`.** That run's own PASS 6 (`LIVE
+  SURFACE CHOICE`) independently corroborates, on the wire, the cap-boundary
+  premise this fix depends on: `P90D → check maxAge=2160h → true; P365D →
+  retrieve-date maxAge=null → false=true`. See `docs/01-product/findings.md`,
+  2026-08-18 (latest). Nothing about this fix, or G2, is PENDING any more.
+- **MEASURED FIX: a live convergence probe settled the Admin `location` write
+  shape and corrected two ASSUMED labels to MEASURED-GOOD.** Following on from
+  the `LIVE FIX` entry below (which found `lastLocationTime` missing), the user
+  ran a throwaway probe against `+990100000099` that kept re-submitting the
+  same Admin UPDATE: round 1 → `400 "data.location.available" is required`;
+  round 2 → `400 "data.location.radius" is required`; round 3 → `200 OK`, READ
+  back intact. **This closes the "still untested" claim the entry below made
+  about `kyc`** — the same converged READ returned `kyc:{name}` and
+  `deviceSwap:{latestDeviceChange}` verbatim, so both move from ASSUMED to
+  MEASURED-GOOD; the code comment, `poc/README.md` and the PRD decisions log are
+  corrected in the same commit.
+  - The settled `location` write shape is `{latitude, longitude,
+    lastLocationTime, available, radius}` — two more fields than this repo
+    wrote before today.
+  - `available` is written `true` (every scripted position is one the operator
+    can currently place). `radius` is written **`500`, not the probe's own
+    placeholder `0`** — the ONE decision made outright for the round: 500
+    matches the value the same READ showed already resident in the slot, and a
+    zero-radius write would claim a precision the operator never asserted.
+  - Both join the read-after-write verification loop as their OWN axes
+    (`geoAvailable`, `geoRadius`) — the same `geoAt` precedent applies for the
+    same reason: a mismatch folded into `geo` reads as the wrong bug.
+  - The read-after-write guard on `deviceSwap`/`kyc`/`location` stays wired
+    exactly as before — a measured-good shape still gets verified on every run,
+    because "measured once" is not "guaranteed forever". The ASSUMED-shape
+    caveat text in the write-verify diagnostic is removed, since no axis in
+    that loop is assumed any more.
+  - **Two new offline cases, both mutation-proven to red**: case 58 pins
+    `available`/`radius` as their own axes (a shadow slot that flips either
+    fails loud naming it), and case 52's assertions now also pin the written
+    values directly. Counts moved: **m5 offline 57 → 58**. m6 stays 45 (its
+    orange-replay READ fixture now carries the two new fields so the write it
+    mirrors matches what M5 actually sends). Offline counts AGENT-RUN; the
+    live gate itself was PENDING a user re-run as of this bullet — since MET
+    at `3276ed0` (see the top bullet of this section).
+- **GROUNDING FIX: `m5-check-live.mjs` was never updated by the 3 → 6 round
+  (11 → 19 cases).** `git log 8238d02..81f8da4 -- poc/m5-check-live.mjs` is
+  EMPTY: every sibling suite was widened to the six-field backstory and this one
+  was not, so the user's live run died on M5's own closed-field validation before
+  proving anything — the write-trap case caught a `invalid backstory` throw while
+  asserting it had caught the built-in shadowing, and the script then crashed
+  uncaught.
+  - **Why this file and not the others:** it is the only check that cannot run
+    offline. A file nobody can run drifts silently.
+  - **New case 1 pins the story against the adapter's closed field set, OFFLINE
+    and before any network call** — the full story must reach a throwing
+    transport sentinel (proving it PASSES validation), each of the six fields
+    must be required, and an unknown field must be refused by name. It reds on a
+    clean clone with zero credentials, which is what would have caught this.
+  - **The trap case now asserts it failed for its OWN reason** — the message must
+    name the shadowing and must not be a validation refusal. "It threw" is not
+    evidence a guard fired.
+  - **The three new predicates are covered on the LIVE path** the way
+    `m5-check.mjs` covers them offline: `deviceSwapAge` with its negative and
+    axis-independence, `presentIn` both ways plus the third state, `numberMatch`
+    both ways plus the gradient staying operator-side, and the
+    `/check`-vs-`/retrieve-date` surface choice read off the wire via a recording
+    pass-through transport.
+  - Evidence is an **injected-transport REPLAY** (19/19, exit 0; the old file
+    under the same replay reds exactly as the user's run did) plus five killed
+    mutations. **It proves control flow, not the Playground** — that is a
+    distinct claim from the actual live run, which is the user's; the live
+    run against the real Playground, at this rewritten file, happened
+    afterward at tip `3276ed0` (19/19, quota clean) and MET G2 — see the top
+    bullet of this section.
+- **LIVE FIX: the Admin `location` write shape was wrong, and it said so.** The
+  user's first live Playground run of the 3 → 6 tree measured
+  `admin UPDATE failed (status 400): {"code":"BAD_REQUEST","status":400,
+  "message":"\"data.location.lastLocationTime\" is required"}`. The adapter wrote
+  the bare `{latitude, longitude}` pair; the Orange Admin store will not hold a
+  position without an observation instant. **This is the assumed-shape design
+  working**: the axis was labelled the weakest of three guesses precisely because
+  a wrong one had to fail LOUD naming the axis rather than script a position that
+  never took effect, and that is what happened on first contact.
+  - The instant is `new Date(nowMs).toISOString()` — **off the INJECTED clock,
+    never `Date.now()`**, so the same demo writes the same bytes on every run.
+  - **It is scripting, not disclosure.** `getFacts` still never reads a
+    `lastLocationTime` from anywhere, and all three of its spellings (epoch ms,
+    ISO, ISO date) plus the field name joined the demo's wire-byte needle
+    inventory (22 → 26 needles, three more planted leaks in m6 case 18), so a
+    future line that let it out reds.
+  - It is verified by the same read-after-write loop as every other axis, as its
+    own axis `geoAt`.
+  - **Generalisable, and recorded against `kyc`:** an OBSERVED READ shape does not
+    tell you the REQUIRED WRITE field set. The run **aborted at location**, so the
+    `kyc: {name}` write shape is **still untested** and stays labelled ASSUMED.
+  - Counts moved: **m5 offline 56 → 57**. m6 stays 45 and demo stays 33, but both
+    changed, so all three are AGENT-RUN with a **user re-run PENDING**.
+- **Part 3: `numberMatch` — the predicate set is now the signed SIX.** The
+  requester declares its match threshold off the published menu
+  (`60 | 70 | 80 | 90`) and the name it holds; the operator compares internally;
+  **only the boolean crosses the wire.** This is the row where the raw value the
+  profile protects is the catalog response itself: `kyc-match` returns a
+  similarity SCORE, and a score is a gradient rather than a band (a wrong name
+  scored 53; the registered name with ONE letter changed scored 97), so an
+  unquantised threshold against it is a warmer/colder oracle that hill-climbs to
+  the subscriber's real registered name.
+  - **`claimed` is the only predicate field that is neither a type nor a
+    window** — the attribute value the requester wants compared. Legal only for
+    the types that declare it, refused by name elsewhere, and part of the SIGNED
+    predicate string (otherwise an answer about "does Bob match?" verifies as an
+    answer about "does Alice match?").
+  - **Two measured response shapes a naive implementation gets wrong:**
+    `nameMatch` is the STRING `"true"`/`"false"` (and `"false"` is truthy, so an
+    unguarded read reports a non-match as a match), and an EXACT match carries no
+    score at all (so "compare score against threshold" alone answers `false` to
+    the strongest possible match).
+  - **Recorded, not glossed: the operator learns what the requester claims.**
+    Inherent to a comparison, and disclosure in the other direction. Profile mode
+    narrows what the OPERATOR discloses; it does not make the requester's query
+    private.
+  - **A real FLAKE caught and fixed:** a new case scanned the two-character needle
+    `97` against RSA ciphertext and an unblanked random nonce — a ~1-in-8 false
+    red, the exact short-needle trap this repo already documented. Split by
+    artifact class, as the wire scanner already was.
+  - **A second unpinned guard of the same shape as part 2's:** the kyc-name
+    write-back survived mutation in the same place the location one did.
+- **Part 2: `presentIn` — and the third state is the whole point.**
+  `location-verification/v1/verify` answers `TRUE`, `FALSE` and `PARTIAL`
+  (measured), and `PARTIAL` produces a signed REFUSAL carrying no bit rather than
+  a rounded `true`/`false`: a rounded answer is signed and indistinguishable on
+  the wire from a real one.
+  - **The PARTIAL policy is a published FLOOR AXIS** (`partialPolicy`, one legal
+    value `refuse`), so "the operator publishes it and the requester may only
+    tighten it" is the existing rule-5 machinery rather than a new mechanism — a
+    request asking to have PARTIAL rounded for it dies at the floor gate before
+    any fact is read. **This moved a user-validated module: `m3-check` 24 → 25.**
+  - **The area is canonicalised by KEY, not by typing order.** `JSON.stringify`
+    serialises in insertion order, so two spellings of the same circle would
+    otherwise derive two signed predicate strings and one requester would get its
+    own correct answer back as a `predicate mismatch`.
+  - **`lastLocationTime` is never read** — not filtered on the way out; there is
+    no line that reads it. Same for the subscriber's own position: the mock
+    computes a real great-circle verdict and returns the VERDICT, never the place.
+  - **An honest residual, added rather than removed:** an area is a dial (centre
+    plus radius) and is walkable toward a position the way a duration threshold is
+    bisectable. `presentIn` gets no bucket menu, so the cap is the operator's own
+    resolution plus the rate-limit/billing backstop — weaker than the duration
+    menu, and said to be weaker.
+  - **A mutation SURVIVED on the first pass** and found a real gap: the
+    read-after-write comparison that makes this round's assumed Admin write shapes
+    survivable was pinned for the device axis and not for the location one.
+- **The wired predicate set goes 3 → 6 (user-signed, PRD §9). Part 1:
+  `deviceSwapAge`.** Every wired type is backed by an endpoint OBSERVED answering
+  live; nothing is minted for a fact no source computes. `deviceSwapAge` takes the
+  IDENTICAL shape to `simSwapAge` — same published bucket menu
+  (`P30D | P90D | P180D | P365D`), same `≥` compare, its own fact — because two
+  questions of the same shape must not teach a reader two grammars, and a second
+  menu is a second place for the window to widen quietly.
+  - **The reference adapter now calls the PROFILE-CONFORMING surface where it
+    can.** `/check` answers a bit about a `maxAge` window in HOURS capped at 2400
+    (boundary-tested), so `P30D`/`P90D` questions go to `/check` — on that path
+    the operator never reads a date at all — and only `P180D`/`P365D`, which the
+    cap cannot express, fall back to `/retrieve-date`. No rounding down to a
+    window `/check` can express: that answers a question nobody asked, signed.
+  - **A coarse `/check` answer carries the window it was computed for**, and the
+    compare refuses unless that window EQUALS the threshold asked — otherwise an
+    adapter could answer "not swapped in 30 days" to a "90 days?" question with a
+    bit that is signed, verifiable and wrong.
+  - **New seam `factQuery` (M4).** Three of the six predicates make the operator
+    ask its own upstream a question-shaped question, so part of the predicate has
+    to reach the adapter. It goes through one validating chokepoint — never
+    throws, invokes nothing caller-supplied, returns frozen primitives or `{}` —
+    rather than handing `req.predicate` to the module that builds outbound HTTP.
+  - **The wire-byte scanner now excludes what the QUESTION itself carried**, and
+    asserts the size of that exclusion. Found by the scan going red on its first
+    run: `roamingIn ["FR","BE"]` puts `FR` in the signed claims by design (rule 2
+    requires the answer to name its predicate). Honest limit recorded: the scan is
+    therefore blind to a leak of the same value on the axis being asked about —
+    M1's closed claim set is what prevents that, not the scanner.
+  - **Stated, not claimed:** the Admin write shape for the `deviceSwap` axis and
+    the `{phoneNumber, maxAge}` body of the two `/check` routes are ASSUMED
+    (mirrored from measured siblings), never observed. Read-after-write
+    verification is what makes a wrong guess fail LOUD instead of silently
+    scripting a history that never took effect; the live run settles it.
+  - **Counts: `m4-check` 33 → 36, `m5-check` 48 → 52, `m6-check` 38 → 40,
+    `poc/demo.mjs` 22 → 27.** All AGENT-RUN by exit code; **user run PENDING.**
+    Twelve mutations against the round's new guards, twelve killed.
+
+- **M6 adversarial review round (2026-08-17): five ways to crash or deny-service
+  the operator, all fixed and mutation-proven.** An independent review filed six
+  defects with a repro script; all six reproduced on the first run. Four were
+  real, and fixing them surfaced a fifth the review had not found.
+  - **The operator could be crashed remotely, three ways** — all on requests
+    that fit one envelope, from anyone holding its public envelope key, and all
+    breaking the "wire input never throws" contract: an **unbounded echoed
+    nonce** (200 characters → `seal()` threw out of `handle`); a **reason clamp
+    counting UTF-16 code units where `seal` counts BYTES** (40 astral characters
+    → a "clamped" 121-unit / 363-byte reason); and an **answer frame that
+    overflows even when the request did not** (18 `roamingIn` country codes fit a
+    446-byte request and produce a 448-byte answer, because the canonical
+    predicate re-escapes every quote). The refusal budget is now COMPUTED and the
+    arithmetic is written down (frame 136 B → payload 310 → claims 231 → reason +
+    nonce ≤ 192 B, split 122/70 as JSON-encoded sizes); the clamp bounds encoded
+    BYTES and cuts on a code-point boundary; an unechoable nonce is a transport
+    reject; an oversize answer is a signed refusal. The comment claiming the
+    worst reason had been *measured* to fit was simply false, and is replaced by
+    a case that seals the worst admissible refusal (444/446 B).
+  - **A forged response permanently burned the pending nonce.** The store
+    deleted on any PRESENTED response, not any VERIFIED one, so the untrusted hub
+    could inject one garbage sealed message and the operator's genuine answer
+    then arrived to `unknown or already-used nonce` — a one-message denial of
+    service by the party the design assumes is hostile. The in-code comment
+    already stated the correct contract; the code did not implement it.
+  - **`verifyRefusal` never ran the duplicate-key scan** that profile rule 2
+    requires and `verifyAttestation` performs — in the same round M6 exported
+    M1's scanner so the request path would not carry a second copy.
+  - **Operator-internal diagnostics were signed and shipped to the requester.**
+    The backend's exception message rode verbatim into the refusal; on the Orange
+    path an upstream 500 delivers a core-network hostname. The requester now gets
+    one stable reason, deliberately not distinguishing "unknown subject" from
+    "temporarily unavailable" (that distinction is a subject-existence oracle);
+    the full message stays operator-side.
+- **Four labels corrected where the headline claimed more than the assertion
+  checked** (no false PASS in any of them): a case whose `extra` was the literal
+  `ok: true`; a "blind hub" assertion that actually exercised RSA-OAEP
+  (blindness is structural and has no failing case — relabelled as narration);
+  an "effective floor is visible" line asserting only `accepted === true`; and
+  the backend-seam byte-identity headline, which is near-vacuous alone and now
+  ships with a leg that CAN fail (a 5-day-old replayed swap flips the bit).
+- **The wire-byte scanner was scanning one value five ways.** `rawNeedles` held
+  five long-form spellings of the swap timestamp, so `{"swapDays":137}`,
+  `{"c":"FR"}` (the roaming country VALUE), `{"m":"+990100000099"}` and
+  `{"d":"2026-04-02"}` all scored ZERO while the printed line read "no raw value
+  in ANY wire artifact". Inventory widened to nine, with a measured split:
+  opaque artifacts take the seven long forms, plaintext takes all nine with the
+  random hex nonce blanked so the 3-digit day count asserts instead of flaking.
+- **Case counts: `m6-check` 28 → 38, `m3-check` 23 → 24.** Both AGENT-RUN;
+  **user re-run PENDING**. The PRD's "every count above is from a run on the
+  user's own machine" was false the moment M6/M1/M3 landed above it — it was the
+  only place in the repo claiming user validation for M6 — and is corrected.
+- **Spec sketch: `AttestRequest` closed with `additionalProperties: false`** (the
+  outermost layer, which the code closed this round while the sketch left it
+  open), and the `value` example no longer shows `"voice+data"`, a `simType`
+  floor value left behind when `simType` left the `Predicate` enum.
+
+- **Retracted, visibly: `kyc-match` does NOT "conform as-is because scores are
+  already bands".** Measured against the Orange Playground 2026-08-17: a correct
+  name returns `{"nameMatch":"true"}` with no score, a wrong name returns
+  `nameMatchScore: 53`, and the registered name with **one letter changed**
+  returns **97**. That is a similarity *gradient*, not a coarsening — it
+  preserves the distance to the answer and lets a requester hill-climb to the
+  subscriber's real registered name, which is strictly worse than binary
+  guessing. The claim sat in two places in the CAMARA proposal (the §3.3
+  adoption checklist and the §3.3.1 illustrative table); both are corrected, the
+  old wording left visible with the measurement beside it. The profile's answer:
+  threshold in the question off a published coarse menu, comparison
+  operator-side, **only the boolean on the wire**.
+- **Closed, unfavourably: `sim-swap/v1/retrieve-age-band` does not exist on the
+  Playground** — `400 {"code":"BAD_REQUEST","message":"unhandled path"}`. The
+  docs carried its availability as UNVERIFIED ("never probed, recorded as
+  untested rather than assumed in either direction"); it has now been probed.
+  Consequence: band → bucket mapping **cannot be demonstrated live** and stays
+  mock-only or documented. The boolean `/check` surface, by contrast, does exist
+  and answers on both sim-swap and device-swap, and its `maxAge` cap is now
+  boundary-tested (`2400` → 200, `2401` → 400) on both — so `/check` can serve
+  `P30D`/`P90D` and cannot express `P180D`/`P365D` at all.
+- **Signed off, NOT yet built: the wired predicate set goes 3 → 6.**
+  `simSwapAge`, `deviceSwapAge` (new — never one of the original seven),
+  `roamingIn`, `presentIn`, `numberMatch`, `reachable` — each backed by an
+  endpoint observed answering live. This is the same-day trim's *principle*
+  applied to new evidence (wire only what a real fact source answers), not a
+  reversal of it. `tenure` and `simType` stay out for a measured reason: the
+  data exists operator-side but **no CAMARA read endpoint was found** at either
+  `tenure/v1/retrieve` or `sim-tenure/v1/retrieve`. `spec/carrier-attestation.yaml`
+  still lists three types — the enum follows the code, never the plan.
+  `deviceSwapAge` takes the identical shape to `simSwapAge`; `numberMatch`
+  publishes a **60 | 70 | 80 | 90** threshold menu (a free-choice threshold is
+  bisectable exactly as the swap date was, and the score gradient makes it
+  worse); `presentIn` **refuses** on `location-verification`'s third state
+  `PARTIAL` rather than rounding it to yes or no. Five rules apply to all six
+  with no exceptions: boolean or refusal; off-menu refused loudly, never
+  rounded; unanswerable is a refusal; operator publishes the floor and the
+  requester may only tighten; raw values stay operator-side. Recorded in PRD §9;
+  the residual probing walk is priced and bounded at the layer above (rate
+  limits, per-query billing, the operator's query log) — quantisation caps
+  resolution and is not claimed to close the oracle.
+- **Recorded: even a predicate-shaped catalog endpoint ships a raw value.**
+  Every `location-verification/v1/verify` response carries `lastLocationTime`, an
+  exact timestamp, beside its `TRUE`/`FALSE`/`PARTIAL` verdict. "Already
+  predicate-shaped" is a statement about the headline field, not the payload.
+- **A grounding failure is recorded rather than quietly corrected.** This
+  session's orchestrator stated there was "no fact source known" for
+  `tenure`/`simType` — while `findings.md` already recorded the Admin data model
+  carrying seven axes including `tenure` and `kyc`. The conclusion survives, for
+  a different and measured reason; the claim was made without re-reading the
+  evidence log, and that is what got written down.
+- **M6 built: `poc/demo.mjs`, the one-command reader-facing demo, and
+  `poc/m6-check.mjs`, 28 cases. AGENT-RUN 22/22 and 28/28 by exit code; USER
+  VALIDATION PENDING, so gate G1 is NOT yet met.** `node poc/demo.mjs` needs no
+  credentials and touches no network; `--backend orange` swaps in M5 reading
+  `ORANGE_BASIC_AUTH` from the environment and exits **2** with printed
+  prerequisites if the credential is absent or the Playground is unreachable —
+  never a silent fallback to the mock. Exit 0 only if all 22 assertions hold, 1
+  if any fails.
+- **Fixed — a crashed mock run was reported as a skipped prerequisite.**
+  `main()` mapped ANY mid-run throw to exit 2, but exit 2 means *the chosen
+  backend could not run*, and `--backend mock` has no prerequisites at all: no
+  credential, no network, nothing that can be unavailable. So a backend that
+  STARTED and then threw could only be a code regression, and a CI gate that
+  correctly treats 2 as skip-on-prerequisite would have swallowed it in silence.
+  Reproduced with a throwing `setBackstory` (exit 2 before, 1 after); mutation-
+  proved by case 28, which reds at 27/28 with the fix reverted. Under
+  `--backend orange` a mid-run throw stays 2 — an unreachable live operator
+  genuinely IS a prerequisite failure. The in-code comment asserted the opposite
+  rule and has been corrected. **M6 check: 27 → 28 cases.**
+- **The RP nonce store's unbounded growth is now stated** (at the store and in
+  the demo's own notes): a request that never receives a response leaves its
+  nonce resident forever, and a real deployment evicts on expiry. Documented,
+  deliberately not built — the demo would have to fake elapsed time to exercise
+  a TTL, and a stated limit beats an untested one.
+- **Why the PoC reads a precise SIM-swap date is now written down** where a
+  reader hits it (M5 source, CAMARA proposal §2.1, PRD §9): the invariant
+  governs the WIRE and the operator legitimately holds the raw value; `/check`
+  is unusable for a **measured** reason (its `maxAge` is in hours, capped at
+  2400 ≈ 100 days, which cannot express the published `P180D`/`P365D` buckets);
+  and `/retrieve-age-band` — the surface that would fit — is provider-optional
+  with **availability on the Playground UNVERIFIED, recorded as untested rather
+  than assumed.** Documentation only: which endpoint M5 calls is unchanged.
+- **Six deviations from the frozen M6 spec are now all recorded**, none left as
+  a silent difference. Four were already in the decisions log (the parse-then-
+  scan ordering, `findings.md`'s creation, the menu's ordered-thresholds-only
+  scope, M3's reason length staying unclamped); the 20 → 22 assertion delta was
+  recorded outside §9 and its entry now carries the count its siblings do; the
+  three (now four) dependency-injection seams were unrecorded anywhere and have
+  a new entry — including the honest note that guard-disabling is a separate,
+  deliberately published `controls` seam.
+- **The demo prints in plain language**, because it is the surface a CAMARA/AAIF
+  reader sees: a `Q:` with the scripted backstory, the `A:` bit, then
+  `negative flip → PASS`. Each of PRD §4.1's four assertions is followed by a
+  control that disables that ONE guard and shows the same input being accepted —
+  a guard never disabled has not been proven load-bearing.
+- **The repeated-query oracle, found by the M6 composition spike and only partly
+  closed.** Every individual response is a clean windowed bit; the SEQUENCE is
+  not. Nine legal, signed, sealed, metered queries binary-searched the
+  subscriber's exact swap age (137 days, recovered exactly) with every response
+  passing every check. No module is wrong — M3 gates FLOORS, not predicate
+  thresholds, and profile rule 1 hands the threshold to the requester. The demo
+  operator now publishes a **coarse threshold menu** next to its floor
+  (`P30D | P90D | P180D | P365D`) and REFUSES anything off it — refuses, never
+  rounds. That CAPS the oracle at the bucket (≈2 bits/year); it does not close
+  it, and it is written down as a cap in the CAMARA proposal §3.5 alongside the
+  two other mitigations (rate limits + per-query billing, adopted; a
+  tighten-only repeat rule, considered and declined — it costs the attacker ~15×
+  and still recovers the value).
+- **Duplicate-key REQUESTS are refused outright**, using M1's newly exported
+  scanner (above): no partial acceptance, and never a pick between the two
+  values. **Refusals are SIGNED and nonce-bound** past authentication, so the
+  blind hub cannot forge a denial; before authentication they are deliberately
+  unsigned, because an operator cannot sign a refusal to a party it cannot name.
+- **M6 owns five things no module owns**, each one load-bearing and each one
+  pinned: the transport frame `{iss, payload, sig}`; the **injective** canonical
+  predicate string (a mutation dropping the threshold left the whole spike green
+  while the operator answered `gte P1D` to a `gte P90D` question); the
+  single-use nonce store (M1's nonce check is stateless BINDING and says so, so
+  replay rejection lives entirely here); the reason clamp (M3 builds reasons
+  from wire input unbounded, and M2's `seal()` THROWS above capacity, so an
+  unclamped refusal crashes the operator instead of refusing); and the closed
+  top-level request field set (below — the fifth was not in the plan, it was
+  found by probing the finished file).
+- **`poc/m6-check.mjs` is offline in BOTH backend modes.** The `--backend
+  orange` seam runs through an injected transport replaying captured Playground
+  bytes, and with the keys and the nonce held fixed the two backends produce a
+  **byte-identical signed frame** — signature included, since Ed25519 is
+  deterministic. That is the strongest form FR5's "only the facts source swaps"
+  claim can take. The suite also runs the demo itself and asserts its exit code,
+  its 22/22 tally, and **claims discipline**: every mention of zero-knowledge in
+  the output must be a negation.
+- **The top-level REQUEST field set is CLOSED — a defect found in M6's own code
+  by an adversarial probe AFTER it was written and green, not a planned
+  feature.** Every layer underneath was already closed (M1's claims, M3's axes,
+  M4's predicate fields); the outermost envelope, which no module owns, was not.
+  A request carrying `floors` — one letter off — had its floor silently DROPPED:
+  `checkFloor` saw no requested floor, applied the operator's own `P90D`, and
+  signed an answer while the requester believed it had demanded `P365D`. That is
+  silent widening arriving through a spelling mistake — M3's closed-axis
+  argument, one level further out. Unknown fields are now refused BY NAME (the
+  misspelling is the actionable half), with the name rendered only while short
+  and printable so an embedded newline cannot forge a log line. The general
+  lesson, recorded in PRD §9: **a closed-set discipline is only as good as its
+  outermost layer, and the composition owns a layer none of the modules do.**
+- ~~**18 mutations against M6's own guards, 18 killed, 0 survivors**~~ —
+  **corrected 2026-08-17.** An independent sweep of **34 meaningful mutations
+  found 10 survivors (29% survival)**: the original 18 were self-selected and
+  happened to hit only what the suite already pinned. Nine survivors are now
+  pinned by new cases (`m6-check` 29–38, `m3-check` 24); the tenth,
+  `unpackSigned`'s `Array.isArray`, was **proved redundant** rather than covered
+  by a case that could not fail. Left struck through rather than rewritten,
+  because a retracted measurement is worth more than a corrected one. See
+  `docs/01-product/findings.md` 2026-08-17.
+- **Spec sketch `Predicate` enum trimmed 7 → 3.**
+  `spec/carrier-attestation.yaml` now lists only what the PoC wires end to end —
+  `simSwapAge`, `roamingIn`, `reachable` (the boolean `value` branch stays;
+  `reachable` needs it and the reference module rejects the string spelling).
+  `tenure`, `simType`, `presentIn` and `numberMatch` were aspirational entries
+  in an illustrative artifact: nothing computes them, so a reader could send a
+  schema-valid request the reference operator refuses. They move to a
+  **future-work note** in the CAMARA proposal §3.3.1 rather than being deleted —
+  `tenure` and `simType` are still FLOOR axes, `presentIn` is
+  location-verification's existing shape, `numberMatch` is
+  number-verification's `/verify` which conforms today, and `tenure` carries the
+  unresolved MNP question the trim declines to ship as settled. The **normative**
+  profile enumerates no predicate types, so nothing normative moved.
+- **M1 exports its duplicate-top-level-key scanner
+  (`hasDuplicateTopLevelKey`).** A signed REQUEST is signed bytes too, and the
+  equivocation is symmetric: one signature over bytes carrying `floor` twice
+  lets the operator enforce `P90D` while the requester believes it demanded
+  `P365D`. Verifying a request cannot reuse `verifyAttestation` (that demands
+  the closed ANSWER set `{predicate, result, nonce, exp}`), so M6 borrows the
+  byte-level scan rather than keeping a second, divergent copy of it — the copy
+  that would face the wire first. The export carries a stated precondition (the
+  text must already have parsed as JSON) and M6 calls it in M1's own order:
+  signature → parse → scan. **M1's declared case count 19 → 20** (the new case
+  pins the bare function directly, including a duplicated `floor` in a
+  request-shaped payload, and that a depth-2 duplicate is not a top-level one).
+- **M3 fix point closed: `checkFloor` no longer throws on wire input.** The
+  rejection-message builder rendered the offending value with `JSON.stringify`,
+  which THROWS on a BigInt and RUNS a caller-supplied `toJSON` — either way a
+  bare `TypeError` escaped `checkFloor` and replaced the module's loud
+  named-input rejection, breaking "wire input never throws" *in the rejection
+  path itself*. Found by the M6 composition spike and recorded there as
+  OBSERVED-not-fixed; fixed here. The renderer now invokes nothing
+  caller-supplied (M4's post-release-gate `describe()` shape), and keeps the
+  `[unrenderable]` floor because `Array.isArray` itself throws on a revoked
+  Proxy. Neither shape survives a JSON round trip, so the envelope's transit is
+  what kept this unreachable in the demo — a transport accident, not a contract.
+  **M3's declared case count 22 → 23**; every previously pinned reason string is
+  byte-identical.
+
 ## 0.3.0 — 2026-08-17
 
 - **M5 (live Orange facts adapter) built under the §4.4 ladder —

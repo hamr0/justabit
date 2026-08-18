@@ -2,7 +2,7 @@
 // Negatives first: every fail-open the spike OBSERVED in the naive adapter is
 // shown being refused before a single happy path runs. The spike's traps were
 // not hypotheses — each one ended in a confident, wrong, signable answer.
-import { createMockFacts, evaluatePredicate } from './m4-facts-mock.mjs';
+import { createMockFacts, evaluatePredicate, factQuery } from './m4-facts-mock.mjs';
 import { makeHarness } from './check-harness.mjs';
 
 const { check, checkThrows, conclude } = makeHarness({ field: 'answered', okWord: 'ANSWER' });
@@ -13,7 +13,16 @@ const { check, checkThrows, conclude } = makeHarness({ field: 'answered', okWord
 const NOW = Date.UTC(2026, 7, 15);
 const DAY = 86400000;
 const N = '+990100000099';                                   // Playground custom slot
-const STORY = { swappedDaysAgo: 120, roamingCountry: null, reachable: true };
+const PARIS = Object.freeze({ lat: 48.8566, long: 2.3522 });
+// The reference backstory. `deviceSwappedDaysAgo` joined the closed field set on
+// 2026-08-17 with the 3 -> 6 predicate round, and it is deliberately a DIFFERENT
+// day count from the SIM axis: a story where both axes agreed would let a mapping
+// that reads the wrong axis pass every case below.
+const REGISTERED = 'Alice Arnaud';
+const STORY = { swappedDaysAgo: 120, deviceSwappedDaysAgo: 200, roamingCountry: null, reachable: true, location: PARIS, registeredName: REGISTERED };
+// The subscriber's own position, and a query area centred somewhere DIFFERENT, so
+// a case cannot pass by the two being the same string.
+const AREA = (radiusM, over = {}) => ({ lat: 48.86, long: 2.35, radiusM, ...over });
 const P90 = { type: 'simSwapAge', operator: 'gte', value: 'P90D' };
 
 // A fresh operator with one scripted subscriber. Fresh per case: a shared
@@ -57,9 +66,20 @@ checkThrows('2 UNKNOWN BACKSTORY FIELD THROWS',
 // 3 MISSING BACKSTORY FIELD THROWS — the other half of killing the typo trap:
 // every field is required and a call REPLACES the story, so a typo is both an
 // unknown field AND a missing one. Partial merge is what made the typo silent.
-checkThrows('3 MISSING BACKSTORY FIELD THROWS',
-  () => createMockFacts().setBackstory(N, { swappedDaysAgo: 120 }),
-  ['missing field roamingCountry', 'no defaults']);
+// The named field is whichever required one is missing FIRST, so the extra asks
+// the same question the other way round — a story missing ONLY roamingCountry
+// must name roamingCountry — otherwise this case would silently be tracking the
+// declaration order of FIELDS rather than the required-set rule.
+{
+  const first = threws(() => createMockFacts().setBackstory(N, { swappedDaysAgo: 120 }));
+  const { roamingCountry, ...noCountry } = STORY;
+  const one = threws(() => createMockFacts().setBackstory(N, noCountry));
+  checkThrew('3 MISSING BACKSTORY FIELD THROWS', first, {
+    label: 'names the first missing field + a story missing only roamingCountry names that one',
+    ok: first.msg.includes('missing field deviceSwappedDaysAgo') && first.msg.includes('no defaults')
+      && one.threw && one.msg.includes('missing field roamingCountry'),
+  });
+}
 
 // 4 NON-PLAIN BACKSTORY THROWS — M3's lesson, re-measured here: the spike put
 // swappedDaysAgo on the PROTOTYPE and then as a NON-ENUMERABLE own property,
@@ -325,9 +345,9 @@ check('14 WRONG OPERATOR REJECTED', false,
 // can genuinely fail.
 {
   const facts = createMockFacts();
-  facts.setBackstory(N, { swappedDaysAgo: 120, roamingCountry: null, reachable: true });
+  facts.setBackstory(N, { ...STORY, swappedDaysAgo: 120 });
   const old = evaluatePredicate(facts.getFacts(N, NOW), P90);
-  facts.setBackstory(N, { swappedDaysAgo: 1, roamingCountry: null, reachable: true });
+  facts.setBackstory(N, { ...STORY, swappedDaysAgo: 1 });
   const fresh = evaluatePredicate(facts.getFacts(N, NOW), P90);
   check('19 FLIP FLIPS THE BIT', true, old, 'ok', {
     label: 'true→false on re-script, shape identical, only the bit differs',
@@ -639,4 +659,212 @@ check('14 WRONG OPERATOR REJECTED', false,
 // The declared case count. A suite that silently loses the cases carrying its
 // guarantee still printed a green `RESULT: n/n` before this argument existed
 // (measured 2026-08-16: truncated to 18/18 exit 0, emptied to 0/0 exit 0).
-conclude(33);
+// ====== 2026-08-17: the 3 -> 6 predicate round ======
+// One case per thing the round ADDED to this module, each with a control that can
+// red. The predicate types themselves are exercised through the composition
+// (m6-check) as well; what is pinned HERE is the module's own contracts.
+
+// 34 deviceSwapAge IS ITS OWN AXIS — the same grammar as simSwapAge and a
+// different FACT. The failure this pins is not exotic: a table entry pointing
+// both types at `swapAgeMs` answers every device question with the SIM's history
+// and nothing else in the suite notices, because both answers look well-formed.
+// So the story's two day counts differ and BOTH directions are asserted.
+{
+  const dev = { type: 'deviceSwapAge', operator: 'gte', value: 'P90D' };
+  const f = scripted({ ...STORY, swappedDaysAgo: 200, deviceSwappedDaysAgo: 10 }).getFacts(N, NOW);
+  const devAnswer = evaluatePredicate(f, dev);
+  const simAnswer = evaluatePredicate(f, P90);
+  // ...and the mirror: swap the story's two counts and both bits must swap too.
+  const g = scripted({ ...STORY, swappedDaysAgo: 10, deviceSwappedDaysAgo: 200 }).getFacts(N, NOW);
+  check('34 deviceSwapAge IS ITS OWN AXIS', true, devAnswer, 'ok', {
+    label: 'device 10d -> false while the SIM 200d -> true, and swapping the story swaps both bits',
+    ok: devAnswer.result === false && simAnswer.result === true
+      && evaluatePredicate(g, dev).result === true && evaluatePredicate(g, P90).result === false
+      && f.deviceSwapAgeMs === 10 * DAY && f.swapAgeMs === 200 * DAY,
+  });
+}
+
+// 35 A COARSE `/check`-STYLE FACT ANSWERS ONLY ITS OWN WINDOW — the guard that
+// makes the second duration fact shape safe at all. `/check` (measured 2026-08-17,
+// `maxAge` in HOURS capped at 2400) answers a BOOLEAN about one window and never
+// a date, so the fact carries the window it was computed for and the compare
+// refuses unless it EQUALS the threshold asked. Without that equality an adapter
+// could answer "not swapped in 30 days" to a "90 days?" question and the bit
+// would look perfect on the wire, signed, with nothing to red.
+{
+  const P90ms = 90 * DAY;
+  const P30ms = 30 * DAY;
+  const matching = evaluatePredicate({ swapAgeAtLeast: true, swapAgeAtLeastMs: P90ms }, P90);
+  const mismatched = evaluatePredicate({ swapAgeAtLeast: true, swapAgeAtLeastMs: P30ms }, P90);
+  const falseBit = evaluatePredicate({ swapAgeAtLeast: false, swapAgeAtLeastMs: P90ms }, P90);
+  // The coarse shape must not become a back door either: a non-boolean bit, a
+  // missing window, or a window that is not a safe integer are all unavailable.
+  const junk = [
+    { swapAgeAtLeast: 'true', swapAgeAtLeastMs: P90ms },
+    { swapAgeAtLeast: true },
+    { swapAgeAtLeast: true, swapAgeAtLeastMs: '7776000000' },
+    { swapAgeAtLeast: true, swapAgeAtLeastMs: 1.5 },
+  ].map((f) => evaluatePredicate(f, P90));
+  // ...and the EXACT age still wins when both shapes are present, so an adapter
+  // that supplies both cannot be silently answered from the coarse one.
+  const both = evaluatePredicate({ swapAgeMs: 10 * DAY, swapAgeAtLeast: true, swapAgeAtLeastMs: P90ms }, P90);
+  check('35 A COARSE /check FACT ANSWERS ONLY ITS OWN WINDOW', true, matching, 'ok', {
+    label: 'same window answers true/false; a 30d window under a 90d question REFUSES; 4 malformed shapes refuse; the exact age wins',
+    ok: matching.result === true && falseBit.answered === true && falseBit.result === false
+      && mismatched.answered === false && mismatched.reason === 'fact unavailable: swapAgeMs'
+      && junk.every((r) => r.answered === false && r.reason === 'fact unavailable: swapAgeMs')
+      && both.answered === true && both.result === false,
+  });
+}
+
+// 36 factQuery HANDS THE BACKEND VALIDATED PRIMITIVES OR NOTHING — the round's
+// one new seam, and the one with teeth: three of the six predicates make the
+// operator ask its own upstream a question-shaped question, so something has to
+// carry part of the predicate down to the module that builds outbound HTTP. If
+// that something were `req.predicate` itself, every hostile shape case 16 and
+// case 25 refuse would be handed to a live network client instead.
+{
+  const good = factQuery(P90);
+  const dev = factQuery({ type: 'deviceSwapAge', operator: 'gte', value: 'P365D' });
+  // Every shape that must yield an EMPTY query: unknown type, malformed
+  // predicate, an unparseable duration, and the hostile shapes from case 16.
+  const revoked = (() => { const r = Proxy.revocable({}, {}); r.revoke(); return r.proxy; })();
+  const empties = [
+    { type: 'tenure', operator: 'gte', value: 'P2Y' },
+    { type: 'simSwapAge', operator: 'gte', value: 'P3M' },
+    { type: 'simSwapAge', operator: 'gte', value: { toString() { throw new Error('boom'); } } },
+    null, undefined, 7, 'simSwapAge', ['simSwapAge'], revoked,
+    Object.create({ type: 'simSwapAge', operator: 'gte', value: 'P90D' }),
+  ].map((p) => threws(() => factQuery(p)));
+  check('36 factQuery HANDS THE BACKEND VALIDATED PRIMITIVES OR NOTHING', true,
+    { answered: true, reason: 'ok' }, 'ok', {
+      label: `P90D -> ${JSON.stringify(good)}; ${empties.length} unusable shapes all -> {} and none threw`,
+      ok: good.swapAgeThresholdMs === 90 * DAY && Object.keys(good).join(',') === 'swapAgeThresholdMs'
+        && dev.deviceSwapAgeThresholdMs === 365 * DAY && Object.keys(dev).join(',') === 'deviceSwapAgeThresholdMs'
+        && Object.isFrozen(good)
+        && empties.every((r) => r.threw === false && Object.keys(r.value).length === 0),
+    });
+}
+
+// 37 presentIn: THE VERDICT IS PRODUCED, AND THE POSITION IS NOT A FACT. The mock
+// computes a real great-circle answer rather than returning a scripted verdict —
+// a scripted one would make this case unable to fail for the right reason. Four
+// legs: inside answers true, outside answers false, a radius finer than the
+// operator's own resolution produces PARTIAL (which `evaluatePredicate` refuses,
+// case 38), and a subscriber the operator cannot place leaves the axis ABSENT.
+//
+// The fifth leg is the one that matters most: `getFacts` NEVER returns the
+// subscriber's position, on any call. `presentIn` is the only predicate whose
+// upstream is itself predicate-shaped, and handing the position out as a fact
+// would put the raw value one careless line from the wire.
+{
+  const facts = scripted();
+  const q = (radiusM, over) => ({ area: AREA(radiusM, over) });
+  const inside = facts.getFacts(N, NOW, q(10000));
+  const outside = facts.getFacts(N, NOW, q(10000, { lat: 50.85, long: 4.35 }));   // Brussels
+  const fine = facts.getFacts(N, NOW, q(100));
+  const noArea = facts.getFacts(N, NOW);
+  const unplaced = scripted({ ...STORY, location: null }).getFacts(N, NOW, q(10000));
+  const keys = [inside, outside, fine, noArea, unplaced].flatMap((f) => Object.keys(f));
+  check('37 presentIn VERDICT IS PRODUCED, POSITION IS NOT A FACT', true, { answered: true, reason: 'ok' }, 'ok', {
+    label: `inside=${inside.presentVerdict} outside=${outside.presentVerdict} 100m=${fine.presentVerdict} `
+      + `no-area=${'presentVerdict' in noArea} unplaced=${'presentVerdict' in unplaced}`,
+    ok: inside.presentVerdict === 'TRUE' && outside.presentVerdict === 'FALSE' && fine.presentVerdict === 'PARTIAL'
+      && !('presentVerdict' in noArea) && !('presentVerdict' in unplaced)
+      && !keys.includes('location') && !keys.includes('lat') && !keys.includes('long')
+      && !JSON.stringify([inside, outside, fine]).includes(String(PARIS.lat)),
+  });
+}
+
+// 38 PARTIAL IS REFUSED, NOT ROUNDED, AND A MALFORMED AREA NEVER THROWS. The
+// refusal is the whole point of the third state: a rounded PARTIAL is signed and
+// indistinguishable on the wire from a real answer. The control is that TRUE and
+// FALSE still ANSWER — a module that refused every location question would pass a
+// weaker version of this case. The area shapes are wire input, so every one comes
+// back as a verdict and none as an exception; the bounds are not decoration
+// (`NaN` compares false against every range test, so an unguarded pair travels to
+// a live endpoint as a position that is not a place).
+{
+  const pred = (value) => ({ type: 'presentIn', operator: 'in', value });
+  const area = AREA(10000);
+  const partial = evaluatePredicate({ presentVerdict: 'PARTIAL' }, pred(area));
+  const yes = evaluatePredicate({ presentVerdict: 'TRUE' }, pred(area));
+  const no = evaluatePredicate({ presentVerdict: 'FALSE' }, pred(area));
+  const absent = evaluatePredicate({}, pred(area));
+  const junkVerdict = evaluatePredicate({ presentVerdict: 'true' }, pred(area));
+  const bad = [
+    AREA(10000, { lat: 91 }), AREA(10000, { long: 181 }), AREA(10000, { lat: NaN }),
+    AREA(10000, { long: Infinity }), AREA(0), AREA(200001), AREA(1.5),
+    { lat: 48.86, long: 2.35 }, { ...area, extra: 1 }, [48.86, 2.35, 10000], 'paris', null,
+    { lat: 48.86, long: 2.35, get radiusM() { throw new Error('boom'); } },
+  ].map((v) => threws(() => evaluatePredicate({ presentVerdict: 'TRUE' }, pred(v))));
+  check('38 PARTIAL IS REFUSED AND A MALFORMED AREA NEVER THROWS', false, partial,
+    'location partial: refused, never rounded', {
+      label: `TRUE/FALSE still answer (${yes.result}/${no.result}); absent and an unknown verdict refuse; `
+        + `${bad.length} malformed areas rejected, ${bad.filter((r) => r.threw).length} threw`,
+      ok: yes.answered === true && yes.result === true && no.answered === true && no.result === false
+        && absent.answered === false && absent.reason === 'fact unavailable: presentVerdict'
+        && junkVerdict.answered === false && junkVerdict.reason === 'fact unavailable: presentVerdict'
+        && bad.every((r) => !r.threw && r.value.answered === false && r.value.reason.startsWith('invalid area:')),
+    });
+}
+
+// 39 numberMatch: THRESHOLD IN, BOOLEAN OUT, AND THE SCORE STAYS BEHIND. The
+// predicate exists in this shape because of ONE measurement: `kyc-match` returns
+// a similarity SCORE, and the score is a GRADIENT (a wrong name scored 53, the
+// registered name with ONE letter changed scored 97). A gradient is not a band —
+// a band coarsens, a gradient preserves the distance to the answer — so it is
+// hill-climbable to the subscriber's real registered name.
+//
+// Four legs. The threshold decides (the same score answers differently either side
+// of it); an exact operator-side match satisfies every threshold WITHOUT a score
+// present, which is the measured shape and would otherwise read as `false`; a
+// `false` with NO score is unanswerable rather than a zero; and the returned
+// answer carries the bit and nothing else.
+{
+  const q = (value, claimed = 'Alice Arnaut') => ({ type: 'numberMatch', operator: 'gte', value, claimed });
+  const near = { nameMatch: false, nameMatchScore: 97 };
+  const met = evaluatePredicate(near, q(90));
+  const notMet = evaluatePredicate(near, q(98));
+  const exact = evaluatePredicate({ nameMatch: true }, q(90));         // no score, measured shape
+  const noScore = evaluatePredicate({ nameMatch: false }, q(90));
+  const absent = evaluatePredicate({}, q(90));
+  check('39 numberMatch: THRESHOLD IN, BOOLEAN OUT', true, met, 'ok', {
+    label: `score 97 vs threshold 90 -> ${met.result}, vs 98 -> ${notMet.result}; exact match with NO score -> ${exact.result}; `
+      + `false with no score -> '${noScore.reason}'; answer keys ${Object.keys(met).join(',')}`,
+    ok: met.result === true && notMet.answered === true && notMet.result === false
+      && exact.answered === true && exact.result === true
+      && noScore.answered === false && noScore.reason === 'fact unavailable: nameMatchScore'
+      && absent.answered === false && absent.reason === 'fact unavailable: nameMatch'
+      && Object.keys(met).join(',') === 'answered,reason,result'
+      && !JSON.stringify(met).includes('97'),
+  });
+}
+
+// 40 `claimed` IS LEGAL ONLY WHERE IT IS DECLARED, AND IT IS PART OF THE QUESTION.
+// It is the one predicate field that is neither a type nor a window: the attribute
+// value the REQUESTER wants compared. Two failures are pinned. A `claimed` on a
+// type that does not declare it must be REFUSED by name — an ignored extra field
+// is a constraint the requester believes is enforced and is not, which is the
+// closed-set rule this module already applies twice. And a MISSING or malformed
+// claim must be refused rather than compared against nothing.
+//
+// The bound is not decoration either: the claimed name is caller text that rides
+// into the signed answer, where the envelope has a hard capacity.
+{
+  const onOtherType = evaluatePredicate({ swapAgeMs: 100 * DAY }, { ...P90, claimed: 'Alice Arnaud' });
+  const missing = evaluatePredicate({ nameMatch: false, nameMatchScore: 97 }, { type: 'numberMatch', operator: 'gte', value: 90 });
+  const bad = [7, null, '', 'x'.repeat(121), { toString() { return 'Alice'; } }, ['Alice']]
+    .map((claimed) => threws(() => evaluatePredicate({ nameMatch: false, nameMatchScore: 97 }, { type: 'numberMatch', operator: 'gte', value: 90, claimed })));
+  const badThreshold = [0, 101, '90', 90.5, null].map((value) =>
+    evaluatePredicate({ nameMatch: false, nameMatchScore: 97 }, { type: 'numberMatch', operator: 'gte', value, claimed: 'Alice' }));
+  check('40 `claimed` IS LEGAL ONLY WHERE DECLARED', false, onOtherType,
+    'unexpected predicate fields: claimed', {
+      label: `a missing claim refuses ('${missing.reason}'); ${bad.length} malformed claims and ${badThreshold.length} malformed thresholds all refuse, none throw`,
+      ok: missing.answered === false && missing.reason.startsWith('invalid claimed name')
+        && bad.every((r) => !r.threw && r.value.answered === false && r.value.reason.startsWith('invalid claimed name'))
+        && badThreshold.every((r) => r.answered === false && r.reason.startsWith('invalid match threshold')),
+    });
+}
+
+conclude(40);

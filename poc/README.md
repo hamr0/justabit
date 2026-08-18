@@ -1,22 +1,35 @@
 # PoC — Mode A, four assertions, one command
 
 **Requirements & no-gos:** [`docs/01-product/prd.md`](../docs/01-product/prd.md) §4–§5.
-**Status:** REBUILDING on the module ladder M1–M6 — a first build was
+**Status:** all six modules M1–M6 are BUILT — a first build was
 **rolled back 2026-08-15** (it went monolith-then-integrate without
-per-module user validation; see PRD §4.4 and the decision log). Each module
-is POC'd against its toughest assumption, built, proven end-to-end on its
-own, and **validated by the user before the next module starts**. Built so
-far, each runnable on its own (negatives first, exit 0 only if every case
-holds):
+per-module user validation; see PRD §4.4 and the decision log) and the ladder
+since then has held: each module is POC'd against its toughest assumption,
+built, proven end-to-end on its own, and **validated by the user before the
+next module starts**. **Both gates are now MET at code commit `4446517` /
+docs commit `c921508`: the user ran the full validation suite on their own
+machine (log timestamped 2026-08-18 08:16) — every suite clean, zero `FAIL`,
+zero `TypeError`, zero `Error:` lines in the entire log.** Gate G1 (M1–M4 + M6
+all user-validated) is MET at the current counts; gate G2 (M5 user-validated
+live) is MET on both legs (offline and live). This is the first time in this
+project both gates have been met at the same commit, on a tree that had
+already been through two `/code-review` rounds with every fix
+mutation-proven. This record covers `4446517`/`c921508` only, per this
+repo's standing rule that a user record does not transfer to a later change;
+see `docs/01-product/findings.md`, 2026-08-18 (latest). Every check runs on
+its own (negatives first, exit 0 only if every case holds):
 
 ```
-node poc/m1-check.mjs   # M1 attestation core — 19 cases (module user-validated 19/19)
-node poc/m2-check.mjs   # M2 blind envelope — 10 cases (module user-validated 10/10)
-node poc/m3-check.mjs   # M3 floor gate — 22 cases (module user-validated 22/22)
-node poc/m4-check.mjs   # M4 mock facts adapter — 33 cases (user-validated 33/33)
-node poc/m5-check.mjs   # M5 orange facts adapter, OFFLINE — 48 cases (user-validated
-                        #   48/48 at 8e842c3, the shipped v0.3.0 state — nothing
-                        #   pending).
+node poc/m1-check.mjs   # M1 attestation core — 20 cases (user-validated 20/20 at
+                        #   `4446517`, 2026-08-18)
+node poc/m2-check.mjs   # M2 blind envelope — 10 cases (user-validated 10/10 at
+                        #   `4446517`, 2026-08-18)
+node poc/m3-check.mjs   # M3 floor gate — 26 cases (user-validated 26/26 at
+                        #   `4446517`, 2026-08-18)
+node poc/m4-check.mjs   # M4 mock facts adapter — 40 cases (user-validated 40/40 at
+                        #   `4446517`, 2026-08-18)
+node poc/m5-check.mjs   # M5 orange facts adapter, OFFLINE — 60 cases (user-validated
+                        #   60/60 at `4446517`, 2026-08-18).
                         #   Zero credentials, zero network:
                         #   an injected transport replays responses captured live on
                         #   2026-08-16, so it runs on a clean clone.
@@ -25,15 +38,105 @@ node poc/m5-check.mjs   # M5 orange facts adapter, OFFLINE — 48 cases (user-va
 # `| head -1` because a `pass` entry is multi-line (secret on line 1, notes below).
 # The stored value is ALREADY `Basic <base64>`; the adapter normalizes either form.
 ORANGE_BASIC_AUTH="$(pass camara/orange_network | head -1)" node poc/m5-check-live.mjs
-                        # 11 cases (user-validated 11/11 at 8e842c3, the shipped
-                        # v0.3.0 state — G2 MET, nothing pending).
+                        # 19 cases (11/11 user-validated at 8e842c3, the shipped
+                        # v0.3.0 state — that met G2 AT THAT TREE. The 3 -> 6 round
+                        # never touched this file: the user's live run of it died on
+                        # M5's own closed-field validation, so it was rewritten
+                        # (11 -> 19, all six predicates on the live path, plus an
+                        # OFFLINE case 1 pinning the story against the adapter's
+                        # closed field set). LIVE-CONFIRMED at `3276ed0`: the user
+                        # re-ran this file live against the real Playground there and
+                        # got 19/19 (quota clean, start=1 end=1 of 10). Two
+                        # code-review rounds then changed poc/m5-facts-orange.mjs and
+                        # poc/demo.mjs after `3276ed0`, re-opening G2 through
+                        # `9b04854` and `4446517` — closed again by a fresh full user
+                        # run: LIVE-CONFIRMED AGAIN at `4446517`/`c921508`
+                        # (2026-08-18 08:16), 19/19. G2 IS MET at `4446517` — see
+                        # docs/01-product/findings.md, 2026-08-18 (latest).
                         # exit 2 + printed prerequisites if the credential is absent —
                         # never a silent pass, never a mock fallback.
                         # COSTS QUOTA: consumes and returns one of the app's 10 custom
                         # slots. It reclaims the slot BEFORE consuming it (so an
                         # interrupted run does not leak one), prints the count at both
-                        # ends, and case 11 asserts it came back.
+                        # ends, and case 19 asserts it came back.
+
+node poc/m6-check.mjs   # M6 integration — 46 cases (user-validated 46/46 at
+                        #   `4446517`, 2026-08-18 — case 46 CROSS-REQUESTER SEALING
+                        #   added the same day, second code-review round, 45 -> 46).
+                        #   Zero credentials, zero network in BOTH
+                        #   backend modes: the `--backend orange` seam runs
+                        #   through an injected transport replaying captured
+                        #   Playground bytes, exactly like m5-check. It also runs
+                        #   the demo itself and asserts its exit code, its 33/33
+                        #   tally, and claims discipline (every mention of
+                        #   zero-knowledge in the output must be a negation).
+                        #   Takes ~15s — RSA-4096 keygen dominates.
 ```
+
+## The demo — `node poc/demo.mjs`
+
+```
+node poc/demo.mjs                    # mock backend: zero credentials, zero network
+
+# live: Orange Network APIs Playground. `| head -1` because a `pass` entry is
+# multi-line (secret on line 1, notes below) — the adapter also defends itself
+# by using line 1 only, but a whole entry in a header makes fetch throw a string
+# quoting the notes.
+ORANGE_BASIC_AUTH="$(pass camara/orange_network | head -1)" node poc/demo.mjs --backend orange
+```
+
+It prints the four assertions in plain language — a `Q:` with the scripted
+backstory, the `A:` bit, then the negative flip — then the WIRED PREDICATE SET
+(one section, one question per predicate, each with its negative), plus the
+request-path guards (off-menu threshold, duplicate keys, response key pinning),
+each with a control that disables that one guard and shows the SAME input being
+accepted. **Exit 0
+only if all 33 hold; 1 if any fails; 2 if the backend cannot RUN** (e.g.
+`--backend orange` with no `ORANGE_BASIC_AUTH` — it prints the prerequisites and
+exits 2, and there is deliberately no silent fallback to the mock).
+
+Exit 2 means the backend could not run, and it is reserved for when that is
+actually true. Under `--backend mock` there are no prerequisites at all, so a
+mid-run crash there is a **code regression and exits 1, never 2** — a gate that
+skips on 2 must not be able to swallow a regression. Under `--backend orange`
+the same mid-run throw stays 2, because an unreachable live operator genuinely
+is a prerequisite failure. (Fixed 2026-08-17; it used to be 2 either way.)
+
+**Honest limit — the RP nonce store only grows.** A nonce is deleted when its
+response is verified, so a request that never receives one (rejected by the hub,
+dropped in transit, answered after the requester gave up) leaves its entry
+resident forever. Harmless across a handful of demo requests, unbounded in
+anything real; a deployment evicts on expiry, since the answer's validity window
+is already the natural TTL. Stated rather than built — exercising a TTL would
+mean faking elapsed time, and a stated limit beats an untested one.
+
+The mock run is **AGENT-RUN 33/33 exit 0.** The user's first live
+`--backend orange` run (2026-08-17) scored 32/33 — one negative control (the
+assertion-1 leaky-operator flip) was VACUOUS on that backend, not a profile
+defect: it asked a `P90D` question, which runs `/check` on orange and never
+holds a raw date to leak, so the control's asserted condition was false. Fixed
+in `poc/demo.mjs` (dedicated `LEAK_PREDICATE` at `P365D`, which forces
+`/retrieve-date`) and mutation-proven offline via an injected-transport
+replay — see `docs/01-product/findings.md`, 2026-08-17. **The fix was
+LIVE-CONFIRMED: the user re-ran `node poc/demo.mjs --backend orange` at tip
+`3276ed0` and reported `RESULT: 33/33`** — the vacuous control reds the
+leak for real on the live backend. That record does NOT transfer forward:
+the 2026-08-18 code-review round changed `poc/demo.mjs` itself after
+`3276ed0` (four fixes landed in this file — see the count/gate note above),
+so the demo's own live run went PENDING again at `9b04854`. **That has since
+been closed: the user re-ran `node poc/demo.mjs --backend orange` at
+`4446517`/`c921508` (2026-08-18 08:16) and reported `RESULT: 33/33` — see
+`docs/01-product/findings.md`, 2026-08-18 (latest), which also records why
+gate G2 is now MET.**
+
+The **M6 round (2026-08-17)** then changed two of those modules, so two counts
+moved: M1 gained case 20 (its duplicate-key scanner is now EXPORTED, so a signed
+REQUEST can be checked for the same equivocation) and M3 gained case 23 (its
+declared fix point — the rejection-message builder threw a bare `TypeError`
+instead of producing the loud named-input rejection). Both were **AGENT-RUN by
+exit code with a user re-run PENDING at the time** — since closed, along with
+every later count move, by the full user run at `4446517`/`c921508`
+(2026-08-18 08:16): see the status note at the top of this file.
 
 All four were run by the user on their own machine after the v0.2.0 release
 (main at `7c41c83`, tag `v0.2.0` — dated findings record, 2026-08-16): 19/19,
@@ -47,7 +150,7 @@ re-establishing G2 at that state. A post-gate code review round (2026-08-17)
 then fixed three more adapter defects and three live-check faults (counts
 unchanged), so **the user re-ran once more at `8e842c3` — the shipped v0.3.0
 state — and reported both clean. Nothing is pending.** Each
-check declares its case count (`conclude(19|10|22|33|48|11)`) so a suite that
+check declares its case count (`conclude(20|10|26|40|60|19|46)`) so a suite that
 silently loses cases exits 1 with
 `FAIL CASE COUNT` instead of printing a smaller green tally — mutation-proven
 per module.
@@ -62,8 +165,33 @@ only ever covered top-level values. Fixing them changed **two** files —
 cases; the three added cases pin exactly those guards, and the user run above
 covers them. Nothing is pending.
 
-**M5 is built, review-hardened, and is user-validated LIVE at `8e842c3`, the
-shipped v0.3.0 state — that IS gate G2, and it is MET.** An adversarial review round on 2026-08-16 took
+**M5 was user-validated LIVE at `8e842c3`, the shipped v0.3.0 state — that IS
+gate G2, and it WAS met at that tree.** The 3 → 6 predicate round then changed
+the module, and the user's live run of that round found the Admin `location`
+write shape was wrong (`400 "data.location.lastLocationTime is required"`); the
+fix landed after the run, so `8e842c3`'s record did not transfer forward and G2
+went PENDING a re-run. **That re-run has since happened: the user ran
+`m5-check-live.mjs` live against the real Playground at the current tip
+`3276ed0` and got 19/19 (quota clean) — G2 IS MET again, at `3276ed0`, and
+nothing about it is pending.** See `docs/01-product/findings.md`, 2026-08-18.
+**That record then went PENDING again** — the 2026-08-18 code-review
+round changed `poc/m5-facts-orange.mjs` after `3276ed0` — **and has since been
+closed a third time: the user re-ran `m5-check-live.mjs` live at
+`4446517`/`c921508` (2026-08-18 08:16) and got 19/19. G2 IS MET at
+`4446517`.** See the status note at the top of this file and `findings.md`,
+2026-08-18 (latest).
+That earlier run also exposed a
+**grounding failure**: `m5-check-live.mjs` was the ONE file the 3 → 6 round never
+updated (`git log 8238d02..81f8da4` on it is empty), so all eight of its
+`setBackstory` calls still passed the old three-field story and the gate died on
+M5's own validation before proving anything — the write-trap case caught an
+`invalid backstory` throw while asserting it had caught the built-in shadowing.
+It is the only check here that cannot run offline, which is exactly why it was
+the one that drifted unobserved. Rewritten **11 → 19 cases**: an OFFLINE case 1
+pins its story against the adapter's closed field set (so a future field addition
+reds on a clean clone with no credentials), the trap case now asserts it failed
+for its OWN reason, and all six predicates are exercised on the live path with
+their negatives. An adversarial review round on 2026-08-16 took
 the offline suite
 44 → **47** and the live suite 10 → **11**, closing one real module defect (the
 write-verification diagnostic — the message the module's most load-bearing guard
@@ -104,30 +232,49 @@ adapter defect, adjudicated after the round, bounded `assertNow()` at
 `MAX_EPOCH_MS` — a safe integer past `Date`'s range replaced the module's loud
 named-input message with a bare `RangeError`. Counts are unchanged (48/11);
 these fixes are why the user re-ran the runbook a second time, at `8e842c3`.
-M6 is not started and `poc/demo.mjs` does not exist yet. The measured
+**M6 is BUILT (2026-08-17)** — `poc/demo.mjs` and `poc/m6-check.mjs`; see the
+demo section above. The measured
 Playground findings below were **re-verified live on 2026-08-16** before M5 was
 written: seven held, **three changed**, one was not re-tested. Every change is
 flagged inline with **CHANGED 2026-08-16**; the full spike record (with the
 raw shapes) is the dated findings entry.
 
-Target UX once M6 lands (unchanged by the rollback):
-
-```
-node poc/demo.mjs                    # mock backend: zero credentials, zero network
-
-# live: Orange Network APIs Playground. `| head -1` because a `pass` entry is
-# multi-line (secret on line 1, notes below) — the adapter also defends itself
-# by using line 1 only, but a whole entry in a header makes fetch throw a string
-# quoting the notes.
-ORANGE_BASIC_AUTH="$(pass camara/orange_network | head -1)" node poc/demo.mjs --backend orange
-```
-
-Exit code 0 only if all four assertions — including their negatives — hold;
-1 if any fails; 2 if the backend cannot start at all (e.g. `--backend orange`
-with no `ORANGE_BASIC_AUTH` — it prints the prereqs and exits 2).
 Node ≥ 20, zero dependencies, real crypto (`node:crypto`: Ed25519 signatures,
 RSA-4096 OAEP-SHA256 envelopes for the end-to-end leg past the hub — one
-vetted primitive, per the PRD decision log).
+vetted primitive, per the PRD decision log). The runbook is the demo section
+above.
+
+## The wired predicate set (six, 2026-08-17)
+
+Every one is backed by an endpoint OBSERVED answering live on the Orange
+Playground; nothing is wired for a fact no source computes.
+
+| Predicate | Question | Menu | Live source |
+|---|---|---|---|
+| `simSwapAge` | SIM in place ≥ a bucket | `P30D P90D P180D P365D` | sim-swap `/check` under the 2400-hour cap, `/retrieve-date` above it |
+| `deviceSwapAge` | device in place ≥ a bucket | same four buckets | device-swap `/check` / `/retrieve-date` |
+| `roamingIn` | in this country set | — (a set has no ordering to bisect) | device-roaming-status |
+| `presentIn` | inside this area | — (see the residual below) | location-verification `/verify` |
+| `numberMatch` | claimed name matches ≥ a threshold | `60 70 80 90` | kyc-match `/match` |
+| `reachable` | reachable = true/false | — (already one bit) | device-reachability-status |
+
+Five rules bind all six, without exception: **(1)** the answer is a signed boolean
+or a refusal — never a value, a score or a date; **(2)** an off-menu threshold is
+refused LOUDLY and never rounded to the nearest bucket; **(3)** anything the
+operator cannot answer honestly is a refusal (a straddling band, a missing fact,
+location's `PARTIAL`); **(4)** the operator publishes the floor and the requester
+may only tighten; **(5)** raw values the operator legitimately holds stay
+operator-side.
+
+`tenure` and `simType` stay OUT for a measured reason: the data exists
+operator-side and no CAMARA read endpoint for it does.
+
+**Two residuals this set adds, stated rather than closed.** `presentIn`'s AREA is
+a dial (centre plus radius) and is walkable toward a position the way a duration
+threshold is bisectable; it gets no bucket menu, so the cap is the operator's own
+resolution plus rate-limiting and per-query billing — weaker than the duration
+menu. And `numberMatch` discloses in the OTHER direction: the operator learns what
+the requester claims, which is inherent to a comparison.
 
 ## What it proves (four assertions, each shown failing too)
 
@@ -157,10 +304,38 @@ One operator-facts adapter, two backends behind it:
 - **mock** (default): local stub with per-number scriptable backstories
   mirroring the Playground admin model (swap date, roaming country,
   reachability). Deterministic; runs on a clean clone.
-- **orange**: the Playground's sim-swap, device-roaming-status and
+- **orange**: the Playground's sim-swap (`/check` under the measured 2400-hour
+  cap, `/retrieve-date` above it), device-swap, device-roaming-status and
   device-reachability-status APIs — one live CAMARA read per fact axis, none
   stubbed; backstories set via its Admin API, and every write READ back and
-  compared before it is trusted.
+  compared before it is trusted. **`deviceSwap:{latestDeviceChange}`,
+  `kyc:{name}` and the full `location` shape are now MEASURED-GOOD**, corrected
+  2026-08-17 from ASSUMED by a throwaway live convergence probe (the user,
+  `+990100000099`, raw captures in the findings log): the probe kept
+  re-submitting the same Admin UPDATE, one 400 at a time, until it converged —
+  round 1 named `lastLocationTime` missing, round 2 named `available` missing,
+  round 3 answered `200 OK` and a READ-back returned all three sub-objects
+  intact. The settled `location` field set is `{latitude, longitude,
+  lastLocationTime, available, radius}`: `available` is written `true`, and
+  `radius` is written `500` — the ONE decision made outright rather than
+  copying the probe's own placeholder `0`, because radius is the position's
+  accuracy and a zero-radius write would claim a precision the operator never
+  asserted. `available` and `radius` join the read-after-write loop as their
+  own axes, same as `geoAt`. Still ASSUMED and unmeasured: three CAMARA
+  READ request-body shapes — `{phoneNumber, maxAge}` for the two `/check`
+  routes, `{device, area}` for `location-verification/v1/verify` and
+  `{phoneNumber, name}` for `kyc-match/v1/match` (all mirrored from measured
+  siblings or from CAMARA's own spelling; these are read-side request bodies,
+  not the Admin write shapes the convergence probe settled). Read-after-write
+  verification stays wired regardless of a shape's measured status — a
+  regression on a measured-good axis still fails LOUD naming it, not just a
+  wrong guess.
+  **The generalisable lesson stands, refined rather than reversed:** an
+  observed READ shape did not tell the write field set for `location` — that is
+  why the first live run's `{latitude, longitude}` guess was refused — but a
+  CONVERGING PROBE (submit, read the one missing field the 400 names, add it,
+  resubmit) closed the gap in three rounds instead of three separate live
+  gate runs.
   Credential from the environment only (`ORANGE_BASIC_AUTH`, the Playground
   Basic Auth string) — never the tree, never logged: the credential, the
   client id Orange echoes back inside 403 bodies, and every bearer token are
@@ -250,9 +425,54 @@ Everything below is captured behaviour; where it contradicts the docs, this wins
 - **`/check`'s `maxAge` is in HOURS, capped at 2400** (≈100 days) — measured,
   not clearly documented. A 90-day floor is `maxAge: 2160`. The adapter does
   not use `/check` (a floor above ~100 days would be uncomputable there);
-  it takes the date and windows it locally. **NOT RE-TESTED 2026-08-16** —
-  unused by M5, so it is recorded as untested rather than carried forward as
-  though it had been re-verified.
+  it takes the date and windows it locally. ~~**NOT RE-TESTED 2026-08-16**~~
+  **RE-TESTED AND BOUNDARY-TESTED 2026-08-17**, on sim-swap AND device-swap:
+  `maxAge=2400` → `200`, `maxAge=2401` → `400 "maxAge" must be less than or
+  equal to 2400`. So `/check` can serve the `P30D` and `P90D` buckets of the
+  published menu and cannot express `P180D` or `P365D` at all — arithmetic, not
+  preference.
+
+### NEW 2026-08-17 — standalone endpoint sweep (`+990100000099`, no repo imports)
+
+Two throwaway probes that import nothing from this tree, so nothing below is an
+artefact of the adapter's own parsing. Full verbatim capture in
+`docs/01-product/findings.md` (dated entry). **Nothing here is wired yet.**
+
+- **`sim-swap/v1/retrieve-age-band` DOES NOT EXIST** — `400
+  {"code":"BAD_REQUEST","message":"unhandled path"}`, the same not-wired signal
+  the 2026-08-16 spike used to tell a missing route from a real one rejecting a
+  bad shape. This closes an item the docs carried as UNVERIFIED, and the answer
+  is the unflattering one: the coarse surface the profile would prefer is absent
+  here, so band → bucket mapping stays mock-only or documented, never claimed.
+- **`/check` exists and answers on both surfaces** — `sim-swap/v1/check` →
+  `{"swapped":false}`, `device-swap/v1/check` → `{"swapped":true}`.
+  `device-swap/v1/retrieve-date` → `{"latestDeviceChange":"2026-08-11T…"}`.
+- **`kyc-match/v1/match` returns a similarity GRADIENT, not a band.** Correct
+  name `"Alice Arnaud"` → `{"nameMatch":"true"}` (no score); `"Bob Wrong"` →
+  `{"nameMatch":"false","nameMatchScore":53}`; `"Alice Arnaut"` — one letter
+  changed — → `{"nameMatch":"false","nameMatchScore":97}`. A requester allowed
+  to guess repeatedly can hill-climb that to the registered name, which is
+  strictly worse than binary guessing. This is why the CAMARA proposal now
+  carries a visible retraction of "scores are already bands". On this sandbox
+  `givenName`/`familyName`/`birthdate`/`address` all answer `not_available`
+  (only `name` is stored), `email` → 400 validation error, and an empty request
+  → `400 KNOW_YOUR_CUSTOMER.INVALID_PARAM_COMBINATION`.
+- **`location-verification/v1/verify` has THREE states.** Paris r=10km →
+  `TRUE`; Tokyo r=10km → `FALSE`; Paris r=1km → `TRUE`; Paris r=100m →
+  `{"verificationResult":"PARTIAL","matchRate":100,…}`. And **every** response
+  ships `lastLocationTime`, a raw timestamp — a "boolean" catalog endpoint
+  handing back a raw value beside its verdict. Operator-internal only.
+- **`number-verification/v1/verify` exists** — `403 "Request must define a
+  phoneNumber"`, i.e. the 3-legged shape where the subject comes from the token.
+  Not a missing endpoint.
+- **No CAMARA read endpoint for tenure** — `tenure/v1/retrieve` and
+  `sim-tenure/v1/retrieve` both `400 "unhandled path"`; likewise
+  `kyc-age-verification/v1/verify` and `device-location/v1/retrieve`. The tenure
+  DATA is there operator-side (Admin READ axes: `location, reachability,
+  roaming, simSwap, deviceSwap, tenure, kyc`; `tenure` holds
+  `latestTenureChange` + `contractType:"PAYM"`, `kyc` holds
+  `name:"Alice Arnaud"`) — which is exactly why `tenure`/`simType` stay OUT of
+  the wired predicate set: admin-only is not catalog-backed.
 - **Backstories** — `POST .../camara/playground/admin/v1.0/action` with
   `LIST | CREATE | READ | UPDATE | DELETE`. `UPDATE {"data":{"simSwap":
   {"latestSimChange":"<ISO>"}}}` sets the swap date. `DELETE` answers `204`

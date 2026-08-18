@@ -83,6 +83,32 @@ access token; **(c)** `kyc-age-verification` proves the boolean-predicate
 pattern is already accepted in production. What is missing is the query-path
 and retention discipline around them.
 
+*A note on the reference PoC, since it reads the non-conforming surface.* The
+PoC's operator adapter calls `POST /retrieve-date` and windows the timestamp
+locally into the signed boolean. That is deliberate and it is not a
+counter-example to the profile, for three reasons worth stating plainly. First,
+**the profile governs what crosses the wire to the requester, not what the
+operator holds** — the operator's own subscriber data includes the raw date, and
+windowing is precisely what it does *to* that value; the PoC proves the point by
+scanning the sealed response bytes for the raw needles and finding only the bit.
+Second, `POST /check` is unusable for this profile for a **measured** reason: its
+`maxAge` is expressed in hours with a cap of 2400 (≈100 days, measured against
+the Orange Network APIs Playground 2026-08-14), so it cannot express the PoC
+operator's published `P180D` or `P365D` windows at all. Third,
+`POST /retrieve-age-band` is the surface that *would* fit — it is
+provider-optional, and ~~its availability on that Playground is unverified: it
+was never probed, and is recorded as untested rather than assumed in either
+direction.~~ **CLOSED 2026-08-17, unfavourably: it was probed, and it is not
+there** — `400 {"code":"BAD_REQUEST","message":"unhandled path"}`, the
+Playground's own signal for an unwired route. So the coarse surface the profile
+would prefer is *absent* on the one live operator sandbox this PoC can reach,
+and band → bucket mapping cannot be demonstrated live at all. This is exactly
+the gap §3 asks CAMARA to close catalog-wide, now measured rather than
+anticipated: a conforming coarse surface should be a profile obligation, not a
+per-provider option an integrator may find missing. (The boolean `POST /check`
+*does* exist and answer on that Playground — it is the `maxAge` cap above, not
+the endpoint, that keeps it from serving the whole menu.)
+
 Privacy is currently handled procedurally: ICM's OIDC consent profile (a
 `purpose` parameter on the query), aggregator DPAs (the middleman still sees
 every query), and the "responses are minimal" argument (true only for
@@ -177,7 +203,22 @@ An API operation conforming to this profile:
 | number-verification | `/verify` conforms with nonce+expiry; `/device-phone-number` excluded |
 | device-roaming-status | replace country retrieval with country/region predicates ("in FR?", "in EU?") |
 | location-verification | already predicate-shaped; add nonce+expiry, drop retrieval variant |
-| kyc | `kyc-age-verification` conforms; `kyc-match` conforms (scores are bands); `kyc-fill-in` excluded |
+| kyc | `kyc-age-verification` conforms; `kyc-match` conforms **only if the score is withheld** — see the retraction below; `kyc-fill-in` excluded |
+
+> **RETRACTED 2026-08-17 — "`kyc-match` conforms (scores are bands)" was
+> measurably wrong.** Measured against the Orange Network APIs Playground:
+> a correct name returns `{"nameMatch":"true"}` with no score; `"Bob Wrong"`
+> returns `{"nameMatch":"false","nameMatchScore":53}`; and `"Alice Arnaut"` —
+> the registered name with **one letter changed** — returns
+> `{"nameMatch":"false","nameMatchScore":97}`. That is not a band. A band
+> coarsens: it destroys resolution inside the bucket. A similarity score does
+> the opposite — it preserves the *distance to the answer* and hands it to the
+> requester, who can hill-climb it to the subscriber's real registered name.
+> It is strictly worse than binary guessing, which has no gradient to follow.
+> Under this profile `kyc-match` conforms only in the shape §3.3.1 now shows:
+> the requester declares its own match threshold in the question off a published
+> coarse menu, the operator compares internally, and **only the boolean crosses
+> the wire.** Left visible rather than edited away — a retraction is the record.
 
 #### 3.3.1 What that looks like on the wire (illustrative, non-normative)
 
@@ -194,10 +235,12 @@ consistently ask what a catalog API *returns* under the profile.
 | number-verification `/verify` | `{"devicePhoneNumberVerified":true}` | same, plus nonce+expiry binding and a signature over the closed claim set |
 | number-verification `/device-phone-number` | `{"devicePhoneNumber":"+33…"}` | excluded from profile mode (returns the identifier itself) |
 | kyc `kyc-age-verification` | `{"ageCheck":"true"}` | `{"claims":{"predicate":"age≥18","result":true,…},"sig":"…"}` |
-| kyc `kyc-match` | per-attribute match scores | conforms as-is — scores are already bands (rule 7) |
+| kyc `kyc-match` | per-attribute match **scores** (`{"nameMatch":"false","nameMatchScore":97}`) | `{"claims":{"predicate":"numberMatch gte 90 \"Alice Arnaut\"","result":true,…},"sig":"…"}` — threshold in, boolean out; **the score never crosses the wire** (retraction above); **wired in the PoC 2026-08-17** |
 | kyc `kyc-fill-in` | attribute values | excluded from profile mode |
 | device-roaming-status † | `{"roaming":true,"countryName":["FR"]}` | `{"claims":{"predicate":"roamingIn[FR,DE]","result":true,…},"sig":"…"}` — country in, boolean out |
 | device-reachability-status † | `{"reachabilityStatus":"CONNECTED_DATA"}` | `{"claims":{"predicate":"reachable=true","result":true,…},"sig":"…"}` |
+| device-swap `/check`, `/retrieve-date` † | `{"swapped":true}` / `{"latestDeviceChange":"2026-08-11T…"}` | `{"claims":{"predicate":"deviceSwapAge≥P90D",…},"sig":"…"}` — identical shape to `simSwapAge`, same bucket menu; **wired in the PoC 2026-08-17** |
+| location-verification `/verify` † | `{"verificationResult":"TRUE\|FALSE\|PARTIAL","lastLocationTime":"2026-08-11T…"}` | `{"claims":{"predicate":"presentIn in {\"lat\":48.86,\"long\":2.35,\"radiusM\":10000}","result":true,…},"sig":"…"}` — **`PARTIAL` refuses, it is not rounded**; `lastLocationTime` stays operator-side; **wired in the PoC 2026-08-17** |
 
 Three things the table is meant to make concrete:
 
@@ -223,13 +266,15 @@ Three things the table is meant to make concrete:
 The middle column reflects current catalog responses (baseline verified
 2026-08-14; see §11). The right-hand column is this profile applied to them.
 
-Two limits on that, stated rather than glossed:
+Two limits and one deferral on that, stated rather than glossed:
 
-- **† The two `device-*` rows are NOT covered by the §11 baseline.** That
-  baseline re-verified SimSwap v2.1.0, NumberVerification v2.1.0 and KYC r2.2
-  only. The roaming and reachability shapes in the middle column are what the
-  **Orange Network APIs Playground** returned when the PoC's M5 module read them
-  live (2026-08-16) — a vendor sandbox, not a CAMARA spec surface. They are
+- **† The `device-*` and `location-verification` rows are NOT covered by the §11
+  baseline.** That baseline re-verified SimSwap v2.1.0, NumberVerification
+  v2.1.0 and KYC r2.2 only. The roaming and reachability shapes in the middle
+  column are what the **Orange Network APIs Playground** returned when the PoC's
+  M5 module read them live (2026-08-16); the device-swap and
+  location-verification shapes are from a standalone endpoint sweep of the same
+  Playground (2026-08-17) — a vendor sandbox, not a CAMARA spec surface. They are
   included because the PoC exercises them; they carry the sandbox's authority,
   not the catalog's, and they get re-verified against the catalog before this
   document is submitted.
@@ -245,6 +290,121 @@ Two limits on that, stated rather than glossed:
   INSIDE the claims and a quoted `exp` — a shape M1 rejects outright
   (`unexpected fields: sig`). The claim was checkable and did not check out, so
   it is corrected here rather than dropped.
+- **Deferred, not dropped: `tenure`, `simType`, `presentIn`, `numberMatch`.**
+  The illustrative sketch's `Predicate` enum listed seven types; on 2026-08-17
+  it was **trimmed to the three the PoC wires end to end** — `simSwapAge`,
+  `roamingIn`, `reachable`. The other four were aspirational: nothing computes
+  them, so a reader could send a schema-valid request the reference operator
+  refuses, which is an enum answering for facts that do not exist. Each has a
+  real place in the profile and returns when something computes it: `tenure`
+  and `simType` are already **floor axes** (`tenureMin`, `simType` in `Floor`)
+  and belong in §3.4's agent-grade floor either way — `tenure` additionally
+  carries the unresolved MNP problem (§9.8), so minting it as a predicate ahead
+  of that would ship the open question as though it were settled;
+  `presentIn` is location-verification's shape and is already predicate-shaped
+  in the catalog (§3.3); and `numberMatch` is number-verification's `/verify`,
+  which conforms today and needs no new predicate id. The **normative** profile
+  enumerates no predicate types at all (§3.2), so this trim narrows an
+  illustrative artifact and changes nothing anyone would implement against.
+
+  **Update, same day (2026-08-17) — three of those four come back, plus one that
+  was never on the list; DESIGN, not yet built.** An endpoint sweep of the
+  Playground found live sources for them, and the trim's rule was never "three
+  types" — it was *wire only what a real fact source answers*. Signed off for
+  the next build round: `simSwapAge`, **`deviceSwapAge`** (new; `device-swap`
+  `/check` and `/retrieve-date` both answer), `roamingIn`, `presentIn`
+  (`location-verification/v1/verify` answers, with the `PARTIAL` third state
+  above), `numberMatch` (`kyc-match/v1/match` answers) and `reachable`.
+  `tenure` and `simType` stay out for a **measured** reason, not a presumed one:
+  the operator-side data exists (the Playground's admin dataset carries a
+  `tenure` axis), but no CAMARA read endpoint was found at either
+  `tenure/v1/retrieve` or `sim-tenure/v1/retrieve` — both `400 "unhandled
+  path"`. `tenure`'s MNP problem (§9.8) is unchanged and still unresolved.
+  Two corrections this update forces on the paragraph above it: `numberMatch`'s
+  backing surface is `kyc-match`'s scored comparison, **not** number-verification
+  `/verify` — and "conforms today and needs no new predicate id" does not
+  survive the measured score gradient (retraction, §3.3). Until that build round
+  lands, `spec/carrier-attestation.yaml` still lists three types; this paragraph
+  describes a signed-off design, and the enum follows the code, never the plan.
+
+  **Built, 2026-08-17 — `deviceSwapAge` is wired end to end** and the sketch enum
+  now lists four types (`simSwapAge`, `deviceSwapAge`, `roamingIn`, `reachable`).
+  It took the identical shape to `simSwapAge`, which is the point rather than a
+  saving: same published bucket menu, same `≥` compare, so the two questions
+  share one grammar and there is no second place for the window to widen. One
+  thing the build MEASURED and the design had only asserted: the reference adapter
+  now calls the profile-conforming surface wherever it can. `/check` answers a
+  boolean about a `maxAge` window in HOURS capped at 2400 (boundary-tested), so a
+  `P30D` or `P90D` question is answered by `/check` — the operator never reads a
+  date at all — and only `P180D`/`P365D`, which that cap cannot express, fall back
+  to `/retrieve-date` with the windowing done operator-side. That is the profile's
+  own preference showing up as an endpoint choice rather than as prose, and it is
+  the one place a catalog surface already does what §3.2 rule 1 asks for.
+
+  **Found, 2026-08-17 (accidental, from a live-run negative-control bug, not
+  designed for) — `/check` closes off a whole class of operator mistake, not
+  just a requester's exposure.** A `P90D` question never puts a raw date into
+  the operator's own working set at all, so there is nothing to leak even if
+  the operator ships extra fields by accident — the M1 closed-claim-set defence
+  still catches it, but on `/check` there is a SECOND, structural reason it
+  cannot happen: the value is absent, not merely rejected. `/retrieve-date`
+  (`P180D`/`P365D`) has no such structural floor and relies on the closed claim
+  set alone. **Corroborated live, 2026-08-18** (user run at tip `3276ed0`,
+  `node poc/m5-check-live.mjs` 19/19): the cap boundary is confirmed on the
+  wire itself — `P90D` routes through `check maxAge=2160h` → `true`, `P365D`
+  routes through `retrieve-date` (no `maxAge`) → `false`. See
+  `docs/01-product/findings.md`, 2026-08-17/18, for the full mechanism.
+
+  `presentIn` and `numberMatch` follow in the same round.
+
+  **Built, 2026-08-17 — `presentIn` is wired, and the third state is the whole
+  point.** `location-verification/v1/verify` answers `TRUE`, `FALSE` and
+  `PARTIAL`, and under this profile `PARTIAL` produces a signed REFUSAL carrying
+  no bit — never a rounded `true` or `false`, because a rounded answer is signed
+  and indistinguishable on the wire from a real one. Three things the build
+  settled:
+  - **The policy is PUBLISHED and tighten-only, using rule 5's existing floor
+    machinery rather than a new mechanism.** `partialPolicy` is a floor axis with
+    one legal value (`refuse`), so a request asking to have `PARTIAL` rounded for
+    it is a LOOSENING and dies at the floor gate before any fact is read. There is
+    no parameter anywhere that turns the rounding on.
+  - **The area is the QUESTION, and it is canonicalised by key, not by typing
+    order.** `JSON.stringify` serialises an object in insertion order, which for a
+    parsed request is whatever the requester typed — two requesters asking about
+    the same circle would otherwise derive two different signed predicate strings,
+    and one would get its own correct answer back as a predicate mismatch.
+  - **`lastLocationTime` is never read.** Not filtered on the way out: there is no
+    line that reads it, so there is nothing to filter. This is what §3.5's
+    "profile mode constrains what an operator forwards, not only which endpoint it
+    calls" looks like in code.
+
+  One honest residual the build makes concrete rather than removes: an AREA is a
+  dial (centre plus radius) and a requester willing to pay for queries can walk it
+  toward a position, exactly as a duration threshold can be bisected. `presentIn`
+  gets no quantisation menu — the signed decision does not give it one — so the
+  cap here is the operator's own resolution (below which the answer is a refusal,
+  not a finer bit) plus the rate-limit and per-query-billing backstop of §3.5.
+  Stated as a residual rather than closed.
+
+  **Built, 2026-08-17 — `numberMatch` is wired, and it is the row where the raw
+  value the profile protects is the RESPONSE ITSELF.** The requester declares its
+  threshold off the published menu (`60 | 70 | 80 | 90`) and the name it holds; the
+  operator compares internally; only the boolean leaves. Three notes the build
+  adds to the retraction above:
+  - **The claimed value is part of the SIGNED question.** It is an input to the
+    comparison, not a window, so it does not ride in the threshold field — but it
+    must be in the signed predicate string, or an answer about "does *Bob* match?"
+    would verify as an answer about "does *Alice* match?".
+  - **The operator learns what the requester claims.** That is inherent to
+    `kyc-match` — a comparison needs both sides — and it is disclosure in the
+    OTHER direction from everything else in this profile. It is recorded rather
+    than glossed: profile mode narrows what the OPERATOR discloses; it does not
+    make the requester's own query private, and Mode A retains the query log
+    (§3.5, first bullet).
+  - **An exact operator-side match carries no score at all** in the measured
+    response, so "compare the score against the threshold" is not sufficient on
+    its own: a perfect match must satisfy every threshold WITHOUT one, or the
+    conforming implementation answers `false` to the strongest possible match.
 
 ### 3.4 Agent-grade floor (reference profile)
 
@@ -289,6 +449,115 @@ document-rooted principal layer above this profile.
 - A blind aggregator still sees traffic metadata: message count, timing, and
   the RP↔operator pairing (who queries whom, when). Rule 6 removes content,
   not the fact of the query; measured and recorded in the PoC findings log.
+- Even a *predicate-shaped* catalog endpoint hands back raw values beside its
+  verdict. Measured 2026-08-17: **every** `location-verification/v1/verify`
+  response carries `lastLocationTime`, an exact timestamp, next to a
+  `TRUE`/`FALSE`/`PARTIAL` result. So "this API is already predicate-shaped"
+  (§3.3) is a statement about the headline field, not the payload. Profile mode
+  therefore constrains what an operator *forwards*, not only which endpoint it
+  calls — those values are legitimately the operator's, and they stop there.
+
+**The repeated-query oracle — measured, and only partly closed.** Every
+individual profile-mode response is a windowed bit and leaks nothing beyond it.
+A *sequence* of them is a different object. Rule 1 deliberately puts the window
+in the QUESTION, which leaves the threshold to the requester; so a requester
+willing to pay for N queries can binary-search the underlying value out of N
+individually clean booleans. This is measured, not hypothetical: the PoC's M6
+composition spike recovered a subscriber's exact SIM-swap age — 137 days — in
+**nine** signed, nonce-bound, expiring, end-to-end-encrypted, fully metered
+queries, every one of which passed every rule in §3.2 and left the raw value
+nowhere on the wire. No rule is violated and no module is wrong; the leak is the
+sequence, not any response, and floors do not reach it (a floor constrains the
+*profile* demanded, not the threshold asked). Three mitigations were weighed:
+
+1. **Quantised thresholds — ADOPTED in the reference implementation.** The
+   operator publishes a coarse menu of legal thresholds next to its floor
+   (`P30D | P90D | P180D | P365D` in the PoC) and **refuses** anything off it.
+   It refuses rather than rounds: rounding to the nearest bucket answers a
+   question nobody asked, and silently widens or tightens the window the
+   requester agreed to. This **caps** the oracle's resolution at the bucket —
+   roughly two bits over a year — it does **not** close it, and it is stated as
+   a cap rather than a fix. Only *ordered* thresholds get a menu: a
+   set-membership predicate has no ordering to bisect, and a boolean predicate
+   is already at full resolution.
+
+   *Extension, 2026-08-17 (BUILT).* The same rule reached a second ordered axis
+   the moment `deviceSwapAge` was wired: a device swap age is bisectable exactly
+   as a SIM swap age is, so it takes the SAME published menu
+   (`P30D | P90D | P180D | P365D`) rather than a menu of its own. Sharing the
+   menu is deliberate — a second, separately-maintained bucket list is a second
+   thing that can quietly widen, and two facts answering the same shape of
+   question should not teach a reader two grammars. The reference implementation
+   refuses an off-menu device threshold with the same reason shape as the SIM one,
+   and a disabled-menu control shows the same rung being answered.
+
+   *Extension, 2026-08-17 (BUILT).* The same rule reaches
+   a third ordered axis now that `numberMatch` is wired: `kyc-match` returns a
+   similarity **score**, and a free-choice match threshold is bisectable exactly
+   as a duration threshold is. The published menu there is **60 | 70 | 80 | 90
+   and nothing else**, the comparison happens operator-side, and the score never
+   crosses the wire. A threshold is offered at all — rather than one operator
+   value imposed on everyone — because relying parties genuinely differ: names
+   vary by accent, middle name, transliteration and typo, which is why the
+   catalog returns a score in the first place. Rule 1 already puts that window
+   in the question; the menu is what keeps it from being a dial. Measured
+   urgency for this one: the score is a *gradient*, not a band (a name one
+   letter off scored 97 against a wrong name's 53), so an unquantised,
+   unwithheld score is hill-climbable to the registered value — see the
+   retraction in §3.3. In the reference implementation an off-menu match
+   threshold is refused before any comparison is made, and a disabled-menu control
+   answers the same rung — one step of exactly that walk.
+
+   *One measurement worth recording beside it.* The PoC's mock operator needed a
+   score source of its own, and Jaro-Winkler — chosen independently, as a
+   plausible standard string metric — reproduces BOTH measured Playground values
+   exactly: 97 for the one-letter near miss and 53 for the unrelated name. Two
+   agreeing points is evidence and not proof, and nothing in this profile depends
+   on which metric an operator uses; it is noted because a reader reproducing the
+   PoC will see the same numbers and should know why.
+
+   *And one axis where the honest answer is to refuse — BUILT 2026-08-17.*
+   `location-verification` returns a third state, `PARTIAL`, when the asked-for
+   radius is finer than the operator can resolve. Under this profile `PARTIAL` is
+   **not rounded** to `true` or `false`: it refuses, exactly as a straddling band
+   or a missing fact does, because a rounded answer is signed and
+   indistinguishable on the wire from a real one. The operator publishes its
+   `PARTIAL` policy alongside its floor and a requester may only tighten it
+   (rule 5) — no new mechanism, and in the reference implementation that is
+   literally true: `partialPolicy` is a floor AXIS with one legal value, so a
+   request asking for rounding is refused by the same gate that refuses a
+   below-floor window, before any fact is read.
+
+   *And one residual this axis adds, stated rather than glossed.* An area is a
+   dial — centre plus radius — so a requester willing to pay for queries can walk
+   it toward a position exactly as a duration threshold can be bisected.
+   `presentIn` gets no bucket menu (there is no natural coarse set of circles the
+   way there is of durations), so the cap here is the operator's own resolution,
+   below which the answer is a refusal rather than a finer bit, plus mitigation 2
+   below. That is weaker than the duration menu and is not presented as equal to
+   it.
+2. **Per-subject rate limits and per-query billing — ADOPTED as the economic
+   backstop.** Mode A's commercial rail is also its defence: every rung of a
+   walk is a separately metered, separately billed query against one subject,
+   visible in the operator's own query log (which Mode A retains anyway, first
+   bullet above). A walk is therefore expensive, rate-limitable and *auditable*
+   — which is a different and weaker claim than "prevented", and is meant as one.
+3. **A monotone tighten-only repeat rule — CONSIDERED, NOT ADOPTED.** Requiring
+   each subsequent question about the same subject to be at least as tight as
+   the last defeats bisection and leaves only a one-directional walk: for the
+   subscriber above that is one query per step, 137 instead of 9 — about 15×
+   the cost, and still a complete recovery. It buys a constant factor, not a
+   property. It also makes a legitimate second question about the same
+   subscriber depend on the first, and the profile has no way to scope, share
+   or expire that state across requesters. Recorded here as considered and
+   declined rather than left unmentioned.
+
+Quantisation is a property of the reference implementation and of an operator's
+published policy, **not** a normative rule: §3.2 enumerates no predicate types
+and no thresholds, and the right place to settle a menu is per-API adoption
+(§3.3). It is stated here because the alternative — presenting per-response
+windowing as if it bounded a requester's total knowledge — is the kind of claim
+WG scrutiny should catch, and it is better caught by the author.
 
 ## 4. Two consumption modes
 

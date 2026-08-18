@@ -19,7 +19,22 @@ export function attest(privateKey, claims) {
 // operator equivocation. Keys are DECODED before comparison (the escaped spelling
 // "\u0072esult" IS "result"). Only depth-1 keys matter: any nested value fails the
 // type checks anyway.
-function hasDuplicateTopLevelKey(text) {
+//
+// EXPORTED 2026-08-17 for M6 (decision log), because a signed REQUEST is signed
+// bytes too and the equivocation is symmetric: one signature over bytes carrying
+// `floor` twice lets the operator read the loose floor while the requester
+// believes the tight one. Verifying a request cannot reuse verifyAttestation
+// (that demands the closed ANSWER set {predicate,result,nonce,exp}, which a
+// request does not have), so this byte-level scan is the one piece M6 must borrow
+// rather than re-implement — a second copy of this loop is a second thing to get
+// wrong, and it would be the copy facing the wire first.
+//
+// PRECONDITION, and the reason this is an export rather than a rewrite: `text`
+// MUST already have parsed as JSON. On valid JSON every quote-delimited run this
+// walks is a well-formed string token, so the key slice below cannot throw; on
+// arbitrary bytes it can (`"\q"` is not a JSON string). M1 itself calls it in
+// exactly that order — signature, then parse, then this — and M6 does the same.
+export function hasDuplicateTopLevelKey(text) {
   const seen = new Set();
   let depth = 0;
   for (let i = 0; i < text.length; i++) {

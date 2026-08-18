@@ -157,17 +157,28 @@ raw value on the wire), nonce + validity (replay fails, responses expire), blind
 hub's own log shown on screen — metering records only, reads yield ciphertext), and
 monotone floor (looser queries rejected, never silently widened).
 
-**Status:** being rebuilt module-by-module (M1–M6). Five modules are built and runnable
-today — the attestation core, the blind envelope, the monotone floor gate, the mock
-facts adapter and the live Orange facts adapter: `node poc/m1-check.mjs` (19 cases),
-`m2-check.mjs` (10), `m3-check.mjs` (22), `m4-check.mjs` (33) and `m5-check.mjs` (48,
-offline replay of live-captured responses; `m5-check-live.mjs` re-proves 11 cases against
-the real Playground with a free Orange credential), negatives first, exit code 0 only if
-every case holds. The one-command demo
-(`node poc/demo.mjs`, zero credentials against a built-in mock operator with scriptable
-backstories; `--backend orange` re-proves it live on the Network APIs Playground with a free
-Orange developer account) lands at M6. Requirements live in the
-[PRD §4](docs/01-product/prd.md); status, setup and caveats in
+**Status:** all six modules M1–M6 are built and user-validated at their current counts.
+Run the demo with
+**`node poc/demo.mjs`** — zero credentials, zero network, against a built-in mock operator
+with scriptable backstories; `--backend orange` re-proves the same code path live on the
+Network APIs Playground with a free Orange developer account. Each module also has its own
+check, negatives first, exit code 0 only if every case holds: `m1-check.mjs` (20 cases),
+`m2-check.mjs` (10), `m3-check.mjs` (26), `m4-check.mjs` (40), `m5-check.mjs` (60, an
+offline replay of live-captured responses; `m5-check-live.mjs` re-proves 19 cases against
+the real Playground) and `m6-check.mjs` (46, offline in both backend modes).
+**The user ran the full validation suite on their own machine at code commit `4446517` /
+docs commit `c921508` (2026-08-18 08:16): every suite clean, zero `FAIL`, zero
+`TypeError`, zero `Error:` lines in the entire log** — `m1-check.mjs` 20/20,
+`m2-check.mjs` 10/10, `m3-check.mjs` 26/26, `m4-check.mjs` 40/40, `m5-check.mjs` 60/60,
+`m6-check.mjs` 46/46, `demo.mjs` (mock) 33/33, `demo.mjs --backend orange` (live, real
+Orange Playground) 33/33, `m5-check-live.mjs` (live, real Orange Playground) 19/19.
+**Both gates are MET at `4446517`** — G1 (M1–M4 + M6 all user-validated) and G2 (M5
+user-validated live) — the first time in this project both have been met at the same
+commit, on a tree that had already been through two `/code-review` rounds with every
+fix mutation-proven. This record covers `4446517`/`c921508` only, per this repo's
+standing rule that a user record does not transfer to a later change. See
+`docs/01-product/findings.md`, 2026-08-18 (latest).
+Requirements live in the [PRD §4](docs/01-product/prd.md); status, setup and caveats in
 [`poc/README.md`](poc/README.md).
 
 ## Lineage
