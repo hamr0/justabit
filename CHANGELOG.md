@@ -1,5 +1,84 @@
 # Changelog
 
+## 0.5.1 — 2026-08-25
+
+- **Grounding round: the 2026-08-14 pinned CAMARA baseline was re-verified
+  on 2026-08-24, and three claims did not survive.** No design, profile,
+  or code behaviour changed — this release retracts overclaims and
+  corrects stale detail across docs, spec, and PoC comments/output.
+  1. **A fabricated quotation was retracted.** The docs asserted the
+     NumberVerification spec "mandates" identifier-free 3-legged requests,
+     with `phoneNumber` "MUST NOT be included" when derivable from the
+     access token. That sentence exists in NO CAMARA source — not the
+     NumberVerification spec, not the Commonalities design guide, not the
+     ICM security docs. It was also wrong as a generalisation:
+     `POST /verify` is 3-legged and REQUIRES an identifier
+     (minProperties:1/maxProperties:1 over `phoneNumber`/
+     `hashedPhoneNumber`), and the repo's OWN live measurement had already
+     recorded `403 "Request must define a phoneNumber"`. The real
+     precedent is structural and narrower: `GET /device-phone-number` has
+     no request body at all and derives the line from the 3-legged token.
+  2. **"Accepted in production" was retracted for `kyc-age-verification`.**
+     Its lifecycle badge reads Sandbox — CAMARA defines Sandbox as
+     experimental with no guarantee of stability. Its own README
+     self-contradicts with a stale "Incubating stage since February 2025"
+     line; that contradiction is recorded, not resolved.
+  3. **"KYC r2.2 / all Incubating" was corrected.** KYC split
+     post-Spring25 into kyc-match (r1.2, v0.4.0), kyc-fill-in (r1.3,
+     v0.4.1), kyc-age-verification (r1.3, v0.2.1). SimSwap v2.1.0/r3.3 and
+     NumberVerification v2.1.0/r3.2 re-verified and HOLD, both still
+     Incubating. The APIBacklog proposal template and the CAMARA freeze
+     policy (6+ weeks inactivity → Frozen) also re-verified and hold.
+- **The retraction took four rounds to actually land, not one — recorded
+  honestly because it's the most useful part of this entry.** The first
+  sweeps grepped exact strings and missed every instance that paraphrased
+  the claim instead of quoting it.
+  - Round 1 fixed two passages and left the claim standing in four other
+    places, including README.md's front page and — worst — the proposal's
+    own NORMATIVE rule 4, which justified itself by citing the fabricated
+    quote ~90 lines below its own retraction, so the document
+    contradicted itself.
+  - Round 2 found a fifth survivor in the proposal's ABSTRACT, missed by
+    both earlier passes because it PARAPHRASED the claim rather than
+    quoting it.
+  - Round 3's paraphrase-aware sweep found six more, in file types the
+    earlier passes never searched: `spec/carrier-attestation.yaml` (twice,
+    including the operation description), `poc/demo.mjs` (in a comment
+    AND in text PRINTED to the demo transcript), and `poc/README.md`.
+  - The `poc/README.md` instance was the sharpest: it recorded the live
+    measured `403 "Request must define a phoneNumber"` — direct proof
+    `/verify` requires an identifier — and then glossed that same
+    measurement as "the 3-legged shape where the subject comes from the
+    token". The measurement was left byte-identical; only the gloss
+    contradicting it was fixed.
+  - One reviewer wrongly CLEARED a survivor by citing the very repo
+    wording being retracted as its ground truth — a circular check.
+    Recorded as a review-process lesson, not just a fixed finding.
+  - Two dated decisions-log entries in `prd.md` (2026-08-14 and
+    2026-08-17) received visible `**Correction (2026-08-24
+    re-verification):**` notes. The decisions stand; only the dead
+    premises are named. `docs/01-product/findings.md` was deliberately
+    left untouched — its "r2.2" sits in a dated append-only evidence entry
+    recording what was true on 2026-08-16.
+  - Also fixed: `poc/README.md` case counts were stale (M4 40→42, M5
+    60→67, M6 46→47) and its `conclude(...)` declaration listed `19`
+    where `m5-check-live.mjs` declares `20`.
+- **Validation state — stated precisely, not rounded up.** Offline suites,
+  AGENT-RUN 2026-08-24/25, all exit 0: m1 20/20, m2 10/10, m3 26/26, m4
+  42/42, m5 67/67, m6 47/47, `demo.mjs` (mock) 35/35. `poc/demo.mjs` was
+  edited this round (one comment, one printed-output block; no logic
+  change), so **the v0.5.0 user-validated record does NOT transfer
+  forward.** The user-validated 35/35 stands at `d85d3cf`/v0.5.0 only.
+  **This release is NOT user-validated — it is agent-run.** Live-credentialed
+  suites were NOT run this round. Gates: `/security` CLEAN (run twice —
+  once on the docs-only diff, re-run after code-touching fixes landed);
+  `/ship` WARNINGS only (no criticals); `/diff-review` BLOCK → BLOCK →
+  APPROVE-WITH-NITS, nits then cleared. `spec/carrier-attestation.yaml`
+  re-parsed clean (`yaml.safe_load`, exit 0). `poc/demo.mjs` verified
+  comment/string-only with no logic, request-shape, or crypto-path change;
+  schema constraints (`additionalProperties: false`, required lists,
+  Predicate enum) byte-identical to origin/main.
+
 ## 0.5.0 — 2026-08-18
 
 - **User ran the full validation suite on their own machine against the

@@ -55,10 +55,11 @@ components:
       # stand-in for token-derived identity and is absent here on purpose — this
       # sketch models the 3-legged shape this profile requires, where the subject
       # comes from the access token rather than the request body — the shape
-      # CAMARA's own `GET /device-phone-number` already takes (see the operation
-      # description and profile rule 4). So a PoC request is deliberately NOT valid against
-      # this schema; the PoC's own closed set is `{number, predicate, floor,
-      # nonce}` and is enforced in poc/demo.mjs (REQUEST_FIELDS).
+      # CAMARA's own `GET /device-phone-number` already takes (see the
+      # operation description and profile rule 4). So a PoC request is
+      # deliberately NOT valid against this schema; the PoC's own closed set is
+      # `{number, predicate, floor, nonce}` and is enforced in poc/demo.mjs
+      # (REQUEST_FIELDS).
       additionalProperties: false
       properties:
         predicate:

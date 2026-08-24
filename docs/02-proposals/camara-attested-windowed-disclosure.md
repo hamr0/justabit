@@ -279,14 +279,13 @@ Two limits and one deferral on that, stated rather than glossed:
   baseline.** That baseline re-verified SimSwap v2.1.0, NumberVerification
   v2.1.0, and the three post-split KYC repos (kyc-match, kyc-fill-in,
   kyc-age-verification — see §References) only. The roaming and reachability
-  shapes in the middle
-  column are what the **Orange Network APIs Playground** returned when the PoC's
-  M5 module read them live (2026-08-16); the device-swap and
-  location-verification shapes are from a standalone endpoint sweep of the same
-  Playground (2026-08-17) — a vendor sandbox, not a CAMARA spec surface. They are
-  included because the PoC exercises them; they carry the sandbox's authority,
-  not the catalog's, and they get re-verified against the catalog before this
-  document is submitted.
+  shapes in the middle column are what the **Orange Network APIs Playground**
+  returned when the PoC's M5 module read them live (2026-08-16); the
+  device-swap and location-verification shapes are from a standalone endpoint
+  sweep of the same Playground (2026-08-17) — a vendor sandbox, not a CAMARA
+  spec surface. They are included because the PoC exercises them; they carry
+  the sandbox's authority, not the catalog's, and they get re-verified against
+  the catalog before this document is submitted.
 - **The right-hand column is the profile's envelope, and the PoC produces that
   envelope — it does not produce these specific predicates.** The PoC (M1)
   signs the closed claim set `{predicate, result, nonce, exp}` and carries `sig`
