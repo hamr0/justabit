@@ -641,12 +641,18 @@ be repeated.
   co-own it by rule — which is why supporter recruitment (G4) is
   existential, not political nicety. Sub-project cadence example: SimSwap
   meets every 4 weeks, Thu 07:30 UTC.
-- **Verified spec baseline (2026-08-14):** SimSwap v2.1.0 (`/check`,
-  `/retrieve-date`, `/retrieve-age-band`), NumberVerification v2.1.0
-  (`/verify`, `/device-phone-number`; 3-legged identifier omission is
-  normative), KYC r2.2 (`kyc-match`, `kyc-fill-in`, `kyc-age-verification`).
-  All Incubating. Open Gateway: 86 operator groups, 300+ networks. Full
-  citations live in D2 §References.
+- **Verified spec baseline (2026-08-14, re-verified 2026-08-24):** SimSwap
+  v2.1.0 (`/check`, `/retrieve-date`, `/retrieve-age-band`) and
+  NumberVerification v2.1.0 (`/verify`, `/device-phone-number`) hold, both
+  still Incubating; `GET /device-phone-number` takes no request body and is
+  structurally identifier-free off the 3-legged token (its sibling
+  `POST /verify` still requires an identifier). KYC is no longer one r2.2
+  spec — it split into three repos post-Spring25: kyc-match (r1.2, v0.4.0),
+  kyc-fill-in (r1.3, v0.4.1), kyc-age-verification (r1.3, v0.2.1, Sandbox
+  per its lifecycle badge — though its own README body text still says
+  "Incubating stage since February 2025", an unresolved contradiction).
+  Open Gateway: 86 operator groups, 300+ networks. Full citations live in
+  D2 §References.
 - **AAIF (grounded 2026-08-15):** hosts community projects; Identity & Trust
   WG mandate matches D3 verbatim. Submission process verified from
   `github.com/aaif/project-proposals` (README + issue template

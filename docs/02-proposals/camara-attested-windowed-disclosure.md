@@ -71,17 +71,20 @@ instinct exists, and that it stopped halfway:
 | Device Swap | check → boolean | retrieve-date → actual timestamp |
 | Device Roaming Status | — | `/retrieve` → flag + actual country; subscription mode **pushes country changes** |
 | Location | Verification → yes/no/partial vs radius | Retrieval → actual area |
-| KYC (r2.2, split into 3 repos post-Spring25) | `kyc-match` → per-field match scores; **`kyc-age-verification` → boolean age-threshold predicate** | **`kyc-fill-in` → returns name/address/birthdate from operator KYC records** |
+| KYC (split into 3 repos post-Spring25) | `kyc-match` → per-field match scores; **`kyc-age-verification` → boolean age-threshold predicate** | **`kyc-fill-in` → returns name/address/birthdate from operator KYC records** |
 
-*Verified against spec YAMLs and repos 2026-08-14 (all Incubating stage since
-Feb 2025).* Three verified precedents frame this proposal as completion, not
-novelty: **(a)** `/retrieve-age-band` is already a windowing move — CAMARA
-itself ships a precision-coarsened variant, conceding raw timestamps
-over-disclose; **(b)** in 3-legged flows the spec **mandates** identifier-free
-requests — `phoneNumber` "MUST NOT be included" when derivable from the
-access token; **(c)** `kyc-age-verification` proves the boolean-predicate
-pattern is already accepted in production. What is missing is the query-path
-and retention discipline around them.
+*Verified against spec YAMLs and repos 2026-08-14, re-verified 2026-08-24
+(SimSwap and NumberVerification hold; KYC split into three repos — see
+§References).* Three verified precedents frame this proposal as completion,
+not novelty: **(a)** `/retrieve-age-band` is already a windowing move —
+CAMARA itself ships a precision-coarsened variant, conceding raw timestamps
+over-disclose; **(b)** `GET /device-phone-number` takes no request body at
+all — it derives the line from the 3-legged access token, so the
+identifier-free shape is already structural in the catalog (its sibling
+`POST /verify` still requires an identifier); **(c)** `kyc-age-verification`
+is already in the catalog and proves the boolean-predicate pattern has a
+home there. What is missing is the query-path and retention discipline
+around them.
 
 *A note on the reference PoC, since it reads the non-conforming surface.* The
 PoC's operator adapter calls `POST /retrieve-date` and windows the timestamp
@@ -891,13 +894,19 @@ supporters are named** (see PRD no-go 12).
   https://www.gsma.com/newsroom/article/from-ambition-to-execution-how-open-gateway-is-scaling-the-global-api-economy/
 - Open Gateway 1Q26 update:
   https://camaraproject.org/wp-content/uploads/sites/12/2026/02/Open-Gateway-1Q26-Update.pdf
-- Spec verification (2026-08-14): SimSwap v2.1.0 (`/check`,
-  `/retrieve-date`, `/retrieve-age-band`):
+- Spec verification (2026-08-14, re-verified 2026-08-24): SimSwap v2.1.0
+  (`/check`, `/retrieve-date`, `/retrieve-age-band`):
   https://github.com/camaraproject/SimSwap · NumberVerification v2.1.0
   (`/verify`, `/device-phone-number`; TS.43 or OIDC `prompt=none`, 3-legged,
   AMR-validated): https://github.com/camaraproject/NumberVerification ·
-  KnowYourCustomer r2.2 (`kyc-match`, `kyc-fill-in`, `kyc-age-verification`):
-  https://github.com/camaraproject/KnowYourCustomer
+  KnowYourCustomer split into three repos post-Spring25: kyc-match (r1.2,
+  v0.4.0) https://github.com/camaraproject/KnowYourCustomerMatch ·
+  kyc-fill-in (r1.3, v0.4.1)
+  https://github.com/camaraproject/KnowYourCustomerFill-in ·
+  kyc-age-verification (r1.3, v0.2.1, Sandbox per its lifecycle badge, though
+  its own README body text still says "Incubating stage since February 2025" —
+  a contradiction, not resolved here)
+  https://github.com/camaraproject/KnowYourCustomerAgeVerification
 - MWC26 agentic demo:
   https://www.mwcbarcelona.com/articles/mplify-colt-orange-google-cloud-and-gsma-open-gateway-demonstrate-agentic-connected-experiences-at-mwc26-barcelona
 - Format layer candidates: SD-JWT VC (IETF OAuth WG), OpenID4VCI / OpenID4VP,
