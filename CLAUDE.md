@@ -41,11 +41,13 @@ exception (profile rule 7), not a loophole.
 
 Every claim about CAMARA/GSMA/AAIF state is pinned to a source — spec YAML,
 repo, or dated page — and re-verified before any submission. Current verified
-baseline (2026-08-14): SimSwap v2.1.0 (`/check`, `/retrieve-date`,
-`/retrieve-age-band`), NumberVerification v2.1.0 (`/verify`,
-`/device-phone-number`, 3-legged identifier omission is normative), KYC r2.2
-(`kyc-match`, `kyc-fill-in`, `kyc-age-verification`). If a claim dies on
-re-verification, retract it visibly — retractions build WG credibility.
+baseline (2026-08-14, re-verified 2026-08-24): SimSwap v2.1.0 (`/check`,
+`/retrieve-date`, `/retrieve-age-band`), NumberVerification v2.1.0 (`/verify`
+requires an identifier; `/device-phone-number` takes no request body and
+derives the line from the 3-legged token), KYC split post-Spring25 into
+kyc-match (r1.2, v0.4.0), kyc-fill-in (r1.3, v0.4.1), kyc-age-verification
+(r1.3, v0.2.1 — Sandbox). If a claim dies on re-verification, retract it
+visibly — retractions build WG credibility.
 
 ## Strategy invariants
 

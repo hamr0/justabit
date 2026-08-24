@@ -164,8 +164,9 @@ An API operation conforming to this profile:
    directory-listed operator, routed by an untrusted aggregator, could
    answer a query addressed to a different operator.
 4. **MUST NOT** carry a subscriber identifier in the request where it is
-   derivable from the access token (generalizes the existing 3-legged rule:
-   `phoneNumber` "MUST NOT be included").
+   derivable from the access token (generalizes the shape `GET
+   /device-phone-number` already takes: no request body at all, the line
+   resolved from the 3-legged token instead of a supplied identifier).
 5. **MUST** treat floors as monotone: an intermediary or delegate may tighten,
    never widen; a request below the operator's published floor is rejected,
    not silently answered. Three properties make that check mean something on
@@ -267,13 +268,16 @@ Three things the table is meant to make concrete:
    standing in France.
 
 The middle column reflects current catalog responses (baseline verified
-2026-08-14; see §11). The right-hand column is this profile applied to them.
+2026-08-14, re-verified 2026-08-24; see §11). The right-hand column is this
+profile applied to them.
 
 Two limits and one deferral on that, stated rather than glossed:
 
 - **† The `device-*` and `location-verification` rows are NOT covered by the §11
   baseline.** That baseline re-verified SimSwap v2.1.0, NumberVerification
-  v2.1.0 and KYC r2.2 only. The roaming and reachability shapes in the middle
+  v2.1.0, and the three post-split KYC repos (kyc-match, kyc-fill-in,
+  kyc-age-verification — see §References) only. The roaming and reachability
+  shapes in the middle
   column are what the **Orange Network APIs Playground** returned when the PoC's
   M5 module read them live (2026-08-16); the device-swap and
   location-verification shapes are from a standalone endpoint sweep of the same
