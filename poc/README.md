@@ -26,10 +26,10 @@ node poc/m2-check.mjs   # M2 blind envelope — 10 cases (user-validated 10/10 a
                         #   `4446517`, 2026-08-18)
 node poc/m3-check.mjs   # M3 floor gate — 26 cases (user-validated 26/26 at
                         #   `4446517`, 2026-08-18)
-node poc/m4-check.mjs   # M4 mock facts adapter — 40 cases (user-validated 40/40 at
-                        #   `4446517`, 2026-08-18)
-node poc/m5-check.mjs   # M5 orange facts adapter, OFFLINE — 60 cases (user-validated
-                        #   60/60 at `4446517`, 2026-08-18).
+node poc/m4-check.mjs   # M4 mock facts adapter — 42 cases (user-validated 42/42 at
+                        #   `d85d3cf`/v0.5.0, 2026-08-18)
+node poc/m5-check.mjs   # M5 orange facts adapter, OFFLINE — 67 cases (user-validated
+                        #   67/67 at `d85d3cf`/v0.5.0, 2026-08-18).
                         #   Zero credentials, zero network:
                         #   an injected transport replays responses captured live on
                         #   2026-08-16, so it runs on a clean clone.
@@ -60,9 +60,10 @@ ORANGE_BASIC_AUTH="$(pass camara/orange_network | head -1)" node poc/m5-check-li
                         # interrupted run does not leak one), prints the count at both
                         # ends, and case 19 asserts it came back.
 
-node poc/m6-check.mjs   # M6 integration — 46 cases (user-validated 46/46 at
-                        #   `4446517`, 2026-08-18 — case 46 CROSS-REQUESTER SEALING
-                        #   added the same day, second code-review round, 45 -> 46).
+node poc/m6-check.mjs   # M6 integration — 47 cases (user-validated 47/47 at
+                        #   `d85d3cf`/v0.5.0, 2026-08-18 — case 46 CROSS-REQUESTER
+                        #   SEALING added earlier, second code-review round, 45 -> 46;
+                        #   case 47 CONDITIONAL AXIS READ added in the M7 round, 46 -> 47).
                         #   Zero credentials, zero network in BOTH
                         #   backend modes: the `--backend orange` seam runs
                         #   through an injected transport replaying captured
@@ -150,7 +151,7 @@ re-establishing G2 at that state. A post-gate code review round (2026-08-17)
 then fixed three more adapter defects and three live-check faults (counts
 unchanged), so **the user re-ran once more at `8e842c3` — the shipped v0.3.0
 state — and reported both clean. Nothing is pending.** Each
-check declares its case count (`conclude(20|10|26|40|60|19|46)`) so a suite that
+check declares its case count (`conclude(20|10|26|42|67|20|47)`) so a suite that
 silently loses cases exits 1 with
 `FAIL CASE COUNT` instead of printing a smaller green tally — mutation-proven
 per module.
@@ -463,8 +464,9 @@ artefact of the adapter's own parsing. Full verbatim capture in
   ships `lastLocationTime`, a raw timestamp — a "boolean" catalog endpoint
   handing back a raw value beside its verdict. Operator-internal only.
 - **`number-verification/v1/verify` exists** — `403 "Request must define a
-  phoneNumber"`, i.e. the 3-legged shape where the subject comes from the token.
-  Not a missing endpoint.
+  phoneNumber"`, i.e. `/verify` is 3-legged and REQUIRES an identifier; the
+  identifier-free shape lives only at `GET /device-phone-number`. Not a
+  missing endpoint.
 - **No CAMARA read endpoint for tenure** — `tenure/v1/retrieve` and
   `sim-tenure/v1/retrieve` both `400 "unhandled path"`; likewise
   `kyc-age-verification/v1/verify` and `device-location/v1/retrieve`. The tenure

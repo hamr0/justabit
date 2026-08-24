@@ -32,10 +32,12 @@ subscriber or device can adopt:
 > cannot read**.
 
 The catalog is already halfway here by its own hand — `/retrieve-age-band`
-coarsens a response because raw timestamps over-disclose; 3-legged flows
-mandate identifier-free requests; `kyc-age-verification` is a boolean
-predicate API in production. The ask is not "approve my API" but **finish
-what you started, catalog-wide.** Same trust root (the operator), same
+coarsens a response because raw timestamps over-disclose; `GET
+/device-phone-number` already takes no request body at all, deriving the
+line from the 3-legged access token instead of an identifier;
+`kyc-age-verification` already ships as a boolean predicate API in the
+catalog. The ask is not "approve my API" but **finish what you started,
+catalog-wide.** Same trust root (the operator), same
 commercial model (per-query billing and aggregator revenue share unchanged),
 zero new surveillance byproduct.
 
@@ -71,17 +73,20 @@ instinct exists, and that it stopped halfway:
 | Device Swap | check → boolean | retrieve-date → actual timestamp |
 | Device Roaming Status | — | `/retrieve` → flag + actual country; subscription mode **pushes country changes** |
 | Location | Verification → yes/no/partial vs radius | Retrieval → actual area |
-| KYC (r2.2, split into 3 repos post-Spring25) | `kyc-match` → per-field match scores; **`kyc-age-verification` → boolean age-threshold predicate** | **`kyc-fill-in` → returns name/address/birthdate from operator KYC records** |
+| KYC (split into 3 repos post-Spring25) | `kyc-match` → per-field match scores; **`kyc-age-verification` → boolean age-threshold predicate** | **`kyc-fill-in` → returns name/address/birthdate from operator KYC records** |
 
-*Verified against spec YAMLs and repos 2026-08-14 (all Incubating stage since
-Feb 2025).* Three verified precedents frame this proposal as completion, not
-novelty: **(a)** `/retrieve-age-band` is already a windowing move — CAMARA
-itself ships a precision-coarsened variant, conceding raw timestamps
-over-disclose; **(b)** in 3-legged flows the spec **mandates** identifier-free
-requests — `phoneNumber` "MUST NOT be included" when derivable from the
-access token; **(c)** `kyc-age-verification` proves the boolean-predicate
-pattern is already accepted in production. What is missing is the query-path
-and retention discipline around them.
+*Verified against spec YAMLs and repos 2026-08-14, re-verified 2026-08-24
+(SimSwap and NumberVerification hold; KYC split into three repos — see
+§References).* Three verified precedents frame this proposal as completion,
+not novelty: **(a)** `/retrieve-age-band` is already a windowing move —
+CAMARA itself ships a precision-coarsened variant, conceding raw timestamps
+over-disclose; **(b)** `GET /device-phone-number` takes no request body at
+all — it derives the line from the 3-legged access token, so the
+identifier-free shape is already structural in the catalog (its sibling
+`POST /verify` still requires an identifier); **(c)** `kyc-age-verification`
+is already in the catalog and proves the boolean-predicate pattern has a
+home there. What is missing is the query-path and retention discipline
+around them.
 
 *A note on the reference PoC, since it reads the non-conforming surface.* The
 PoC's operator adapter calls `POST /retrieve-date` and windows the timestamp
@@ -161,8 +166,9 @@ An API operation conforming to this profile:
    directory-listed operator, routed by an untrusted aggregator, could
    answer a query addressed to a different operator.
 4. **MUST NOT** carry a subscriber identifier in the request where it is
-   derivable from the access token (generalizes the existing 3-legged rule:
-   `phoneNumber` "MUST NOT be included").
+   derivable from the access token (generalizes the shape `GET
+   /device-phone-number` already takes: no request body at all, the line
+   resolved from the 3-legged token instead of a supplied identifier).
 5. **MUST** treat floors as monotone: an intermediary or delegate may tighten,
    never widen; a request below the operator's published floor is rejected,
    not silently answered. Three properties make that check mean something on
@@ -264,20 +270,22 @@ Three things the table is meant to make concrete:
    standing in France.
 
 The middle column reflects current catalog responses (baseline verified
-2026-08-14; see §11). The right-hand column is this profile applied to them.
+2026-08-14, re-verified 2026-08-24; see §11). The right-hand column is this
+profile applied to them.
 
 Two limits and one deferral on that, stated rather than glossed:
 
 - **† The `device-*` and `location-verification` rows are NOT covered by the §11
   baseline.** That baseline re-verified SimSwap v2.1.0, NumberVerification
-  v2.1.0 and KYC r2.2 only. The roaming and reachability shapes in the middle
-  column are what the **Orange Network APIs Playground** returned when the PoC's
-  M5 module read them live (2026-08-16); the device-swap and
-  location-verification shapes are from a standalone endpoint sweep of the same
-  Playground (2026-08-17) — a vendor sandbox, not a CAMARA spec surface. They are
-  included because the PoC exercises them; they carry the sandbox's authority,
-  not the catalog's, and they get re-verified against the catalog before this
-  document is submitted.
+  v2.1.0, and the three post-split KYC repos (kyc-match, kyc-fill-in,
+  kyc-age-verification — see §References) only. The roaming and reachability
+  shapes in the middle column are what the **Orange Network APIs Playground**
+  returned when the PoC's M5 module read them live (2026-08-16); the
+  device-swap and location-verification shapes are from a standalone endpoint
+  sweep of the same Playground (2026-08-17) — a vendor sandbox, not a CAMARA
+  spec surface. They are included because the PoC exercises them; they carry
+  the sandbox's authority, not the catalog's, and they get re-verified against
+  the catalog before this document is submitted.
 - **The right-hand column is the profile's envelope, and the PoC produces that
   envelope — it does not produce these specific predicates.** The PoC (M1)
   signs the closed claim set `{predicate, result, nonce, exp}` and carries `sig`
@@ -642,10 +650,12 @@ can be added without re-issuing.
   sticks. Stability vs. windowing is a per-attestation-type knob, not an
   architectural fork.
 - **Precedent**: 5G already conceals the permanent identifier on the air
-  interface (SUPI → one-time SUCI); CAMARA already supports identifier-free
-  implicit identification (IP/session-based). This extends an accepted
-  principle — long-lived identifiers must not travel — from the radio and
-  session layers to the API layer.
+  interface (SUPI → one-time SUCI); CAMARA's own `Device` object already
+  accepts network-side identification (IP address / network access
+  identifier) in place of the permanent subscriber identifier — not
+  identifier-free, but not the permanent identifier either. This extends an
+  accepted principle — long-lived identifiers must not travel — from the
+  radio and session layers to the API layer.
 
 ### 5.5 What this is NOT
 
@@ -891,13 +901,19 @@ supporters are named** (see PRD no-go 12).
   https://www.gsma.com/newsroom/article/from-ambition-to-execution-how-open-gateway-is-scaling-the-global-api-economy/
 - Open Gateway 1Q26 update:
   https://camaraproject.org/wp-content/uploads/sites/12/2026/02/Open-Gateway-1Q26-Update.pdf
-- Spec verification (2026-08-14): SimSwap v2.1.0 (`/check`,
-  `/retrieve-date`, `/retrieve-age-band`):
+- Spec verification (2026-08-14, re-verified 2026-08-24): SimSwap v2.1.0
+  (`/check`, `/retrieve-date`, `/retrieve-age-band`):
   https://github.com/camaraproject/SimSwap · NumberVerification v2.1.0
   (`/verify`, `/device-phone-number`; TS.43 or OIDC `prompt=none`, 3-legged,
   AMR-validated): https://github.com/camaraproject/NumberVerification ·
-  KnowYourCustomer r2.2 (`kyc-match`, `kyc-fill-in`, `kyc-age-verification`):
-  https://github.com/camaraproject/KnowYourCustomer
+  KnowYourCustomer split into three repos post-Spring25: kyc-match (r1.2,
+  v0.4.0) https://github.com/camaraproject/KnowYourCustomerMatch ·
+  kyc-fill-in (r1.3, v0.4.1)
+  https://github.com/camaraproject/KnowYourCustomerFill-in ·
+  kyc-age-verification (r1.3, v0.2.1, Sandbox per its lifecycle badge, though
+  its own README body text still says "Incubating stage since February 2025" —
+  a contradiction, not resolved here)
+  https://github.com/camaraproject/KnowYourCustomerAgeVerification
 - MWC26 agentic demo:
   https://www.mwcbarcelona.com/articles/mplify-colt-orange-google-cloud-and-gsma-open-gateway-demonstrate-agentic-connected-experiences-at-mwc26-barcelona
 - Format layer candidates: SD-JWT VC (IETF OAuth WG), OpenID4VCI / OpenID4VP,

@@ -92,10 +92,10 @@ honestly: [`docs/02-proposals/camara-attested-windowed-disclosure.md`](docs/02-p
 ## Why a profile, not one more API
 
 CAMARA's own catalog is already halfway here and stopped. `/retrieve-age-band` coarsens a
-response because raw timestamps over-disclose. Three-legged flows already mandate
-identifier-free requests — `phoneNumber` "MUST NOT be included" when derivable from the
-token. `kyc-age-verification` already ships a boolean predicate API. Every one of those is
-the working group's own precedent.
+response because raw timestamps over-disclose. `GET /device-phone-number` already takes no
+request body at all — it derives the line from the 3-legged access token instead of asking
+for an identifier. `kyc-age-verification` already ships as a boolean predicate API in the
+catalog. Every one of those is the working group's own precedent.
 
 So the ask is not "approve my API" but "finish what you started, catalog-wide". One
 issuance rail plus pluggable predicates means every new status API inherits the mode for
@@ -187,9 +187,9 @@ Requirements live in the [PRD §4](docs/01-product/prd.md); status, setup and ca
   tightening) and the delegation model agents carry.
 - **8een** — the one-bit verifier pattern, trust-anchor handling, and the evidence
   discipline (claims pinned to file/line/commit; retractions kept).
-- **CAMARA's own specs** — `/retrieve-age-band`, identifier-free 3-legged requests,
-  `kyc-age-verification`: the catalog is already halfway here. This profile finishes the
-  trajectory, catalog-wide.
+- **CAMARA's own specs** — `/retrieve-age-band`, `GET /device-phone-number`'s no-body
+  shape, `kyc-age-verification`: the catalog is already halfway here. This profile
+  finishes the trajectory, catalog-wide.
 
 ## License
 

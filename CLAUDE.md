@@ -41,18 +41,20 @@ exception (profile rule 7), not a loophole.
 
 Every claim about CAMARA/GSMA/AAIF state is pinned to a source — spec YAML,
 repo, or dated page — and re-verified before any submission. Current verified
-baseline (2026-08-14): SimSwap v2.1.0 (`/check`, `/retrieve-date`,
-`/retrieve-age-band`), NumberVerification v2.1.0 (`/verify`,
-`/device-phone-number`, 3-legged identifier omission is normative), KYC r2.2
-(`kyc-match`, `kyc-fill-in`, `kyc-age-verification`). If a claim dies on
-re-verification, retract it visibly — retractions build WG credibility.
+baseline (2026-08-14, re-verified 2026-08-24): SimSwap v2.1.0 (`/check`,
+`/retrieve-date`, `/retrieve-age-band`), NumberVerification v2.1.0 (`/verify`
+requires an identifier; `/device-phone-number` takes no request body and
+derives the line from the 3-legged token), KYC split post-Spring25 into
+kyc-match (r1.2, v0.4.0), kyc-fill-in (r1.3, v0.4.1), kyc-age-verification
+(r1.3, v0.2.1 — Sandbox). If a claim dies on re-verification, retract it
+visibly — retractions build WG credibility.
 
 ## Strategy invariants
 
 - **Profile first, API second.** The ask to CAMARA is "finish what
-  `/retrieve-age-band` and identifier-free 3-legged flows started,
-  catalog-wide" — never "approve my API". CarrierAttestation as a new case
-  exists only for what no existing API covers (agent floors, Mode B).
+  `/retrieve-age-band` and `GET /device-phone-number`'s no-body shape
+  started, catalog-wide" — never "approve my API". CarrierAttestation as a
+  new case exists only for what no existing API covers (agent floors, Mode B).
 - **Two tracks, one seam.** CAMARA = operator/attestation side; AAIF =
   agent/delegation side; they meet at the RFC 9421 header. Each cites the
   other; neither depends on the other's approval. Keep submission docs

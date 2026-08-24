@@ -17,8 +17,10 @@ paths:
       description: >
         Request carries predicate + floor + nonce. Response is a signed,
         windowed boolean bound to the nonce, valid for the query duration.
-        Never a raw value. In 3-legged flows the subject is derived from the
-        access token and MUST NOT appear in the request.
+        Never a raw value. This profile requires that in 3-legged flows the
+        subject be derived from the access token rather than carried in the
+        request body — the shape CAMARA's own `GET /device-phone-number`
+        already takes (no request body at all).
       requestBody:
         required: true
         content:
@@ -51,11 +53,13 @@ components:
       # what makes it bite: the reference demo's request also carries `number`,
       # and the operator REQUIRES it ('missing subscriber'). That field is a demo
       # stand-in for token-derived identity and is absent here on purpose — this
-      # sketch models the 3-legged shape, where the subject comes from the access
-      # token and MUST NOT appear in the request (see the operation description
-      # and profile rule 4). So a PoC request is deliberately NOT valid against
-      # this schema; the PoC's own closed set is `{number, predicate, floor,
-      # nonce}` and is enforced in poc/demo.mjs (REQUEST_FIELDS).
+      # sketch models the 3-legged shape this profile requires, where the subject
+      # comes from the access token rather than the request body — the shape
+      # CAMARA's own `GET /device-phone-number` already takes (see the
+      # operation description and profile rule 4). So a PoC request is
+      # deliberately NOT valid against this schema; the PoC's own closed set is
+      # `{number, predicate, floor, nonce}` and is enforced in poc/demo.mjs
+      # (REQUEST_FIELDS).
       additionalProperties: false
       properties:
         predicate:
