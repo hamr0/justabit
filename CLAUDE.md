@@ -52,9 +52,9 @@ visibly — retractions build WG credibility.
 ## Strategy invariants
 
 - **Profile first, API second.** The ask to CAMARA is "finish what
-  `/retrieve-age-band` and identifier-free 3-legged flows started,
-  catalog-wide" — never "approve my API". CarrierAttestation as a new case
-  exists only for what no existing API covers (agent floors, Mode B).
+  `/retrieve-age-band` and `GET /device-phone-number`'s no-body shape
+  started, catalog-wide" — never "approve my API". CarrierAttestation as a
+  new case exists only for what no existing API covers (agent floors, Mode B).
 - **Two tracks, one seam.** CAMARA = operator/attestation side; AAIF =
   agent/delegation side; they meet at the RFC 9421 header. Each cites the
   other; neither depends on the other's approval. Keep submission docs

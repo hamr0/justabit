@@ -151,7 +151,7 @@ re-establishing G2 at that state. A post-gate code review round (2026-08-17)
 then fixed three more adapter defects and three live-check faults (counts
 unchanged), so **the user re-ran once more at `8e842c3` — the shipped v0.3.0
 state — and reported both clean. Nothing is pending.** Each
-check declares its case count (`conclude(20|10|26|42|67|19|47)`) so a suite that
+check declares its case count (`conclude(20|10|26|42|67|20|47)`) so a suite that
 silently loses cases exits 1 with
 `FAIL CASE COUNT` instead of printing a smaller green tally — mutation-proven
 per module.
@@ -464,8 +464,9 @@ artefact of the adapter's own parsing. Full verbatim capture in
   ships `lastLocationTime`, a raw timestamp — a "boolean" catalog endpoint
   handing back a raw value beside its verdict. Operator-internal only.
 - **`number-verification/v1/verify` exists** — `403 "Request must define a
-  phoneNumber"`, i.e. the 3-legged shape where the subject comes from the token.
-  Not a missing endpoint.
+  phoneNumber"`, i.e. `/verify` is 3-legged and REQUIRES an identifier; the
+  identifier-free shape lives only at `GET /device-phone-number`. Not a
+  missing endpoint.
 - **No CAMARA read endpoint for tenure** — `tenure/v1/retrieve` and
   `sim-tenure/v1/retrieve` both `400 "unhandled path"`; likewise
   `kyc-age-verification/v1/verify` and `device-location/v1/retrieve`. The tenure

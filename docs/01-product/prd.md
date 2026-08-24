@@ -731,6 +731,17 @@ Dated, append-only. Rationale in one line; details in the stash/history.
   gate covers re-opens the relevant gate, commit or no commit. Full
   record: `CHANGELOG.md`, Unreleased (now `0.5.0`).
 
+  **Provenance note (2026-08-24 re-verification round):** `poc/demo.mjs`
+  was edited after this record was made — a retracted-claim wording fix
+  to one code comment (~line 634) and one printed-output block (~line
+  1495), no logic change. It re-runs green at 35/35, exit 0, but that
+  re-run is AGENT-RUN, at this later tree. The user-validated 35/35
+  record above stands exactly as written, for the tree it was run
+  against (`d85d3cf` / v0.5.0), and does NOT transfer forward to the
+  post-2026-08-24 tree. Every other `35/35` figure in this document
+  (below and at line ~771) describes its own dated tree the same way and
+  is unaffected by this note.
+
 - **2026-08-18 — `/code-review medium --fix` round on the fix
   round below (agent-run, NOT user-validated — G1 and G2 stay
   RE-OPENED/PENDING at the new counts).** Two DRY consolidations, both
@@ -1467,8 +1478,16 @@ Dated, append-only. Rationale in one line; details in the stash/history.
   requires. But it IS in the request, and that is a demo stand-in for
   token-derived identity, stated in the demo output and here rather than
   glossed: a real 3-legged deployment derives the subject from the access token
-  and omits the identifier entirely — NumberVerification already makes that
-  omission normative, and profile rule 4 generalises it catalog-wide.
+  instead of asking for an identifier — the shape CAMARA's own
+  `GET /device-phone-number` already takes (no request body at all),
+  generalised catalog-wide by profile rule 4.
+  **Correction (2026-08-24 re-verification):** the original wording here —
+  "NumberVerification already makes that omission normative" — did not
+  survive. `POST /verify` is 3-legged and REQUIRES an identifier
+  (`phoneNumber`/`hashedPhoneNumber`; the repo's own live measurement got
+  `403 "Request must define a phoneNumber"`); there is no CAMARA rule making
+  identifier omission normative across 3-legged flows generally. Only
+  `GET /device-phone-number` is structurally identifier-free.
 - **2026-08-17 — Spec sketch `Predicate` enum trimmed 7 → 3 (M6,
   user-signed).** `spec/carrier-attestation.yaml` now lists only the types the
   PoC wires end to end — `simSwapAge`, `roamingIn`, `reachable` (the boolean
@@ -1618,9 +1637,18 @@ Dated, append-only. Rationale in one line; details in the stash/history.
   (holder presentment, true ZK) is roadmap. A2P lesson → the hub is
   structurally blind, not contractually trusted.
 - **2026-08-14 (earlier) — Horizontal profile, not a new vertical API.**
-  CAMARA precedent (`/retrieve-age-band`, identifier-free 3-legged,
-  `kyc-age-verification`) makes "finish what you started, catalog-wide" the
-  ask; CarrierAttestation new-case only for agent floors + Mode B.
+  CAMARA precedent (`/retrieve-age-band`, `GET /device-phone-number`'s
+  no-body shape, `kyc-age-verification`) makes "finish what you started,
+  catalog-wide" the ask; CarrierAttestation new-case only for agent floors +
+  Mode B.
+  **Correction (2026-08-24 re-verification):** the premise as originally
+  worded here — "identifier-free 3-legged flows" — did not survive.
+  `POST /verify` is 3-legged and REQUIRES an identifier
+  (`phoneNumber`/`hashedPhoneNumber`); there is no CAMARA rule making
+  identifier omission normative across 3-legged flows generally. Only
+  `GET /device-phone-number` is structurally identifier-free (no request
+  body; subject derived from the 3-legged token). The decision above stands;
+  only the cited precedent is narrowed to that one endpoint.
 - **2026-08-14 (earlier) — Two tracks, one seam.** CAMARA = operator side,
   AAIF = agent side; they meet at the RFC 9421 header; neither depends on the
   other's approval.

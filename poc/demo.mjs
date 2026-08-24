@@ -632,9 +632,9 @@ export function createRP({ keys, directory }) {
     // The subscriber number rides INSIDE the sealed, signed request, so the hub
     // never sees it (note 1 in the demo output). It stands in for token-derived
     // identity: a real 3-legged deployment derives the subject from the access
-    // token and omits the identifier entirely — the NumberVerification precedent,
-    // where identifier omission is already normative, generalised by profile
-    // rule 4.
+    // token instead of asking for an identifier — the shape CAMARA's own
+    // `GET /device-phone-number` already takes (no request body at all),
+    // generalised by profile rule 4.
     const req = { number, predicate, floor: floorDemanded, nonce };
     const want = { predicate: canonicalPredicate(predicate) };
     const plain = packSigned(attest(keys.rpSig.privateKey, req), keys.rpIss);
@@ -1492,8 +1492,9 @@ export async function runDemo(backend) {
   out('   1. THE SUBSCRIBER NUMBER. It rides INSIDE the sealed, signed request, so the hub');
   out('      never sees it — but it IS in the request. That is a demo stand-in for');
   out('      token-derived identity: a real 3-legged deployment derives the subject from');
-  out('      the access token and omits the identifier entirely (NumberVerification already');
-  out('      makes that omission normative; profile rule 4 generalises it catalog-wide).');
+  out('      the access token instead of asking for an identifier — the shape CAMARA\'s');
+  out('      own `GET /device-phone-number` already takes (no request body at all),');
+  out('      generalised catalog-wide by profile rule 4.');
   out('   2. THE THRESHOLD MENU is this profile\'s answer to the oracle above, not a CAMARA');
   out('      requirement — the normative profile enumerates no predicate types or thresholds.');
   out('   3. THE NONCE STORE ONLY GROWS. A request that never receives a response leaves');

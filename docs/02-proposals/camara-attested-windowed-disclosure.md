@@ -32,10 +32,12 @@ subscriber or device can adopt:
 > cannot read**.
 
 The catalog is already halfway here by its own hand — `/retrieve-age-band`
-coarsens a response because raw timestamps over-disclose; 3-legged flows
-mandate identifier-free requests; `kyc-age-verification` is a boolean
-predicate API in production. The ask is not "approve my API" but **finish
-what you started, catalog-wide.** Same trust root (the operator), same
+coarsens a response because raw timestamps over-disclose; `GET
+/device-phone-number` already takes no request body at all, deriving the
+line from the 3-legged access token instead of an identifier;
+`kyc-age-verification` already ships as a boolean predicate API in the
+catalog. The ask is not "approve my API" but **finish what you started,
+catalog-wide.** Same trust root (the operator), same
 commercial model (per-query billing and aggregator revenue share unchanged),
 zero new surveillance byproduct.
 
@@ -649,10 +651,12 @@ can be added without re-issuing.
   sticks. Stability vs. windowing is a per-attestation-type knob, not an
   architectural fork.
 - **Precedent**: 5G already conceals the permanent identifier on the air
-  interface (SUPI → one-time SUCI); CAMARA already supports identifier-free
-  implicit identification (IP/session-based). This extends an accepted
-  principle — long-lived identifiers must not travel — from the radio and
-  session layers to the API layer.
+  interface (SUPI → one-time SUCI); CAMARA's own `Device` object already
+  accepts network-side identification (IP address / network access
+  identifier) in place of the permanent subscriber identifier — not
+  identifier-free, but not the permanent identifier either. This extends an
+  accepted principle — long-lived identifiers must not travel — from the
+  radio and session layers to the API layer.
 
 ### 5.5 What this is NOT
 

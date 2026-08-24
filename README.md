@@ -187,9 +187,9 @@ Requirements live in the [PRD §4](docs/01-product/prd.md); status, setup and ca
   tightening) and the delegation model agents carry.
 - **8een** — the one-bit verifier pattern, trust-anchor handling, and the evidence
   discipline (claims pinned to file/line/commit; retractions kept).
-- **CAMARA's own specs** — `/retrieve-age-band`, identifier-free 3-legged requests,
-  `kyc-age-verification`: the catalog is already halfway here. This profile finishes the
-  trajectory, catalog-wide.
+- **CAMARA's own specs** — `/retrieve-age-band`, `GET /device-phone-number`'s no-body
+  shape, `kyc-age-verification`: the catalog is already halfway here. This profile
+  finishes the trajectory, catalog-wide.
 
 ## License
 
