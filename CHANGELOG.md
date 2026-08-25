@@ -1,5 +1,143 @@
 # Changelog
 
+## 0.6.0 — 2026-08-25
+
+- **Submission strategy release — no code changed.** Both submission
+  tracks were re-verified against live sources on 2026-08-25; one of the
+  two moved doors entirely. Everything below is a docs/strategy change:
+  a new living doc, a superseded-header on an old one, a CLAUDE.md
+  invariant correction, a no-go retraction, a template brought to
+  filing-ready, and a fold-in-vs-distinguish decision closed against a
+  1624-line raw-text read. No profile behaviour, wire contract, or PoC
+  logic changed.
+- **AAIF dropped as a submission target — the door was wrong, not the
+  idea.** AAIF ("Agentic AI Foundation") is a Linux Foundation project
+  since December 2025, founded on contributions including MCP, goose, and
+  AGENTS.md. Its `github.com/aaif/project-proposals` intake was read in
+  full and is NOT a standards-proposal track comparable to CAMARA's
+  APIBacklog — it is an intake for DONATING AN EXISTING OPEN-SOURCE
+  PROJECT. Verbatim requirements: "evidence of production deployments in
+  at least two different organizations"; "at least 2 core maintainers
+  from different organizations and at least 10 contributors"; all project
+  trademarks and accounts donated to AAIF; a signed Contribution
+  Agreement before the Governing Board can vote. A solo independent with
+  a single-author PoC and zero external adoption cannot fill roughly 8 of
+  the template's ~14 required fields honestly — these are facts we do
+  not have, not writing tasks that could be done better. The Identity &
+  Trust WG's TOPIC still fits; only the intake mechanism disqualifies
+  this author. The prior 2026-08-15 "AAIF grounded" record had the right
+  URLs and stage mechanics but the wrong KIND of process — it was
+  **corrected in place, not deleted**, so the dated record still shows
+  what was believed and when it was overturned.
+- **The agent/delegation arm re-homed to IETF.** An unaffiliated
+  individual can submit an Internet-Draft with no membership, sponsor, or
+  fee — exactly the gates that disqualified AAIF do not exist at the
+  IETF. New living doc `docs/02-proposals/ietf-agent-delegation.md` (283
+  lines, matching D2's structure; a position paper, not itself an I-D)
+  targets the OAuth WG, whose charter (updated 2026-06-04) carries a work
+  item on authorization of automated agents acting on behalf of users
+  across multiple administrative domains. `docs/02-proposals/
+  aaif-agent-auth.md` got a SUPERSEDED header and nothing else — its body
+  is untouched as a dated record, explicitly marked not-living so the
+  PRD's G0 "exactly 3 living docs" rule still holds at three: PRD + D2
+  (CAMARA) + D3 (IETF). CLAUDE.md's "Two tracks, one seam" invariant said
+  AAIF; it now says IETF, and the repo file map was updated to match.
+- **Fold-in-vs-distinguish CLOSED: HYBRID, decided against a full raw-text
+  read, not a summary.** `draft-klrc-aiagent-auth-03` was read in full
+  from raw text — 1624 lines, fetched from
+  `ietf.org/archive/id/draft-klrc-aiagent-auth-03.txt` — not summarized.
+  Six authors, from Defakto Security, AWS, Zscaler, Ping Identity, OpenAI,
+  and Okta. It composes WIMSE/SPIFFE agent identity + RFC 9421 + OAuth
+  2.0 delegation. It is an individual draft, NOT WG-adopted.
+  - **THE HOOK**, quoted verbatim and verified byte-for-byte against raw
+    text, its §8: posture-assessment signals "may include hardware-backed
+    evidence, trusted execution environment (TEE) evidence, software
+    integrity measurements, supply-chain provenance, platform or
+    orchestration-layer metadata, workload placement information,
+    configuration state, operator assertions, or other
+    environment-specific signals", and "This document does not require
+    any particular posture assessment mechanism, evidence format, or
+    verifier architecture." A named extension point the draft never
+    populates.
+  - **Verified ABSENT** by raw-text keyword count: sybil 0, farm 0, "rate
+    limit" 0, carrier 0, telco 0, MSISDN 0, eMRTD 0, passport 0, KYC 0,
+    CAMARA 0. Word-boundary SIM 0 — the six case-insensitive hits are all
+    "similar"/"simplifies". The single "mobile" hit is "mobile device" in
+    an authenticator context. Nothing anywhere asks what it costs to mint
+    another agent identity, and the monotone never-widen rule is likewise
+    entirely absent.
+  - **Verdict:** a short companion draft citing theirs, defining only
+    three things — an operator-attested posture input for their §8; a
+    document-rooted principal assertion for their §10.6 chaining flow;
+    the monotone floor-tightening invariant layered onto their
+    Transaction Tokens. Explicitly out of scope: agent identity,
+    credential formats, the RFC 9421 signing profile, OAuth grant flows —
+    all already specified there.
+  - **The two-slot spine**, recorded as its own new section: the draft
+    defines SLOTS, not implementations. Operator-assertion slot ← CAMARA
+    (economic scarcity); principal-assertion slot ← zkagent (cryptographic
+    scarcity). Separate, non-competing lanes. Neither implementation
+    needs to exist for the draft to stand — it is the vacancy that is
+    standardized, not the occupant. This is what keeps zkagent a citation
+    and never a dependency; zkagent does not exist yet.
+  - **Two divergences recorded, not hidden:** on revocation the draft
+    goes FURTHER than us (SSF/CAEP revocation signals vs our reliance on
+    short expiry); its identifier stability for audit is in tension with
+    our per-service unlinkable tags. Both flagged as reconciliation
+    items, not resolved.
+  - **A precision point recorded so it cannot reach a filed draft:** our
+    work is a companion to `draft-klrc-aiagent-auth-03`, NOT to RFC 9421.
+    RFC 9421 is published and closed (Proposed Standard, February 2024)
+    — the shared mechanism the new draft builds on, not the open gap.
+- **no-go 12 RETIRED.** "No APIBacklog PR before supporters are named"
+  was verified FALSE as a CAMARA process requirement. The APIBacklog
+  template's Supporters field reads, verbatim: "List of supporters.
+  *NOTE: That shall be added by the Working Group.*" The WG populates it
+  during evaluation, downstream of filing. This was the author's own
+  risk-management judgement stated as though it were a process fact.
+  Retracted visibly, per the repo's own grounding rule, rather than
+  quietly dropped. Decision: file first, network later.
+- **CAMARA APIBacklog template mapping brought to filing-ready.** Six
+  gaps closed in D2 §10: the header instruction that said "do not file
+  before supporters are named" (rested entirely on the now-retired no-go
+  12, replaced with the real sequence — issue, then a linked PR, with the
+  template's own NOTE quoted as the reason supporters are not a
+  precondition); the API family owner placeholder replaced with
+  **Cairenes Solutions** (user decision); the Proposal owner declaration,
+  which was MISSING entirely and required a Charter-scope review
+  confirmation, added; the Supporters field, left blank per the
+  template's own instruction, with the DT/Orange/Telefónica pool kept
+  only as an internal targeting note, explicitly marked NOT a claim of
+  existing support; "Validated in lab", which understated the truth as
+  "planned" and is now **YES, sandbox tier only**; and "Validated with
+  operators", which stays **NO**, with its stale "recruitment in
+  progress" parenthetical removed rather than softened.
+  The lab answer is recorded precisely, not rounded up: the Mode A PoC
+  ran live against the Orange Network APIs Playground, an operator PUBLIC
+  SANDBOX, not a production network. User-run, by exit code (from the
+  0.5.0 entry below, dated 2026-08-18): `m5-check-live.mjs` 20/20 and
+  `demo.mjs --backend orange` 35/35, injected clock, quota accounted 1-of-10
+  custom slots at both start and end. No production environment has been
+  exercised, no operator endorsement is implied, and no operator has
+  reviewed the proposal.
+- **Process lesson, recorded because it is the useful part of this
+  release:** the AAIF finding came from verifying the DOOR before writing
+  content for it. The 2026-08-15 record had correct URLs and stage
+  mechanics, which made it look grounded on a skim — only fetching the
+  actual donation template revealed it was the wrong KIND of process
+  underneath the accurate surface details. A door that looks open in a
+  summary can be shut in the template.
+- **Validation state — stated precisely, not rounded up.** NO CODE
+  CHANGED in this release; it is docs-only. This release is **NOT
+  user-validated** — the offline/live suites were not re-run because
+  nothing under `poc/` or `spec/` changed. The last user-validated run
+  still stands at `d85d3cf`/v0.5.0 (2026-08-18); v0.5.1 was already
+  agent-run only, and this release does not change that. This release
+  did **not** run `/ship`, `/security`, or `/diff-review` — it follows
+  the already-gated v0.5.1 release with a documentation and strategy
+  change only; no gate is claimed to have passed here because none was
+  run.
+
 ## 0.5.1 — 2026-08-25
 
 - **Grounding round: the 2026-08-14 pinned CAMARA baseline was re-verified
