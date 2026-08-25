@@ -774,7 +774,89 @@ we manage here:
 
 Dated, append-only. Rationale in one line; details in the stash/history.
 
-- **2026-08-25 (latest) — submission strategy shift: AAIF dropped, agent
+- **2026-08-25 (latest) — OPEN DECISION from the entry below CLOSED:
+  fold-in-versus-distinguish resolved as HYBRID, after a full read of
+  `draft-klrc-aiagent-auth-03` raw text.** The prior entry (immediately
+  below) left this open pending that read; this entry is that read and
+  its verdict — see that entry for the AAIF-drop/re-home context, not
+  restated here.
+  **Method:** the draft was fetched as raw text
+  (https://www.ietf.org/archive/id/draft-klrc-aiagent-auth-03.txt, 1624
+  lines) and verified directly, not via summary.
+  **Verdict: HYBRID.** Write a short companion Internet-Draft that cites
+  `draft-klrc-aiagent-auth-03` as the WIMSE/OAuth baseline and defines
+  only three things: (1) an operator/carrier-attested posture-assessment
+  input for its §8 credential-provisioning stack — economic scarcity /
+  sybil resistance; (2) a document-rooted human-principal identity
+  assertion usable in its §10.6 Identity Assertion JWT Authorization
+  Grant chaining flow — cryptographic scarcity / one accountable human;
+  (3) the monotone floor-tightening invariant (tighten-only, closed axis
+  set, consent-visible widening as a distinct operation), layered onto
+  its existing Transaction Token mechanism rather than replacing it.
+  Explicitly out of scope: agent identity, credential formats, the RFC
+  9421 signing profile, and OAuth grant flows — already specified there;
+  duplicating them invites rejection.
+  **Two verified hooks the verdict rests on:**
+  1. §8 (Agent Credential Provisioning), line 478 of the raw text, names
+     "operator assertions" as one of several posture-assessment signals
+     and states plainly: "This document does not require any particular
+     posture assessment mechanism, evidence format, or verifier
+     architecture." That is a named, textually-explicit extension point
+     the draft itself never populates — our single strongest piece of
+     evidence, and it must be read as an open slot, not as the draft
+     endorsing our approach.
+  2. §10.6 (Cross Domain Access / Identity Assertion JWT Authorization
+     Grant) already accepts an external identity assertion (e.g. an
+     OpenID Connect ID Token or SAML assertion) as the input exchanged
+     for a JWT authorization grant — a second, independent slot for a
+     document-rooted principal assertion to plug into.
+  **Verified absent** (raw-text keyword counts, case-insensitive): sybil
+  0, farm 0, "rate limit" 0, carrier 0, telco 0, MSISDN 0, eMRTD 0,
+  passport 0, KYC 0, CAMARA 0. Word-boundary "SIM" = 0 (the six
+  case-insensitive hits are all "similar"/"simplifies"). The single
+  "mobile" hit is "mobile device" in an authenticator context (line
+  947), not telco identity. Their security model is workload attestation
+  plus short-lived credentials; nothing anywhere asks what it costs to
+  mint another agent identity.
+  **Monotone floor — confirmed absent.** Their nearest analog, §10.5
+  Transaction Tokens, downscopes per-hop ("results in a downscoped token
+  ... bound to a specific transaction and cannot be used ... within the
+  same transaction with modified transaction details") — anti-replay/
+  blast-radius hygiene, not a declared, closed-axis, numerically-compared,
+  consent-visible never-widen invariant. No "MUST NOT widen" text exists
+  anywhere in the draft.
+  **Two divergences to reconcile, recorded honestly rather than hidden:**
+  1. Revocation: they go FURTHER than us, not less — §11 requires
+     SSF/CAEP revocation-signal infrastructure ("MUST ensure that
+     revoked ... authorization is enforced without undue delay"), where
+     our model relies on short expiry with no revocation infrastructure.
+  2. Identifier stability: their model wants an identifier that is
+     stable "for the lifetime of the workload identity" for audit
+     purposes; our per-service unlinkable tags want the opposite. Both
+     are carried into §7 Honest limits of the IETF proposal doc, not
+     silently smoothed over.
+  **Precision point, stated so it does not drift into a draft:** our
+  work is a companion to `draft-klrc-aiagent-auth-03`, NOT to RFC 9421.
+  RFC 9421 is a published, closed Proposed Standard (February 2024);
+  nothing in it is open. RFC 9421 is the mechanism both drafts use, not
+  the gap either fills.
+  **Two-slot structure (the spine of the argument):** the companion
+  draft defines slots, not implementations — two independent
+  instantiations of one abstract pattern (a scarcity-attested
+  principal): an operator-assertion slot (← CAMARA operator APIs,
+  economic scarcity) and a principal-assertion slot (← zkagent,
+  cryptographic scarcity). These are separate, non-competing trust
+  lanes per existing repo doctrine. Because the draft defines slots,
+  neither implementation needs to exist for the draft to stand — this is
+  what keeps zkagent a citation, never a dependency.
+  **Caveat, stated on purpose:** "operator assertions" may be
+  aspirational filler nobody wires up in practice; the hook is real text
+  in the draft, not proof anyone intends to use it that way.
+  Full record and section-by-section edits:
+  `docs/02-proposals/ietf-agent-delegation.md` §2 and new §4 (two-slot
+  structure), §7.
+
+- **2026-08-25 — submission strategy shift: AAIF dropped, agent
   arm re-homed to IETF, no-go 12 retired, API family owner decided.** Four
   findings, all fetched from live sources this session (§7 carries full
   citations and mechanics):
