@@ -55,11 +55,11 @@ visibly — retractions build WG credibility.
   `/retrieve-age-band` and `GET /device-phone-number`'s no-body shape
   started, catalog-wide" — never "approve my API". CarrierAttestation as a
   new case exists only for what no existing API covers (agent floors, Mode B).
-- **Two tracks, one seam.** CAMARA = operator/attestation side; AAIF =
-  agent/delegation side; they meet at the RFC 9421 header. Each cites the
-  other; neither depends on the other's approval. Keep submission docs
-  standards-neutral — zkagent/8een are cited as *one implementation* of the
-  principal layer, never as dependencies.
+- **Two tracks, one seam.** CAMARA = operator/attestation side; IETF
+  (OAuth WG) = agent/delegation side; they meet at the RFC 9421 header.
+  Each cites the other; neither depends on the other's approval. Keep
+  submission docs standards-neutral — zkagent/8een are cited as *one
+  implementation* of the principal layer, never as dependencies.
 - **Mode A ships first** because it preserves per-query billing and the
   aggregator revenue share — the commercial rail is the adoption wedge.
   Do not let Mode B enthusiasm leak scope into Mode A.
@@ -81,7 +81,9 @@ docs/01-product/   prd.md — THE leading doc: requirements, sequence, no-go lis
                    new design content folds in here, never into a side-doc.
 docs/02-proposals/ camara-attested-windowed-disclosure.md — CAMARA proposal, carries
                    the normative profile (the standard) + APIBacklog template mapping
-                   aaif-agent-auth.md — AAIF proposal (agent/delegation side only)
+                   ietf-agent-delegation.md — IETF proposal (agent/delegation
+                   side only, OAuth WG target); aaif-agent-auth.md — SUPERSEDED
+                   2026-08-25, retained as a dated record only
 spec/              carrier-attestation.yaml — illustrative OpenAPI sketch, not normative
 poc/               Mode A demo: mock backend default, Orange adapter swappable;
                    four assertions (each with its negative), Node zero-dep, PRD §4
