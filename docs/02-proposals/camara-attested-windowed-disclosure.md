@@ -832,13 +832,18 @@ middle-layer value gets monetized against the ecosystem.**
 ## 10. APIBacklog template mapping (CarrierAttestation new case)
 
 Pre-filled against `documentation/API-proposal-template.md` (re-verified
-2026-08-14, including the scope-alignment section added to the template).
-Copy-paste at filing time after re-verification; **do not file before
-supporters are named** (see PRD no-go 12).
+2026-08-14, re-verified again 2026-08-24 and 2026-08-25, including the
+scope-alignment section added to the template). Copy-paste at filing time
+after re-verification. Supporters are populated by the Working Group during
+evaluation, downstream of filing — the template's own Supporters field
+reads verbatim: "List of supporters. *NOTE: That shall be added by the
+Working Group.*" — so supporters are not a precondition here (PRD no-go 12,
+retired 2026-08-25). Filing sequence: open the issue in
+`camaraproject/APIBacklog` first, using its issue template, then submit the
+PR adding this filled template, linked to that issue.
 
 - **API family name:** CarrierAttestation
-- **API family owner:** [independent contributor — co-owner from a member
-  company to be recruited; see supporters]
+- **API family owner:** Cairenes Solutions
 - **API summary:** Signed, nonce-bound, expiring predicate attestations over
   network facts operators already compute (SIM-swap age, tenure, subscription
   class), under monotone floors — for the cases no existing API covers:
@@ -853,6 +858,9 @@ supporters are named** (see PRD no-go 12).
   network capabilities (subscription facts, SIM lifecycle, network
   authentication); no east-west/federation surface. Consumption modes are
   additive to existing catalog APIs, per Project Charter scope.
+- **Proposal owner declaration:** the proposal owner confirms this proposal
+  has been reviewed against the current CAMARA Project Charter scope (see
+  §11 for the Charter reference) and fits within it as described above.
 - **Telco capability exposed:** operator-held subscription and SIM-lifecycle
   facts (swap recency, tenure, SIM type/class) plus network-session
   authentication (silent auth), exposed as signed predicates rather than raw
@@ -874,21 +882,31 @@ supporters are named** (see PRD no-go 12).
   available; per-query billing preserved in Mode A by construction.
 - **YAML code available:** YES — illustrative sketch at
   `spec/carrier-attestation.yaml` (non-normative draft).
-- **Validated in lab/productive environments:** planned — Mode A PoC against
-  Orange Network APIs Playground (mocked operator tier), lab tier as
-  demo material. Will be updated to YES/lab before filing.
+- **Validated in lab/productive environments:** YES, sandbox tier only — the
+  Mode A PoC was run live against the Orange Network APIs Playground, an
+  operator public sandbox environment (not a production network), exercising
+  Orange's test tier with scripted test numbers. User-run, by exit code, all
+  green: `m5-check-live.mjs` 20/20 and `demo.mjs --backend orange` 35/35
+  (CHANGELOG 0.5.0, 2026-08-18), with an injected clock and quota accounted
+  1-of-10 custom slots at both start and end. No production environment has
+  been exercised.
 - **Validated with real customers:** NO.
-- **Validated with operators:** NO (pre-submission; supporter recruitment in
-  progress).
-- **Supporters in API Backlog Working Group:** [to be named before filing —
-  2–3 operator delegates; ICM's privacy-forward pool: DT, Orange, Telefónica]
+- **Validated with operators:** NO — no operator has reviewed or validated
+  this proposal. Naming supporters is Working Group business that happens
+  during evaluation, downstream of filing (see header note above); no
+  recruitment is currently underway.
+- **Supporters in API Backlog Working Group:** left blank per the template's
+  own instruction: "List of supporters. *NOTE: That shall be added by the
+  Working Group.*" (Our own targeting note, not a claim of existing support:
+  ICM's privacy-forward operator pool — DT, Orange, Telefónica — looks like
+  the likely fit to approach once the issue and PR exist.)
 
 ## 11. References
 
 - CAMARA API Backlog process & template:
   https://github.com/camaraproject/APIBacklog
   (`documentation/APIbacklog.md`; `documentation/API-proposal-template.md`,
-  re-verified 2026-08-14; filled examples under
+  re-verified 2026-08-14, re-verified again 2026-08-25; filled examples under
   `documentation/SupportingDocuments/API proposals/`)
 - CAMARA governance/structure: https://camaraproject.org/structure/ ·
   https://github.com/camaraproject/Governance/blob/main/ProjectStructureAndRoles.md

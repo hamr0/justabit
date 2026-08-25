@@ -1,3 +1,19 @@
+> **SUPERSEDED 2026-08-25** by
+> `docs/02-proposals/ietf-agent-delegation.md`. AAIF was dropped as a
+> submission target: its `project-proposals` intake is an
+> open-source-project **donation** gate (production deployment in ≥2
+> organizations, ≥2 core maintainers from different organizations, ≥10
+> contributors, and a signed Contribution Agreement transferring
+> trademarks/accounts to the Foundation) — not a standards-proposal
+> track. The Identity & Trust WG's *topic* still fits this work; the
+> door was wrong, not the idea. This file is retained below as a dated
+> historical record only, **not** as a living document — the PRD's
+> 3-doc inventory rule (PRD + 2 proposals) still holds, satisfied now by
+> the IETF document above. Its body is unedited from the version
+> superseded on this date.
+
+---
+
 # SIM-Anchored Agent Identity with Floor-Gated Attestations
 
 ### Project proposal draft for the AAIF Identity & Trust Working Group — the agent/delegation side of attested windowed disclosure

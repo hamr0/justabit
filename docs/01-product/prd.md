@@ -32,9 +32,9 @@ Define "good" before building (AGENT_RULES). In order of proof strength:
 | G1 PoC runnable | `node poc/demo.mjs` passes all 4 assertions on a clean clone, zero credentials, exit code 0 | run output |
 | G2 PoC live | Same demo, `--backend orange`, against Orange Playground with scripted backstories | run output |
 | G3 Circulated | Profile posted to ICM discussion / GitHub Discussion; reactions collected | links |
-| G4 Supported | 2–3 named operator supporters (DT / Orange / Telefónica the likely pool) | names in template |
-| G5 Filed | Commonalities guideline proposal + sim-swap adoption PR + APIBacklog PR (with supporters) submitted | PR links |
-| G6 AAIF filed | Agent-auth project proposal submitted once their process is grounded | link |
+| G4 Filed (CAMARA) | Commonalities guideline proposal + sim-swap adoption PR + APIBacklog issue/PR submitted (API family owner: Cairenes Solutions) — filing does not wait on named supporters | issue/PR links |
+| G5 Supported | Named operator supporters recorded in the template's Supporters field — populated by the Working Group during evaluation, downstream of filing (no-go 12 retired 2026-08-25) | names in template |
+| G6 IETF filed | Internet-Draft submitted covering agent/delegation semantics (target: OAuth WG automated-agent-authorization work item; CATALIST as a routing venue if OAuth WG doesn't fit) | draft link |
 
 Timescale is telecom-speed: quarters, not weeks. Sustained presence is itself
 a deliverable (CAMARA freezes proposals after 6+ weeks GitHub inactivity or 3
@@ -50,7 +50,7 @@ not created. Proposal docs follow the target body's proposal standards.
 |---|---|---|---|
 | D1 | **This PRD** — requirements, sequence, no-gos, decisions | `docs/01-product/prd.md` | us |
 | D2 | **CAMARA proposal** — problem, the normative profile (8 rules), modes, phase plan, risks, pre-filled APIBacklog template mapping | `docs/02-proposals/camara-attested-windowed-disclosure.md` | CAMARA Commonalities / ICM / APIBacklog WG |
-| D3 | **AAIF proposal** — agent/delegation side only | `docs/02-proposals/aaif-agent-auth.md` | AAIF Identity & Trust WG |
+| D3 | **Agent/delegation proposal** — agent/delegation side only. **PENDING RE-HOMING (2026-08-25): AAIF is dropped as the submission target (§7, §9); this document still targets the AAIF Identity & Trust WG in its current text and needs re-homing onto the IETF track — a separate job, not done in this change.** | `docs/02-proposals/aaif-agent-auth.md` | IETF (OAuth WG target) — was AAIF Identity & Trust WG |
 | D4 | **PoC** — Mode A demo, 4 assertions, mock + Orange backends | `poc/` | WG readers, demo audiences |
 | D5 | Sustained WG presence (meetings, mailing lists, PR responses) | calendars, minutes | CAMARA anti-staleness rules |
 
@@ -563,9 +563,17 @@ Explicit and binding. "Useful" is not a defense for any of these.
     standards-neutral.
 11. **No fourth document.** Design content folds into the 3-doc inventory
     (§3); this PRD's Decisions log absorbs what would otherwise be a side-doc.
-12. **No APIBacklog PR before supporters.** Recruit 2–3 named supporters
-    first (G4 gates G5); an unsupported PR from an independent burns the one
-    first impression.
+12. ~~No APIBacklog PR before supporters.~~ **RETIRED 2026-08-25 —
+    verified false as a CAMARA requirement.** The APIBacklog template's own
+    Supporters field reads verbatim: "List of supporters. *NOTE: That shall
+    be added by the Working Group.*" — the WG populates it during
+    evaluation, downstream of filing; supporter maintainer commitments bind
+    only at Sub Project creation, further downstream still. This was never
+    a CAMARA process fact — it was the author's own risk-management
+    judgement about first impressions, stated as if it were a gate. Per
+    no-go 9's own rule, retracted visibly rather than silently dropped. The
+    user's decision: file first, network later (§9 decisions log,
+    2026-08-25).
 13. **No secrets or real subscriber data in the repo** — test ranges and env
     credentials only. `.claude/` session context is never published.
 
@@ -577,18 +585,37 @@ Phase 1  PoC on mock backend — build + 4 assertions green        [G1]
 Phase 2  USER: create Orange Playground account (free, instant)
          → 15-min raw spike → orange adapter → live re-run       [G2]
 Phase 3  Circulate D2 profile in ICM / GitHub Discussion;
-         collect reactions; recruit supporters                   [G3→G4]
+         collect reactions                                       [G3]
 Phase 4  File: Commonalities guideline proposal + sim-swap
-         adoption PR (nonce+expiry on /check)                    [G5]
-Phase 5  File: APIBacklog PR (CarrierAttestation new-case) with
-         named supporters, template pre-filled from D2 §mapping  [G5]
-Phase A  (parallel) Ground AAIF submission process → finalize D3
-         → submit to Identity & Trust WG                         [G6]
-Phase ∞  Attend cadence: Backlog WG + ICM + sub-project calls;
-         respond within the 6-week/3-meeting staleness windows   [D5]
+         adoption PR (nonce+expiry on /check); open the
+         APIBacklog issue + PR (CarrierAttestation new-case,
+         template pre-filled from D2 §mapping, API family owner
+         = Cairenes Solutions) — supporters are NOT a
+         precondition (no-go 12 retired 2026-08-25)               [G4]
+Phase 5  WG evaluation populates named supporters (template
+         validation → company support analysis → bi-weekly
+         Backlog WG lazy consensus)                                [G5]
+Phase B  (re-homed from AAIF, 2026-08-25) Draft the agent/
+         delegation Internet-Draft (RFCXML/xml2rfc v3,
+         `draft-<lastname>-<wg>-<topic>-00`) → submit before the
+         IETF 127 cutoff, 2 Nov 2026 23:59 UTC → attend the
+         IETF 127 Hackathon, 14–15 Nov 2026 (free, non-members
+         welcome) → IETF 127 meeting, 14–20 Nov 2026, San
+         Francisco. Target WG: OAuth (automated-agent-
+         authorization work item); CATALIST as a fallback routing
+         venue. D3 (`docs/02-proposals/aaif-agent-auth.md`) is
+         PENDING RE-HOMING onto this track — a separate job, not
+         done in this change                                     [G6]
+Phase ∞  Attend cadence: Backlog WG + ICM + sub-project calls +
+         IETF WG list/meetings; respond within the 6-week/
+         3-meeting staleness windows (CAMARA) and I-D 185-day
+         expiry (IETF)                                            [D5]
 ```
 
-Phases 1 and 3 can overlap; Phase 5 strictly follows G4.
+Phases 1 and 3 can overlap; Phase 4 does not wait on Phase 5. Phase B runs
+independently of the CAMARA phases — no shared gate, per "two tracks, one
+seam" (CLAUDE.md), except that AAIF is no longer one of the two tracks
+(§9, 2026-08-25 decisions).
 
 **Immediate order of work inside Phase 1 (2026-08-17, agreed):** (1) the M6
 adversarial review round's findings land and get fixed; (2) the six-predicate
@@ -638,9 +665,10 @@ be repeated.
   companies**; **Graduated** requires 2 release cycles with a stable version
   + multi-market certified deployment. An independent can carry steps up to
   TSC approval with supporters' votes; past Sandbox the ecosystem must
-  co-own it by rule — which is why supporter recruitment (G4) is
-  existential, not political nicety. Sub-project cadence example: SimSwap
-  meets every 4 weeks, Thu 07:30 UTC.
+  co-own it by rule — which is why WG-populated supporters (G5) are
+  existential past Sandbox, not political nicety, even though they are no
+  longer a precondition for filing (G4; no-go 12 retired 2026-08-25).
+  Sub-project cadence example: SimSwap meets every 4 weeks, Thu 07:30 UTC.
 - **Verified spec baseline (2026-08-14, re-verified 2026-08-24):** SimSwap
   v2.1.0 (`/check`, `/retrieve-date`, `/retrieve-age-band`) and
   NumberVerification v2.1.0 (`/verify`, `/device-phone-number`) hold, both
@@ -653,16 +681,69 @@ be repeated.
   "Incubating stage since February 2025", an unresolved contradiction).
   Open Gateway: 86 operator groups, 300+ networks. Full citations live in
   D2 §References.
-- **AAIF (grounded 2026-08-15):** hosts community projects; Identity & Trust
-  WG mandate matches D3 verbatim. Submission process verified from
-  `github.com/aaif/project-proposals` (README + issue template
-  `.github/ISSUE_TEMPLATE/project-proposal.yml`): (1) review eligibility
-  guidance → (2) submit a new issue via the proposal template, all required
-  sections complete → (3) backlog triage, scheduled before the Technical
-  Committee → (4) TC vote at a scheduled meeting, majority (>50%) advances
-  to the Governing Board. Declined proposals may reapply after 3 months
-  with demonstrated progress. Next: map D3's sections onto the template
-  fields (needs a logged-in view of the form or the raw template YAML).
+- **AAIF — DROPPED as a submission target (2026-08-25 re-verification).**
+  **Correction (2026-08-25 re-verification):** the entry that stood here
+  said the process was "grounded 2026-08-15" and described a 4-stage
+  proposal-review track. That framing was WRONG — the URLs and stage
+  mechanics it cited were accurate, but it treated a project-DONATION gate
+  as a standards-proposal track. AAIF is "Agentic AI Foundation", a Linux
+  Foundation project since December 2025 (founding contributions MCP,
+  goose, AGENTS.md; sources: linuxfoundation.org press release, aaif.io).
+  Its `github.com/aaif/project-proposals` intake, verified verbatim from
+  `.github/ISSUE_TEMPLATE/project-proposal.yml`, requires "evidence of
+  production deployments in at least two different organizations", "at
+  least 2 core maintainers from different organizations and at least 10
+  contributors", and a signed Contribution Agreement transferring all
+  project trademarks and accounts to the Foundation before the Governing
+  Board can vote. This author is a solo independent with a single-author
+  PoC and zero external adoption — roughly 8 of ~14 required fields cannot
+  be filled honestly. These are facts we do not have, not writing tasks.
+  The Identity & Trust WG's TOPIC still fits the work; the DOOR is wrong,
+  not the idea — recorded that way, not as "AAIF was a dead end." D3
+  (`docs/02-proposals/aaif-agent-auth.md`) is PENDING RE-HOMING onto the
+  IETF track below; that document is not touched by this correction.
+- **Agent/delegation arm re-homed to IETF (grounded 2026-08-25).** An
+  unaffiliated individual can submit an Internet-Draft with no membership,
+  no sponsor, and no fee (authors.ietf.org/submitting-your-internet-draft;
+  datatracker.ietf.org/submit/tool-instructions/) — exactly the gates that
+  disqualified AAIF do not exist here. RFC 9421 (HTTP Message Signatures)
+  is PUBLISHED, Proposed Standard, February 2024, from the HTTPBIS WG — it
+  is not in progress and there is nothing to submit to for it; new work
+  CITES it. HTTPBIS's charter excludes new domain-specific extension
+  semantics, so delegation semantics do not belong there. **Best first
+  target: the OAuth WG** — its charter (datatracker.ietf.org/doc/
+  charter-ietf-oauth/, updated 2026-06-04) carries a work item developing
+  "new mechanisms or/and extensions for authorization of automated agents
+  working on behalf of users, including addressing scenarios where
+  automated agents act across multiple administrative domains." Other
+  venues noted: WIMSE (workload identity; charter explicitly EXCLUDES
+  personal identities, cutting against a human-rooted model), SPICE
+  (credential formats only), CATALIST (a coordination/routing venue, not a
+  drafting WG — good place to float the idea and get routed). I-D
+  mechanics: format RFCXML (xml2rfc v3); naming
+  `draft-<lastname>-<wg>-<topic>-00`; an I-D EXPIRES 185 days after
+  posting unless refreshed. **Key dates:** I-D submission cutoff for IETF
+  127 is **2 November 2026, 23:59 UTC**; IETF 127 Hackathon **14–15
+  November 2026** (free, open to non-members, needs only a free
+  Datatracker account); IETF 127 meeting 14–20 November 2026, San
+  Francisco. Main-meeting registration fee COULD NOT BE VERIFIED — left
+  unstated, not guessed. **Prior art, load-bearing:**
+  `draft-klrc-aiagent-auth-03` (6 July 2026, expires 7 Jan 2027,
+  https://datatracker.ietf.org/doc/draft-klrc-aiagent-auth/) — six authors
+  from Defakto Security, AWS, Zscaler, Ping Identity, OpenAI and Okta,
+  composing WIMSE/SPIFFE agent identity + RFC 9421 + OAuth 2.0 delegation,
+  close to our architecture. It is an INDIVIDUAL draft, not WG-adopted.
+  Verified by direct fetch: it contains NO reference to SIM cards, mobile
+  network operators, carrier attestation, telco APIs, or physical identity
+  documents (passport/eMRTD) — so our two differentiators survive intact:
+  (a) SIM-anchored economic scarcity via operator APIs, (b) a
+  document-rooted human principal. **OPEN DECISION, pending a full read of
+  that draft:** fold our work in as an extension of it versus write a
+  distinguishing draft — not to be settled until the draft has been read
+  in full (§9). **Naming trap, recorded so it isn't re-discovered the hard
+  way:** IETF already owns "PASSporT" (STIR/SHAKEN, Personal Assertion
+  Token) — our document-rooted layer must always be written as "ICAO/
+  eMRTD passport" or "travel-document identity", never bare "PASSporT".
 - **Orange PoC rail:** Network APIs Playground — free instant developer
   account, 15 built-in +990 test numbers plus 10 custom, Admin API scripts
   backstories. Lab tier (real lab numbers +40789103050–59) exists but may
@@ -680,9 +761,12 @@ we manage here:
    co-owner early; calendar the cadences; the repo itself shows activity.
 2. **Orange account is a user action** — PoC live tier (G2) blocks on it;
    mock tier (G1) does not. Don't let G2 block G3.
-3. **AAIF template mapping pending** — process now grounded (§7); D3 still
-   needs mapping onto the proposal template's required fields; keep it
-   modular (summary / proposal / seam sections survive any format).
+3. **D3 needs re-homing from AAIF to IETF (§7, §9, 2026-08-25)** — AAIF was
+   the wrong door (a project-donation gate, not a standards-proposal
+   track); D3 still needs restructuring onto I-D form (RFCXML/xml2rfc v3)
+   and an open decision on fold-in-versus-distinguish against
+   `draft-klrc-aiagent-auth-03`; keep it modular (summary / proposal / seam
+   sections survive any format).
 4. **Scope leak from Mode B enthusiasm** — the no-go list (§5.5) is the
    guard; PoC reviews check against it.
 
@@ -690,7 +774,142 @@ we manage here:
 
 Dated, append-only. Rationale in one line; details in the stash/history.
 
-- **2026-08-18 (latest) — user ran the FULL validation suite on their own
+- **2026-08-25 (latest) — OPEN DECISION from the entry below CLOSED:
+  fold-in-versus-distinguish resolved as HYBRID, after a full read of
+  `draft-klrc-aiagent-auth-03` raw text.** The prior entry (immediately
+  below) left this open pending that read; this entry is that read and
+  its verdict — see that entry for the AAIF-drop/re-home context, not
+  restated here.
+  **Method:** the draft was fetched as raw text
+  (https://www.ietf.org/archive/id/draft-klrc-aiagent-auth-03.txt, 1624
+  lines) and verified directly, not via summary.
+  **Verdict: HYBRID.** Write a short companion Internet-Draft that cites
+  `draft-klrc-aiagent-auth-03` as the WIMSE/OAuth baseline and defines
+  only three things: (1) an operator/carrier-attested posture-assessment
+  input for its §8 credential-provisioning stack — economic scarcity /
+  sybil resistance; (2) a document-rooted human-principal identity
+  assertion usable in its §10.6 Identity Assertion JWT Authorization
+  Grant chaining flow — cryptographic scarcity / one accountable human;
+  (3) the monotone floor-tightening invariant (tighten-only, closed axis
+  set, consent-visible widening as a distinct operation), layered onto
+  its existing Transaction Token mechanism rather than replacing it.
+  Explicitly out of scope: agent identity, credential formats, the RFC
+  9421 signing profile, and OAuth grant flows — already specified there;
+  duplicating them invites rejection.
+  **Two verified hooks the verdict rests on:**
+  1. §8 (Agent Credential Provisioning), line 478 of the raw text, names
+     "operator assertions" as one of several posture-assessment signals
+     and states plainly: "This document does not require any particular
+     posture assessment mechanism, evidence format, or verifier
+     architecture." That is a named, textually-explicit extension point
+     the draft itself never populates — our single strongest piece of
+     evidence, and it must be read as an open slot, not as the draft
+     endorsing our approach.
+  2. §10.6 (Cross Domain Access / Identity Assertion JWT Authorization
+     Grant) already accepts an external identity assertion (e.g. an
+     OpenID Connect ID Token or SAML assertion) as the input exchanged
+     for a JWT authorization grant — a second, independent slot for a
+     document-rooted principal assertion to plug into.
+  **Verified absent** (raw-text keyword counts, case-insensitive): sybil
+  0, farm 0, "rate limit" 0, carrier 0, telco 0, MSISDN 0, eMRTD 0,
+  passport 0, KYC 0, CAMARA 0. Word-boundary "SIM" = 0 (the six
+  case-insensitive hits are all "similar"/"simplifies"). The single
+  "mobile" hit is "mobile device" in an authenticator context (line
+  947), not telco identity. Their security model is workload attestation
+  plus short-lived credentials; nothing anywhere asks what it costs to
+  mint another agent identity.
+  **Monotone floor — confirmed absent.** Their nearest analog, §10.5
+  Transaction Tokens, downscopes per-hop ("results in a downscoped token
+  ... bound to a specific transaction and cannot be used ... within the
+  same transaction with modified transaction details") — anti-replay/
+  blast-radius hygiene, not a declared, closed-axis, numerically-compared,
+  consent-visible never-widen invariant. No "MUST NOT widen" text exists
+  anywhere in the draft.
+  **Two divergences to reconcile, recorded honestly rather than hidden:**
+  1. Revocation: they go FURTHER than us, not less — §11 requires
+     SSF/CAEP revocation-signal infrastructure ("MUST ensure that
+     revoked ... authorization is enforced without undue delay"), where
+     our model relies on short expiry with no revocation infrastructure.
+  2. Identifier stability: their model wants an identifier that is
+     stable "for the lifetime of the workload identity" for audit
+     purposes; our per-service unlinkable tags want the opposite. Both
+     are carried into §7 Honest limits of the IETF proposal doc, not
+     silently smoothed over.
+  **Precision point, stated so it does not drift into a draft:** our
+  work is a companion to `draft-klrc-aiagent-auth-03`, NOT to RFC 9421.
+  RFC 9421 is a published, closed Proposed Standard (February 2024);
+  nothing in it is open. RFC 9421 is the mechanism both drafts use, not
+  the gap either fills.
+  **Two-slot structure (the spine of the argument):** the companion
+  draft defines slots, not implementations — two independent
+  instantiations of one abstract pattern (a scarcity-attested
+  principal): an operator-assertion slot (← CAMARA operator APIs,
+  economic scarcity) and a principal-assertion slot (← zkagent,
+  cryptographic scarcity). These are separate, non-competing trust
+  lanes per existing repo doctrine. Because the draft defines slots,
+  neither implementation needs to exist for the draft to stand — this is
+  what keeps zkagent a citation, never a dependency.
+  **Caveat, stated on purpose:** "operator assertions" may be
+  aspirational filler nobody wires up in practice; the hook is real text
+  in the draft, not proof anyone intends to use it that way.
+  Full record and section-by-section edits:
+  `docs/02-proposals/ietf-agent-delegation.md` §2 and new §4 (two-slot
+  structure), §7.
+
+- **2026-08-25 — submission strategy shift: AAIF dropped, agent
+  arm re-homed to IETF, no-go 12 retired, API family owner decided.** Four
+  findings, all fetched from live sources this session (§7 carries full
+  citations and mechanics):
+  1. **AAIF dropped as a submission target.** AAIF ("Agentic AI
+     Foundation", Linux Foundation, since Dec 2025) runs a
+     project-DONATION intake, not a standards-proposal track: it demands
+     evidence of production deployment in ≥2 organizations, ≥2 core
+     maintainers from different organizations plus ≥10 contributors, and a
+     signed Contribution Agreement handing project trademarks/accounts to
+     the Foundation. This author is a solo independent with a
+     single-author PoC — roughly 8 of ~14 required fields cannot be filled
+     honestly. The Identity & Trust WG's topic still fits; the door was
+     wrong, not the idea. The prior "AAIF grounded 2026-08-15" note (§7)
+     is corrected in place, not deleted — it named the right URLs and
+     stage mechanics but the wrong kind of process.
+  2. **Agent/delegation arm re-homed to IETF.** An unaffiliated individual
+     can submit an Internet-Draft with no membership, sponsor, or fee —
+     exactly the gates that disqualified AAIF do not exist here. Target:
+     the OAuth WG's automated-agent-authorization work item. RFC 9421 is
+     already published (nothing to submit to; new work cites it).
+     `draft-klrc-aiagent-auth-03` is close prior art (WIMSE/SPIFFE + RFC
+     9421 + OAuth 2.0 delegation, six industry co-authors) but contains no
+     SIM/carrier/telco/passport content — our two differentiators (SIM-
+     anchored economic scarcity; document-rooted human principal) survive
+     unclaimed. I-D cutoff for IETF 127: 2 Nov 2026 23:59 UTC; Hackathon
+     14–15 Nov 2026 (free, non-members welcome); meeting 14–20 Nov 2026,
+     San Francisco. Registration fee unverified — left unstated.
+  3. **No-go 12 retired.** "No APIBacklog PR before supporters" was
+     verified FALSE as a CAMARA requirement — the template's own
+     Supporters field is filled by the Working Group during evaluation,
+     downstream of filing. It was the author's own risk-management
+     judgement, not a process fact, and is retracted visibly per no-go 9's
+     own rule (§5, item 12). **User decision: file first, network later.**
+  4. **API family owner = Cairenes Solutions (user decision).** The
+     template's "API family owner" field requires "Company submitting the
+     API proposal" and no precedent was found for a wholly unaffiliated
+     submitter; the user's own company fills that field. Open practical
+     item: no email address yet exists at that company's domain, and a
+     contact email is required at submission — a personal address is
+     workable but a domain address reads better on a first filing. D2 is
+     already ~90% complete against the template; the outstanding gaps are
+     the proposal-owner declaration confirmation and this now-resolved
+     API-family-owner value.
+  **OPEN DECISION (not settled by this entry):** fold our agent/delegation
+  work in as an extension of `draft-klrc-aiagent-auth-03` versus write a
+  distinguishing draft — pending a full read of that draft. **OPEN
+  ACTION, scoped as a separate job:** `docs/02-proposals/aaif-agent-auth.md`
+  still targets the AAIF Identity & Trust WG in its text and needs
+  re-homing onto the IETF track; not touched by this entry. Gate ladder
+  (§2), no-go list (§5), sequence (§6) and process facts (§7) updated to
+  match. Full record: this entry; sources cited in §7.
+
+- **2026-08-18 — user ran the FULL validation suite on their own
   machine against the CURRENT uncommitted tree (the tree the entries below
   describe): every suite clean, zero `FAIL`, zero `TypeError`, zero
   `Error:` lines in either log. BOTH GATES MET on this tree.** The main
