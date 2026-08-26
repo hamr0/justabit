@@ -1,5 +1,5 @@
 > **Filing record — supporting artifact, not a 4th document** (PRD §3; the
-> same class as `docs/01-product/findings.md`). Verbatim text prepared for
+> same class as `docs/logs/findings.md`). Verbatim text prepared for
 > filing as a GitHub issue in `camaraproject/APIBacklog`. Prepared
 > 2026-08-25 from `camara-attested-windowed-disclosure.md` §10. Immutable
 > record of what was filed — do not edit after filing; amend the source
@@ -11,7 +11,7 @@
 
 > Filing target: `camaraproject/APIBacklog`, opened as a GitHub issue using
 > the repo's own issue template, ahead of a linked PR adding the filled
-> `documentation/API-proposal-template.md`. Source: `docs/02-proposals/camara-attested-windowed-disclosure.md`
+> `documentation/API-proposal-template.md`. Source: `docs/product/camara-attested-windowed-disclosure.md`
 > §10, re-verified 2026-08-25 — the authoritative, already filing-ready
 > mapping this issue body is copied from verbatim wherever the template asks
 > the same question twice.

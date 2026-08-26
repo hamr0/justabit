@@ -8,7 +8,7 @@
 2026-08-25 from the AAIF Identity & Trust WG after AAIF's
 `project-proposals` intake was verified to be an open-source-project
 donation gate, not a standards-proposal track (see
-`docs/02-proposals/aaif-agent-auth.md`, marked superseded, and PRD §9
+`docs/archive/aaif-agent-auth.md`, marked superseded, and PRD §9
 decisions log, 2026-08-25 entry).
 **Date:** 2026-08-25
 **Companion:** the operator/attestation side is proposed separately to
@@ -370,8 +370,8 @@ re-homing:
   Gateway):
   https://www.mwcbarcelona.com/articles/mplify-colt-orange-google-cloud-and-gsma-open-gateway-demonstrate-agentic-connected-experiences-at-mwc26-barcelona
 - Companion CAMARA proposal:
-  `docs/02-proposals/camara-attested-windowed-disclosure.md`
+  `docs/product/camara-attested-windowed-disclosure.md`
 - Superseded prior draft of this document, retained as a dated record:
-  `docs/02-proposals/aaif-agent-auth.md`
+  `docs/archive/aaif-agent-auth.md`
 - PRD process facts and decisions log:
-  `docs/01-product/prd.md` §7, §9 (2026-08-25 entry)
+  `docs/product/prd.md` §7, §9 (2026-08-25 entry)

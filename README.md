@@ -13,7 +13,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fhamr0%2Fjustabit%2Fmain%2Frelease.json&query=%24.version&label=version&color=2a4f8c" alt="version (from release.json)">
   <img src="https://img.shields.io/badge/status-pre--submission%20draft-orange" alt="status: pre-submission draft">
-  <img src="https://img.shields.io/badge/tracks-CAMARA%20%2B%20AAIF-2a4f8c" alt="tracks: CAMARA + AAIF">
+  <img src="https://img.shields.io/badge/tracks-CAMARA%20%2B%20IETF-2a4f8c" alt="tracks: CAMARA + IETF">
   <img src="https://img.shields.io/badge/license-Apache%202.0-2a4f8c" alt="license: Apache 2.0">
 </p>
 
@@ -37,7 +37,7 @@ cannot read.
 
 > **Status: pre-submission draft.** Nothing here has been filed to any standards body yet.
 > This repo is the staging ground for two tracks: **CAMARA** (operator/attestation side)
-> and **AAIF** (agent/delegation side).
+> and **IETF** (agent/delegation side).
 
 ## Two modes
 
@@ -87,7 +87,7 @@ conforming to profile mode:
 ```
 
 Full text with definitions, the per-API adoption checklist, and the residuals stated
-honestly: [`docs/02-proposals/camara-attested-windowed-disclosure.md`](docs/02-proposals/camara-attested-windowed-disclosure.md) §3.
+honestly: [`docs/product/camara-attested-windowed-disclosure.md`](docs/product/camara-attested-windowed-disclosure.md) §3.
 
 ## Why a profile, not one more API
 
@@ -126,11 +126,17 @@ this profile.
 ## Repo map
 
 ```
-docs/01-product/    prd.md — the PRD that leads everything: requirements,
-                    sequence, no-go list, decisions log
-docs/02-proposals/  camara-attested-windowed-disclosure.md — the CAMARA
+docs/product/       prd.md — the PRD that leads everything: requirements,
+                    sequence, no-go list
+                    camara-attested-windowed-disclosure.md — the CAMARA
                     proposal, carrying the normative profile (the standard)
-                    aaif-agent-auth.md — the AAIF proposal (agent side only)
+                    ietf-agent-delegation.md — the IETF proposal (agent/
+                    delegation side, OAuth WG target)
+docs/logs/          findings.md — dated evidence + decision log
+                    camara-apibacklog-filing.md — filed-text record
+docs/archive/       aaif-agent-auth.md — superseded 2026-08-25, dated
+                    record only (agent side now lives at
+                    docs/product/ietf-agent-delegation.md)
 spec/               carrier-attestation.yaml — OpenAPI sketch (CAMARA-style)
 poc/                Mode A demo: mock backend by default, Orange Network
                     APIs Playground as a swappable live backend
@@ -140,13 +146,14 @@ poc/                Mode A demo: mock backend by default, Orange Network
 
 Each track cites the other as its counterpart; neither depends on the other's approval.
 
-- **[CAMARA](docs/02-proposals/camara-attested-windowed-disclosure.md)** — the
+- **[CAMARA](docs/product/camara-attested-windowed-disclosure.md)** — the
   operator/attestation side. What the operator attests and how it travels. Profile to
   Commonalities, consent hooks to ICM, adoption PRs to sim-swap and roaming-status,
   new-case proposal to APIBacklog (template pre-filled in §10).
-- **[AAIF](docs/02-proposals/aaif-agent-auth.md)** — the agent/delegation side. What the
+- **[IETF](docs/product/ietf-agent-delegation.md)** — the agent/delegation side. What the
   agent carries and how permissions flow: floor-gated SIM attestation, scoped monotone
-  delegations, A2A. Their Identity & Trust WG is the target.
+  delegations, presentment via RFC 9421. The OAuth Working Group (`oauth@ietf.org`) is
+  the target.
 
 **They meet at the RFC 9421 header.**
 
@@ -177,8 +184,8 @@ user-validated live) — the first time in this project both have been met at th
 commit, on a tree that had already been through two `/code-review` rounds with every
 fix mutation-proven. This record covers `4446517`/`c921508` only, per this repo's
 standing rule that a user record does not transfer to a later change. See
-`docs/01-product/findings.md`, 2026-08-18 (latest).
-Requirements live in the [PRD §4](docs/01-product/prd.md); status, setup and caveats in
+`docs/logs/findings.md`, 2026-08-18 (latest).
+Requirements live in the [PRD §4](docs/product/prd.md); status, setup and caveats in
 [`poc/README.md`](poc/README.md).
 
 ## Lineage

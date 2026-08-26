@@ -1,6 +1,6 @@
 // PoC M6 — the one-command demo. Run: node poc/demo.mjs [--backend mock|orange]
 //
-// This is the surface a CAMARA/AAIF reader sees, so it explains itself as it
+// This is the surface a CAMARA/IETF reader sees, so it explains itself as it
 // goes. It composes M1 (attestation core), M2 (blind envelope), M3 (floor gate)
 // and M4/M5 (facts) into the four assertions of PRD §4.1 — each one followed by
 // its NEGATIVE FLIP, because an assertion that cannot fail proves nothing.
@@ -263,7 +263,7 @@ function canonValue(v) {
 // fits one envelope, from anyone holding the operator's public envelope key.
 //
 // So the bound is COMPUTED, in BYTES, and the arithmetic is stated rather than
-// asserted (measured 2026-08-17, see docs/01-product/findings.md):
+// asserted (measured 2026-08-17, see docs/logs/findings.md):
 //
 //   frame    {"iss":"<iss>","payload":"<b64>","sig":"<b64>"}
 //            32 fixed + iss 16 + sig 88 (64 raw Ed25519 bytes, base64)  = 136 B
@@ -1095,7 +1095,7 @@ export async function runDemo(backend) {
   // (`/retrieve-date` is the only surface that can answer it), so a raw date
   // genuinely exists on both backends for `leakRaw` to leak, and both
   // defences — the wire scanner and M1's closed claim set — fire on both. See
-  // docs/01-product/findings.md, 2026-08-17, for the mechanism and the
+  // docs/logs/findings.md, 2026-08-17, for the mechanism and the
   // structural argument for `/check` this accidentally surfaced.
   const LEAK_PREDICATE = { type: 'simSwapAge', operator: 'gte', value: 'P365D' };
   const q1c = rp.buildRequest(LEAK_PREDICATE, { swapAgeMin: 'P180D' });

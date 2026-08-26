@@ -6,7 +6,7 @@
 **Status:** Draft v0.2 — pre-submission (not yet filed; supporters not yet recruited)
 **Date:** 2026-08-15
 **Targets:** CAMARA Commonalities (profile as design guideline) · ICM (consent/auth hooks) · existing sub-projects (adoption PRs) · APIBacklog (CarrierAttestation new case — template mapping in §10)
-**Companion:** the agent/delegation side is proposed separately to AAIF (`aaif-agent-auth.md`); the two meet at the RFC 9421 header and neither depends on the other.
+**Companion:** the agent/delegation side is proposed separately to the IETF OAuth Working Group (`ietf-agent-delegation.md`); the two meet at the RFC 9421 header and neither depends on the other.
 
 ---
 
@@ -361,7 +361,7 @@ Two limits and one deferral on that, stated rather than glossed:
   `node poc/m5-check-live.mjs` 19/19): the cap boundary is confirmed on the
   wire itself — `P90D` routes through `check maxAge=2160h` → `true`, `P365D`
   routes through `retrieve-date` (no `maxAge`) → `false`. See
-  `docs/01-product/findings.md`, 2026-08-17/18, for the full mechanism.
+  `docs/logs/findings.md`, 2026-08-17/18, for the full mechanism.
 
   `presentIn` and `numberMatch` follow in the same round.
 
@@ -750,8 +750,8 @@ consequences:
    and expensive at farm scale. Layering: a human-scarcity principal proof
    proves the accountable human; a delegation credential names the agent;
    carrier floors price out the farm. Complementary trust roots, one wire
-   format (W3C VC + RFC 9421). The agent/delegation side is proposed to AAIF
-   separately (`aaif-agent-auth.md`).
+   format (W3C VC + RFC 9421). The agent/delegation side is proposed to the
+   IETF OAuth Working Group separately (`ietf-agent-delegation.md`).
 
 ## 8. Stakeholder value
 

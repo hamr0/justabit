@@ -1,5 +1,56 @@
 # Changelog
 
+## 0.7.0 — 2026-08-26
+
+- **PRD becomes the contract — docs-only release, no code changed.** All 53
+  dated entries in `prd.md` §9 ("Decisions log") moved OUT of the PRD into
+  `docs/logs/findings.md`; §9 is now an index table only (Date / Decision /
+  Status / a `Where` link into findings.md), and every Decision cell was
+  trimmed to one identifying line. `prd.md` goes 1903 → 859 lines. Zero
+  content was lost in the move — proven by extracting the old §9 body and
+  token-comparing it against the new findings.md content: the only two
+  words present in the old text and absent from the new were "Rationale"
+  and "stash/history", both from the replaced §9 intro sentence itself.
+- **findings.md's charter widened to hold two labelled entry kinds.**
+  `**EVIDENCE**` entries are things that were RUN and OBSERVED; `**DECISION**`
+  entries are reasoned course changes with the why attached. Evidence is
+  never presented as argument, and argument is never presented as evidence
+  — all 92 headings in the file are labelled one or the other. findings.md
+  goes 3148 → 4490 lines.
+- **Docs reorganized into three buckets.** `docs/product/` holds the living
+  docs (`prd.md`, `camara-attested-windowed-disclosure.md`,
+  `ietf-agent-delegation.md`); `docs/logs/` holds the dated record
+  (`findings.md`, `camara-apibacklog-filing.md`); `docs/archive/` holds
+  retired material (`aaif-agent-auth.md`, plus the byte-frozen R100
+  rename). `docs/index.md` is generated and is now the corpus's only
+  index. `docs/01-product/` and `docs/02-proposals/` no longer exist.
+- **CAMARA filing record added.** `docs/logs/camara-apibacklog-filing.md`
+  carries the verbatim text prepared for filing to
+  `camaraproject/APIBacklog`, derived from the proposal's §10. It is marked
+  immutable — still NOT FILED.
+- **A v0.6.0 release miss found and fixed.** v0.6.0 dropped AAIF and
+  re-homed the agent arm to the IETF OAuth WG, but the sweep only touched
+  the files it was editing — not the files that REFERENCED what changed.
+  Live AAIF claims survived in four places: README.md's `tracks: CAMARA +
+  AAIF` badge and opening paragraph; `camara-attested-windowed-disclosure.md`'s
+  Companion line and §7, which still named AAIF as the live companion
+  track and linked the superseded file — this is the submission text a
+  CAMARA reviewer opens first; CLAUDE.md's "CAMARA/AAIF meeting" phrasing
+  and its grounding-rule org list; and a header comment in
+  `poc/demo.mjs`. The filing record itself was already clean. General
+  lesson, stated plainly: after a course change, grep the WHOLE repo for
+  the dropped term, not just the files being edited.
+- **8 staleness gaps in prd.md fixed**, including a §9 (pre-move) row still
+  pointing at the superseded `aaif-agent-auth.md`, and a Phase B block
+  whose heading said "re-homed" while its body still said "PENDING".
+- **CLAUDE.md:71 retracted visibly.** It still read as if supporters must
+  be recruited before the APIBacklog PR; no-go 12 already retired that
+  claim in v0.6.0 and the line now says so.
+- **No profile behaviour, wire contract, or PoC logic changed.** Every
+  code-file edit in this release was a comment. PoC green by exit code:
+  m1 20/20, m2 10/10, m3 26/26, m4 42/42, m5 67/67, m6 47/47, demo 35/35
+  (mock).
+
 ## 0.6.0 — 2026-08-25
 
 - **Submission strategy release — no code changed.** Both submission
