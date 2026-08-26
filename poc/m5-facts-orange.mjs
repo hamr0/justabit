@@ -105,7 +105,7 @@ const ADMIN_URL = 'https://api.orange.com/camara/playground/admin/v1.0/action';
 //
 // UPDATED 2026-08-17 (predicate set 3 → 6). Point 3 above is now HALF-CLOSED and
 // point 2 is closed the other way, both by measurement (standalone Playground
-// sweep, `docs/01-product/findings.md`):
+// sweep, `docs/logs/findings.md`):
 //   * `/retrieve-age-band` DOES NOT EXIST here — `400 "unhandled path"`, the
 //     Playground's own signal for an unwired route. So the coarse surface the
 //     profile would prefer cannot be demonstrated live at all. Recorded

@@ -2,6 +2,7 @@
 # .github/ (CI) or other deliverable dot-directory is not silently ignored
 .claude/
 .litectx/
+docs/.docs-builder/
 
 # secrets never enter the tree; only a value-less .env.example may be tracked
 .env

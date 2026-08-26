@@ -1,11 +1,11 @@
 # CLAUDE.md — agent doctrine for justabit
 
 Repo-only; for whoever is *building* this. Adopters read `README.md` and
-`docs/02-proposals/camara-attested-windowed-disclosure.md`.
+`docs/product/camara-attested-windowed-disclosure.md`.
 
 This is a **standards repo**, not a software product. The deliverable is text
 that survives working-group scrutiny; the PoC exists to make the text
-undeniable. Optimize for the reader in a CAMARA/AAIF meeting, not for elegance.
+undeniable. Optimize for the reader in a CAMARA/IETF meeting, not for elegance.
 
 ## The one invariant
 
@@ -39,7 +39,7 @@ exception (profile rule 7), not a loophole.
 
 ## Grounding discipline (from 8een's evidence practice)
 
-Every claim about CAMARA/GSMA/AAIF state is pinned to a source — spec YAML,
+Every claim about CAMARA/GSMA/IETF state is pinned to a source — spec YAML,
 repo, or dated page — and re-verified before any submission. Current verified
 baseline (2026-08-14, re-verified 2026-08-24): SimSwap v2.1.0 (`/check`,
 `/retrieve-date`, `/retrieve-age-band`), NumberVerification v2.1.0 (`/verify`
@@ -80,15 +80,23 @@ visibly — retractions build WG credibility.
 
 ## Where the reasoning lives
 
+prd.md is the contract: it states what is true NOW — requirements, sequence,
+no-go list. The why — reasoned decisions and course-change rationale — lives
+in `docs/logs/findings.md`; prd.md §9 is an index into that log, not a
+rationale store.
+
 ```
-docs/01-product/   prd.md — THE leading doc: requirements, sequence, no-go list,
-                   decisions log. 3-doc inventory is a hard rule (PRD + 2 proposals);
-                   new design content folds in here, never into a side-doc.
-docs/02-proposals/ camara-attested-windowed-disclosure.md — CAMARA proposal, carries
+docs/product/      prd.md — THE contract: requirements, sequence, no-go list.
+                   camara-attested-windowed-disclosure.md — CAMARA proposal, carries
                    the normative profile (the standard) + APIBacklog template mapping
                    ietf-agent-delegation.md — IETF proposal (agent/delegation
-                   side only, OAuth WG target); aaif-agent-auth.md — SUPERSEDED
-                   2026-08-25, retained as a dated record only
+                   side only, OAuth WG target)
+docs/logs/         findings.md — dated EVIDENCE + DECISION log: evidence is what was
+                   RUN and OBSERVED, decisions are reasoned course changes with the why
+                   camara-apibacklog-filing.md — immutable dated record of the text
+                   filed to CAMARA
+docs/archive/      aaif-agent-auth.md — SUPERSEDED 2026-08-25, retained as a dated
+                   record only
 spec/              carrier-attestation.yaml — illustrative OpenAPI sketch, not normative
 poc/               Mode A demo: mock backend default, Orange adapter swappable;
                    four assertions (each with its negative), Node zero-dep, PRD §4
@@ -103,3 +111,8 @@ Consult when building something new or adding a feature — a standards guide, n
 context like MEMORY.md above:
 @.claude/remember/AGENT_RULES.md
 <!-- AGENT_RULES:END -->
+
+<!-- DOCS_INDEX:START -->
+Docs map: `docs/index.md` — every doc in this project, with line counts.
+Too many rows to read whole? Search instead: `/docs-builder search <query words>`
+<!-- DOCS_INDEX:END -->

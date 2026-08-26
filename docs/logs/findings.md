@@ -95,7 +95,7 @@ what keeps zkagent a citation, never a dependency.
 aspirational filler nobody wires up in practice; the hook is real text
 in the draft, not proof anyone intends to use it that way.
 Full record and section-by-section edits:
-`docs/02-proposals/ietf-agent-delegation.md` §2 and new §4 (two-slot
+`docs/product/ietf-agent-delegation.md` §2 and new §4 (two-slot
 structure), §7.
 
 ## 2026-08-25 — submission strategy shift: AAIF dropped, agent arm re-homed to IETF, no-go 12 retired, API family owner decided
@@ -148,7 +148,7 @@ citations and mechanics):
 **OPEN DECISION (not settled by this entry):** fold our agent/delegation
 work in as an extension of `draft-klrc-aiagent-auth-03` versus write a
 distinguishing draft — pending a full read of that draft. **OPEN
-ACTION, scoped as a separate job:** `docs/02-proposals/aaif-agent-auth.md`
+ACTION, scoped as a separate job:** `docs/archive/aaif-agent-auth.md`
 still targets the AAIF Identity & Trust WG in its text and needs
 re-homing onto the IETF track; not touched by this entry. Gate ladder
 (§2), no-go list (§5), sequence (§6) and process facts (§7) updated to
@@ -4387,7 +4387,7 @@ whatever standard JOSE algorithm the WG settles on.
 **DECISION**
 
 Dated evidence log
-at `docs/01-product/findings.md`: experiments and dead ends, complementing
+at `docs/logs/findings.md`: experiments and dead ends, complementing
 this PRD. Not a design side-doc — design still folds into the 3 docs.
 
 ## 2026-08-15 — PoC build ROLLED BACK to G0; module ladder made binding (§4.4)

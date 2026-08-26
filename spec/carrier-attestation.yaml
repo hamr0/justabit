@@ -4,7 +4,7 @@ info:
   description: >
     Pre-submission OpenAPI sketch of Mode A (attested query response) under the
     Attested Windowed Disclosure profile. Illustrative, not normative; the
-    profile document (docs/02-proposals/camara-attested-windowed-disclosure.md
+    profile document (docs/product/camara-attested-windowed-disclosure.md
     §3) carries the rules.
   version: 0.0.1
   license:
@@ -80,7 +80,7 @@ components:
       # the enum answering for facts that do not exist — the same fabricated-fact
       # class M4 closed by refusing to default an unknown backstory, arriving one
       # layer up. They are recorded as future work in the profile document
-      # (docs/02-proposals/camara-attested-windowed-disclosure.md §3.3.1), not
+      # (docs/product/camara-attested-windowed-disclosure.md §3.3.1), not
       # deleted. The NORMATIVE profile enumerates no predicate types at all
       # (§3.2), so this list constrains the sketch and nothing else.
       #

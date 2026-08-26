@@ -1,6 +1,6 @@
 # PoC — Mode A, four assertions, one command
 
-**Requirements & no-gos:** [`docs/01-product/prd.md`](../docs/01-product/prd.md) §4–§5.
+**Requirements & no-gos:** [`docs/product/prd.md`](../docs/product/prd.md) §4–§5.
 **Status:** all six modules M1–M6 are BUILT — a first build was
 **rolled back 2026-08-15** (it went monolith-then-integrate without
 per-module user validation; see PRD §4.4 and the decision log) and the ladder
@@ -16,7 +16,7 @@ project both gates have been met at the same commit, on a tree that had
 already been through two `/code-review` rounds with every fix
 mutation-proven. This record covers `4446517`/`c921508` only, per this
 repo's standing rule that a user record does not transfer to a later change;
-see `docs/01-product/findings.md`, 2026-08-18 (latest). Every check runs on
+see `docs/logs/findings.md`, 2026-08-18 (latest). Every check runs on
 its own (negatives first, exit 0 only if every case holds):
 
 ```
@@ -52,7 +52,7 @@ ORANGE_BASIC_AUTH="$(pass camara/orange_network | head -1)" node poc/m5-check-li
                         # `9b04854` and `4446517` — closed again by a fresh full user
                         # run: LIVE-CONFIRMED AGAIN at `4446517`/`c921508`
                         # (2026-08-18 08:16), 19/19. G2 IS MET at `4446517` — see
-                        # docs/01-product/findings.md, 2026-08-18 (latest).
+                        # docs/logs/findings.md, 2026-08-18 (latest).
                         # exit 2 + printed prerequisites if the credential is absent —
                         # never a silent pass, never a mock fallback.
                         # COSTS QUOTA: consumes and returns one of the app's 10 custom
@@ -118,7 +118,7 @@ defect: it asked a `P90D` question, which runs `/check` on orange and never
 holds a raw date to leak, so the control's asserted condition was false. Fixed
 in `poc/demo.mjs` (dedicated `LEAK_PREDICATE` at `P365D`, which forces
 `/retrieve-date`) and mutation-proven offline via an injected-transport
-replay — see `docs/01-product/findings.md`, 2026-08-17. **The fix was
+replay — see `docs/logs/findings.md`, 2026-08-17. **The fix was
 LIVE-CONFIRMED: the user re-ran `node poc/demo.mjs --backend orange` at tip
 `3276ed0` and reported `RESULT: 33/33`** — the vacuous control reds the
 leak for real on the live backend. That record does NOT transfer forward:
@@ -127,7 +127,7 @@ the 2026-08-18 code-review round changed `poc/demo.mjs` itself after
 so the demo's own live run went PENDING again at `9b04854`. **That has since
 been closed: the user re-ran `node poc/demo.mjs --backend orange` at
 `4446517`/`c921508` (2026-08-18 08:16) and reported `RESULT: 33/33` — see
-`docs/01-product/findings.md`, 2026-08-18 (latest), which also records why
+`docs/logs/findings.md`, 2026-08-18 (latest), which also records why
 gate G2 is now MET.**
 
 The **M6 round (2026-08-17)** then changed two of those modules, so two counts
@@ -174,7 +174,7 @@ fix landed after the run, so `8e842c3`'s record did not transfer forward and G2
 went PENDING a re-run. **That re-run has since happened: the user ran
 `m5-check-live.mjs` live against the real Playground at the current tip
 `3276ed0` and got 19/19 (quota clean) — G2 IS MET again, at `3276ed0`, and
-nothing about it is pending.** See `docs/01-product/findings.md`, 2026-08-18.
+nothing about it is pending.** See `docs/logs/findings.md`, 2026-08-18.
 **That record then went PENDING again** — the 2026-08-18 code-review
 round changed `poc/m5-facts-orange.mjs` after `3276ed0` — **and has since been
 closed a third time: the user re-ran `m5-check-live.mjs` live at
@@ -437,7 +437,7 @@ Everything below is captured behaviour; where it contradicts the docs, this wins
 
 Two throwaway probes that import nothing from this tree, so nothing below is an
 artefact of the adapter's own parsing. Full verbatim capture in
-`docs/01-product/findings.md` (dated entry). **Nothing here is wired yet.**
+`docs/logs/findings.md` (dated entry). **Nothing here is wired yet.**
 
 - **`sim-swap/v1/retrieve-age-band` DOES NOT EXIST** — `400
   {"code":"BAD_REQUEST","message":"unhandled path"}`, the same not-wired signal
