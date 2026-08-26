@@ -59,7 +59,10 @@ illustrative OpenAPI sketch (non-normative); `README.md` is the adopter-facing
 front door and mirrors — never forks — the proposals;
 `docs/01-product/findings.md` is the dated evidence log (what experiments
 showed, including dead ends) — it complements this PRD, which stays the home
-of decisions. Design content still folds into the 3 docs, never into findings.
+of decisions; `docs/02-proposals/camara-apibacklog-filing.md` is the
+immutable, dated record of the text filed to CAMARA APIBacklog, derived
+verbatim from D2 §10 and never a source of design content. Design content
+still folds into the 3 docs, never into findings.
 
 ## 4. PoC requirements (the only build)
 
