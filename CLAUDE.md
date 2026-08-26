@@ -68,8 +68,13 @@ visibly — retractions build WG credibility.
 
 - CAMARA: proposals freeze after 6+ weeks GitHub inactivity or 3 missed WG
   meetings. Sustained presence is part of the deliverable.
-- Author is independent (no member company). Supporters must be recruited
-  before the APIBacklog PR, not after.
+- Author is independent (no member company). **RETRACTED (v0.6.0, no-go 12
+  retired):** this line previously read "Supporters must be recruited before
+  the APIBacklog PR, not after." That was verified FALSE as a CAMARA
+  requirement — the template's own Supporters field is filled by the
+  Working Group during evaluation, downstream of filing — and was the
+  author's own risk-management judgement, not a process fact. Corrected
+  position: file first, network later.
 - PoC targets Orange Network APIs Playground (free, instant; +990 test
   numbers, scriptable backstories). Blocked on account credentials.
 
