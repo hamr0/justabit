@@ -582,6 +582,16 @@ Explicit and binding. "Useful" is not a defense for any of these.
     2026-08-25).
 13. **No secrets or real subscriber data in the repo** — test ranges and env
     credentials only. `.claude/` session context is never published.
+14. **No orphaned references.** After retracting a claim, renaming or moving
+    a file, dropping a target/term, or changing a heading, sweep the whole
+    repository for the old term or path and classify every hit before
+    calling the change done — corrected, or deliberately preserved as dated
+    history, and the second must be a decision, never an oversight. The
+    sweep covers markdown, code, spec files, generated indexes, GitHub repo
+    metadata (description and topics), directory structure (git cannot see
+    an empty directory), and internal anchors (a changed heading changes
+    its slug). Evidence: five instances missed in one session,
+    `docs/logs/findings.md` (2026-08-28).
 
 ## 6. Sequence
 
