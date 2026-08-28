@@ -603,11 +603,17 @@ Phase 2  USER: create Orange Playground account (free, instant)
 Phase 3  Circulate D2 profile in ICM / GitHub Discussion;
          collect reactions                                       [G3]
 Phase 4  File: Commonalities guideline proposal + sim-swap
-         adoption PR (nonce+expiry on /check); open the
-         APIBacklog issue + PR (CarrierAttestation new-case,
+         adoption PR (nonce+expiry on /check) — still open; open
+         the APIBacklog issue + PR (CarrierAttestation new-case,
          template pre-filled from D2 §mapping, API family owner
          = Cairenes Solutions) — supporters are NOT a
-         precondition (no-go 12 retired 2026-08-25)               [G4]
+         precondition (no-go 12 retired 2026-08-25). **APIBacklog
+         half DONE 2026-08-28: issue #330
+         (github.com/camaraproject/APIBacklog/issues/330) + PR #331
+         (github.com/camaraproject/APIBacklog/pull/331), both
+         OPEN, awaiting Working Group evaluation — nothing
+         approved yet. The Commonalities/ICM half is still
+         outstanding.**                                           [G4 partial]
 Phase 5  WG evaluation populates named supporters (template
          validation → company support analysis → bi-weekly
          Backlog WG lazy consensus)                                [G5]
@@ -777,6 +783,10 @@ we manage here:
 
 1. **Solo author + staleness rules.** Mitigation: recruit a member-company
    co-owner early; calendar the cadences; the repo itself shows activity.
+   **The staleness clock is now live** (§5 no-go 9, §7): issue #330 / PR
+   #331 filed 2026-08-28, both open — 6+ weeks of GitHub inactivity or 3
+   missed WG meetings freezes the proposal per §7, so sustained presence on
+   the two threads is no longer preparatory, it is due.
 2. **Orange account is a user action** — PoC live tier (G2) blocks on it;
    mock tier (G1) does not. Don't let G2 block G3.
 3. **`ietf-agent-delegation.md` still has to become an actual Internet-Draft
