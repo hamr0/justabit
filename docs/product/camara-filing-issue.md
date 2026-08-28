@@ -11,9 +11,17 @@
 > prepared. Do not paste that long file into the issue; the issue is this
 > short body only.
 >
-> **Filed:** NOT YET FILED — replace this line with the issue URL and date
-> once posted. Once filed, this file becomes an immutable record — amend
-> the source proposal doc instead.
+> **Filed:** Filed as issue #330 on 2026-08-28 —
+> https://github.com/camaraproject/APIBacklog/issues/330. Open, awaiting
+> Working Group evaluation; nothing has been approved. Follow-up PR #331
+> (adding the filled template) is `docs/product/camara-filing-template.md`
+> in this repo — see that file for its own filed record.
+>
+> **This file is now a FROZEN record of what was filed.** The text below
+> the paste marker must not change — amend
+> `camara-attested-windowed-disclosure.md` instead and, if the issue itself
+> needs a correction, file it as a follow-up comment/PR against CAMARA, not
+> as an edit here.
 >
 > Everything above this line (through the marker below) is repo bookkeeping
 > for whoever is filing this — it must NOT be pasted into the GitHub issue.

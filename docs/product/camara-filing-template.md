@@ -8,9 +8,19 @@
 > what gets pasted into the GitHub issue. Verbatim text prepared 2026-08-25
 > from `camara-attested-windowed-disclosure.md` §10.
 >
-> **Filed:** NOT YET FILED — replace this line with the PR URL and date once posted.
-> Once filed, this file becomes an immutable record — amend the source
-> proposal doc instead.
+> **Filed:** Submitted as PR #331 on 2026-08-28 —
+> https://github.com/camaraproject/APIBacklog/pull/331 — adding this file's
+> body as
+> `documentation/API proposals/APIProposal_CarrierAttestation.md` in
+> `camaraproject/APIBacklog`. Open, awaiting Working Group evaluation;
+> nothing has been approved. Follow-up to step-1 issue #330 — see
+> `docs/product/camara-filing-issue.md` for its own filed record.
+>
+> **This file is now a FROZEN record of what was filed.** The text below
+> the paste marker must not change — amend
+> `camara-attested-windowed-disclosure.md` instead and, if the filed PR
+> needs a correction, file it as a follow-up PR against CAMARA, not as an
+> edit here.
 >
 > Everything above this line (through the marker below) is repo bookkeeping
 > for whoever is filing this — it must NOT be pasted into the GitHub issue.

@@ -1,5 +1,77 @@
 # Changelog
 
+## 0.8.0 — 2026-08-28
+
+- **FILED TO CAMARA.** `CarrierAttestation` is filed against
+  `camaraproject/APIBacklog` — issue **#330**
+  (https://github.com/camaraproject/APIBacklog/issues/330, `[API Proposal]
+  CarrierAttestation`, label `API Proposal`) plus follow-up **PR #331**
+  (https://github.com/camaraproject/APIBacklog/pull/331, adding
+  `documentation/API proposals/APIProposal_CarrierAttestation.md` from fork
+  `hamr0/APIBacklog`, branch `api-proposal-carrierattestation`, commit
+  `87d36de`, body `Fixes #330`). **Both are OPEN.** Nothing has been
+  approved, accepted, endorsed, or reviewed by CAMARA — this release marks
+  the proposal as filed and awaiting Working Group evaluation, no more.
+  CAMARA's own intake turned out to be two steps, not one: a short 4-field
+  issue (Description, Use cases, Related to, Supporting material) first,
+  then a linked PR adding the filled long template. The repo previously
+  assumed a single-step filing, which would have meant pasting the
+  223-line template document into a form that asks four short questions —
+  caught and corrected before filing, not after.
+- **Two A2P overclaims retracted from the proposal document**, per no-go 9,
+  on an adversarial grounding pass of text that was already in the
+  submission. "A2P SMS decayed [because a middle layer could see and
+  arbitrage message value: grey routes, spam, fake DLRs, SIM farms]" is
+  **CONTRADICTED**: total A2P messaging spend is growing (~$75–90B,
+  forecast 4–7% CAGR across sources), and SMS A2P volume itself still
+  grows ~2.6% CAGR — what's real is a channel-mix shift toward app-based
+  business messaging (WhatsApp Business, RCS), not a fall of A2P as a
+  category. "History (A2P) shows accumulated middle-layer value gets
+  monetized against the ecosystem" is **UNGROUNDED**: no regulator
+  finding, enforcement action, or documented incident ties an A2P
+  aggregator or messaging hub to monetizing subscriber data against the
+  ecosystem; the nearest real evidence is location-data brokers in
+  ad-tech, a different industry, and citing it for A2P would be a category
+  error. What survived the pass and stays in the text: grey routing and
+  Artificial Inflation of Traffic (AIT) as documented, GSMA-named
+  integrity failures; the price-driven migration toward app channels; and
+  GDPR/ePrivacy as in-force constraints on any middle layer that can read.
+  No single AIT dollar figure is asserted anywhere — sources disagree by
+  roughly 2x.
+- **New §1.1 "Why now"** in `camara-attested-windowed-disclosure.md`,
+  merging the old §7.2. With the A2P monetization claim retracted, the
+  argument for a blind hub is now made prospectively — the structural
+  OPTION any readable middle layer holds to accumulate and monetize what
+  it can see — which is a stronger, evidence-independent argument than the
+  historical claim it replaces.
+- **Role glossary added** (§3.1): customer / operator / aggregator /
+  requester, defined once and used consistently. **RP** is defined
+  explicitly as *roaming partner*, its standard telecom sense — the party
+  asking a predicate question is spelled out as "requester" throughout,
+  never abbreviated, because in a CAMARA room "RP" reads as roaming
+  partner, not relying party.
+- **No-go 14 added — "No orphaned references."** After a single session
+  turned up five instances where an edit fixed the thing itself but missed
+  a reference elsewhere to the thing, the no-go list now requires a
+  repo-wide sweep (markdown, code, spec files, generated indexes, GitHub
+  repo metadata, directory structure, internal anchors) after any
+  retraction, rename, move, or dropped term — every hit classified as
+  corrected or deliberately preserved as dated history, never left as an
+  oversight.
+- **Filing docs moved to `docs/product/`, named for purpose:**
+  `camara-filing-issue.md` (step 1, the GitHub issue body) and
+  `camara-filing-template.md` (step 2, the long template added by PR);
+  both now carry absolute GitHub URLs throughout, since a repo-relative
+  path is a dead string once pasted inside a CAMARA issue or PR body. Both
+  files' bookkeeping headers now record the real issue/PR numbers, URLs,
+  and filing date, cross-reference each other, and are marked as frozen
+  records of what was filed — further changes go to
+  `camara-attested-windowed-disclosure.md` instead.
+- **No profile behaviour, wire contract, or PoC logic changed.** Every
+  code-file edit in this release was a comment or a docs file. PoC green
+  by exit code: m1 20/20, m2 10/10, m3 26/26, m4 42/42, m5 67/67, m6
+  47/47, demo 35/35.
+
 ## 0.7.0 — 2026-08-26
 
 - **PRD becomes the contract — docs-only release, no code changed.** All 53
