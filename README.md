@@ -44,7 +44,7 @@ cannot read.
 How much the response mode removes is the spine of the proposal, so it is the first thing
 an adopter chooses.
 
-**Mode A — attested query response.** Today's rail unchanged: RP → aggregator → operator,
+**Mode A — attested query response.** Today's rail unchanged: requester → aggregator → operator,
 same per-query billing and revenue share. Only the payload discipline changes. Removes
 over-disclosure, middle-layer visibility, and response retainability.
 > *"Was this SIM swapped in the last 90 days?"* → a signed `true`, nonce-bound, expiring.
@@ -132,8 +132,11 @@ docs/product/       prd.md — the PRD that leads everything: requirements,
                     proposal, carrying the normative profile (the standard)
                     ietf-agent-delegation.md — the IETF proposal (agent/
                     delegation side, OAuth WG target)
+                    camara-filing-issue.md — CAMARA filing, step 1: the
+                    GitHub issue body
+                    camara-filing-template.md — CAMARA filing, step 2: the
+                    filled API-proposal template
 docs/logs/          findings.md — dated evidence + decision log
-                    camara-apibacklog-filing.md — filed-text record
 docs/archive/       aaif-agent-auth.md — superseded 2026-08-25, dated
                     record only (agent side now lives at
                     docs/product/ietf-agent-delegation.md)

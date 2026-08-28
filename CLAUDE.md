@@ -25,9 +25,13 @@ exception (profile rule 7), not a loophole.
   silently widens a window. Widening is an explicit, distinct, consent-visible
   operation (profile rule 8).
 - **The hub stays blind.** The aggregator meters and bills; it must never be
-  able to read identifiers, predicates, or answers. This is the A2P lesson —
-  readable middle layers eventually monetize against the ecosystem. Any design
-  that "just lets the hub cache/inspect for efficiency" is wrong.
+  able to read identifiers, predicates, or answers. A readable middle layer
+  holds the structural option to accumulate and monetize what it can see, so
+  the design removes the capability rather than trusting restraint. Any design
+  that "just lets the hub cache/inspect for efficiency" is wrong. (The
+  historical "A2P decayed / aggregators monetized subscriber data" framing was
+  RETRACTED 2026-08-28 as ungrounded — see `docs/logs/findings.md` — do not
+  reintroduce it.)
 - **Honest limits stay in the text.** Economic scarcity ≠ uniqueness; Mode A
   retains the operator query log; the trust directory is a centralization
   point; MNP breaks naive tenure. These are stated on purpose — do not
@@ -91,10 +95,10 @@ docs/product/      prd.md — THE contract: requirements, sequence, no-go list.
                    the normative profile (the standard) + APIBacklog template mapping
                    ietf-agent-delegation.md — IETF proposal (agent/delegation
                    side only, OAuth WG target)
+                   camara-filing-issue.md — step 1: GitHub issue body, live until filed
+                   camara-filing-template.md — step 2: filled API-proposal template, live until filed
 docs/logs/         findings.md — dated EVIDENCE + DECISION log: evidence is what was
                    RUN and OBSERVED, decisions are reasoned course changes with the why
-                   camara-apibacklog-filing.md — immutable dated record of the text
-                   filed to CAMARA
 docs/archive/      aaif-agent-auth.md — SUPERSEDED 2026-08-25, retained as a dated
                    record only
 spec/              carrier-attestation.yaml — illustrative OpenAPI sketch, not normative
