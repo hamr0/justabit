@@ -103,7 +103,7 @@ skips on 2 must not be able to swallow a regression. Under `--backend orange`
 the same mid-run throw stays 2, because an unreachable live operator genuinely
 is a prerequisite failure. (Fixed 2026-08-17; it used to be 2 either way.)
 
-**Honest limit — the RP nonce store only grows.** A nonce is deleted when its
+**Honest limit — the requester nonce store only grows.** A nonce is deleted when its
 response is verified, so a request that never receives one (rejected by the hub,
 dropped in transit, answered after the requester gave up) leaves its entry
 resident forever. Harmless across a handful of demo requests, unbounded in
@@ -293,10 +293,10 @@ the requester claims, which is inherent to a comparison.
 ## Architecture
 
 ```
-[RP demo "bank"] ──(predicate + floor + nonce, encrypted)──▶ [blind hub] ──▶ [operator shim]
-                                                              meters & "bills"    ┌───────────────┐
-                                                              ciphertext only     │ facts adapter │
-[RP demo] ◀──(signed {predicate, result, nonce, exp}, encrypted)─────────────────┤ mock │ orange │
+[requester demo "bank"] ──(predicate + floor + nonce, encrypted)──▶ [blind hub] ──▶ [operator shim]
+                                                                     meters & "bills"    ┌───────────────┐
+                                                                     ciphertext only     │ facts adapter │
+[requester demo] ◀──(signed {predicate, result, nonce, exp}, encrypted)─────────────────┤ mock │ orange │
                                                                                   └───────────────┘
 ```
 

@@ -1,20 +1,37 @@
-> **Filing record — supporting artifact, not a 4th document** (PRD §3; the
-> same class as `docs/logs/findings.md`). Verbatim text prepared for
-> filing as a GitHub issue in `camaraproject/APIBacklog`. Prepared
-> 2026-08-25 from `camara-attested-windowed-disclosure.md` §10. Immutable
-> record of what was filed — do not edit after filing; amend the source
+> **This is the filled CAMARA API-proposal template**, to be added by pull
+> request as `documentation/API proposals/APIProposal_CarrierAttestation.md`
+> in `camaraproject/APIBacklog`. This is step 2 of CAMARA's two-step
+> intake, filed as a follow-up PR once the step-1 GitHub issue exists. The
+> SHORT step-1 issue body (the repo's own four-field `💡 API Proposal`
+> issue template) lives separately at
+> `docs/product/camara-filing-issue.md` — that file, not this one, is
+> what gets pasted into the GitHub issue. Verbatim text prepared 2026-08-25
+> from `camara-attested-windowed-disclosure.md` §10.
+>
+> **Filed:** NOT YET FILED — replace this line with the PR URL and date once posted.
+> Once filed, this file becomes an immutable record — amend the source
 > proposal doc instead.
 >
-> **Filed:** NOT YET FILED — replace this line with the issue URL and date once posted.
+> Everything above this line (through the marker below) is repo bookkeeping
+> for whoever is filing this — it must NOT be pasted into the GitHub issue.
+
+<!-- ==== EVERYTHING BELOW THIS LINE IS THE ISSUE BODY — PASTE FROM HERE ==== -->
 
 # New API Family Proposal: CarrierAttestation
 
 > Filing target: `camaraproject/APIBacklog`, opened as a GitHub issue using
 > the repo's own issue template, ahead of a linked PR adding the filled
-> `documentation/API-proposal-template.md`. Source: `docs/product/camara-attested-windowed-disclosure.md`
+> `documentation/API-proposal-template.md`. Source:
+> https://github.com/hamr0/justabit/blob/main/docs/product/camara-attested-windowed-disclosure.md
 > §10, re-verified 2026-08-25 — the authoritative, already filing-ready
 > mapping this issue body is copied from verbatim wherever the template asks
 > the same question twice.
+>
+> The proposal, PoC, and OpenAPI sketch referenced throughout this issue
+> live at https://github.com/hamr0/justabit (Apache 2.0, public, not itself
+> a CAMARA deliverable — the author's own staging ground for this
+> submission). See "Reference material" at the end of the References
+> section for the direct links.
 >
 > **Framing, stated up front so the Working Group reads this proposal
 > correctly:** this is not a request to approve a new, free-standing API.
@@ -53,10 +70,14 @@ Cairenes Solutions
 
 ## API summary
 
-Signed, nonce-bound, expiring predicate attestations over network facts
-operators already compute (SIM-swap age, tenure, subscription class), under
-monotone floors — for the cases no existing API covers: agent-grade floor
-bundles (proposal doc §3.4) and holder presentment (proposal doc §5).
+Identity data should not become a tradeable asset. This family lets the
+operator answer a boolean and keep custody of the underlying fact, and lets
+an aggregator carrying the query meter and bill without ever reading
+identifiers, predicates, or answers: signed, nonce-bound, expiring predicate
+attestations over network facts operators already compute (SIM-swap age,
+tenure, subscription class), under monotone floors — for the cases no
+existing API covers: agent-grade floor bundles (proposal doc §3.4) and
+holder presentment (proposal doc §5).
 
 Business cases:
 1. A bank authorizes a transfer on "unswapped ≥ 90d" without receiving a
@@ -75,7 +96,11 @@ Service API.
 Customer-facing northbound exposure of telco network capabilities
 (subscription facts, SIM lifecycle, network authentication); no
 east-west/federation surface. The consumption modes this filing adds are
-additive to existing catalog APIs, per Project Charter scope.
+additive to existing catalog APIs, per Project Charter scope. The design
+keeps any aggregator in the path a blind hub — metering and billing, never
+reading identifiers, predicates, or answers — so the capability to
+accumulate and monetize subscriber data against the ecosystem is removed by
+construction rather than left to a middle layer's restraint.
 
 ## Proposal owner declaration
 
@@ -114,7 +139,8 @@ tooling operators need for eIDAS 2.0 regardless).
 
 ## Commercial viability
 
-Open-source reference PoC in this repo (`poc/`, Node.js, zero
+Open-source reference PoC at
+https://github.com/hamr0/justabit/tree/main/poc (Node.js, zero
 dependencies); SD-JWT VC / OpenID4VCI/VP open-source stacks are available;
 per-query billing is preserved in Mode A by construction — the aggregator
 meters and bills but is structurally unable to read identifiers,
@@ -122,7 +148,8 @@ predicates, or answers.
 
 ## YAML code available
 
-YES — illustrative sketch at `spec/carrier-attestation.yaml`
+YES — illustrative sketch at
+https://github.com/hamr0/justabit/blob/main/spec/carrier-attestation.yaml
 (non-normative draft; predicate ids in it are illustrative spellings, not a
 normative enumeration).
 
@@ -221,3 +248,14 @@ here.
   authors' prior work (8een/zkagent). This proposal is standards-neutral
   and does not depend on it — it is cited as one implementation, not a
   dependency.
+
+### Reference material
+
+The following is the author's own staging ground for this submission —
+Apache 2.0, public, and not itself a CAMARA deliverable:
+
+- Repo root: https://github.com/hamr0/justabit
+- CAMARA proposal document (full normative "attested windowed disclosure"
+  profile): https://github.com/hamr0/justabit/blob/main/docs/product/camara-attested-windowed-disclosure.md
+- Reference PoC (Mode A, Node.js, zero dependencies): https://github.com/hamr0/justabit/tree/main/poc
+- OpenAPI sketch (illustrative, non-normative): https://github.com/hamr0/justabit/blob/main/spec/carrier-attestation.yaml

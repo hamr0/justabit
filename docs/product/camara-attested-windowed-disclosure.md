@@ -12,13 +12,13 @@
 
 ## 1. Executive summary
 
-CAMARA APIs today follow a **lookup model**: a relying party (RP) sends a
+CAMARA APIs today follow a **lookup model**: a requester sends a
 subscriber identifier (MSISDN) to an operator and receives a fact back ("SIM
 not swapped", "number verified", "device roaming in FR"). The answer is
 minimal; the **query path is not**. Every check ships an identifier, creates a
-carrier-side log of *which RP asked about which subscriber and when*, and
+carrier-side log of *which requester asked about which subscriber and when*, and
 returns raw values (timestamps, countries, the phone number itself) that are
-linkable across RPs and across time.
+linkable across requesters and across time.
 
 This proposal's primary deliverable is a **horizontal profile** — "attested
 windowed disclosure" — that any catalog API answering questions about a
@@ -45,13 +45,50 @@ A second, additive consumption mode — **holder presentment** (§5) — is
 sketched for the cases the profile alone cannot reach (no inbound identifier
 at all, no operator query log); it is roadmap, not the wedge.
 
+## 1.1 Why now
+
+This project's stance: subscriber identity data should not become a
+tradeable asset — a position, not a finding.
+
+A2P SMS shows what a middle layer able to *see* per-message value produces:
+grey routing and artificially inflated traffic (AIT — SMS generated purely
+to earn termination revenue) are documented, GSMA-named integrity failures,
+both depending on a hub that can read per-message value. Business messaging
+has shifted toward app channels (WhatsApp Business, RCS), eroding SMS's
+share — even as total A2P spend keeps growing; a share shift, not a decline.
+
+Any architecture where a hub can read identifiers, predicates, or answers
+carries the structural *option* to accumulate and monetize them against the
+ecosystem, whether or not any operator has done so — the prospective risk
+this project addresses. The profile removes that capability rather than
+prohibiting the behaviour. GDPR/ePrivacy already require consent and
+purpose limitation before subscriber data leaves the network; a
+raw-disclosure API is legally fragile by construction, a signed boolean
+is not.
+
+Result: win-win-win, no party trusting another's restraint — operator
+keeps custody and answers a boolean; aggregator stays blind, bills per
+answer, keeps revenue share; subscriber keeps privacy.
+
+Agents are the sharpest "why now." MWC26 demonstrated agents autonomously
+invoking network APIs (QoD on Orange, Mplify LSO on Colt, Number
+Verification via Google Firebase) — agents acting as network principals.
+Agentic consumption scales the query-log/identifier problem to machine
+speed, far above human call volume. A SIM cannot be an agent's *principal
+root* — prepaid SIMs are ~$1 and farmable — while subscription-quality
+predicates are near-free for real subscribers, expensive at farm scale. A
+floor-gated credential (`voice+data ∧ tenure ≥ 2y ∧ swapAge ≥ 90d`,
+postpaid optional) over RFC 9421 is the clean foundation. The
+agent/delegation side is proposed separately to the IETF OAuth Working
+Group (`ietf-agent-delegation.md`).
+
 ## 2. Problem statement
 
 | Leak | Lookup model today | Consequence |
 |---|---|---|
-| Identifier travels | RP → aggregator → operator, carrying MSISDN | RP must hold/process the number even when it only needs a boolean; GDPR minimization tension |
-| Query log | Operator/aggregator logs (RP, subscriber, time, API) | A new cross-industry metadata stream: who banks where, who registered on which platform, when |
-| Linkability | Responses keyed to the same identifier everywhere | Any two RPs (or one RP over time) can correlate a subscriber's checks |
+| Identifier travels | requester → aggregator → operator, carrying MSISDN | requester must hold/process the number even when it only needs a boolean; GDPR minimization tension |
+| Query log | Operator/aggregator logs (requester, subscriber, time, API) | A new cross-industry metadata stream: who banks where, who registered on which platform, when |
+| Linkability | Responses keyed to the same identifier everywhere | Any two requesters (or one requester over time) can correlate a subscriber's checks |
 | Consent opacity | Consent gathered out-of-band, subscriber never sees the flow | Weak Art. 6/7 GDPR story; ePrivacy exposure |
 
 Fraud-prevention APIs are CAMARA's top commercial use case (GSMA Open
@@ -141,6 +178,19 @@ kyc-\*, device-status, …).
 - **Validity** — the response's lifetime; bounded by the query's duration
   where applicable, always short.
 
+**Roles:**
+
+| Role | Definition |
+|---|---|
+| Customer | The subscriber the question is about |
+| Operator | Holds the facts, signs the boolean answer |
+| Aggregator | The blind hub; relays and bills, reads nothing |
+| Requester | Asks the question (a bank, a content service, an agent platform) |
+
+**RP** means *roaming partner*, its standard telecom sense. The party asking
+a predicate question is the **requester** — never abbreviated, and never
+"RP" for "relying party."
+
 ### 3.2 Normative rules (profile mode)
 
 An API operation conforming to this profile:
@@ -189,8 +239,10 @@ An API operation conforming to this profile:
 6. **MUST** be end-to-end encrypted between requester and operator when
    carried through an aggregator; the aggregator handles metering envelopes
    only (count, route, bill) — it **MUST NOT** be able to read identifiers,
-   predicates, or answers. (The A2P lesson, §8.1: middle layers that can
-   read, eventually monetize.) Envelopes **MUST NOT** expose payload size to
+   predicates, or answers. (§8.1: a middle layer that can read holds the
+   structural option to accumulate and monetize; this rule removes the
+   capability rather than relying on restraint.) Envelopes **MUST NOT** expose
+   payload size to
    the aggregator: profile-mode envelopes are fixed-length or padded, so the
    metering log carries no content signal (a length-tracking transport turns
    the billing record itself into a side channel).
@@ -416,7 +468,7 @@ Two limits and one deferral on that, stated rather than glossed:
 
 ### 3.4 Agent-grade floor (reference profile)
 
-Agents are the "why now" (§7.2). Consumer-agent floor, only tightenable:
+Agents are the "why now" (§1.1). Consumer-agent floor, only tightenable:
 
 ```
 simType  = voice+data      # excludes data-only IoT/M2M SIMs — the farm's cheap
@@ -455,7 +507,7 @@ document-rooted principal layer above this profile.
 - The trust directory is the single centralization point; governance belongs
   with existing GSMA key-distribution rails (RAEX/IR.21-shaped) — see §9.9.
 - A blind aggregator still sees traffic metadata: message count, timing, and
-  the RP↔operator pairing (who queries whom, when). Rule 6 removes content,
+  the requester↔operator pairing (who queries whom, when). Rule 6 removes content,
   not the fact of the query; measured and recorded in the PoC findings log.
 - Even a *predicate-shaped* catalog endpoint hands back raw values beside its
   verdict. Measured 2026-08-17: **every** `location-verification/v1/verify`
@@ -505,7 +557,7 @@ sequence, not any response, and floors do not reach it (a floor constrains the
    as a duration threshold is. The published menu there is **60 | 70 | 80 | 90
    and nothing else**, the comparison happens operator-side, and the score never
    crosses the wire. A threshold is offered at all — rather than one operator
-   value imposed on everyone — because relying parties genuinely differ: names
+   value imposed on everyone — because requesters genuinely differ: names
    vary by accent, middle name, transliteration and typo, which is why the
    catalog returns a score in the first place. Rule 1 already puts that window
    in the question; the menu is what keeps it from being a dial. Measured
@@ -570,7 +622,7 @@ WG scrutiny should catch, and it is better caught by the author.
 ## 4. Two consumption modes
 
 **Mode A — attested query response (primary; the adoption wedge).** The
-existing rail, commercially unchanged: RP → aggregator → operator, per-query
+existing rail, commercially unchanged: requester → aggregator → operator, per-query
 billing and revenue share as today. What changes is payload discipline: the
 profile of §3 applied end-to-end, with the aggregator blind (§8.1).
 
@@ -592,7 +644,7 @@ the wedge; Mode B is the roadmap.**
   CAMARA APIs.
 - **Holder** — the subscriber's device (SIM-bound app, OS wallet, or EUDI
   wallet), receiving and storing attestations; generates proofs.
-- **Verifier / RP** — any service; verifies proofs against operator public
+- **Verifier / requester** — any service; verifies proofs against operator public
   keys (published, e.g., JWKS per PLMN). No API subscription needed to
   *verify* — verification is offline math.
 
@@ -623,7 +675,7 @@ can be added without re-issuing.
 - Proof of a **predicate**, not the raw fact: "swap age > N days",
   "roaming ∈ EU", "number prefix ∈ +49", "device reachable within last hour".
 - **Scope binding**: the proof is cryptographically bound to the verifier's
-  domain and a session nonce — replay-useless elsewhere; two RPs cannot
+  domain and a session nonce — replay-useless elsewhere; two requesters cannot
   correlate presentments.
 - **Metadata uniformity**: fixed proof sizes/versions so the presentment
   itself cannot fingerprint the holder.
@@ -636,17 +688,17 @@ can be added without re-issuing.
   `networkAccessIdentifier`, or device IP/port; IMSI never leaves the
   operator domain. Swapping MSISDN for IMSI would not reduce linkability —
   both are long-lived tracking keys. Mode B removes the identifier from the
-  RP-facing wire entirely.
+  requester-facing wire entirely.
 - **Issuance leg** (subscriber ↔ operator): no identifier is sent — network
   authentication on the live cellular session ("silent auth", the existing
   `number-verification` mechanism) tells the operator which SIM is asking.
-- **Attestation subject**: a blinded commitment with per-RP scope and
-  time-window epoch: `tag = HASH(subscriber_secret, rp_scope, epoch)`. The RP
+- **Attestation subject**: a blinded commitment with per-requester scope and
+  time-window epoch: `tag = HASH(subscriber_secret, rp_scope, epoch)`. The requester
   sees a predicate proof bound to this tag + its session nonce — nothing
-  longitudinal, nothing cross-RP.
+  longitudinal, nothing cross-requester.
 - **Windowing note**: fraud predicates need *freshness*, not continuity — the
-  epoch window deliberately prevents even a single RP from building a profile
-  over time. Bannable-identity cases use stable per-RP tags so consequence
+  epoch window deliberately prevents even a single requester from building a profile
+  over time. Bannable-identity cases use stable per-requester tags so consequence
   sticks. Stability vs. windowing is a per-attestation-type knob, not an
   architectural fork.
 - **Precedent**: 5G already conceals the permanent identifier on the air
@@ -668,23 +720,23 @@ can be added without re-issuing.
 
 ### 5.6 Design principles
 
-1. **Attest facts, never identities** — operators sign predicates; RPs
+1. **Attest facts, never identities** — operators sign predicates; requesters
    consume booleans.
 2. **No long-lived identifier leaves the operator** — MSISDN/IMSI resolved
    internally at issuance (silent auth); the wire carries
    `HASH(sim_secret, rp_scope, epoch)`.
-3. **Holder-mediated: consent is structural** — nothing flows operator→RP
+3. **Holder-mediated: consent is structural** — nothing flows operator→requester
    directly; no presentment, no data, no log.
-4. **Nonce'd + expiring** — replay-dead, retention-hostile; what an RP stores
+4. **Nonce'd + expiring** — replay-dead, retention-hostile; what a requester stores
    is correlation-worthless.
 5. **Disclosure window, narrow by default, monotone tightening** — one bit by
    default; widening requires an explicit, holder-visible request; floors
    only tighten downstream.
 6. **Time window as a per-type knob** — epoch-windowed tags for fraud
-   predicates, stable per-RP tags for bannable identity. Same derivation,
+   predicates, stable per-requester tags for bannable identity. Same derivation,
    different epoch policy.
 7. **Policy at the edge, facts at the core** — operator = issuer of attested
-   facts and published floors; RP = chooses required predicates; neither sees
+   facts and published floors; requester = chooses required predicates; neither sees
    the other's counterparty.
 8. **Additive and standards-riding** — no changes to existing APIs;
    SD-JWT VC / OpenID4VP / RFC 9421.
@@ -717,10 +769,10 @@ verifier. Phase 1 alone is a complete, demoable story.
 
 ### 7.1 The roaming expansion
 
-`Device Roaming Status` in lookup mode is a **tracking API** — RPs learn
+`Device Roaming Status` in lookup mode is a **tracking API** — requesters learn
 where subscribers are, continuously. The same facts as predicates:
 
-| Use case | Predicate proven | What the RP does NOT learn |
+| Use case | Predicate proven | What the requester does NOT learn |
 |---|---|---|
 | Bank fraud rules | "device is (not) roaming" / "device in country of card transaction" | which country, travel history, MSISDN |
 | Content licensing | "device in licensed region R" | exact country, identity |
@@ -732,26 +784,6 @@ where subscribers are, continuously. The same facts as predicates:
 One issuance rail + pluggable predicates ⇒ every new CAMARA status API
 becomes a new attestation type for free. **This is not one API; it is a
 consumption mode the whole catalog inherits.**
-
-### 7.2 Agentic AI — the "why now"
-
-MWC26 demonstrated agents autonomously invoking network APIs (QoD on Orange
-via Open Gateway, Mplify LSO on Colt, Number Verification via Google
-Firebase) — agents observing, deciding, and acting as network principals. Two
-consequences:
-
-1. **The query-log problem scales to machine speed.** Agentic consumption
-   means high-frequency automated calls; in the lookup model every one ships
-   an identifier and lands in a log. The §2 metadata stream grows by orders
-   of magnitude precisely as agents mainstream.
-2. **Carrier predicates as SIM-farm resistance for agent auth.** A SIM cannot
-   be an agent's *principal root* — prepaid SIMs are ~$1 and farmable — but
-   subscription-quality predicates (§3.4) are near-free for real subscribers
-   and expensive at farm scale. Layering: a human-scarcity principal proof
-   proves the accountable human; a delegation credential names the agent;
-   carrier floors price out the farm. Complementary trust roots, one wire
-   format (W3C VC + RFC 9421). The agent/delegation side is proposed to the
-   IETF OAuth Working Group separately (`ietf-agent-delegation.md`).
 
 ## 8. Stakeholder value
 
@@ -770,28 +802,57 @@ consequences:
 
 ### 8.1 The A2P lesson: the aggregator as blind hub
 
-A2P SMS decayed because the middle layer could see and arbitrage per-message
-value: grey routes, spam, fake DLRs, SIM farms. The trust model was "the
-aggregator promises not to" — and it always eventually did. This profile
-fixes that structurally, not contractually:
+> **RETRACTED 2026-08-28 — two claims in this section were unverified and
+> did not hold up.** This section previously opened with "A2P SMS decayed
+> because the middle layer could see and arbitrage per-message value: grey
+> routes, spam, fake DLRs, SIM farms," and later asserted "history (A2P)
+> shows accumulated middle-layer value gets monetized against the
+> ecosystem." An adversarial grounding pass on 2026-08-28 found: total A2P
+> messaging spend is **growing**, not declining (~$75–90B, 4–7% forecast
+> CAGR; SMS A2P volume itself still grows ~2.6% CAGR) — what is real is a
+> channel-mix shift, SMS's share eroding toward app-based channels
+> (WhatsApp Business, RCS), not a fall of A2P as a category. And no
+> regulator finding, enforcement action, or documented incident ties A2P
+> aggregators or messaging hubs to overselling or monetising subscriber
+> demographic/PII data — the closest superficially-adjacent evidence (FTC
+> actions against Gravy Analytics/Mobilewalla) concerns location-data
+> brokers in mobile ad-tech/RTB, a different industry, and citing it here
+> would be a category error. What A2P **does** evidence, and remains
+> grounded, is a mechanism: grey routing and artificially inflated traffic
+> (AIT) are documented, GSMA-named integrity failures that depend on a
+> middle layer able to *see* per-message value — see §1.1. The corrected
+> position follows; the aggregator mechanics below (blind hub, per-query
+> billing, Mode A/Mode B behaviour, no-grey-route-surface) are design
+> arguments, unaffected by the retraction, and are kept as originally
+> written.
+
+A2P SMS demonstrates the mechanism this profile is built to structurally
+foreclose: a middle layer that can see per-message value creates the
+option to arbitrage it — grey routing and artificially inflated traffic
+(AIT) are the documented, GSMA-named cases (§1.1). Trusting an aggregator's
+promise not to look is not a structural fix, whether or not any aggregator
+has actually broken that promise. This profile removes the capability
+rather than relying on the promise:
 
 - **Aggregator role = connection hub.** One signup → every connected network;
   the hub *fulfills and bills*, nothing more.
 - **Mode A: per-query billing continues, blind** — request/response are
-  end-to-end encrypted RP↔operator; the hub sees metering envelopes (count,
+  end-to-end encrypted requester↔operator; the hub sees metering envelopes (count,
   route, bill) but never numbers, predicates, or answers. Existing
   revenue-share commercials continue unchanged.
 - **Mode B: presentment never touches the hub** — issuance passes through as
   ciphertext; verification is against operator keys.
 - **No grey-route surface**: arbitrage needs *visible* per-message value; a
   hub that can count but not read has nothing to arbitrage, and billing
-  reconciles independently from operator-side and RP-side counts.
+  reconciles independently from operator-side and requester-side counts.
 
 The aggregator keeps distribution, contracts, and developer experience — the
 revenue role — and loses only the surveillance option and the arbitrage
 surface. Stated as a design goal: **the middle layer must not be able to
-accumulate value beyond carriage, because history (A2P) shows accumulated
-middle-layer value gets monetized against the ecosystem.**
+accumulate value beyond carriage, because a middle layer able to see
+per-message value has, in A2P, a documented history of that visibility
+being arbitraged (grey routes, AIT) — a structural risk this profile
+removes by construction rather than a historical inevitability it assumes.**
 
 ## 9. Risks / open questions
 
@@ -938,5 +999,5 @@ PR adding this filled template, linked to that issue.
   W3C Verifiable Credentials 2.0, BBS+ (W3C/DIF)
 - eIDAS 2.0 / EUDI Wallet ARF — holder-wallet convergence timeline
 - One existing implementation of the document-rooted principal layer referenced
-  in §3.4/§7.2 exists in the authors' prior work (8een/zkagent); this proposal
+  in §3.4/§1.1 exists in the authors' prior work (8een/zkagent); this proposal
   is standards-neutral and does not depend on it.

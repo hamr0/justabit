@@ -14,7 +14,135 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
-## 2026-08-25 (latest) — OPEN DECISION from the entry below CLOSED: fold-in-versus-distinguish resolved as HYBRID, after a full read of `draft-klrc-aiagent-auth-03` raw text
+## 2026-08-28 (latest) — adversarial grounding pass on the A2P "why now" thesis: two retractions, four confirmations
+
+**EVIDENCE**
+
+A web-search-only adversarial grounding pass (method note: primary GSMA and
+MEF documents 403'd on every fetch attempt; findings below rest on
+secondary citations of those reports where noted) was run against the
+author's working claim: "aggregators/hubs got more access → sold access to
+untrusted partners by proxy → oversharing demographics → spam/rogue actors
+→ price hikes → combined with PII scrutiny + EU regulation → the fall of
+A2P." Six sub-claims were checked independently:
+
+1. **Grey routes / unauthorised A2P routing — GROUNDED as a mechanism.**
+   Unauthorised routing bypassing termination fees is a well-documented,
+   GSMA-tracked industry problem (secondary-sourced figures: ~75% of 816
+   surveyed operator networks showing partial/full grey routing; more
+   recent Mobilesquared-attributed figures show grey-route share *falling*,
+   4.3% of business messaging in 2023, forecast <1% by 2027). NOT grounded:
+   that aggregators knowingly resold access to untrusted downstream
+   partners as a business practice — the literature documents unauthorised
+   routing and fraud, not a documented pattern of deliberate reselling of
+   trust/access. Sources: Enea, Synaptique, IDT Global (vendor/secondary
+   tier) — https://www.enea.com/solutions/messaging-security/a2p-sms-grey-route-fraud-protection/
+   , https://www.synaptique.com/understanding-a2p-bypass-fraud/ ,
+   https://idtglobal.com/sms-firewall/ ; a Businesswire item citing
+   Mobilesquared (paid analyst firm, not a regulator), URL fetch 403'd,
+   found via search snippet only:
+   https://www.businesswire.com/news/home/20230501005030/en .
+2. **AIT (Artificially Inflated Traffic) / SMS pumping — GROUNDED.** A
+   formally GSMA-named fraud category, with sustained multi-year trade-body
+   attention (MEF calling it a top-3 messaging threat since Jan 2023,
+   "the silent predator" by Jan 2025). Specific dollar figures DISAGREE by
+   ~2x across sources ($1.16B vs $1.6B vs $2.4B for overlapping periods) —
+   never state one as consensus; attribute any figure cited to its source.
+   Sources (MEF fetches both 403'd, relying on search-engine summary only):
+   https://mobileecosystemforum.com/2025/01/08/ait-in-a2p-messaging-the-silent-predator/
+   , https://mobileecosystemforum.com/2023/01/12/artificially-inflated-traffic-the-latest-menace-in-sms/
+   ; corroborating vendor tier: Ericsson white paper
+   https://www.ericsson.com/en/reports-and-papers/white-papers/ait-the-root-cause-the-solution-and-the-implication-on-rcs-and-network-apis
+   , plus Sinch/Infobip/Bandwidth/CybelAngel blogs (weak, directionally
+   consistent).
+3. **Price rises → migration toward app channels (WhatsApp Business, RCS)
+   — GROUNDED.** Analysys Mason (named analyst firm, stronger tier than
+   vendor blogs): third-party app A2P traffic share rising 36%→47%
+   (2022→2027 forecast); SMS A2P volume still growing 2.6% CAGR vs 14% CAGR
+   for app-based A2P over the same period; SMS business *spend* forecast to
+   peak ~2026. Sources:
+   https://www.analysysmason.com/research/content/regional-forecasts-/a2p-messaging-forecast-rdmv0/
+   , https://www.analysysmason.com/research/content/articles/a2p-messaging-migration-rdvs0/
+   , https://www.analysysmason.com/research/content/articles/a2p-market-growth-rdmv0/
+   , https://www.telemediamagazine.com/world-telemedia-23-a2p-sms-set-to-peak-in-2026-with-whatsapp-ait-and-pricing-undermining-the-business-model/ .
+4. **Aggregators oversharing/monetising subscriber PII or demographics —
+   UNGROUNDED.** No regulator finding, enforcement action, or documented
+   incident exists tying A2P SMS aggregators/messaging hubs to overselling
+   or monetising subscriber demographic/PII data. The FTC's Dec 2024
+   actions against Gravy Analytics/Venntel and Mobilewalla are real and
+   well-documented but concern **location-data brokers in mobile ad-tech/
+   RTB exchanges** — a different industry; citing them here would be a
+   category error an operator audience would catch instantly. Sources:
+   https://epic.org/ftc-takes-action-against-data-brokers-for-selling-sensitive-location-data/
+   , https://cyberscoop.com/ftc-data-broker-action-gravy-analytics-venntel-mobilewalla/
+   ; closest-adjacent but non-evidentiary (critique/structural writing, not
+   an incident report):
+   https://daidac.thecjid.org/who-gave-them-my-number-the-consent-gap-behind-africas-unsolicited-sms-pandemic/ .
+5. **EU regulation — PARTLY GROUNDED.** GDPR + the ePrivacy Directive
+   (2002/58/EC, in force) directly constrain what subscriber data an
+   operator (as controller) may disclose without consent — real and
+   relevant. NOT established: that eIDAS 2.0 (Regulation (EU) 2024/1183) or
+   the EU Data Act (Regulation (EU) 2023/2854) constrain this specific use
+   case — no source drew that direct line; treat as parallel context, not a
+   constraint. The ePrivacy *Regulation* (as opposed to the in-force 2002/58
+   Directive) remains proposed, not law — do not cite it as such.
+6. **"The fall of A2P" / "A2P declined" — CONTRADICTED, the single most
+   important finding of this pass.** Total A2P messaging spend is
+   **growing** (~$75–90B, 4–7% forecast CAGR per Grand View Research and
+   others); SMS A2P volume itself still grows ~2.6% CAGR. What is real is a
+   **channel-mix shift**: SMS's *share* of business messaging erodes toward
+   app channels, and SMS-specific business *spend* is forecast to peak
+   around 2026 — never "A2P fell," "decayed," or "collapsed." Sources:
+   https://www.grandviewresearch.com/industry-analysis/a2p-messaging-market-report
+   , plus the Analysys Mason and Telemedia sources cited under #3.
+
+**DECISION**
+
+Two retractions follow directly from #4 and #6 above, both visible per this
+repo's no-go 9 (retract, never silently correct):
+
+- `docs/product/camara-attested-windowed-disclosure.md` §8.1 previously
+  opened "A2P SMS decayed because the middle layer could see and arbitrage
+  per-message value: grey routes, spam, fake DLRs, SIM farms" and closed
+  "history (A2P) shows accumulated middle-layer value gets monetized
+  against the ecosystem." Both fail re-verification (decline is
+  contradicted by #6; the monetization claim has no incident/regulator
+  finding per #4). A dated retraction note now opens §8.1, quoting both
+  phrases, and the body is rewritten to the grounded version: A2P
+  demonstrates a documented **mechanism** (grey routes + AIT depend on a
+  hub that can see per-message value), and the PII-accumulation risk is
+  reframed as **prospective/structural** ("carries the option to,"
+  never "history shows it did"), not retrospective fact. The aggregator
+  mechanics (blind hub, per-query billing, Mode A/Mode B behaviour,
+  no-grey-route-surface, "keeps distribution/contracts/DX, loses the
+  surveillance option") are design arguments, unaffected by the
+  retraction, and were kept as originally written.
+- A new §1.1 "Why now" was added to the same document (200–260-word target,
+  landed at 266) carrying the grounded argument end to end: the project's
+  stance that identity data should not become a tradeable asset; the A2P
+  mechanism evidence (#1, #2); the channel-mix fact stated correctly (#3,
+  #6); the prospective PII risk (#4, reframed forward-looking); the GDPR/
+  ePrivacy legal floor (#5); the win-win-win argument; and the agent-driven
+  "why now," over RFC 9421 with the exact floor
+  `voice+data ∧ tenure ≥ 2y ∧ swapAge ≥ 90d` (postpaid optional).
+- Downstream artifacts updated to carry the same grounded why without
+  re-litigating it: the issue-body Description
+  (`docs/product/camara-filing-issue.md`, kept under the 1800-char
+  budget below the paste marker) and the long filing template's API summary
+  and Scope-fit fields (`docs/product/camara-filing-template.md`) now open
+  with the tradeable-asset stance and the blind-hub argument before the
+  existing horizontal-profile ask and CAMARA precedents, which are
+  unchanged.
+
+**Methodological caveat, stated on purpose:** no primary GSMA or MEF
+document could be fetched in this pass — every direct attempt returned 403.
+The grey-route and AIT findings above therefore rest on secondary citations
+(vendor blogs, one paid-analyst-attributed Businesswire item, and
+search-engine summaries of MEF pages that could not be opened directly),
+not on independently verified primary text. This is recorded as a known gap
+in this evidence, not smoothed over.
+
+## 2026-08-25 — OPEN DECISION from the entry below CLOSED: fold-in-versus-distinguish resolved as HYBRID, after a full read of `draft-klrc-aiagent-auth-03` raw text
 
 **DECISION**
 
@@ -205,7 +333,7 @@ step 4, and the operator encrypts the answer under requester A's key
 instead — A can decrypt an answer to a query it never made, and B cannot
 read its own. Cross-requester disclosure between two fully authenticated
 principals. This was invisible in every prior run of this demo purely
-because it has only ever had one RP: the hardcoded key and the correct key
+because it has only ever had one requester: the hardcoded key and the correct key
 were byte-identical with one requester in the world.
 
 **Fix (`poc/demo.mjs`, `createOperator`):** step 3 now resolves
@@ -225,7 +353,7 @@ field set in code (`poc/m4-facts-mock.mjs`, `unexpected predicate fields:
 …`). The sketch left open the exact door the code closes.
 
 **New case, mutation-proven: `m6-check.mjs` case 46 CROSS-REQUESTER
-SEALING (m6 45 → 46).** `createWorld` only ever mints one RP, so no
+SEALING (m6 45 → 46).** `createWorld` only ever mints one requester, so no
 existing case could see this defect. A new `twoRpWorld()` helper mints a
 second requester B sharing A's operator key pair, with its own
 `rpSig`/`rpEnc`/`rpIss`, both A and B listed in the same directory. The
@@ -250,7 +378,7 @@ EXIT:1
 Cases 1–45 are unaffected by the revert, isolating case 46 to exactly this
 defect. **The fix shipped with NO test able to catch it until this case
 existed** — every one of the six existing suites (m1–m6, demo mock) scored
-identically with the fix present or reverted, because a single-RP world
+identically with the fix present or reverted, because a single-requester world
 structurally cannot exercise cross-requester sealing. This is the THIRD fix
 in this project's history to land with no net at the time it shipped
 (after m3-floor's hostile-key bound, closed by m3 case 26, and m5's
@@ -332,7 +460,7 @@ and fixed 6:
    `q.area`/`q.claimedName` verbatim; a caller bypassing `factQuery` could
    push a malformed area or a 50,041-char name straight to a live metered
    operator call. Both are now re-validated on the read path.
-4. `demo.mjs` — the RP registered a pending nonce BEFORE `seal()`, leaking
+4. `demo.mjs` — the requester registered a pending nonce BEFORE `seal()`, leaking
    one permanently-unconsumable store entry per oversize-retry. Seal first,
    register after.
 5. `demo.mjs` — `verifyResponse` with `skipNonceStore` and no
@@ -808,7 +936,7 @@ had just authenticated — the directory already carried `encPub` for
 exactly this and nothing read it. With a second directory-listed
 requester, that requester's query passes signature verification and the
 operator encrypts the answer under the FIRST requester's key: cross-requester
-disclosure between two authenticated principals, invisible with one RP in
+disclosure between two authenticated principals, invisible with one requester in
 the world. Fixed by resolving `entry.encPub` at step 3 and threading it as
 `recipientEnc` through every seal call site; an issuer with no `encPub`
 now reports `unknown issuer`. Also closed `spec/carrier-attestation.yaml`'s
@@ -851,7 +979,7 @@ to 40 chars printable ASCII); the "effective floor" assertion recomputing
 `checkFloor` locally instead of reading the operator's own return (passed
 identically for an operator that discarded the effective floor);
 `getFacts` trusting `q.area`/`q.claimedName` verbatim on a path a caller
-could reach without going through `factQuery` (now re-validated); the RP
+could reach without going through `factQuery` (now re-validated); the requester
 registering a pending nonce BEFORE `seal()` (leaked one unconsumable entry
 per oversize retry); `verifyResponse` throwing a bare `TypeError` instead
 of returning a verdict under `skipNonceStore`+no-fallback; and a spec-doc
@@ -1954,7 +2082,7 @@ spec/carrier-attestation.yaml parses; Predicate enum still the 3 wired types
 **Two smaller items closed.** The closed-field-set control passed
 `{ operator: {}, skipRequestFields: true }` to `operator.handle`, which reads
 FLAT controls — `operator: {}` was dead copy-paste residue from `roundTrip`'s
-nested shape, in the one file readers study line by line. And the RP nonce store
+nested shape, in the one file readers study line by line. And the requester nonce store
 only ever GROWS (a request that never receives a response leaves its entry
 resident forever); recorded as an honest limit at the store, in the demo's own
 notes, and in `poc/README.md`. **Not built** — exercising a TTL would mean faking
@@ -2041,7 +2169,7 @@ build:
 The build was written, green at 20/20 and 25/25, and mutation-clean at 16/16
 before this was found — which is the point of recording it. An adversarial probe
 sent hostile shapes at the operator's wire path directly (rather than through the
-RP, which an attacker would not use) and turned up a **silent widening at the one
+requester, which an attacker would not use) and turned up a **silent widening at the one
 layer nobody had closed.**
 
 Every layer underneath was already a closed set, each for the same stated reason:
@@ -2071,7 +2199,7 @@ hostile predicate shapes off the wire (`null`, missing, array, string, number,
 object `type`, object `value`, `['FR',null]`, `[]`, boolean) — none threw, none
 was answered, every reason inside the clamp; a JSON-parsed `__proto__` key does
 not pollute `Object.prototype`; a `floor` that is an array is `malformed floor`;
-a numeric `nonce` is `missing nonce`. The RP's `buildRequest` DOES throw on a
+a numeric `nonce` is `missing nonce`. The requester's `buildRequest` DOES throw on a
 malformed predicate — that is its own caller's input, so throwing is the M2/M3
 rule working as written, and it means a requester's malformed question fails at
 its own desk instead of burning a metered query.
@@ -2512,7 +2640,7 @@ for the window to widen quietly.
 **DECISION**
 
 Two halves, both load-bearing. *Why a
-threshold at all:* relying parties genuinely need their own tolerance — real
+threshold at all:* requesters genuinely need their own tolerance — real
 names vary by accent, middle name, transliteration and typo, and that is
 exactly why CAMARA returns a score in the first place. Forcing one operator
 threshold on everybody would either reject legitimate matches or accept sloppy
@@ -2596,7 +2724,7 @@ closed-field-set defect below: **the composition owns a boundary no module
 owns, and an under-modelled boundary rounds optimistically toward "fine".**
 M6: 27 → 28 cases.
 
-## 2026-08-17 — The RP nonce store's unbounded growth is DOCUMENTED, not built (M6)
+## 2026-08-17 — The requester nonce store's unbounded growth is DOCUMENTED, not built (M6)
 
 **DECISION**
 
@@ -2746,7 +2874,7 @@ request (it demands the closed ANSWER set), so M1 exports
 `hasDuplicateTopLevelKey` and M6 borrows it rather than keeping a second,
 divergent copy — the copy that would face the wire first. The export states
 its precondition (the text must already have parsed as JSON) and M6 calls it
-in M1's own order: signature → parse → scan. The RP's remedy is a clean
+in M1's own order: signature → parse → scan. The requester's remedy is a clean
 re-request: **no partial acceptance, and never a pick between the two
 values.** M1: 19 → 20 cases.
 
@@ -4102,11 +4230,11 @@ Post-build honesty audit (user challenge, answered item-by-item):
   blindness proof.
 - **Requests are encrypted but NOT authenticated** — the response carries
   M1's signature, the request carries none; nothing cryptographically ties
-  a request to an RP, and no ladder module owns sender authentication yet.
-  OPEN ITEM — assign at M6 spec time (options: RP signature over the
+  a request to a requester, and no ladder module owns sender authentication yet.
+  OPEN ITEM — assign at M6 spec time (options: requester signature over the
   request, or accept hub-level API auth as the demo answer, stated).
 - **Envelope-level replay**: a captured request ciphertext re-sent to the
-  operator burns a query (billing nuisance); the RP still rejects the
+  operator burns a query (billing nuisance); the requester still rejects the
   stale answer via nonce. Stateless, same story as M1 — now stated.
 - **No forward secrecy**: a stolen private key decrypts recorded past
   traffic; subsumed under "demo transport, production = TLS/HPKE" but
@@ -4136,13 +4264,13 @@ the trust directory — never inside payloads. 8 checks, exit 0.
   ciphertexts: 8 attempts, 0 recoveries, 0 plaintext substrings.
   Mutation-verified: handing the hub the true recipient's private key
   flips the blindness checks red. Positive control: operator read the
-  request exactly; RP verified the M1 signature end-to-end.
+  request exactly; requester verified the M1 signature end-to-end.
 - **Size side channel: does NOT exist at this layer.** All content
   variants (3 predicates, both result values, plaintexts 141–274 B)
   produced EXACTLY 512-byte ciphertexts — RSA is fixed-width, so the
   hub's byte-metering log records a constant. The rule-6 padding worry is
   answered for the demo envelope. **Honest remainder: message COUNT,
-  TIMING, and the RP↔operator PAIRING stay visible to the hub — that is
+  TIMING, and the requester↔operator PAIRING stay visible to the hub — that is
   the real metadata surface, and the docs must say so.**
 - **Tamper = reject, not crash**: one flipped ciphertext bit →
   `OAEP_DECODING_ERROR`, caught — the hub cannot mutate an in-flight
@@ -4191,7 +4319,7 @@ shape.
    exp}` — the exact wire shape the check suite rejects as an attack. Fixed.
 7. **PRD §4.4 M1 row** still claimed "replay … genuinely REJECT" for a
    deliberately stateless verifier. Fixed: row reworded to binding-only;
-   the single-use-nonce obligation explicitly assigned to M6's RP side.
+   the single-use-nonce obligation explicitly assigned to M6's requester side.
 8. **`Predicate.value` was typed `string`** while its own example is the
    array `["FR","BE"]` — the schema couldn't express its documented
    set-membership case. Fixed: `oneOf` string | string-array.
@@ -4213,7 +4341,7 @@ class: **a verifier must type-gate every field of the signed claims — each
 unguarded field was a real accept-what-should-reject hole.**
 
 1. **`result` was never validated.** A validly signed payload with `result`
-   missing, or `result: "false"` (a string), was ACCEPTED. A relying party
+   missing, or `result: "false"` (a string), was ACCEPTED. A requester
    branching on the claim reads `undefined` (falsy) or a truthy string —
    the opposite of what was attested. Fixed: `result` must be a boolean
    (matches the repo invariant: the answer IS a signed boolean).
@@ -4335,7 +4463,7 @@ the trust directory at M6).
 (1) Profile rule 6 gains the size line: envelopes MUST NOT expose payload
 size to the aggregator (fixed-length or padded) — backed by the M2
 measurement that a length-tracking transport turns the billing log into a
-side channel. (2) Request authenticity assigned to M6: the RP signs
+side channel. (2) Request authenticity assigned to M6: the requester signs
 requests, the operator verifies via the trust directory before answering
 (closes the M2 audit open item). (3) Envelope replay to the operator =
 documented honest limit (billing noise only; production API auth, rate

@@ -60,9 +60,11 @@ illustrative OpenAPI sketch (non-normative); `README.md` is the adopter-facing
 front door and mirrors — never forks — the proposals;
 `docs/logs/findings.md` is the dated evidence log (what experiments
 showed, including dead ends) — it complements this PRD, which stays the home
-of decisions; `docs/logs/camara-apibacklog-filing.md` is the
-immutable, dated record of the text filed to CAMARA APIBacklog, derived
-verbatim from D2 §10 and never a source of design content. Design content
+of decisions; `docs/product/camara-filing-issue.md` (step 1, the GitHub
+issue body) and `docs/product/camara-filing-template.md` (step 2, the
+filled API-proposal template) are the live filing deliverables for CAMARA
+APIBacklog, derived verbatim from D2 §10 and never a source of design
+content — each becomes an immutable record once filed. Design content
 still folds into the 3 docs, never into findings.
 
 ## 4. PoC requirements (the only build)
@@ -149,12 +151,12 @@ user runs each module's check themselves.
 
 | Module | Scope (works alone) | Toughest assumption its POC must attack |
 |---|---|---|
-| M1 attestation core | sign + verify `{predicate, result, nonce, exp}` (closed claim set) | tamper/expired/wrong-key/wrong-question responses genuinely REJECT (negatives first); nonce check = stateless BINDING — single-use nonces are the RP's job (M6) |
+| M1 attestation core | sign + verify `{predicate, result, nonce, exp}` (closed claim set) | tamper/expired/wrong-key/wrong-question responses genuinely REJECT (negatives first); nonce check = stateless BINDING — single-use nonces are the requester's job (M6) |
 | M2 blind envelope | E2E encryption past a hub that logs metering only | the hub truly cannot read; envelope SIZE side-channel stated honestly |
 | M3 floor gate | monotone floor check | below-floor is NEVER answered — no silent widening path exists |
 | M4 facts adapter (mock) | scriptable backstories behind one interface | flipping the backstory flips the bit; fixture can show the negative |
 | M5 facts adapter (orange) | same interface, live Playground | built-ins shadow writes (measured) — READ-verify is load-bearing |
-| M6 integration | one-command demo = the four assertions; RP issues single-use per-request nonces (completes rule-2 replay rejection); RP signs requests, operator verifies via trust directory before answering (request authenticity — closes the M2 audit open item) | the modules compose without weakening any single module's guarantee |
+| M6 integration | one-command demo = the four assertions; requester issues single-use per-request nonces (completes rule-2 replay rejection); requester signs requests, operator verifies via trust directory before answering (request authenticity — closes the M2 audit open item) | the modules compose without weakening any single module's guarantee |
 
 Gate mapping: G1 = M1–M4 + M6 all user-validated; G2 = M5 user-validated live.
 
@@ -782,7 +784,7 @@ The full rationale for every decision lives in `docs/logs/findings.md`; this tab
 
 | Date | Decision | Status | Where |
 |---|---|---|---|
-| 2026-08-25 | Fold-in-vs-distinguish resolved as HYBRID (klrc-aiagent-auth-03 read) | active | [findings.md](../logs/findings.md#2026-08-25-latest--open-decision-from-the-entry-below-closed-fold-in-versus-distinguish-resolved-as-hybrid-after-a-full-read-of-draft-klrc-aiagent-auth-03-raw-text) |
+| 2026-08-25 | Fold-in-vs-distinguish resolved as HYBRID (klrc-aiagent-auth-03 read) | active | [findings.md](../logs/findings.md#2026-08-25--open-decision-from-the-entry-below-closed-fold-in-versus-distinguish-resolved-as-hybrid-after-a-full-read-of-draft-klrc-aiagent-auth-03-raw-text) |
 | 2026-08-25 | AAIF dropped; agent arm re-homed to IETF; no-go 12 retired | active | [findings.md](../logs/findings.md#2026-08-25--submission-strategy-shift-aaif-dropped-agent-arm-re-homed-to-ietf-no-go-12-retired-api-family-owner-decided) |
 | 2026-08-18 | Full user validation run, uncommitted tree — BOTH GATES MET | active | [findings.md](../logs/findings.md#2026-08-18--user-ran-the-full-validation-suite-on-their-own-machine-against-the-current-uncommitted-tree-the-tree-the-entries-below-describe-every-suite-clean-zero-fail-zero-typeerror-zero-error-lines-in-either-log-both-gates-met-on-this-tree) |
 | 2026-08-18 | code-review --fix on fix round below (agent-run, NOT user-validated) | superseded | [findings.md](../logs/findings.md#2026-08-18--code-review-medium---fix-round-on-the-fix-round-below-agent-run-not-user-validated--g1-and-g2-stay-re-openedpending-at-the-new-counts) |
@@ -809,7 +811,7 @@ The full rationale for every decision lives in `docs/logs/findings.md`; this tab
 | 2026-08-17 | Probing oracle: residual walk priced/bounded above this profile (user's stance) | active | [findings.md](../logs/findings.md#2026-08-17-latest--on-the-probing-oracle-generally-the-residual-walk-is-priced-and-bounded-at-the-layer-above-this-profile-users-position-recorded-as-the-projects-stance) |
 | 2026-08-17 | `/retrieve-age-band` DOES NOT EXIST on Orange Playground — CLOSED unfavourably | active | [findings.md](../logs/findings.md#2026-08-17-latest--retrieve-age-band-does-not-exist-on-the-orange-playground-the-previous-entrys-unverified-is-now-closed-unfavourably) |
 | 2026-08-17 | Exit 2 reserved for backend that COULD NOT RUN; crashed mock run is FAILURE (M6) | active | [findings.md](../logs/findings.md#2026-08-17--exit-2-is-reserved-for-a-backend-that-could-not-run-a-crashed-mock-run-is-a-failure-m6) |
-| 2026-08-17 | RP nonce store's unbounded growth DOCUMENTED, not built (M6) | active | [findings.md](../logs/findings.md#2026-08-17--the-rp-nonce-stores-unbounded-growth-is-documented-not-built-m6) |
+| 2026-08-17 | requester nonce store's unbounded growth DOCUMENTED, not built (M6) | active | [findings.md](../logs/findings.md#2026-08-17--the-requester-nonce-stores-unbounded-growth-is-documented-not-built-m6) |
 | 2026-08-17 | Four DEPENDENCY-INJECTION seams, one code path each (M6) | active | [findings.md](../logs/findings.md#2026-08-17--four-dependency-injection-seams-one-code-path-each-m6) |
 | 2026-08-17 | Why PoC reads a PRECISE SIM-swap date (M5/M6, documentation only) | active | [findings.md](../logs/findings.md#2026-08-17--why-the-poc-reads-a-precise-sim-swap-date-and-what-that-does-and-does-not-say-m5m6-documentation-only) |
 | 2026-08-17 | Predicate thresholds QUANTISED to published menu; repeated-query oracle is honest limit (M6 #1) | active | [findings.md](../logs/findings.md#2026-08-17--predicate-thresholds-are-quantised-to-a-published-menu-m6-decision-1-user-signed-and-the-repeated-query-oracle-is-recorded-as-an-honest-limit) |
