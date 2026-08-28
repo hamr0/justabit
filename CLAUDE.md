@@ -53,6 +53,14 @@ kyc-match (r1.2, v0.4.0), kyc-fill-in (r1.3, v0.4.1), kyc-age-verification
 (r1.3, v0.2.1 — Sandbox). If a claim dies on re-verification, retract it
 visibly — retractions build WG credibility.
 
+**No orphaned references.** Retracting a claim, renaming/moving a file,
+dropping a term, or changing a heading is not done until the whole repo is
+swept for the old term/path and every hit is classified — corrected, or
+kept on purpose as dated history. Sweep: docs/code, generated indexes,
+GitHub repo metadata (description/topics), empty directories (invisible to
+git diff/status), and internal anchors (a changed heading changes its
+slug). Evidence: `docs/logs/findings.md` (2026-08-28).
+
 ## Strategy invariants
 
 - **Profile first, API second.** The ask to CAMARA is "finish what

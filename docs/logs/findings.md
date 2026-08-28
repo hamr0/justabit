@@ -14,7 +14,60 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
-## 2026-08-28 (latest) — adversarial grounding pass on the A2P "why now" thesis: two retractions, four confirmations
+## 2026-08-28 (latest) — five orphaned-reference failures in one session; no-go 14 added
+
+**EVIDENCE**
+
+Five separate edits in this session fixed the thing changed but not the
+references to it — all observed directly, not reasoned:
+
+1. **v0.6.0 dropped AAIF, re-homed the agent arm to the IETF OAuth WG.**
+   The files being changed (`CLAUDE.md`, the two proposal docs) were
+   edited, but files that only *referenced* AAIF were not: `README.md`'s
+   `tracks: CAMARA + AAIF` badge and opening paragraph, `prd.md` (8
+   staleness gaps, including a D3 row still pointing at the superseded
+   file), and — worst — `camara-attested-windowed-disclosure.md`'s
+   Companion line and §7, which named AAIF as the live companion track
+   inside text about to be filed to CAMARA.
+2. **The AAIF doc sweep fixed the documents but not the GitHub repo
+   description**, which still read "Standards staging for the CAMARA and
+   AAIF tracks" — public metadata a reviewer clicking through from the
+   filing would land on directly.
+3. **The docs reorg removed the two directories it emptied but left three
+   pre-existing empty ones** (`docs/00-context`, `docs/03-logs`,
+   `docs/04-process`). Git cannot see an empty directory, so no diff,
+   status, or PR surfaced them — only listing the tree did.
+4. **The §8.1 A2P retraction corrected the section but not the two places
+   citing it**: a parenthetical inside normative profile rule 6 ("middle
+   layers that can read, eventually monetize") and a `CLAUDE.md` doctrine
+   bullet, both still asserting the retracted claim as fact.
+5. **A `findings.md` anchor broke silently.** A new 2026-08-28 entry took
+   over the `(latest)` marker, which changed the previous heading's slug;
+   `prd.md`'s §9 index still linked to the old one.
+
+Common shape, stated once: an edit that fixes the thing but not the
+references to the thing.
+
+**DECISION**
+
+Added no-go 14 to `docs/product/prd.md` §5, "No orphaned references": after
+any retraction, rename, move, drop, or heading change, sweep the whole
+repository for the old term/path and classify every hit — corrected, or
+deliberately preserved as dated history, never an oversight. The sweep
+surfaces named explicitly so none is skipped by default: markdown, code,
+spec files, generated indexes, GitHub repo metadata (description and
+topics), directory structure (invisible to git when empty), and internal
+anchors (a changed heading changes its slug). The same rule was added to
+`CLAUDE.md` under Grounding discipline, compressed for a loading agent
+session. This entry's own `(latest)` reassignment was itself checked
+against the failure it documents — see verification note below.
+
+**Verification note:** before this entry was added, no `prd.md` §9 row
+linked to the prior `(latest)` heading's anchor, so removing that marker
+here broke nothing; the full anchor check was re-run after this edit to
+confirm.
+
+## 2026-08-28 — adversarial grounding pass on the A2P "why now" thesis: two retractions, four confirmations
 
 **EVIDENCE**
 
