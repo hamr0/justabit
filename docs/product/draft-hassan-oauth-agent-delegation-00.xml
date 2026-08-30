@@ -1,0 +1,1137 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rfc xmlns:xi="http://www.w3.org/2001/XInclude" category="std" docName="draft-hassan-oauth-agent-delegation-00" ipr="trust200902" submissionType="IETF" consensus="true" version="3">
+  <front>
+    <title abbrev="Agent Delegation Profile">An Attenuated Delegation Profile for Automated Agents</title>
+    <seriesInfo name="Internet-Draft" value="draft-hassan-oauth-agent-delegation-00"/>
+    <author initials="A." surname="Hassan" fullname="Amr Hassan">
+      <organization>Independent</organization>
+      <address>
+        <postal>
+          <city>San Francisco</city>
+          <region>California</region>
+          <country>United States of America</country>
+        </postal>
+        <email>avoidaccess@msn.com</email>
+      </address>
+    </author>
+    <date/>
+    <area>Security</area>
+    <workgroup>Web Authorization Protocol</workgroup>
+    <keyword>OAuth</keyword>
+    <keyword>agent</keyword>
+    <keyword>delegation</keyword>
+    <keyword>attestation</keyword>
+    <keyword>attenuation</keyword>
+    <keyword>authorization</keyword>
+    <abstract>
+      <t>
+        This document specifies a profile for delegating authorization to
+        automated agents across administrative domains. It defines an
+        HTTP header field, Agent-Delegation, that carries a chain of
+        attenuated delegation links. Each link narrows the scope, tightens
+        or holds a set of floor conditions, and shortens or holds the
+        expiry of its parent. A verifier checks every link in the chain,
+        not only the last, and rejects the chain if any link violates
+        attenuation. The profile is deliberately agnostic to the
+        credential format and to the nature of the entity that issues
+        floor attestations; it specifies required properties, not a
+        specific encoding or a specific kind of issuer. It composes with,
+        and does not replace, existing work on agent credential
+        provisioning and posture.
+      </t>
+    </abstract>
+  </front>
+  <middle>
+
+    <section anchor="introduction" numbered="true" toc="default">
+      <name>Introduction</name>
+      <t>
+        A person asks an automated agent to arrange a car rental. That
+        agent does not do the work itself: it engages a second,
+        specialized agent operated by a different company, and that
+        second agent calls the rental service's API. The rental service
+        now receives a request from software that no human has ever
+        spoken to, two hops removed from the person who authorized
+        anything, and operated by an organization the person has no
+        relationship with.
+      </t>
+      <t>
+        The rental service needs three things it cannot currently get:
+        proof that the authority behind the request actually came from
+        that person; assurance that nothing along the way granted itself
+        more than it was given; and the ability to check both without
+        calling back to any of the parties involved.
+      </t>
+      <t>
+        Automated agents increasingly act as principals against network
+        and application APIs on behalf of a human or an organization.
+        Where such an agent's authorization is delegated from a human
+        principal, and potentially re-delegated agent-to-agent across
+        administrative domains, three properties are needed that existing
+        OAuth mechanisms do not by themselves guarantee end to end: that
+        each re-delegation can only narrow what came before it, that a
+        verifier can check the entire chain rather than trusting the last
+        hop, and that the conditions under which a delegation was granted
+        travel with it in a form a verifier can check offline.
+      </t>
+      <t>
+        This document specifies a profile that supplies those three
+        properties. It does not define a new credential format, a new
+        signature scheme, or a new agent identity system. It defines:
+      </t>
+      <t>
+        an HTTP header field for carrying a delegation chain
+        (<xref target="header"/>); a closed set of attenuation rules that
+        every link in the chain must satisfy relative to its parent
+        (<xref target="attenuation"/>); the required properties of a
+        floor attestation, independent of its encoding
+        (<xref target="attestation"/>); an ordered verification
+        procedure a verifier MUST follow (<xref target="verification"/>);
+        and a profile of the RFC 9421 signature parameters
+        (<xref target="rfc9421-profile"/>).
+      </t>
+      <t>
+        The profile is a composition layer. It assumes an underlying
+        attestation issuer exists somewhere in the deployment and that a
+        trust source can resolve that issuer's key; it says nothing about
+        who or what that issuer is. <xref target="appendix-a"/> gives one
+        concrete, non-normative instantiation to make the abstract
+        properties concrete for a reader evaluating deployability; nothing
+        in that appendix is required to implement this profile.
+      </t>
+    </section>
+
+    <section anchor="conventions" numbered="true" toc="default">
+      <name>Conventions and Terminology</name>
+      <t>
+        The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL
+        NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED",
+        "MAY", and "OPTIONAL" in this document are to be interpreted as
+        described in BCP 14 <xref target="RFC2119"/> <xref target="RFC8174"/>
+        when, and only when, they appear in all capitals, as shown here.
+      </t>
+      <t>
+        This document defines the following terms:
+      </t>
+      <dl newline="false" spacing="normal">
+        <dt>Attestation Issuer:</dt>
+        <dd>
+          An entity that can produce a signed, boolean, expiring statement
+          about whether a subject satisfies a floor condition, without
+          disclosing the underlying value that produced the answer. This
+          document treats the Attestation Issuer abstractly; it may be
+          any party a deployment trusts to make such a statement.
+        </dd>
+        <dt>Delegator:</dt>
+        <dd>
+          The principal that holds a delegation and grants a narrower one
+          to the next link in the chain. The first Delegator in a chain
+          is the human or organizational principal that originates the
+          delegation.
+        </dd>
+        <dt>Delegate:</dt>
+        <dd>
+          The principal that receives a delegation link, whether it is an
+          automated agent or a sub-agent.
+        </dd>
+        <dt>Relying Service:</dt>
+        <dd>
+          The service that receives a request bearing a delegation chain
+          and must decide whether to honor it.
+        </dd>
+        <dt>Floor:</dt>
+        <dd>
+          A named set of conditions a subject must satisfy, expressed as
+          axis/value pairs, that a Relying Service or an intermediate
+          Delegate requires before it will act. See
+          <xref target="floors"/>.
+        </dd>
+        <dt>Link:</dt>
+        <dd>
+          One element of a delegation chain: a scope, a floor, an expiry,
+          and the signature that binds them to their issuer and to their
+          parent link.
+        </dd>
+      </dl>
+    </section>
+
+    <section anchor="motivation" numbered="true" toc="default">
+      <name>Motivation</name>
+      <t>
+        A delegation chain that is only checked at its endpoint is not a
+        chain; it is a single trust decision with extra steps. If an
+        intermediate Delegate can widen scope, loosen a floor, or extend
+        an expiry beyond what it was itself granted, then the guarantees
+        made at the root of the chain do not survive to the Relying
+        Service, regardless of how carefully the root delegation was
+        constructed. This document's primary technical contribution is to
+        make that failure structurally difficult: attenuation is defined
+        precisely enough that a verifier can check it mechanically at
+        every link, and <xref target="security"/> states plainly that a
+        verifier which checks only the final link defeats the entire
+        mechanism.
+      </t>
+      <t>
+        A second, related problem is that authorization conditions are
+        often expressed as raw attribute values (a date of birth, a
+        tenure in days, an account balance) which a Relying Service does
+        not need and should not receive. This document requires that
+        floor conditions be evaluated by the Attestation Issuer and
+        exposed to the chain only as a signed boolean result bound to a
+        verifier's nonce and to an expiry, never as the underlying value.
+        This is a disclosure-minimization requirement independent of the
+        chaining requirement, and both apply together.
+      </t>
+    </section>
+
+    <section anchor="header" numbered="true" toc="default">
+      <name>The Agent-Delegation Header Field</name>
+      <t>
+        This document defines a new HTTP field, Agent-Delegation, that
+        carries a delegation chain from a Delegate to a Relying Service or
+        to the next Delegate in the chain. Agent-Delegation is a
+        Structured Field <xref target="RFC8941"/>, specifically a List
+        whose members are Byte Sequences, each Byte Sequence carrying one
+        opaque, encoded delegation link, ordered from the root link
+        (index zero) to the leaf link presented by the immediate sender.
+      </t>
+      <t>
+        The internal encoding of each link is determined by the
+        credential format in use (<xref target="attestation"/>); this
+        document does not mandate one. A verifier MUST be able to parse
+        each Byte Sequence member into the fields required by
+        <xref target="attenuation"/> and <xref target="attestation"/>
+        before it can evaluate the chain.
+      </t>
+      <t>
+        Agent-Delegation is intended to be covered by an RFC 9421
+        <xref target="RFC9421"/> HTTP Message Signature applied by the
+        immediate sender, binding the header's content to the request it
+        accompanies. This document specifies the header field and its
+        semantics; it does not define a new signature mechanism, relying
+        on RFC 9421 for message-level signing of the request the header
+        is attached to.
+      </t>
+      <t>
+        Because Agent-Delegation is visible to any intermediary that can
+        read HTTP headers, and is not encrypted by this profile, links
+        MUST NOT carry personal data of the Delegator, the Delegate, or
+        any subject the floor condition concerns. See
+        <xref target="privacy"/>.
+      </t>
+    </section>
+
+    <section anchor="rfc9421-profile" numbered="true" toc="default">
+      <name>Profile of RFC 9421 Signature Parameters</name>
+      <t>
+        RFC 9421 <xref target="RFC9421"/> Section 2.3 defines a set of
+        signature parameters, including <tt>created</tt>, <tt>expires</tt>,
+        <tt>nonce</tt>, <tt>alg</tt>, <tt>keyid</tt>, and <tt>tag</tt>.
+        This section profiles the use of those parameters for a signature
+        applied over a request carrying an Agent-Delegation field; it does
+        not define a new signature mechanism.
+      </t>
+      <t>
+        A sender applying this profile MUST include the <tt>keyid</tt>,
+        <tt>alg</tt>, <tt>created</tt>, <tt>expires</tt>, and <tt>nonce</tt>
+        signature parameters, and MUST include the Agent-Delegation field
+        among the signature's covered components.
+      </t>
+      <t>
+        A sender MUST set the <tt>tag</tt> signature parameter to the
+        string "agent-delegation", so a verifier can identify signatures
+        made under this profile. RFC 9421 defines <tt>tag</tt> as "an
+        application-specific tag for the signature as a String value" used
+        "to help identify signatures relevant for specific applications or
+        protocols," and tag values are application-specific strings
+        requiring no registry. RFC 9421 Section 7.2.7 discusses the risk
+        of tag collision between unrelated applications; this profile does
+        not add any mechanism beyond that discussion.
+      </t>
+      <t>
+        RFC 9421 defines the <tt>expires</tt> parameter, "expiration time
+        as a UNIX timestamp value of type Integer," but leaves its
+        enforcement to the application. This profile therefore requires
+        it: a verifier MUST reject a request whose signature
+        <tt>expires</tt> value is earlier than the time of verification.
+        This is a requirement this profile adds; RFC 9421 itself does not
+        impose it.
+      </t>
+      <t>
+        RFC 9421 Section 7.2.2 describes the <tt>nonce</tt> parameter,
+        "a random unique value generated for this signature as a String
+        value," as allowing a verifier to detect replay of the signature
+        itself, and describes a signer providing a creation timestamp and
+        an expiration time to limit the utility of a captured signature
+        value. It further states that a verifier wanting to trigger a new
+        signature from a signer can send the Accept-Signature header field
+        with a new nonce parameter, and that an attacker simply replaying
+        a signature would not be able to generate a new signature with the
+        chosen nonce value. A verifier under this profile that needs a
+        fresh signature bound to a value of its own choosing SHOULD use
+        the Accept-Signature header field carrying a <tt>nonce</tt>
+        parameter, as described in RFC 9421 Section 7.2.2. This profile
+        does not define a separate nonce-delivery mechanism, because
+        RFC 9421 already provides one.
+      </t>
+      <t>
+        RFC 9421's <tt>nonce</tt> signature parameter binds one HTTP
+        message. The nonce carried inside a floor attestation
+        (<xref target="attestation"/>) binds one attestation to one
+        verifier's question. These are two distinct nonces at two distinct
+        layers, and implementers MUST NOT conflate them.
+      </t>
+      <t>
+        RFC 9421 defines message-level signing and provides no notion of
+        delegated authority, sub-principals, or attenuation of scope. The
+        chain model of <xref target="attenuation"/> therefore extends
+        RFC 9421 rather than restating it.
+      </t>
+    </section>
+
+    <section anchor="attenuation" numbered="true" toc="default">
+      <name>Attenuation Rules</name>
+      <t>
+        A delegation chain is an ordered sequence of links L(0), L(1), ...,
+        L(n), where L(0) is the root delegation and L(n) is the link
+        presented to the Relying Service. For every link L(i) with i &gt;
+        0, relative to its parent L(i-1), all of the following MUST hold:
+      </t>
+      <ol spacing="normal" type="1">
+        <li>
+          <t>
+            <strong>Scope containment.</strong> The scope granted by L(i) MUST be a
+            subset of the scope granted by L(i-1). L(i) MUST NOT name a
+            capability that L(i-1) did not itself hold.
+          </t>
+        </li>
+        <li>
+          <t>
+            <strong>Floor non-relaxation.</strong> The floor carried by L(i) MUST be
+            at least as tight as the floor carried by L(i-1) on every
+            axis defined in <xref target="floors"/>. L(i) MUST NOT be
+            looser than L(i-1) on any axis, whether by omitting an axis
+            L(i-1) constrained, by widening an ordered axis's value, or
+            by substituting a different value on an equality axis that
+            L(i-1) did not itself permit.
+          </t>
+        </li>
+        <li>
+          <t>
+            <strong>Expiry non-extension.</strong> The expiry carried by L(i) MUST
+            NOT be later than the expiry carried by L(i-1).
+          </t>
+        </li>
+      </ol>
+      <t>
+        These three rules apply to every link in the chain, not only to
+        the leaf link. A verifier MUST validate rules 1 through 3 for
+        every adjacent pair (L(i-1), L(i)) for i = 1 to n, in addition to
+        validating L(0) against the root Attestation Issuer's published
+        floor and the Delegator's own authority. A verifier MUST reject
+        the entire chain if any single link violates any single rule; a
+        partial acceptance of a chain up to the point of violation is not
+        conforming.
+      </t>
+      <t>
+        A verifier MUST support a configurable maximum chain depth and
+        MUST reject a chain whose length exceeds that configured maximum,
+        prior to evaluating any link's content. This bounds the
+        verification cost of a chain and limits the depth to which
+        authorization can be re-delegated across administrative domains
+        in a single deployment.
+      </t>
+      <t>
+        Widening a scope, a floor, or an expiry beyond what a chain
+        currently carries is out of scope for this profile. Where a
+        deployment needs to widen an existing grant, that MUST be
+        performed as a distinct, explicit, consent-visible operation
+        outside this delegation mechanism, producing a new root
+        delegation rather than a modification of an existing chain.
+      </t>
+    </section>
+
+    <section anchor="floors" numbered="true" toc="default">
+      <name>Floor Axes</name>
+      <t>
+        A floor is a set of axis/value pairs. This document defines a
+        closed set of axes for this version of the profile; there is no
+        registry mechanism for adding axes in this version, and extending
+        the axis set is future work. The closed set is:
+      </t>
+      <table>
+        <thead>
+          <tr><th>Axis</th><th>Type</th><th>Comparison</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>subjectClass</td><td>enum</td><td>equality only</td></tr>
+          <tr><td>tenureMin</td><td>duration</td><td>larger value is tighter</td></tr>
+          <tr><td>credentialAgeMin</td><td>duration</td><td>larger value is tighter</td></tr>
+          <tr><td>accountClass</td><td>enum</td><td>equality only</td></tr>
+          <tr><td>partialPolicy</td><td>enum</td><td>equality only</td></tr>
+        </tbody>
+      </table>
+      <t>
+        An axis name that does not appear in this table MUST cause a
+        verifier to reject the floor, and therefore the link that carries
+        it, outright. An unknown or misspelled axis name MUST be treated
+        as a hard rejection; it MUST NOT be silently ignored or dropped
+        from the comparison. This applies equally to a published floor
+        and to a requested floor presented in a delegation link.
+      </t>
+      <t>
+        For an enum-typed axis (subjectClass, accountClass,
+        partialPolicy), the comparison is equality only; these axes are
+        unordered and a value either matches the required value or it
+        does not. For a duration-typed axis (tenureMin,
+        credentialAgeMin), a larger value is strictly tighter than a
+        smaller one.
+      </t>
+      <section anchor="duration-grammar" numbered="true" toc="default">
+        <name>Duration Grammar</name>
+        <t>
+          A duration-typed axis value MUST match exactly one of the two
+          forms P&lt;n&gt;D or P&lt;n&gt;Y, where &lt;n&gt; is a
+          non-negative integer. The integer &lt;n&gt; MUST be in the
+          range 0 to 2^53 - 1 inclusive, and a value outside that range
+          MUST be rejected. No other ISO 8601 duration form is accepted.
+          In particular, a duration expressed in months MUST be
+          rejected, because a month is a calendar-dependent unit and its
+          length in days is ambiguous; accepting it would make the
+          tightening comparison in <xref target="monotone"/> ill-defined.
+          For the purpose of comparison, 1Y is defined as exactly 365D. A
+          value that falls outside the permitted range, or that does not
+          match either form, MUST be rejected.
+        </t>
+      </section>
+      <section anchor="monotone" numbered="true" toc="default">
+        <name>Monotone Tightening</name>
+        <t>
+          On every ordered (duration-typed) axis, a requested floor value
+          MUST be greater than or equal to the corresponding published or
+          parent floor value. If it is not, the request MUST be refused.
+          Widening a floor value on an ordered axis MUST NOT occur
+          implicitly as a side effect of any operation defined by this
+          profile. As stated in <xref target="attenuation"/>, any
+          widening is a distinct, explicit, consent-visible operation
+          outside this profile's scope.
+        </t>
+      </section>
+    </section>
+
+    <section anchor="attestation" numbered="true" toc="default">
+      <name>Attestation Properties</name>
+      <t>
+        This document does not mandate a specific credential format for
+        a floor attestation. A JSON Web Token, a CBOR Object Signing and
+        Encryption (COSE) structure, or another signed data structure MAY
+        be used, provided the resulting object satisfies every property
+        in this section. A conforming attestation, regardless of its
+        encoding, MUST:
+      </t>
+      <ol spacing="normal" type="1">
+        <li>
+          <t>
+            be signed by the Attestation Issuer over the exact bytes
+            presented to the verifier. A verifier MUST verify the
+            signature over those exact bytes and MUST NOT re-serialize
+            the object before or in place of that verification;
+          </t>
+        </li>
+        <li>
+          <t>
+            carry the verifier's nonce, echoed back exactly as the
+            verifier supplied it;
+          </t>
+        </li>
+        <li>
+          <t>
+            carry an expiry. A missing expiry, or an expiry that is not a
+            well-formed numeric timestamp, MUST be treated by the
+            verifier as already expired; it MUST NOT be treated as "no
+            deadline";
+          </t>
+        </li>
+        <li>
+          <t>
+            carry a boolean result of the floor evaluation and MUST NOT
+            carry the underlying value that produced that result. An
+            attestation that discloses a raw date of birth, a raw tenure
+            count, a raw account balance, or any other unrounded
+            attribute in place of, or in addition to, the boolean result
+            does not conform to this profile;
+          </t>
+        </li>
+        <li>
+          <t>
+            be rejected by the verifier if its serialization contains a
+            duplicate top-level key. A parser that resolves duplicate
+            keys by a first-wins or last-wins rule is exposed to an
+            ambiguity where the issuer and the verifier can disagree
+            about which value was signed; this profile closes that
+            ambiguity by requiring detection and rejection rather than a
+            resolution rule.
+          </t>
+        </li>
+      </ol>
+      <section anchor="refusal" numbered="true" toc="default">
+        <name>Signed Refusal</name>
+        <t>
+          Where an Attestation Issuer declines to attest that a subject
+          meets a floor, it MUST return a signed refusal rather than
+          silence, an unsigned error, or a bare protocol-level failure. A
+          signed refusal MUST itself be signed by the Attestation Issuer,
+          MUST carry the same nonce the verifier supplied for the
+          corresponding request, and MUST carry an expiry, using the same
+          rules as an accepted attestation. This prevents a refusal from
+          being forged in the Attestation Issuer's name and prevents a
+          genuine refusal from being stripped from the response without
+          detection.
+        </t>
+        <t>
+          A verifier MUST verify a signed refusal along a verification
+          path independent of the path used to verify an accepted
+          attestation, so that a defect in one path does not silently
+          admit a forged instance of the other.
+        </t>
+      </section>
+      <section anchor="binding-not-replay" numbered="true" toc="default">
+        <name>Nonce Binding Is Not Replay Protection</name>
+        <t>
+          Echoing the verifier's nonce in a signed attestation or refusal
+          binds that response to the specific request that carried the
+          nonce; it does not, by itself, prevent that same response from
+          being presented again. The same response, re-presented against
+          the same expected nonce, verifies again for as long as the
+          response's own expiry has not passed. Preventing such a
+          replay (for example, by tracking nonces already consumed within
+          their validity window) is a separate responsibility that falls
+          to the verifier and is outside the scope of this document. This
+          document does not claim that nonce binding, by itself, provides
+          replay protection, and implementers MUST NOT assume that it
+          does.
+        </t>
+      </section>
+    </section>
+
+    <section anchor="agent-identifier" numbered="true" toc="default">
+      <name>Agent Identifier</name>
+      <t>
+        A Delegate that presents a delegation chain is identified to a
+        Relying Service by an identifier whose only required property, in
+        this profile, is: the identifier MUST be unlinkable across
+        distinct Relying Services and MUST remain stable across separate
+        interactions with the same Relying Service. This document does
+        not specify how such an identifier is derived, what inputs
+        contribute to it, its length, or its encoding; those are
+        deployment choices left to the entity that issues or constructs
+        the identifier.
+      </t>
+      <t>
+        <xref target="appendix-b"/> records that this unlinkability
+        requirement pulls in a different direction from a stability
+        requirement found in related work, and treats that tension as an
+        open, unresolved item rather than as settled by this document.
+      </t>
+    </section>
+
+    <section anchor="verification" numbered="true" toc="default">
+      <name>Verification Procedure</name>
+      <t>
+        A verifier processing a request that carries an Agent-Delegation
+        field MUST perform the following steps, in the order given. A
+        failure at any step MUST produce one uniform rejection outcome,
+        indistinguishable from the outcome of a failure at any other
+        step, so that the specific reason for rejection does not become
+        available to an unauthenticated party as an oracle (see
+        <xref target="security"/>).
+      </t>
+      <ol spacing="normal" type="1">
+        <li><t>Parse the Agent-Delegation Structured Field List into its ordered member links.</t></li>
+        <li><t>Compare the number of links against the verifier's configured maximum chain depth; reject if the chain exceeds it.</t></li>
+        <li><t>Verify the RFC 9421 HTTP Message Signature applied by the immediate sender over the request, including the Agent-Delegation field among its covered components, per the profile of <xref target="rfc9421-profile"/>.</t></li>
+        <li><t>Verify each link's own signature, per <xref target="attestation"/>, over its exact presented bytes.</t></li>
+        <li><t>Verify the root attestation, L(0), against the Attestation Issuer's public key, where that key is obtained from a configured trust source and MUST NOT be obtained from the message itself.</t></li>
+        <li><t>Verify the three attenuation rules of <xref target="attenuation"/> for every adjacent pair of links in the chain.</t></li>
+        <li><t>Verify that every floor attestation carried by the chain echoes, exactly, the nonce the verifier issued for this exchange, and reject if any does not.</t></li>
+        <li><t>Verify that no link in the chain has an expiry that has passed, evaluated at the time of verification.</t></li>
+        <li><t>Only after every preceding step has succeeded, apply the Relying Service's authorization policy to the resulting, fully verified chain.</t></li>
+      </ol>
+      <t>
+        A verifier that implements only a subset of these steps, or that
+        implements them out of order such that a later step's success can
+        mask an earlier step's failure, does not conform to this profile.
+      </t>
+    </section>
+
+    <section anchor="example" numbered="true" toc="default">
+      <name>A Worked Example</name>
+      <t>
+        This section is non-normative. It illustrates the rules of the
+        preceding sections using a single chain that is built and then
+        verified; where it appears to conflict with a normative section,
+        the normative section governs.
+      </t>
+      <t>
+        Recall the scenario from <xref target="introduction"/>: a person
+        asks an automated agent to arrange a car rental. The parties in
+        this example are the person, who is the root Delegator; Agent A,
+        a general assistant; Agent B, a specialized booking agent operated
+        by a different company; and the rental service, which is both the
+        Relying Service and the verifier.
+      </t>
+      <t>
+        Link L(0) is the root delegation, created on the person's device:
+      </t>
+      <table>
+        <thead>
+          <tr><th>Field</th><th>Value</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>scope</td><td>booking:read, booking:create, payment:authorize</td></tr>
+          <tr><td>floor: subjectClass</td><td>interactive</td></tr>
+          <tr><td>floor: tenureMin</td><td>P2Y</td></tr>
+          <tr><td>floor: credentialAgeMin</td><td>P90D</td></tr>
+          <tr><td>expiry</td><td>2026-11-01T12:00:00Z</td></tr>
+        </tbody>
+      </table>
+      <t>
+        Link L(1) is Agent A's re-delegation to Agent B:
+      </t>
+      <table>
+        <thead>
+          <tr><th>Field</th><th>Value</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>scope</td><td>booking:read, booking:create</td></tr>
+          <tr><td>floor: subjectClass</td><td>interactive</td></tr>
+          <tr><td>floor: tenureMin</td><td>P2Y</td></tr>
+          <tr><td>floor: credentialAgeMin</td><td>P180D</td></tr>
+          <tr><td>expiry</td><td>2026-11-01T11:00:00Z</td></tr>
+        </tbody>
+      </table>
+      <t>
+        Agent A drops payment:authorize from the scope it grants to
+        Agent B. Dropping a capability is always permitted, because rule 1
+        of <xref target="attenuation"/> requires only that the child's
+        scope be a subset of the parent's.
+      </t>
+      <t>
+        On the wire, Agent B presents both links to the rental service as
+        an Agent-Delegation Structured Field List:
+      </t>
+      <artwork>
+Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
+      </artwork>
+      <t>
+        Each member of the list is a Byte Sequence per RFC 8941
+        <xref target="RFC8941"/>. The base64 content is elided here for
+        readability; the decoded fields are shown in the tables above.
+      </t>
+      <t>
+        The expiry values in the tables above are written in a
+        human-readable form for readability only. The on-the-wire
+        encoding of a link is determined by the credential format in
+        use, as stated in <xref target="header"/>, and this document
+        does not mandate one. A link's expiry is distinct from the
+        expiry of a floor attestation carried by the chain
+        (<xref target="attestation"/>), and both are distinct from the
+        RFC 9421 <tt>expires</tt> signature parameter profiled in
+        <xref target="rfc9421-profile"/>, which covers the HTTP message
+        rather than the delegation.
+      </t>
+      <t>
+        The rental service verifies the chain following
+        <xref target="verification"/>. For the adjacent pair (L(0), L(1)),
+        the three attenuation rules of <xref target="attenuation"/> are
+        checked as follows:
+      </t>
+      <ul spacing="normal">
+        <li><t>Rule 1, scope containment: {booking:read, booking:create} is a subset of {booking:read, booking:create, payment:authorize}. Holds.</t></li>
+        <li><t>Rule 2, floor non-relaxation: subjectClass is equal on both links, so the equality axis holds. For tenureMin, P2Y is not less than P2Y, so it holds. For credentialAgeMin, P180D is 180 days and P90D is 90 days; 180 is greater than 90, so L(1) is tighter. Holds.</t></li>
+        <li><t>Rule 3, expiry non-extension: 2026-11-01T11:00:00Z is earlier than 2026-11-01T12:00:00Z. Holds.</t></li>
+      </ul>
+      <t>
+        Every link in the chain verifies, so the chain is accepted, and
+        the rental service applies its own authorization policy to a
+        scope of booking:read and booking:create only. It will not honor
+        a payment request on this chain, because no link in it carries
+        that capability.
+      </t>
+      <t>
+        Had L(1) instead carried credentialAgeMin="P30D", that value would
+        be looser than the parent's P90D, and rule 2 would require the
+        verifier to reject the entire chain.
+      </t>
+    </section>
+
+    <section anchor="privacy" numbered="true" toc="default">
+      <name>Privacy Considerations</name>
+      <t>
+        This profile is built around boolean-only disclosure: a floor
+        attestation states whether a subject meets a condition and MUST
+        NOT carry the underlying value. This bound holds throughout the
+        chain; an intermediate Delegate that re-derives or forwards a raw
+        value defeats the disclosure minimization this profile exists to
+        provide, even where every attenuation rule in
+        <xref target="attenuation"/> is otherwise satisfied.
+      </t>
+      <t>
+        The agent identifier requirement in
+        <xref target="agent-identifier"/> requires unlinkability across
+        Relying Services specifically so that two Relying Services
+        receiving requests from the same underlying agent cannot, from
+        the identifier alone, determine that the requests originated from
+        the same principal.
+      </t>
+      <t>
+        This profile does not eliminate the Attestation Issuer's own
+        visibility into the queries it answers. The Attestation Issuer
+        necessarily observes that some verifier asked whether some
+        subject meets some floor, even though the verifier itself learns
+        only a boolean result. Where the query pattern itself is
+        sensitive, this residual, issuer-side query log is a real and
+        unsolved limitation of this profile, not an oversight to be
+        corrected by better protocol design; deployments that need to
+        eliminate it need a mechanism outside this document's scope.
+      </t>
+      <t>
+        Because the Agent-Delegation field is visible to any intermediary
+        able to read HTTP headers, and this document defines no
+        confidentiality mechanism for it, links in the chain MUST NOT
+        carry personal data belonging to the Delegator, any intermediate
+        Delegate, or any subject the floor condition concerns.
+      </t>
+    </section>
+
+    <section anchor="related-work" numbered="true" toc="default">
+      <name>Relationship to Existing Work</name>
+      <t>
+        The OAuth Working Group charter <xref target="OAUTH-CHARTER"/>, as updated 2026-06-04, includes
+        the following work item, quoted in full: "Developing new
+        mechanisms or/and extensions for authorization of automated
+        agents working on behalf of users, including addressing scenarios
+        where automated agents act across multiple administrative
+        domains." This document targets that work item directly: it
+        addresses cross-administrative-domain agent authorization with an
+        attenuation mechanism a verifier can check at every hop.
+      </t>
+      <t>
+        <xref target="I-D.klrc-aiagent-auth"/>, submitted 6 July 2026 and
+        expiring 7 January 2027 (version -03 is the latest published
+        version; this document was current as of 2026-08-28), is an
+        individual submission and has not been adopted by the Working
+        Group. Its Section 8 describes a credential-provisioning and
+        posture-attestation stack for agents, and its Section 10.6
+        defines an Identity Assertion JWT Authorization Grant. This
+        document composes with that draft at both points: the attenuated
+        chain this document specifies can carry, at any link, a floor
+        attestation produced by a provisioning and posture stack of the
+        kind that draft describes, and this document's chain can be
+        presented alongside, or as an input to, the grant type that draft
+        defines. This document does not compete with or attempt to
+        replace <xref target="I-D.klrc-aiagent-auth"/>; it fills two
+        extension points that draft leaves open.
+      </t>
+      <t>
+        <xref target="I-D.klrc-aiagent-auth"/>'s Section 11 states that a
+        participant MAY subscribe to change notifications using
+        mechanisms such as the OpenID Shared Signals Framework; it does
+        not require such a subscription. This document specifies no
+        revocation-notification mechanism at all and instead relies on
+        short-lived expiry, per <xref target="attestation"/> and
+        <xref target="security"/>. Both documents are, in this sense,
+        revocation-light: one permits an optional richer revocation path
+        that this document does not require or preclude, and this
+        document specifies none. Neither position is presented here as
+        superior to the other.
+      </t>
+      <t>
+        <xref target="I-D.klrc-aiagent-auth"/>'s Section 6 wants an
+        identifier that remains stable for the lifetime of a workload
+        identity, to support audit. This document's
+        <xref target="agent-identifier"/> wants an identifier unlinkable
+        across Relying Services. These two goals pull in opposite
+        directions, and this document does not resolve that tension; see
+        <xref target="appendix-b"/>.
+      </t>
+      <t>
+        Three further individual Internet-Drafts entered adjacent space
+        recently and are cited here so that this document does not appear
+        unaware of its neighbors: <xref target="I-D.asor-wimse-agent-delegation-chain"/>,
+        <xref target="I-D.reece-wimse-cross-org-delegation"/>, and
+        <xref target="I-D.sweeney-wimse-credential-delegation"/>. This
+        document does not attempt a detailed comparison against each; it
+        notes their existence as evidence of active, converging interest
+        in attenuated agent delegation across administrative domains, a
+        problem this document addresses from the OAuth Working Group
+        side.
+      </t>
+      <t>
+        A companion document, <xref target="CAMARA-PROPOSAL"/>, is an
+        open, unreviewed API proposal filed to a separate standards
+        body's API backlog; it has not been reviewed, accepted, or
+        adopted by that body. It proposes the operator/attestation side
+        of the same overall design, on the premise that an Attestation
+        Issuer of the kind this document treats abstractly can, in one
+        concrete instantiation, be a telecommunications operator. The
+        two documents meet only at the RFC 9421 header defined in
+        <xref target="header"/>; neither depends on the other's
+        approval, and this document remains fully specified without the
+        companion proposal existing at all.
+      </t>
+    </section>
+
+    <section anchor="implementation-status" numbered="true" toc="default">
+      <name>Implementation Status</name>
+      <t>
+        This section records the status of a known implementation of this
+        profile, in accordance with <xref target="RFC7942"/>. The
+        information provided is believed to be accurate at the time of
+        writing, has not been independently verified, and does not
+        constitute an endorsement of this profile by any party. The
+        provided implementation is a single-author, open-source
+        proof-of-concept, written in zero-dependency Node.js and
+        available at
+        <eref target="https://github.com/hamr0/justabit"/>. It has not
+        undergone external review and has not been adopted by any
+        organization; no Attestation Issuer has reviewed or validated
+        this profile.
+      </t>
+      <t>
+        The following elements of this profile are implemented and
+        exercised by automated tests in that proof-of-concept:
+      </t>
+      <ul spacing="normal">
+        <li>the attestation object and exact-bytes Ed25519 signature verification described in <xref target="attestation"/>;</li>
+        <li>duplicate-top-level-key rejection;</li>
+        <li>nonce binding, as distinct from replay protection;</li>
+        <li>expiry enforcement, including the missing/non-numeric-expiry-is-expired rule;</li>
+        <li>the signed-refusal shape of <xref target="refusal"/> and its independent verification path;</li>
+        <li>the closed floor axis set of <xref target="floors"/>, the duration grammar of <xref target="duration-grammar"/>, and the monotone tightening comparison of <xref target="monotone"/>.</li>
+      </ul>
+      <t>
+        The following elements of this profile are NOT implemented in the
+        proof-of-concept, and this is stated here without qualification:
+      </t>
+      <ul spacing="normal">
+        <li>RFC 9421 HTTP Message Signature presentment is not implemented; the proof-of-concept has no HTTP transport layer between the parties at all;</li>
+        <li>the multi-hop delegation chain of <xref target="attenuation"/> is not implemented; the proof-of-concept exercises only a two-party exchange between one Delegator and one Attestation Issuer;</li>
+        <li>the per-Relying-Service unlinkable agent identifier of <xref target="agent-identifier"/> is not implemented.</li>
+      </ul>
+    </section>
+
+    <section anchor="security" numbered="true" toc="default">
+      <name>Security Considerations</name>
+      <t>
+        <strong>Lazy verification is the primary risk this profile is designed
+        against.</strong> A verifier that checks only the final link of a
+        delegation chain, rather than every link per
+        <xref target="verification"/>, defeats the entire mechanism: an
+        intermediate Delegate can present a leaf link that is internally
+        well-formed while the chain that produced it silently widened
+        scope, loosened a floor, or extended an expiry at an earlier hop.
+        Conformance to this profile requires whole-chain verification;
+        there is no partial-conformance mode that checks only the leaf.
+      </t>
+      <t>
+        <strong>Nonce echo does not prevent replay.</strong> As stated in
+        <xref target="binding-not-replay"/>, a verifier that treats nonce
+        presence as sufficient replay protection can be presented with
+        the same attestation more than once within its expiry window. A
+        conforming deployment needs its own replay defense, such as
+        tracking consumed nonces within their validity window; this
+        document does not supply that defense.
+      </t>
+      <t>
+        <strong>Cost-based floors price resets; they do not create
+        uniqueness.</strong> A floor expressed in terms of tenure or
+        credential age raises the cost of obtaining a fresh credential
+        that satisfies it, but it does not establish that the underlying
+        subscription or account is held by a unique human, or that one
+        subject cannot back multiple agents. A deployment that needs a
+        uniqueness guarantee needs a mechanism this profile does not
+        provide.
+      </t>
+      <t>
+        <strong>This profile defines no revocation mechanism.</strong> Once an
+        attestation or a delegation link is issued, this profile provides
+        no way to invalidate it before its stated expiry. The only
+        mitigation this profile offers is short expiry; a deployment's
+        exposure window is bounded by how short its issuers set expiries,
+        not by any revocation capability.
+      </t>
+      <t>
+        <strong>Key distribution is a centralization point.</strong> Verification
+        of the root attestation depends on a trust source that resolves
+        an Attestation Issuer's public key, per step 5 of
+        <xref target="verification"/>. That trust source is, by
+        construction, a point every verifier in a deployment must trust
+        and a point whose compromise or unavailability affects every
+        verification that depends on it.
+      </t>
+      <t>
+        <strong>Rejection MUST be uniform.</strong> As stated in
+        <xref target="verification"/>, a verifier MUST NOT return
+        different, distinguishable outcomes for different verification
+        failures (an expired link versus a bad signature versus a
+        loosened floor versus a depth overflow). A verifier that leaks
+        which step failed hands an unauthenticated party an oracle it can
+        use to probe the boundaries of a valid chain without ever
+        constructing one.
+      </t>
+      <t>
+        <strong>An Attestation Issuer's query log is a residual disclosure
+        channel even though the verifier learns only a boolean.</strong> This
+        is restated here as a security consideration, not only a privacy
+        one, because a party able to observe or compel disclosure of that
+        query log gains information the wire protocol itself was designed
+        to withhold.
+      </t>
+    </section>
+
+    <section anchor="iana" numbered="true" toc="default">
+      <name>IANA Considerations</name>
+      <t>
+        This document registers the following entry in the "Hypertext
+        Transfer Protocol (HTTP) Field Name Registry" defined by
+        <xref target="RFC9110"/>:
+      </t>
+      <table>
+        <thead>
+          <tr><th>Field Name</th><th>Status</th><th>Structured Type</th><th>Reference</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Agent-Delegation</td><td>permanent</td><td>List</td><td>This document, <xref target="header"/></td></tr>
+        </tbody>
+      </table>
+      <t>
+        No other IANA actions are required by this document. In
+        particular, this document does not request a registry for the
+        floor axis names of <xref target="floors"/>; that set is closed
+        for this version of the profile, and creating a registry for it
+        is left as future work.
+      </t>
+    </section>
+
+  </middle>
+
+  <back>
+    <references>
+      <name>Normative References</name>
+      <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.2119.xml"/>
+      <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.8174.xml"/>
+      <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.8941.xml"/>
+      <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.9421.xml"/>
+      <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.9110.xml"/>
+    </references>
+    <references>
+      <name>Informative References</name>
+      <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.7942.xml"/>
+      <reference anchor="I-D.klrc-aiagent-auth" target="https://datatracker.ietf.org/doc/draft-klrc-aiagent-auth/">
+        <front>
+          <title>AI Agent Authentication and Authorization</title>
+          <author initials="P." surname="Kasselman"><organization>Defakto Security</organization></author>
+          <author initials="J." surname="Lombardo"><organization>AWS</organization></author>
+          <author initials="Y." surname="Rosomakho"><organization>Zscaler</organization></author>
+          <author initials="B." surname="Campbell"><organization>Ping Identity</organization></author>
+          <author initials="N." surname="Steele"><organization>OpenAI</organization></author>
+          <author initials="A." surname="Parecki"><organization>Okta</organization></author>
+          <date month="July" day="6" year="2026"/>
+        </front>
+        <seriesInfo name="Internet-Draft" value="draft-klrc-aiagent-auth-03"/>
+      </reference>
+      <reference anchor="I-D.asor-wimse-agent-delegation-chain" target="https://datatracker.ietf.org/doc/draft-asor-wimse-agent-delegation-chain/">
+        <front>
+          <title>Verifiable Attenuated Delegation for AI Agent Chains</title>
+          <author initials="R." surname="Asor"><organization>Attenu</organization></author>
+          <date month="August" day="27" year="2026"/>
+        </front>
+        <seriesInfo name="Internet-Draft" value="draft-asor-wimse-agent-delegation-chain-00"/>
+      </reference>
+      <reference anchor="I-D.reece-wimse-cross-org-delegation" target="https://datatracker.ietf.org/doc/draft-reece-wimse-cross-org-delegation/">
+        <front>
+          <title>Cross-Organizational Delegation for Workload and Agent Identity: Problem Statement and Requirements</title>
+          <author initials="M." surname="Reece"><organization>TowerGuardian Consulting</organization></author>
+          <date month="July" day="30" year="2026"/>
+        </front>
+        <seriesInfo name="Internet-Draft" value="draft-reece-wimse-cross-org-delegation-01"/>
+      </reference>
+      <reference anchor="I-D.sweeney-wimse-credential-delegation" target="https://datatracker.ietf.org/doc/draft-sweeney-wimse-credential-delegation/">
+        <front>
+          <title>Credential Delegation Protocol for AI Agents in Multi-System Environments</title>
+          <author initials="K." surname="Sweeney"/>
+          <date month="July" day="27" year="2026"/>
+        </front>
+        <seriesInfo name="Internet-Draft" value="draft-sweeney-wimse-credential-delegation-00"/>
+      </reference>
+      <reference anchor="CAMARA-PROPOSAL" target="https://github.com/camaraproject/APIBacklog/issues/330">
+        <front>
+          <title>CarrierAttestation: An API Proposal for Attested Windowed Disclosure</title>
+          <author initials="A." surname="Hassan"><organization>Independent</organization></author>
+          <date year="2026" month="August" day="28"/>
+        </front>
+      </reference>
+      <reference anchor="OAUTH-CHARTER" target="https://datatracker.ietf.org/wg/oauth/about/">
+        <front>
+          <title>Web Authorization Protocol (oauth) Working Group Charter</title>
+          <author><organization>IETF</organization></author>
+          <date year="2026" month="June" day="4"/>
+        </front>
+      </reference>
+      <reference anchor="I-D.google-cfrg-libzk" target="https://datatracker.ietf.org/doc/draft-google-cfrg-libzk/">
+        <front>
+          <title>Longfellow ZK</title>
+          <author initials="M." surname="Frigo"><organization>Google</organization></author>
+          <author initials="A." surname="shelat"><organization>Google</organization></author>
+          <date month="July" day="22" year="2026"/>
+        </front>
+        <seriesInfo name="Internet-Draft" value="draft-google-cfrg-libzk-02"/>
+      </reference>
+      <reference anchor="ISO18013-5" target="https://www.iso.org/standard/69084.html">
+        <front>
+          <title>ISO/IEC 18013-5: Personal identification - ISO-compliant driving licence - Part 5: Mobile driving licence (mDL) application</title>
+          <author><organization>International Organization for Standardization</organization></author>
+          <date year="2021"/>
+        </front>
+      </reference>
+      <reference anchor="ICAO9303">
+        <front>
+          <title>ICAO Doc 9303, Machine Readable Travel Documents, Eighth Edition</title>
+          <author><organization>International Civil Aviation Organization</organization></author>
+          <date year="2021"/>
+        </front>
+      </reference>
+    </references>
+
+    <section anchor="appendix-a" numbered="true" toc="default">
+      <name>Non-Normative Instantiations</name>
+      <t>
+        This appendix is entirely non-normative. It describes concrete
+        ways to satisfy the abstract requirements of the body of this
+        document, to help a reader evaluate the profile's deployability.
+        Nothing in this appendix constrains a conforming implementation;
+        a deployment satisfying the normative sections above by any other
+        means is equally conforming.
+      </t>
+      <t>
+        Three directions are sketched below. They differ in what makes
+        the underlying credential scarce; none is required, preferred, or
+        assumed by this profile.
+      </t>
+      <t>
+        <strong>Direction 1: subscription attestation.</strong> A mobile
+        network operator can act as the Attestation Issuer described in
+        <xref target="attestation"/>. In such an instantiation, a
+        subscriber identity module credential grounds the Delegator's
+        identity, and the operator attests floor conditions about the
+        line associated with that credential without disclosing the
+        line's underlying attributes. The floor axes named abstractly in
+        <xref target="floors"/> map, in this instantiation, to concrete
+        network-observable attributes as follows: subjectClass maps to
+        the line's service type (for example, voice-and-data versus
+        machine-to-machine); tenureMin maps to the line's subscription
+        tenure; credentialAgeMin maps to the elapsed time since the
+        credential (for example, the SIM) was last swapped; accountClass
+        maps to a billing relationship category (for example, postpaid
+        versus prepaid); partialPolicy maps to how the operator's
+        attestation service handles a query for which it holds incomplete
+        data. This direction's scarcity is economic: obtaining many
+        qualifying credentials costs money over time. Economic cost does
+        not establish uniqueness. A companion document,
+        <xref target="CAMARA-PROPOSAL"/>, is an open, unreviewed API
+        proposal that proposes a horizontal profile to a
+        telecommunications standards body along these lines,
+        independently of this document and without either document
+        depending on the other's adoption; nothing about it has been
+        approved, accepted, endorsed, reviewed, or adopted.
+      </t>
+      <t>
+        <strong>Direction 2: a government-issued document credential
+        proved in zero knowledge.</strong> A credential in the ISO/IEC
+        18013-5 <xref target="ISO18013-5"/> mobile document (mdoc) format,
+        held in a wallet, can be used to prove a predicate over the
+        credential in zero knowledge, rather than to disclose the
+        credential's contents. The verifier learns one bit and learns
+        nothing else, and separate presentations are unlinkable. This
+        direction's scarcity is cryptographic: it is rooted in a document
+        issued by a government authority rather than in a purchasable
+        subscription. Work on this class of scheme is in progress in the
+        IETF; see <xref target="I-D.google-cfrg-libzk"/>. This appendix
+        does not state that any particular implementation of this
+        direction exists or has been demonstrated.
+      </t>
+      <t>
+        <strong>Direction 3: a document chip signature with accompanying
+        evidence.</strong> A holder's device can read the signature on a
+        government-issued document's chip and verify it against the
+        issuing authority's public-key infrastructure, a process known as
+        passive authentication and specified in ICAO Doc 9303
+        <xref target="ICAO9303"/>. This establishes that the document is
+        genuine and unaltered. On its own, the chip-signature check says
+        nothing about who presented the document or about the software
+        that performed the read, so deployments of this class pair it
+        with additional evidence, and what that evidence is varies: an
+        attestation from the device platform that unmodified software
+        performed the read; a signature from a party the verifier
+        trusts, vouching for the value reported; a zero-knowledge proof
+        of the predicate itself; or no accompanying evidence at all.
+      </t>
+      <t>
+        The trust model differs by evidence type, and it matters which
+        one a deployment picks. Where the accompanying evidence is an
+        attestation, the verifier does not check a proof; it checks that
+        trustworthy code ran, and then relies on the value that code
+        reported, so breaking the attestation collapses the claim. Where
+        the accompanying evidence is a zero-knowledge proof, the verifier
+        checks the proof itself, and breaking a platform attestation buys
+        an attacker nothing, because the mathematics still has to hold.
+        Where there is no accompanying evidence, the claim rests on the
+        chip signature alone. A deployment describing this direction
+        needs to state which evidence it uses, because the strength of
+        the claim is not a property of the document root. One limit does
+        not change regardless of which evidence is paired with it:
+        passive authentication proves the document is genuine and
+        unaltered; it does NOT bind the presenter to the document. This
+        direction therefore bounds the number of identities a holder can
+        obtain to the number of documents held; it does NOT establish one
+        identity per human, and must not be described as doing so.
+      </t>
+      <t>
+        All three directions satisfy the same abstract Attestation Issuer
+        role defined in the body of this document; they differ in what
+        makes a credential scarce. A deployment may use any of them, or
+        another mechanism entirely. This profile does not require,
+        prefer, or depend on any of them.
+      </t>
+    </section>
+
+    <section anchor="appendix-b" numbered="true" toc="default">
+      <name>Open Reconciliation Item: Identifier Stability Versus Unlinkability</name>
+      <t>
+        This appendix records an unresolved tension rather than a
+        solution. <xref target="I-D.klrc-aiagent-auth"/>'s Section 6
+        wants an agent identifier that is stable for the lifetime of a
+        workload identity, so that audit records can be correlated over
+        time. This document's <xref target="agent-identifier"/> wants an
+        identifier that is unlinkable across distinct Relying Services,
+        so that no two Relying Services can correlate requests from the
+        same underlying agent by identifier alone.
+      </t>
+      <t>
+        These two properties are in tension: an identifier stable enough
+        to support long-lived audit correlation at one Relying Service is,
+        by that same stability, a stronger correlation handle if it is
+        reused, or is derivable in a reused form, across Relying Services.
+        A per-Relying-Service unlinkable identifier, taken to its logical
+        conclusion, complicates the kind of long-lived, cross-request
+        audit trail Section 6 of that draft wants.
+      </t>
+      <t>
+        This document does not resolve this tension. It is recorded here
+        as an open item for the Working Group's consideration, not
+        presented as solved by either document.
+      </t>
+    </section>
+  </back>
+</rfc>
