@@ -386,8 +386,8 @@ re-homing:
 - MWC26 agentic demo (Mplify, Colt, Orange, Google Cloud, GSMA Open
   Gateway):
   https://www.mwcbarcelona.com/articles/mplify-colt-orange-google-cloud-and-gsma-open-gateway-demonstrate-agentic-connected-experiences-at-mwc26-barcelona
-- Companion CAMARA proposal:
-  `docs/product/camara-attested-windowed-disclosure.md`
+- Companion CAMARA proposal (v1, as filed):
+  `docs/camara/v1/camara-attested-windowed-disclosure.md`
 - Superseded prior draft of this document, retained as a dated record:
   `docs/archive/aaif-agent-auth.md`
 - PRD process facts and decisions log:

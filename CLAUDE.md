@@ -1,7 +1,8 @@
 # CLAUDE.md — agent doctrine for justabit
 
 Repo-only; for whoever is *building* this. Adopters read `README.md` and
-`docs/product/camara-attested-windowed-disclosure.md`.
+`docs/camara/v1/camara-attested-windowed-disclosure.md` (v1, as filed;
+v2 working copy under `docs/camara/v2/`).
 
 This is a **standards repo**, not a software product. The deliverable is text
 that survives working-group scrutiny; the PoC exists to make the text
@@ -99,12 +100,15 @@ rationale store.
 
 ```
 docs/product/      prd.md — THE contract: requirements, sequence, no-go list.
-                   camara-attested-windowed-disclosure.md — CAMARA proposal, carries
-                   the normative profile (the standard) + APIBacklog template mapping
-                   ietf-agent-delegation.md — IETF proposal (agent/delegation
-                   side only, OAuth WG target)
-                   camara-filing-issue.md — step 1: GitHub issue body, live until filed
-                   camara-filing-template.md — step 2: filled API-proposal template, live until filed
+                   camara-attested-windowed-disclosure.md — stub: file moved on
+                   2026-08-31, kept because filed APIBacklog issue #330/PR #331
+                   link to this path and GitHub does not redirect
+docs/camara/v1/    frozen record of what was actually filed 2026-08-28
+                   (camara-attested-windowed-disclosure.md, camara-filing-issue.md,
+                   camara-filing-template.md) plus the 2026-08-31 reviewer feedback
+docs/camara/v2/    working copy being reshaped per that feedback — not filed
+docs/ietf/         ietf-agent-delegation.md — IETF proposal (agent/delegation
+                   side only, OAuth WG target) + the draft XML
 docs/logs/         findings.md — dated EVIDENCE + DECISION log: evidence is what was
                    RUN and OBSERVED, decisions are reasoned course changes with the why
 docs/archive/      aaif-agent-auth.md — SUPERSEDED 2026-08-25, retained as a dated

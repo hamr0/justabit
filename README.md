@@ -87,7 +87,7 @@ conforming to profile mode:
 ```
 
 Full text with definitions, the per-API adoption checklist, and the residuals stated
-honestly: [`docs/product/camara-attested-windowed-disclosure.md`](docs/product/camara-attested-windowed-disclosure.md) §3.
+honestly: [`docs/camara/v1/camara-attested-windowed-disclosure.md`](docs/camara/v1/camara-attested-windowed-disclosure.md) §3 (v1, as filed).
 
 ## Why a profile, not one more API
 
@@ -128,18 +128,23 @@ this profile.
 ```
 docs/product/       prd.md — the PRD that leads everything: requirements,
                     sequence, no-go list
-                    camara-attested-windowed-disclosure.md — the CAMARA
-                    proposal, carrying the normative profile (the standard)
-                    ietf-agent-delegation.md — the IETF proposal (agent/
+                    camara-attested-windowed-disclosure.md — stub: file
+                    moved 2026-08-31, kept so the filed APIBacklog links
+                    keep resolving (GitHub has no redirects)
+docs/camara/v1/     frozen record of what was actually filed 2026-08-28:
+                    camara-attested-windowed-disclosure.md (the CAMARA
+                    proposal), camara-filing-issue.md (step 1: the GitHub
+                    issue body), camara-filing-template.md (step 2: the
+                    filled API-proposal template), plus the 2026-08-31
+                    reviewer feedback
+docs/camara/v2/     working copy being reshaped per that feedback — not
+                    filed
+docs/ietf/          ietf-agent-delegation.md — the IETF proposal (agent/
                     delegation side, OAuth WG target)
-                    camara-filing-issue.md — CAMARA filing, step 1: the
-                    GitHub issue body
-                    camara-filing-template.md — CAMARA filing, step 2: the
-                    filled API-proposal template
 docs/logs/          findings.md — dated evidence + decision log
 docs/archive/       aaif-agent-auth.md — superseded 2026-08-25, dated
                     record only (agent side now lives at
-                    docs/product/ietf-agent-delegation.md)
+                    docs/ietf/ietf-agent-delegation.md)
 spec/               carrier-attestation.yaml — OpenAPI sketch (CAMARA-style)
 poc/                Mode A demo: mock backend by default, Orange Network
                     APIs Playground as a swappable live backend
@@ -149,11 +154,12 @@ poc/                Mode A demo: mock backend by default, Orange Network
 
 Each track cites the other as its counterpart; neither depends on the other's approval.
 
-- **[CAMARA](docs/product/camara-attested-windowed-disclosure.md)** — the
-  operator/attestation side. What the operator attests and how it travels. Profile to
+- **[CAMARA](docs/camara/v1/camara-attested-windowed-disclosure.md)** — the
+  operator/attestation side (v1, as filed; v2 rescoping working copy at
+  `docs/camara/v2/`). What the operator attests and how it travels. Profile to
   Commonalities, consent hooks to ICM, adoption PRs to sim-swap and roaming-status,
   new-case proposal to APIBacklog (template pre-filled in §10).
-- **[IETF](docs/product/ietf-agent-delegation.md)** — the agent/delegation side. What the
+- **[IETF](docs/ietf/ietf-agent-delegation.md)** — the agent/delegation side. What the
   agent carries and how permissions flow: floor-gated SIM attestation, scoped monotone
   delegations, presentment via RFC 9421. The OAuth Working Group (`oauth@ietf.org`) is
   the target.

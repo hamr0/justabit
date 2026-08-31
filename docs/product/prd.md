@@ -50,22 +50,24 @@ not created. Proposal docs follow the target body's proposal standards.
 | # | Deliverable | Where | Consumer |
 |---|---|---|---|
 | D1 | **This PRD** — requirements, sequence, no-gos, decisions | `docs/product/prd.md` | us |
-| D2 | **CAMARA proposal** — problem, the normative profile (8 rules), modes, phase plan, risks, pre-filled APIBacklog template mapping | `docs/product/camara-attested-windowed-disclosure.md` | CAMARA Commonalities / ICM / APIBacklog WG |
-| D3 | **Agent/delegation proposal** — agent/delegation side only, targets the IETF OAuth WG. | `docs/product/ietf-agent-delegation.md` | IETF (OAuth WG); supersedes `docs/archive/aaif-agent-auth.md`, retained only as a dated, superseded record of the earlier AAIF-targeted text |
+| D2 | **CAMARA proposal** — problem, the normative profile (8 rules), modes, phase plan, risks, pre-filled APIBacklog template mapping. CAMARA filing is now versioned under `docs/camara/`: v1 is the frozen record as filed 2026-08-28; v2 is the working rescoping draft opened 2026-08-31 after WG feedback. | `docs/camara/v1/camara-attested-windowed-disclosure.md` (v1); `docs/camara/v2/camara-attested-windowed-disclosure.md` (v2, drafting) | CAMARA Commonalities / ICM / APIBacklog WG |
+| D3 | **Agent/delegation proposal** — agent/delegation side only, targets the IETF OAuth WG. Lives in its own `docs/ietf/` directory, separate from the CAMARA versioning above since the IETF track is not affected by the CAMARA feedback. | `docs/ietf/ietf-agent-delegation.md` | IETF (OAuth WG); supersedes `docs/archive/aaif-agent-auth.md`, retained only as a dated, superseded record of the earlier AAIF-targeted text |
 | D4 | **PoC** — Mode A demo, 4 assertions, mock + Orange backends | `poc/` | WG readers, demo audiences |
 | D5 | Sustained WG presence (meetings, mailing lists, PR responses) | calendars, minutes | CAMARA anti-staleness rules |
-| D6 | **IETF submission artifact** — RFCXML v3, WRITTEN and author-tools VALIDATED but NOT submitted, NOT adopted, and reviewed by no one; IETF 127 submission cutoff is 2 November 2026, 23:59 UTC | `docs/product/draft-hassan-oauth-agent-delegation-00.xml` | IETF (OAuth WG) |
+| D6 | **IETF submission artifact** — RFCXML v3, WRITTEN and author-tools VALIDATED but NOT submitted, NOT adopted, and reviewed by no one; IETF 127 submission cutoff is 2 November 2026, 23:59 UTC | `docs/ietf/draft-hassan-oauth-agent-delegation-00.xml` | IETF (OAuth WG) |
 
 Supporting artifacts (not documents): `spec/carrier-attestation.yaml` stays an
 illustrative OpenAPI sketch (non-normative); `README.md` is the adopter-facing
 front door and mirrors — never forks — the proposals;
 `docs/logs/findings.md` is the dated evidence log (what experiments
 showed, including dead ends) — it complements this PRD, which stays the home
-of decisions; `docs/product/camara-filing-issue.md` (step 1, the GitHub
-issue body) and `docs/product/camara-filing-template.md` (step 2, the
-filled API-proposal template) are the live filing deliverables for CAMARA
-APIBacklog, derived verbatim from D2 §10 and never a source of design
-content — each becomes an immutable record once filed. Design content
+of decisions; `docs/camara/v1/camara-filing-issue.md` (step 1, the GitHub
+issue body) and `docs/camara/v1/camara-filing-template.md` (step 2, the
+filled API-proposal template) are the filed CAMARA APIBacklog deliverables,
+derived verbatim from D2 §10 and never a source of design
+content — each is an immutable record now that it has been filed. A stub at
+the old `docs/product/camara-attested-windowed-disclosure.md` path keeps the
+filed issue #330/PR #331 links resolving (GitHub has no redirects). Design content
 still folds into the 3 docs, never into findings.
 
 ## 4. PoC requirements (the only build)
@@ -626,7 +628,7 @@ Phase B  (re-homed from AAIF, 2026-08-25) Draft the agent/
          welcome) → IETF 127 meeting, 14–20 Nov 2026, San
          Francisco. Target WG: OAuth (automated-agent-
          authorization work item); CATALIST as a fallback routing
-         venue. D3 (`docs/product/ietf-agent-delegation.md`)
+         venue. D3 (`docs/ietf/ietf-agent-delegation.md`)
          is drafted; remaining work is turning it into an actual
          Internet-Draft (RFCXML/xml2rfc toolchain)                [G6]
 Phase ∞  Attend cadence: Backlog WG + ICM + sub-project calls +
@@ -724,7 +726,7 @@ be repeated.
   The Identity & Trust WG's TOPIC still fits the work; the DOOR is wrong,
   not the idea — recorded that way, not as "AAIF was a dead end." D3 has
   since been re-homed onto the IETF track below as
-  `docs/product/ietf-agent-delegation.md`;
+  `docs/ietf/ietf-agent-delegation.md`;
   `docs/archive/aaif-agent-auth.md` is retained only as a dated,
   superseded record of the earlier AAIF-targeted text.
 - **Agent/delegation arm re-homed to IETF (grounded 2026-08-25).** An

@@ -1,3 +1,9 @@
+> **v2 WORKING COPY** — copied unchanged from v1 on 2026-08-31 to be
+> reshaped per the 2026-08-31 APIBacklog feedback
+> (`../v1/feedback-2026-08-31.md`). NOT filed. Until the rescoping
+> decisions recorded in `docs/logs/findings.md` (2026-08-31) land, the
+> text below is still the v1 text.
+
 > **This is the text to paste into a new GitHub issue** at
 > `camaraproject/APIBacklog`, using that repo's own `💡 API Proposal`
 > issue template (four fields: Description, Use cases, Related to,
@@ -7,14 +13,14 @@
 > This is step 1 of a two-step CAMARA intake. Step 2 is a follow-up pull
 > request adding the long template as
 > `documentation/API proposals/APIProposal_CarrierAttestation.md` — that
-> file is `docs/product/camara-filing-template.md` in this repo, already
+> file is `docs/camara/v1/camara-filing-template.md` in this repo, already
 > prepared. Do not paste that long file into the issue; the issue is this
 > short body only.
 >
 > **Filed:** Filed as issue #330 on 2026-08-28 —
 > https://github.com/camaraproject/APIBacklog/issues/330. Open, awaiting
 > Working Group evaluation; nothing has been approved. Follow-up PR #331
-> (adding the filled template) is `docs/product/camara-filing-template.md`
+> (adding the filled template) is `docs/camara/v1/camara-filing-template.md`
 > in this repo — see that file for its own filed record.
 >
 > **This file is now a FROZEN record of what was filed.** The text below
@@ -25,6 +31,8 @@
 >
 > Everything above this line (through the marker below) is repo bookkeeping
 > for whoever is filing this — it must NOT be pasted into the GitHub issue.
+>
+> Feedback received 2026-08-31 — see `feedback-2026-08-31.md`; v2 in `../v2/`.
 
 <!-- ==== EVERYTHING BELOW THIS LINE IS THE ISSUE BODY — PASTE FROM HERE ==== -->
 

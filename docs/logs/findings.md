@@ -14,7 +14,99 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
-## 2026-08-31 (latest) — Scope made mechanically decidable; test vectors with a negative control; two cross-repo handovers closed
+## 2026-08-31 (latest) — CAMARA feedback on #330/#331: profile framing rejected, use case 2 Charter-excluded, signing layer routed to Commonalities; Tenure API overlap missed by the filed "no overlap" declaration
+
+**EVIDENCE**
+
+1. Feedback received 2026-08-31T09:01:41Z on camaraproject/APIBacklog PR
+   #331, comment id 5476128475, by APIBacklog codeowner
+   `albertoramosmonagas` (URL
+   https://github.com/camaraproject/APIBacklog/pull/331#issuecomment-5476128475).
+   Three points: (1) "horizontal profile" is not a valid sub-project type
+   under the Charter; use case 2 (AI-agent holder presentment / trust
+   directory) is east-west verifiable-credential infrastructure,
+   Charter-excluded; (2) functional overlap with KYC Age Verification and
+   SimSwap age-band — the only delta is the signing wrapper; (3) signed
+   responses belong in Commonalities/ICM (CAMARA already binds requests
+   via DPoP `camara:bh`/`camara:qh`); the vehicle is a Scope Enhancement,
+   not a new sub-project. Recommended path: drop/reframe use case 2;
+   resubmit as Scope Enhancement(s) on KYC Age Verification, SimSwap
+   and/or Commonalities; present at the next APIBacklog WG session; upload
+   the OpenAPI sketch and the proposal doc onto the issue; prepare a short
+   deck (problem, revised use cases, signing standard SD-JWT / JOSE / W3C
+   VC, Scope Enhancement path).
+2. Reviewer claim on DPoP VERIFIED:
+   `IdentityAndConsentManagement/documentation/CAMARA-Security-Interoperability.md`
+   (main, 644 lines), section "Additional Recommendations for DPoP
+   Implementations": claims `camara:qh` (SHA-256 of the raw query string)
+   and `camara:bh` (SHA-256 of the request body), advertised via AS
+   metadata `camara_dpop_claims_required`. Request-side only; the
+   document defines no response signing.
+3. Reviewer claim on Charter VERIFIED: `Governance/ProjectCharter.md`
+   line 62: "CAMARA only works on customer-facing northbound APIs.
+   East-west federation / roaming APIs are out of scope for CAMARA."
+   Line 248: "Technical decisions that span multiple parts of the CAMARA
+   Project should be discussed and made in the Commonalities Working
+   Group".
+4. Scope Enhancement vehicle VERIFIED:
+   `APIBacklog/documentation/API-Scope-Enhancement-Template.md` exists
+   (sections: API name, New API name, owner, summary, CAMARA scope
+   alignment, Scope change justification incl. "Why backlog validation is
+   required" and "Impact on the existing API scope", out-of-scope,
+   technical/commercial viability, YAML, validations, Supporters).
+   Precedent with the same flow: APIBacklog #276/#277 "Consent Info —
+   Controlled Delegation" (issue 2025-11-05 → backlog+TSC without
+   objections → issues opened in ICM #327 and ConsentInfo #42 → both
+   approved → PR merged; TSC Approved & Onboarding 2025-12-18).
+   Commonalities has its own `.github/ISSUE_TEMPLATE/issue_enhancement_template.md`.
+5. **RETRACTION.** The filed template's "Overlap with existing CAMARA
+   APIs" field states "No overlap" (reviewed 2026-08-14, re-verified
+   2026-08-24). That statement is WRONG. CAMARA **Tenure** API
+   (`camaraproject/Tenure`, `kyc-tenure.yaml`, Vodafone; TSC Approved
+   2024-05-16; releases r2.2 2025-09-19, r3.1 2026-06-23, r3.2
+   2026-08-11): `POST /check-tenure` takes `tenureDate` and returns
+   boolean `tenureDateCheck` plus optional `contractType` — already a
+   predicate-shaped answer for the "tenure ≥ 2y" axis of the agent-grade
+   floor. **Subscription Status** API (`camaraproject/SubscriptionStatus`,
+   China Unicom, `subscription-status.yaml`) also exists; not yet read
+   in detail.
+6. KYC Age Verification VERIFIED (main YAML, version `wip`): response
+   `ageCheck` is a string enum `'true' | 'false' | 'not_available'`
+   (required), plus optional `verifiedStatus` (boolean),
+   `identityMatchScore`, `contentLock`, `parentalControl`. Boolean-shaped,
+   unsigned, no nonce, no expiry.
+7. SimSwap VERIFIED (main YAML, version `wip`): `SimSwapAgeBand` is an
+   integer 1..17 plus sentinel `111` (never swapped / never ported);
+   `/check` takes `maxAge` in hours and returns a boolean. Unsigned, no
+   nonce, no expiry.
+8. Consequence for the filed claims: every axis of the agent-grade floor
+   (swapAge → SimSwap `/check`; tenure → Tenure `/check-tenure`;
+   SIM/contract type → Tenure `contractType` / SubscriptionStatus)
+   already has a catalog API answering in boolean or band form. The
+   residual the v1 filing claimed for CarrierAttestation ("agent-grade
+   floor bundles") is a composition of existing answers, not a
+   capability no API exposes. The genuine delta is exactly what the
+   reviewer named: the signed, nonce-bound, expiring response envelope,
+   the monotone-floor rule, and (optionally) the blind-hub encryption.
+9. APIBacklog WG cadence (prd.md §7, grounded 2026-08-14): 2nd Thu 09:00
+   UTC and 4th Thu 15:00 UTC. Next sessions after today: Thu 2026-09-10
+   09:00 UTC and Thu 2026-09-24 15:00 UTC (calendar arithmetic; agenda
+   not yet confirmed).
+
+**DECISION**
+
+PENDING — user decides: (a) use case 2 / Mode B dropped from the CAMARA
+track entirely (it stays in the IETF draft) vs reframed with a Charter
+justification; (b) resubmission vehicle: one Scope Enhancement on
+Commonalities (signed nonce-bound expiring response envelope + monotone
+floor rule) with SimSwap as the first adoption example, vs separate Scope
+Enhancements on SimSwap and KYC Age Verification. Repo restructured this
+session: v1 archived at `docs/camara/v1/`, v2 working copy at
+`docs/camara/v2/`, IETF at `docs/ietf/`; branch `camara/v2-rescope`.
+
+---
+
+## 2026-08-31 — Scope made mechanically decidable; test vectors with a negative control; two cross-repo handovers closed
 
 **EVIDENCE**
 
