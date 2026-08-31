@@ -35,7 +35,7 @@ Define "good" before building (AGENT_RULES). In order of proof strength:
 | G3 Circulated | Profile posted to ICM discussion / GitHub Discussion; reactions collected | links |
 | G4 Filed (CAMARA) | Commonalities guideline proposal + sim-swap adoption PR + APIBacklog issue/PR submitted (API family owner: Cairenes Solutions) — filing does not wait on named supporters | issue/PR links |
 | G5 Supported | Named operator supporters recorded in the template's Supporters field — populated by the Working Group during evaluation, downstream of filing (no-go 12 retired 2026-08-25) | names in template |
-| G6 IETF filed | Internet-Draft submitted covering agent/delegation semantics (target: OAuth WG automated-agent-authorization work item; CATALIST as a routing venue if OAuth WG doesn't fit) | MET 2026-08-31: https://datatracker.ietf.org/doc/draft-hassan-oauth-agent-delegation/ |
+| G6 IETF filed | Internet-Draft submitted covering agent/delegation semantics (target: OAuth WG automated-agent-authorization work item; CATALIST as a routing venue if OAuth WG doesn't fit) | MET 2026-08-31, re-posted 2026-08-31 as `draft-hamr-...`: https://datatracker.ietf.org/doc/draft-hamr-oauth-agent-delegation/ |
 
 Timescale is telecom-speed: quarters, not weeks. Sustained presence is itself
 a deliverable (CAMARA freezes proposals after 6+ weeks GitHub inactivity or 3
@@ -55,7 +55,7 @@ not created. Proposal docs follow the target body's proposal standards.
 | D3 | **Agent/delegation proposal** — agent/delegation side only, targets the IETF OAuth WG. Lives in its own `ietf/v1/docs/` directory, separate from the CAMARA versioning above since the IETF track is not affected by the CAMARA feedback. | `ietf/v1/docs/ietf-agent-delegation.md` | IETF (OAuth WG); supersedes `docs/archive/aaif-agent-auth.md`, retained only as a dated, superseded record of the earlier AAIF-targeted text |
 | D4 | **PoC** — Mode A demo, 4 assertions, mock + Orange backends | `camara/v1/poc/` | WG readers, demo audiences |
 | D5 | Sustained WG presence (meetings, mailing lists, PR responses) | calendars, minutes | CAMARA anti-staleness rules |
-| D6 | **IETF submission artifact** — SUBMITTED as `draft-hassan-oauth-agent-delegation-00` (https://datatracker.ietf.org/doc/draft-hassan-oauth-agent-delegation/), posted 31 August 2026, expires 4 March 2027; an individual submission, NOT adopted by the OAuth WG, and reviewed by no one — posting confers a timestamp and visibility, not standing; submission is not adoption, adoption is not publication | `ietf/v1/docs/draft-hassan-oauth-agent-delegation-00.xml` | IETF (OAuth WG) |
+| D6 | **IETF submission artifact** — posted 31 August 2026 as `draft-hassan-oauth-agent-delegation-00`, then re-posted the same day as `draft-hamr-oauth-agent-delegation-00` (https://datatracker.ietf.org/doc/draft-hamr-oauth-agent-delegation/), `Replaces` pointing at the `-hassan-` draft, which is now Datatracker state `repl`/Replaced (stays posted, un-deleted, until its own 4 March 2027 expiry); the live document expires 4 March 2027; an individual submission, NOT adopted by the OAuth WG, and reviewed by no one — posting confers a timestamp and visibility, not standing; submission is not adoption, adoption is not publication | `ietf/v1/docs/draft-hamr-oauth-agent-delegation-00.xml` | IETF (OAuth WG) |
 
 Supporting artifacts (not documents): `camara/v1/spec/carrier-attestation.yaml` stays an
 illustrative OpenAPI sketch (non-normative); `README.md` is the adopter-facing
@@ -643,13 +643,15 @@ Phase 5  WG evaluation populates named supporters (template
 Phase B  (re-homed from AAIF, 2026-08-25) Draft the agent/
          delegation Internet-Draft (RFCXML/xml2rfc v3,
          `draft-<lastname>-<wg>-<topic>-00`) → SUBMITTED 31 August
-         2026 as `draft-hassan-oauth-agent-delegation-00` → attend the
-         IETF 127 Hackathon, 14–15 Nov 2026 (free, non-members
+         2026 as `draft-hassan-oauth-agent-delegation-00`, then
+         re-posted same-day as `draft-hamr-oauth-agent-delegation-00`
+         (author's own surname mismatch is deliberate, §9) → attend
+         the IETF 127 Hackathon, 14–15 Nov 2026 (free, non-members
          welcome) → IETF 127 meeting, 14–20 Nov 2026, San
          Francisco. Target WG: OAuth (automated-agent-
          authorization work item); CATALIST as a fallback routing
          venue. D3 (`ietf/v1/docs/ietf-agent-delegation.md`) is
-         drafted and IS `draft-hassan-oauth-agent-delegation-00`,
+         drafted and IS `draft-hamr-oauth-agent-delegation-00`,
          submitted above — G6 MET, not adopted                    [G6]
 Phase ∞  Attend cadence: Backlog WG + ICM + sub-project calls +
          IETF WG list/meetings; respond within the 6-week/
@@ -771,7 +773,10 @@ be repeated.
   mechanics: format RFCXML (xml2rfc v3); naming
   `draft-<lastname>-<wg>-<topic>-00`; an I-D EXPIRES 185 days after
   posting unless refreshed. **Key dates:** `draft-hassan-oauth-agent-
-  delegation-00` was SUBMITTED 31 August 2026 and expires 4 March 2027
+  delegation-00` was SUBMITTED 31 August 2026, then re-posted the same
+  day as `draft-hamr-oauth-agent-delegation-00` (a posted I-D cannot be
+  renamed; a new `-00` with `Replaces` set is the only route, and it
+  creates two documents — §9). The live document expires 4 March 2027
   (185 days after posting) unless refreshed by a -01 — the IETF 127
   I-D submission cutoff, 2 November 2026 23:59 UTC, is noted for context
   only and is not a pending deadline for this draft. IETF 127 Hackathon
@@ -818,7 +823,8 @@ we manage here:
    mock tier (G1) does not. Don't let G2 block G3.
 3. **The draft is submitted but NOT adopted (§7, §9).** The AAIF→IETF
    re-homing is DONE (D3 already targets IETF) and `draft-hassan-oauth-
-   agent-delegation-00` was SUBMITTED 31 August 2026 — but posting an
+   agent-delegation-00` was SUBMITTED 31 August 2026, then re-posted the
+   same day as `draft-hamr-oauth-agent-delegation-00` — but posting an
    I-D confers a timestamp and visibility, not standing: it is an
    individual submission, reviewed by no one, with no formal standing in
    the IETF process. The remaining risk is sustained mailing-list
@@ -836,7 +842,8 @@ The full rationale for every decision lives in `docs/logs/findings.md`; this tab
 |---|---|---|---|
 | 2026-08-31 | CAMARA v2 drafted as a Commonalities Scope Enhancement (agent-run, user review pending) | active | [findings.md](../logs/findings.md#2026-08-31-latest--camara-v2-drafted-as-a-commonalities-scope-enhancement-agent-run-user-review-pending) |
 | 2026-08-31 | CAMARA feedback and rescoping: Scope Enhancement on Commonalities, use case 2 dropped, layout option B | active | [findings.md](../logs/findings.md#2026-08-31--camara-feedback-on-330331-profile-framing-rejected-use-case-2-charter-excluded-signing-layer-routed-to-commonalities-tenure-api-overlap-missed-by-the-filed-no-overlap-declaration) |
-| 2026-08-31 | IETF draft-00 SUBMITTED — individual, NOT adopted, no formal standing | active | [findings.md](../logs/findings.md#2026-08-31-latest--scope-made-mechanically-decidable-test-vectors-with-a-negative-control-two-cross-repo-handovers-closed) |
+| 2026-08-31 | Draft renamed via replacement: `draft-hamr-...-00` posted, `draft-hassan-...-00` now Replaced | active | [findings.md](../logs/findings.md#2026-08-31--draft-renamed-via-replacement-draft-hamr-oauth-agent-delegation-00-posted-draft-hassan-oauth-agent-delegation-00-now-replaced) |
+| 2026-08-31 | IETF draft-00 SUBMITTED — individual, NOT adopted, no formal standing | active | [findings.md](../logs/findings.md#2026-08-31--scope-made-mechanically-decidable-test-vectors-with-a-negative-control-two-cross-repo-handovers-closed) |
 | 2026-08-31 | Scope made mechanically decidable; test vectors + negative control; 2 cross-repo handovers closed | active | [findings.md](../logs/findings.md#2026-08-31--scope-made-mechanically-decidable-test-vectors-with-a-negative-control-two-cross-repo-handovers-closed) |
 | 2026-08-30 | IETF draft-00 written and VALIDATED (not submitted); RFC 9421 has no delegation vocabulary; 2 ZK attributions corrected | active | [findings.md](../logs/findings.md#2026-08-2930--ietf-draft-00-written-and-validated-rfc-9421-has-no-delegation-vocabulary-two-zk-attributions-corrected) |
 | 2026-08-25 | Fold-in-vs-distinguish resolved as HYBRID (klrc-aiagent-auth-03 read) | active | [findings.md](../logs/findings.md#2026-08-25--open-decision-from-the-entry-below-closed-fold-in-versus-distinguish-resolved-as-hybrid-after-a-full-read-of-draft-klrc-aiagent-auth-03-raw-text) |

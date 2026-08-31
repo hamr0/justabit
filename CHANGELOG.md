@@ -14,6 +14,28 @@
   not publication. The Datatracker page's own words: the draft is "not
   endorsed by the IETF" and has "no formal standing in the IETF standards
   process."
+- **Renamed via replacement, same day: `draft-hamr-oauth-agent-delegation-00`
+  is now the live document.** The author's working identity across this
+  repo and prior filings is `hamr0`/hamr, not the surname Hassan, so the
+  draft was corrected to match. A posted I-D cannot be renamed in place —
+  the confirmed route is a new `-00` with `Replaces` set (whether the
+  secretariat renames in place on request was never verified either way;
+  moot after submission), which creates a second document rather than
+  editing the first. Verified live on the
+  Datatracker: the new draft is
+  https://datatracker.ietf.org/doc/draft-hamr-oauth-agent-delegation/,
+  state `posted`, submitted and dated 31 August 2026, expires 4 March
+  2027, 28 pages, `replaces` correctly set to
+  `draft-hassan-oauth-agent-delegation`, submission id 168367; the old
+  draft's state is now `repl` (Replaced) — it stays posted until its own
+  4 March 2027 expiry. The document is named `draft-hamr-...` while its
+  author block still reads `Amr Hassan` — IETF convention names the
+  surname, so this is a deliberate mismatch, the author's own call, not
+  an oversight. The XML file is renamed to
+  `ietf/v1/docs/draft-hamr-oauth-agent-delegation-00.xml`. The honest
+  qualifiers above are unchanged by the rename: still an individual
+  submission, not adopted, no formal standing. Findings:
+  `docs/logs/findings.md`, 2026-08-31.
 - **Six stale claims in `docs/product/prd.md` were corrected in the same
   change**, because the submission made them false at once and a partial
   sweep is the failure no-go 14 exists to name: the D6 deliverable row now

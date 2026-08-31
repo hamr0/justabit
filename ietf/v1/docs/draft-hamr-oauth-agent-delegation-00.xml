@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<rfc xmlns:xi="http://www.w3.org/2001/XInclude" category="std" docName="draft-hassan-oauth-agent-delegation-00" ipr="trust200902" submissionType="IETF" consensus="true" version="3">
+<rfc xmlns:xi="http://www.w3.org/2001/XInclude" category="std" docName="draft-hamr-oauth-agent-delegation-00" ipr="trust200902" submissionType="IETF" consensus="true" version="3">
   <front>
     <title abbrev="Agent Delegation Profile">An Attenuated Delegation Profile for Automated Agents</title>
-    <seriesInfo name="Internet-Draft" value="draft-hassan-oauth-agent-delegation-00"/>
+    <seriesInfo name="Internet-Draft" value="draft-hamr-oauth-agent-delegation-00"/>
     <author initials="A." surname="Hassan" fullname="Amr Hassan">
       <organization>Independent</organization>
       <address>

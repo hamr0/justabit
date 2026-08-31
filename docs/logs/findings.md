@@ -246,6 +246,63 @@ still OPEN.
 
 ---
 
+## 2026-08-31 — Draft renamed via replacement: `draft-hamr-oauth-agent-delegation-00` posted, `draft-hassan-oauth-agent-delegation-00` now Replaced
+
+**EVIDENCE**
+
+1. **A posted Internet-Draft cannot be renamed in place.** Verified against
+   IETF submission mechanics: the confirmed route to change a draft's name
+   after posting is to submit a new `-00` with the `Replaces` field set to
+   the old draft's name (whether the secretariat renames in place on
+   request was never verified either way; moot after submission). That
+   action creates TWO documents on the Datatracker, not one renamed
+   document — the old name does not disappear, it changes state.
+2. **Datatracker API facts, confirmed live (verbatim, do not re-fetch):**
+   the new draft is `draft-hamr-oauth-agent-delegation-00`, title "An
+   Attenuated Delegation Profile for Automated Agents",
+   https://datatracker.ietf.org/doc/draft-hamr-oauth-agent-delegation/,
+   submission state `posted`, submitted and document-dated 2026-08-31,
+   expires 2027-03-04, 28 pages, `replaces` field set to
+   `draft-hassan-oauth-agent-delegation` (correctly), submitter Amr Hassan
+   <avoidaccess@msn.com>, Independent, Datatracker submission id 168367.
+3. **The old draft's Datatracker state is now `repl` (Replaced).** It
+   stays posted, with a replaced-by pointer to the new draft, until its
+   own original expiry of 2027-03-04 — it is not deleted and not
+   withdrawn, it is superseded.
+4. The XML file was renamed with `git mv` to
+   `ietf/v1/docs/draft-hamr-oauth-agent-delegation-00.xml`; `docName` and
+   `seriesInfo` inside it were updated to match; the author block was
+   deliberately left reading `Amr Hassan` (see DECISION 2 below).
+
+**DECISION**
+
+1. **Why the rename was done.** The author's working professional
+   identity across this repo, GitHub, and every prior CAMARA filing is
+   `hamr0`/hamr, not the surname Hassan. The original `-hassan-` name was
+   a mismatch with that identity from the moment it was chosen (v0.9.0/
+   v0.10.0 sessions); the user's call, once the draft was live and the
+   mismatch was visibly costing recognition, was to correct it via the
+   only mechanism IETF provides — a replacing `-00` — rather than leave a
+   posted, discoverable, individual-submission draft under the wrong
+   name indefinitely.
+2. **Standing limit, recorded on purpose, not an oversight.** IETF naming
+   convention is `draft-<lastname>-<wg>-<topic>-00` — the *surname*. The
+   new document is named `draft-hamr-...` while its author block still
+   reads `Amr Hassan`, i.e. the document name uses a professional handle
+   rather than the surname the convention expects. This is a deliberate,
+   user-approved departure from convention, not a drafting error, and it
+   is left as-is rather than "fixed" to `draft-hassan-` again — that
+   would simply recreate the original mismatch this rename exists to
+   close.
+3. **Honest qualifier, unchanged by the rename.** Both drafts are, and
+   remain, INDIVIDUAL submissions, NOT adopted by any IETF working group,
+   with NO formal standing in the IETF standards process. Submission is
+   not adoption. The rename changes the document's name and the pointer
+   between two Datatracker records; it changes nothing about review,
+   endorsement, or process standing.
+
+---
+
 ## 2026-08-31 — Scope made mechanically decidable; test vectors with a negative control; two cross-repo handovers closed
 
 **EVIDENCE**
