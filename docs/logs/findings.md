@@ -96,6 +96,25 @@ is written next to the declaration.
    446-byte M2 cap; ES256 369 bytes needs DER→raw. V2-M1 build approved
    by the user on that evidence; build in progress (separate commit).
 
+7. Route answered 2026-08-31T14:05:59Z on `camaraproject/APIBacklog` PR
+   #331, comment id 5479522050, by `rartych` (Rafal Artych, T-Mobile
+   Polska, a Commonalities CODEOWNER — CODEOWNERS: rartych, PedroDiez,
+   jlurien, eric-murray, bigludo7): "Feel free to open issue in
+   https://github.com/camaraproject/Commonalities to propose signing
+   mechanism - if it can be applied in many CAMARA APIs. Commonalities
+   should define common guidelines in CAMARA API Design Guide." Verified
+   via `gh api repos/camaraproject/APIBacklog/issues/comments/5479522050 --jq '.body'`.
+   Commonalities issue template verified:
+   `.github/ISSUE_TEMPLATE/issue_enhancement_template.md`, name "💡
+   Enhancement 🌟", label `enhancement`, fields Problem description /
+   Possible evolution / Alternative solution / Additional context — same
+   shape as the APIBacklog template already used for the v2 draft. CAMARA
+   API Design Guide (`Commonalities/documentation/CAMARA-API-Design-Guide.md`)
+   headings verified: `## 6. Security` (line ~1225: 6.1 Good Practices for
+   Securing REST APIs, 6.2 Security Definition, 6.3 Expressing Security
+   Requirements). The blind-hub placement question (same issue or
+   separate) is still unanswered.
+
 **DECISION:** none — this entry is drafting work only, executed under an
 existing user decision (2026-08-31, entry below); nothing new was decided
 in this round. OPEN until the codeowner answers: filing route; blind-hub
@@ -103,6 +122,10 @@ placement.
 
 **DECISION (2026-08-31):** V2-M1 (JWS attestation core, EdDSA only)
 approved and started; ES256 deferred.
+
+**DECISION (2026-08-31):** Route DECIDED (codeowner answer): file as an
+enhancement issue in camaraproject/Commonalities. Blind-hub placement
+still OPEN.
 
 ---
 

@@ -17,8 +17,9 @@
 roaming / signaling / SoR)
 **Status:** Draft v2 — rescoped after WG feedback; not yet filed
 **Date:** 2026-08-31
-**Target:** CAMARA Commonalities, as ONE Scope Enhancement, with SimSwap
-`/check` as the first adoption example
+**Target:** CAMARA Commonalities, as an enhancement issue (route
+confirmed 2026-08-31 by a Commonalities codeowner), guideline to live in
+the CAMARA API Design Guide; first adoption example SimSwap `/check`
 **Companion:** the agent/delegation side (holder presentment, trust
 directory, agent-grade floor bundles) is out of scope for CAMARA and
 proposed separately to the IETF OAuth Working Group
@@ -267,13 +268,14 @@ Tenure's payload would carry `tenureDate`/`contractType` and
 `tenureDateCheck`, not `maxAge`/`swapped`.
 
 Where the envelope itself would be specified in the Design Guide is not
-settled by this document. Two sections of
-`Commonalities/documentation/CAMARA-API-Design-Guide.md` are candidate
-homes — §3.1 "Business-level Outcomes in Successful Responses" (the
-existing pattern for additive response-body fields) and §5.8.5 "Headers"
-(the existing pattern for a cross-API special header, `x-correlator`) —
-but which one, or a new section, is **to be agreed with Commonalities
-maintainers**, not invented here.
+settled by this document. `Commonalities/documentation/CAMARA-API-Design-Guide.md`'s
+`## 6. Security` is proposed as the home (it already covers securing
+REST APIs and expressing security requirements), with §3.1
+"Business-level Outcomes in Successful Responses" (the existing pattern
+for additive response-body fields) and §5.8.5 "Headers" (the existing
+pattern for a cross-API special header, `x-correlator`) as alternatives —
+final placement is **to be agreed with Commonalities maintainers**, not
+invented here.
 
 ## 6. Honest limits
 

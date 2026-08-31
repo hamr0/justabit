@@ -634,6 +634,9 @@ Phase 4  File: Commonalities guideline proposal + sim-swap
          2026-08-31: v2 scope = four items (attested response, floor rule,
          blind hub, range on open responses); V2-M1 JWS core approved and
          building.
+         2026-08-31 14:06 UTC: route answered by a Commonalities
+         codeowner — file an enhancement issue in Commonalities;
+         blind-hub placement pending.
 Phase 5  WG evaluation populates named supporters (template
          validation → company support analysis → bi-weekly
          Backlog WG lazy consensus)                                [G5]
@@ -679,7 +682,8 @@ be repeated.
     meetings/mailing list; **adoption = the maintainers merging the PR** into
     a guidelines release, which then propagates to all APIs via the
     meta-release cycle (every API must align with latest Commonalities to
-    release). No TSC new-repo machinery.
+    release). No TSC new-repo machinery. Confirmed as the route on
+    2026-08-31 (findings).
   - **CarrierAttestation → APIBacklog (the heavy path):** GitHub issue
     (their issue template) + linked PR with the filled
     `API-proposal-template.md` → codeowners validate the template → member

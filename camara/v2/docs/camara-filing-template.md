@@ -6,6 +6,13 @@
 > 2026-08-31, following APIBacklog codeowner feedback on the v1 filing
 > (`camara/v1/docs/feedback-2026-08-31.md`).
 >
+> **Route update (2026-08-31, comment 5479522050):** a Commonalities
+> codeowner directed the primary filing to an enhancement issue in
+> `camaraproject/Commonalities` (`camara/v2/docs/camara-filing-issue.md`),
+> not this APIBacklog Scope Enhancement template. This filled template is
+> now the SECONDARY artifact — kept ready in case Commonalities or the
+> Backlog WG asks for it. Its body below is otherwise unchanged.
+>
 > This document supersedes the v1 API-proposal-template filing
 > (`camara/v1/docs/camara-filing-template.md`, frozen as filed under PR
 > #331) in intent, not in record — the v1 file stays an immutable record

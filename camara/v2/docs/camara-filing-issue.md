@@ -1,18 +1,22 @@
 > **This is the text to paste into a new GitHub issue** at
-> `camaraproject/APIBacklog`, using that repo's `💡 Enhancement 🌟` issue
-> template (`.github/ISSUE_TEMPLATE/issue_enhancement_template.md`, fetched
+> `camaraproject/Commonalities` (route decided 2026-08-31 by a
+> Commonalities codeowner — see PR #331 comment
+> [5479522050](https://github.com/camaraproject/APIBacklog/pull/331#issuecomment-5479522050)),
+> using that repo's `💡 Enhancement 🌟` issue template
+> (`.github/ISSUE_TEMPLATE/issue_enhancement_template.md`, fetched
 > 2026-08-31; four fields: Problem description, Possible evolution,
 > Alternative solution, Additional context — the same template used by
 > precedent issue #276, "Evolution of Consent Info API to support
 > Controlled Delegation"). Title to use:
-> `[Scope Enhancement] Attested responses for CAMARA APIs (Commonalities; first adoption SimSwap)`.
+> `[Enhancement] Attested responses for CAMARA APIs — signed, nonce-bound, expiring answers; floor menu; range on open responses`.
 > Label: `enhancement`.
 >
 > This is step 1 of a two-step intake; step 2 is a follow-up pull request
 > adding the filled Scope Enhancement template as
 > `documentation/API proposals/` (path TBD) — that file is
-> `camara/v2/docs/camara-filing-template.md` in this repo. NOT FILED —
-> drafting only, 2026-08-31.
+> `camara/v2/docs/camara-filing-template.md` in this repo, kept as the
+> secondary artifact for if Commonalities or the Backlog WG asks for it.
+> NOT FILED — drafting only, 2026-08-31.
 
 <!-- ==== EVERYTHING BELOW THIS LINE IS THE ISSUE BODY — PASTE FROM HERE ==== -->
 
@@ -34,7 +38,9 @@ it; (3) end-to-end encryption through an aggregator so it meters and bills
 without reading identifiers, questions, or answers; (4) for open-value
 predicates (SimSwap `/retrieve-date`, `/retrieve-age-band`), a range from
 the published menu instead of the point value. First adoption example:
-SimSwap `/check`, worked wire example attached.
+SimSwap `/check`, worked wire example attached. The guideline would live
+in the Design Guide, candidate `## 6. Security` (alt. §3.1, §5.8.5) —
+maintainers decide placement.
 
 **Alternative solution**
 
@@ -55,4 +61,6 @@ CAMARA and pursued only at the IETF. Expiry and the blind hub also protect
 operator revenue: neither lets an aggregator replay or resell an answer it
 cannot read or that has gone stale, so each genuine query stays a fresh
 billed API call. Supporting materials (proposal v2, OpenAPI sketch) to
-follow on this issue.
+follow on this issue. Filed on the advice of a Commonalities codeowner on
+[APIBacklog PR #331](https://github.com/camaraproject/APIBacklog/pull/331#issuecomment-5479522050) (where #330/#331 was reviewed); the
+aggregator-blinding item's placement (here or separate) is open — asking the maintainers' preference.

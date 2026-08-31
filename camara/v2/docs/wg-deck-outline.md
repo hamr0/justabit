@@ -73,12 +73,17 @@
 
 ## 7. Path and precedent
 
-- Filed as ONE Commonalities Scope Enhancement, not a new sub-project.
+- Route DECIDED 2026-08-31: a Commonalities codeowner (PR #331 comment
+  5479522050) directed us to open an enhancement issue directly in
+  `camaraproject/Commonalities`, using its `💡 Enhancement 🌟` issue
+  template — not an APIBacklog Scope Enhancement.
+- Candidate home for the guideline text: CAMARA API Design Guide `## 6.
+  Security`.
 - Precedent: APIBacklog #276/#277, "Consent Info — Controlled
   Delegation" — issue → backlog+TSC lazy consensus → linked sub-project
   issues → TSC Approved & Onboarding 2025-12-18.
-- Same two-step intake: short issue first, filled Scope Enhancement
-  template as a follow-up PR.
+- Filled APIBacklog Scope Enhancement template kept as a secondary
+  artifact, ready if Commonalities or the Backlog WG asks for it.
 
 ## 8. Honest limits
 
@@ -92,9 +97,8 @@
 
 ## 9. Ask
 
-- Guidance on where in the Design Guide the envelope should be specified
-  (candidates: §3.1 Business-level Outcomes, §5.8.5 Headers — final call
-  is the maintainers').
+- `## 6. Security` proposed as the home in the Design Guide; maintainers
+  decide.
 - Named supporters, per Working Group process (populated during
   evaluation, not a precondition of filing).
 - Operator revenue: expiry + blinding remove the replay and resale path.
@@ -105,3 +109,4 @@
 - OpenAPI sketch: `camara/v2/spec/carrier-attestation.yaml`.
 - v1 filed record (superseded by this rescoping): APIBacklog issue #330 /
   PR #331.
+- Commonalities enhancement issue: issue # pending (not yet opened).
