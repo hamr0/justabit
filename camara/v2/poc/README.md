@@ -2,10 +2,21 @@
 
 **v2 working copy, copied unchanged from v1 on 2026-08-31.**
 
-**2026-08-31 addendum:** v2 PoC code is unchanged from v1 (Ed25519
-raw-bytes envelope). Migrating the signing layer to JWS (RFC 7515) is the
-next code module and needs its own user checkpoint. Until then, v2 docs
-describe JWS; v2 code does not.
+**2026-08-31 addendum:** v2 PoC code (M1-M6, demo) is still unchanged from
+v1 (Ed25519 raw-bytes envelope) — that is what M2/M6/`demo.mjs` run on, and
+callers stay on it until V2-M3 migrates them. **V2-M1 built alongside it,
+same day:** `camara/v2/poc/m1-jws.mjs`, a new JWS (RFC 7515, EdDSA)
+attestation core with two layers — a generic `signJws`/`verifyJws`
+primitive, and `attestAnswer`/`verifyAnswer` + `attestRefusal`/
+`verifyRefusal` closed-claim-set profiles matching
+`camara/v2/docs/camara-attested-windowed-disclosure.md` §4 exactly
+(`SIM_SWAP_CHECK` and `TENURE_CHECK` schemas). AGENT-RUN 29/29, user
+validation PENDING:
+
+```
+node camara/v2/poc/m1-jws-check.mjs   # V2-M1 JWS attestation core — 29 cases (AGENT-RUN
+                        #   29/29, 2026-08-31; user validation PENDING)
+```
 
 **Requirements & no-gos:** [`docs/product/prd.md`](../../docs/product/prd.md) §4–§5.
 **Status:** all six modules M1–M6 are BUILT — a first build was
