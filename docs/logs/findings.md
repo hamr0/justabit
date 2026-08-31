@@ -14,7 +14,188 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
-## 2026-08-29/30 (latest) — IETF draft-00 written and validated; RFC 9421 has no delegation vocabulary; two ZK attributions corrected
+## 2026-08-31 (latest) — Scope made mechanically decidable; test vectors with a negative control; two cross-repo handovers closed
+
+**EVIDENCE**
+
+1. **The draft's Attenuation Rule 1 was mandated but unexecutable.**
+   Rule 1 required a verifier to check that L(i)'s scope is a subset
+   of L(i-1)'s, but the draft defined no value space for a scope, no
+   meaning for "subset" over it, and no case sensitivity. "Scope" was
+   absent from the Terminology list while "Floor" and "Link" were
+   present. Observed by direct grep of the draft: the only hits for
+   `subset` were Rule 1 itself, the verification-procedure prose, and
+   the worked example — no definition anywhere.
+2. Floors were already mechanically checkable and scope was the
+   uneven half. The Floor Axes table states `larger value is tighter`
+   for the duration-typed axes `tenureMin` and `credentialAgeMin`,
+   and `equality only` for the enum axes `subjectClass`,
+   `accountClass`, `partialPolicy`. Verified by reading that section
+   directly.
+3. author-tools returned one warning class with 34 symptoms, on the
+   user's own run: `Total table width (79) exceeds available width
+   (69)`, plus 34 `Too long line found` lines, every one exactly 10
+   characters over 72.
+4. **The session's first width model was WRONG and was disproved by
+   the tool's own number.** The model was "sum each column's longest
+   cell". It predicts 124 for the flagged six-column table; the
+   validator measured 79. The corrected model, inferred from the
+   tool's output: the renderer wraps cell content at whitespace and
+   punctuation, so rendered width is driven by each column's longest
+   UNBREAKABLE token, not its longest cell. Confirming observation:
+   the third table holds a 117-character prose cell and was NOT
+   flagged, because prose wraps.
+5. Measured longest unbreakable tokens after the fix: Table 1
+   `payment:authorize` (17); Table 2 `2026-12-01T00:00:00Z` (20);
+   Table 3 `non-relaxation):` (16). The flagged table had carried a
+   20-character timestamp, the 16-character `credentialAgeMin`
+   header, and 17-character capability strings in one row of
+   columns.
+6. Draft state after both changes: well-formed XML exit 0; zero
+   non-ASCII bytes; zero BCP 14 keywords in capitals anywhere after
+   `<back>`; 32 vector rows across three tables (13 + 13 + 6); 1321
+   lines. Commits `ff9863f` (scope + vectors) and `cad490c` (table
+   split).
+7. bareagent has a rubric; it never compares two rubrics. Read
+   directly in `/home/hamr/PycharmProjects/bareagent`. A rubric is a
+   free-text string in a `Criteria` object (`src/evaluator.js:36-47`),
+   judged by one LLM call at temperature 0 (`src/evaluator.js:194`),
+   returning a structured `Verdict` (`src/evaluator.js:9-23`). Greps
+   for `tighte`, `subset`, `stricter`, `monoton` across `src/` and
+   docs returned no rubric-to-rubric comparison of any kind. No
+   rubric registry, no versioning, no ordering relation. Verdicts
+   never leave the process, are never signed, and no third party can
+   check one. Temperature is pinned but no seed is set and no test
+   asserts two runs agree.
+8. bareagent's own backlog says a rubric close gets gamed, verbatim
+   from `docs/archive/RSI-POC-BACKLOG.md:179-191`: a rubric close "is
+   closer to self-consistency than to an exit code and will get gamed
+   without its own judged-floor / adversarial-isolation analog".
+   Sensor-gaming is CONFIRMED in-repo, not theoretical: a model gamed
+   a verifier 5/5 by neutering the test.
+9. bareguard's tighten-only is array intersection,
+   `docs/02-features/harness-cookbook.md:41-49`, and it lives only in
+   cookbook/example code. The shipped `Gate` class has no floor
+   object and no subset check. CONFIRMED by the bareguard session
+   line by line, and confirmed DELIBERATE, not a gap: PRD D2 (LOCKED)
+   records that a bundle is "ergonomics, not a guard" and the floor
+   is the guard, and the structural reason it cannot ship is that the
+   tool catalog is operator-authored per deployment, so bareguard
+   could ship the filter but not the part that matters. No fix;
+   rationale recorded.
+10. A real fail-open existed in bareguard and was fixed
+    independently, before this session's handover arrived: empty
+    `tools.allowlist: []` was treated as "not configured" and fell
+    through to default-allow. Branch
+    `fix/empty-allowlist-fails-closed`, commit `f4d70dd`, unmerged.
+    Their regression test is the exact predicted path — two
+    misspelled tool names make the bundle/floor intersection empty,
+    turning the narrowest bundle into allow-all. Red before, green
+    after, plus two mutation checks.
+11. A real defect existed in bareagent and was fixed on handover.
+    `src/evaluator.js:194` requested `{ temperature: 0 }` and never
+    read the `temperatureDropped` flag that
+    `src/provider-temperature.js:54` sets when a model rejects a
+    non-default temperature and the call is retried without it. A
+    sibling module already handled it: `src/recurse.js:940-942` reads
+    the flag, and the comment at `src/recurse.js:901` says recording
+    the requested temp "would claim a value the model ignored".
+    Fixed on branch `fix/evaluator-temperature-dropped`,
+    mutation-proven red-then-green, suite 1126 -> 1127 pass, 0 fail,
+    exit 0. Unmerged.
+12. **A test-count baseline taken in a working directory is not
+    trustworthy.** The bareguard session measured 261 in a clean
+    detached worktree at `18847a5`, run three times, against this
+    session's subagent-reported 262 taken in the working directory.
+    Two harness confounds they reported: a fresh git worktree has no
+    `node_modules` and then fails 28 of 29 suites with
+    `ERR_MODULE_NOT_FOUND`, which looks like a broken baseline but is
+    a missing symlink; and `node --test` in a working directory globs
+    up gitignored scratch files a clean checkout does not have. The
+    bareagent session checked this for its own count and found all
+    56 globbed files git-tracked, so its 1127 was not inflated.
+
+**DECISION**
+
+- **Scope is now defined as the minimum that makes Rule 1
+  executable, and nothing more.** A scope is a set of opaque
+  capability strings; comparison is exact set containment over
+  case-sensitive, octet-for-octet equality; wildcard and prefix
+  matching, hierarchical containment, case folding, Unicode
+  normalisation, whitespace trimming, and every other canonicalisation
+  are forbidden. The why, stated in the draft itself: a verifier
+  applying a matching rule the profile does not define can accept a
+  chain another conforming verifier rejects, which makes attenuation
+  unverifiable in exactly the way the profile exists to prevent.
+  Wildcard and hierarchical semantics are stated OUT OF SCOPE for
+  this version with no registry or future mechanism promised. The
+  alternative considered and rejected was defining hierarchy or
+  wildcard semantics: a far larger design surface, the place
+  reviewers would pile on, and unnecessary to the draft's point.
+- **Ship test vectors, not a conformance harness.** The user asked
+  whether a harness should be mandated. It should not: an IETF
+  profile specifies the verification procedure, not anyone's
+  implementation, and a mandated harness binds conformance to one
+  codebase's assumptions and dates immediately. Vectors give the same
+  mechanical assurance and bind only to observable behaviour.
+  Supporting evidence from the user's own prior art: bareagent's note
+  that judge calibration does not transfer across model tiers
+  ("re-run the harness on any tier you deviate to").
+- **The vector suite must contain a negative control, and V6 is
+  it.** A suite composed only of chains expected to be accepted
+  cannot distinguish a correct verifier from one that accepts
+  everything; both pass identically. V6 is a three-link chain whose
+  leaf pair attenuates correctly and whose interior pair violates
+  Rule 1, so a verifier that checks only the final link accepts it
+  and does not conform. This is the same shape as bareagent's shipped
+  `src/judge-calibration.js`, where a `constantHonored` negative-
+  control judge MUST fail the admission floor — arrived at
+  independently in the user's own code, which is why it was adopted
+  here.
+- **Rubric-judging cannot survive a hop, and that is structural.**
+  Attenuation compares L(i) against L(i-1) across administrative
+  domains. Under a rubric, hop 3 would have to re-derive hop 1's
+  judgement to check tightening; it cannot, because it has different
+  criteria, a different judge, and no way to prove its verdict
+  matches. A rubric verdict is meaningful only to whoever ran it.
+  Confirmed twice independently: bareagent never compares two
+  rubrics, and bareguard never compares hop N to hop N-1 and
+  evaluates one action against one config. What DOES transfer from
+  that prior art is the frozen labelled case set with a negative
+  control — a conformance vector suite — not the judging.
+- **LESSON, generalisable: a requirement that cannot be executed the
+  same way twice is worse than a requirement that is merely absent.**
+  "Mandated but undefined" forces an implementer to comply with
+  something unspecified, and two conforming implementations then
+  disagree. This was the exact state of Rule 1 before this change.
+- **LESSON: do not model a renderer you cannot run.** The session
+  gave an agent a hand-computed width formula that the tool's own
+  output disproved. The agent implemented the instruction as given,
+  measured, found the numbers did not clear the budget, and escalated
+  instead of shipping numbers it could not defend or quietly
+  restructuring further. That escalation was correct and is the
+  desired behaviour. The corrected approach reports the observable
+  input (longest unbreakable token per column) and leaves the
+  measurement to the only thing that can measure it.
+- **Cross-repo handovers must ask for validation first, not a
+  fix.** Both handovers were framed as hypotheses to test with an
+  explicit instruction to fix only if the finding proved real and the
+  fix proved needed. One returned "correct reading, deliberate
+  design, no fix, rationale recorded"; the other returned a real
+  defect fixed and mutation-proven. Both outcomes are successes. A
+  handover framed as a defect report would have pressured the first
+  session into building something unrequested.
+- **STATUS, unchanged and to be stated plainly: the draft is
+  WRITTEN and VALIDATED. It is NOT submitted, NOT adopted, and
+  reviewed by no one.** The IETF 127 submission cutoff is 2 November
+  2026, 23:59 UTC. An I-D expires 185 days after posting; posting
+  confers a timestamp and visibility, not standing. Nothing in the
+  bareguard or bareagent work is merged or released; both are the
+  user's call.
+
+---
+
+## 2026-08-29/30 — IETF draft-00 written and validated; RFC 9421 has no delegation vocabulary; two ZK attributions corrected
 
 **EVIDENCE**
 
