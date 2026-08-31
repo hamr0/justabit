@@ -1,0 +1,377 @@
+// PoC module V2-M1 — standalone check for m1-jws.mjs (JWS/EdDSA attestation
+// core, built alongside the untouched raw-Ed25519 m1-attestation.mjs).
+// Run: node camara/v2/poc/m1-jws-check.mjs
+// Negatives first, then positives, same runner style/exit-code discipline as
+// the other check files (a shrinking suite must not read as green).
+import { generateKeyPairSync, randomUUID, sign as rawSign } from 'node:crypto';
+import {
+  signJws, verifyJws, compactSize,
+  attestAnswer, verifyAnswer, attestRefusal, verifyRefusal,
+  makeNonceStore, JwsRejected, ClaimRejected,
+  SIM_SWAP_CHECK, TENURE_CHECK, OFF_MENU_THRESHOLD,
+} from './m1-jws.mjs';
+
+// ---- local harness (m1-jws's reasons are typed classes, not strings, so
+// check-harness.mjs's string-equality `reason` comparator does not fit —
+// this is a parallel, not a divergent, contract: PASS/FAIL lines, an
+// asserted case count, exit 0 only if every case AND the count hold). ----
+const results = [];
+function check(name, wantOk, verdict, expectClass, expectCode) {
+  verdict = verdict ?? {};
+  const gotOk = verdict.ok === true;
+  let reasonOk = true;
+  if (!wantOk) {
+    reasonOk = expectClass ? verdict.reason instanceof expectClass : true;
+    if (reasonOk && expectCode !== undefined) reasonOk = verdict.reason?.code === expectCode;
+  }
+  const pass = gotOk === wantOk && reasonOk;
+  results.push(pass);
+  const want = wantOk ? 'OK' : 'REJECT';
+  const got = gotOk ? 'OK' : 'REJECT';
+  const gotClass = verdict.reason?.constructor?.name;
+  const gotCode = verdict.reason?.code;
+  console.log(
+    `${pass ? 'PASS' : 'FAIL'} ${name}: expected ${want}, got ${got}` +
+    (wantOk ? '' : ` — reason expected ${expectClass?.name ?? 'any'}${expectCode ? '/' + expectCode : ''}` +
+      `, got ${gotClass}${gotCode ? '/' + gotCode : ''} (match=${reasonOk})`)
+  );
+}
+function checkTrue(name, cond, detail) {
+  const pass = cond === true;
+  results.push(pass);
+  console.log(`${pass ? 'PASS' : 'FAIL'} ${name}${detail ? ' :: ' + detail : ''}`);
+}
+function conclude(expected) {
+  const passed = results.filter(Boolean).length;
+  const countOk = expected === undefined || results.length === expected;
+  console.log(`RESULT: ${passed}/${results.length}`);
+  if (!countOk) {
+    console.log(`FAIL CASE COUNT: expected ${expected} cases, ran ${results.length}` +
+      ' — the suite lost or gained cases; a shrinking suite is not a passing suite');
+  }
+  process.exit(passed === results.length && countOk ? 0 : 1);
+}
+
+// ---- fixtures ----
+const operator = generateKeyPairSync('ed25519');
+const impostor = generateKeyPairSync('ed25519');
+const OP_KID = 'op-kid-1';
+const directory = new Map([[OP_KID, operator.publicKey]]);
+const resolveKey = (kid) => directory.get(kid) ?? null;
+const nonceStore = makeNonceStore();
+const NOW = Math.floor(Date.now() / 1000);
+const ISS = 'opengateway.operator.example';
+const AUD = 'requester.example';
+
+function freshBase(ttl = 300) {
+  const nonce = randomUUID();
+  nonceStore.issue(nonce);
+  return { iss: ISS, aud: AUD, nonce, iat: NOW, exp: NOW + ttl };
+}
+
+function b64url(obj) {
+  return Buffer.from(JSON.stringify(obj), 'utf8').toString('base64url');
+}
+
+// Forges a token with a REAL EdDSA signature (over whatever header/payload
+// text is supplied) but bypassing signJws entirely — this is how a header
+// or payload can carry something signJws would never construct (a bogus
+// alg label, an extra header member, a duplicate payload key) while still
+// being cryptographically genuine, so the resulting rejection can only be
+// attributed to the specific claims/structure check under test, not to a
+// bad signature.
+function forge(headerObj, payloadText, privateKey) {
+  const h = b64url(headerObj);
+  const p = Buffer.from(payloadText, 'utf8').toString('base64url');
+  const signingInput = `${h}.${p}`;
+  const sig = rawSign(null, Buffer.from(signingInput, 'ascii'), privateKey);
+  return `${signingInput}.${sig.toString('base64url')}`;
+}
+
+// =====================================================================
+// NEGATIVES
+// =====================================================================
+
+// 1 WRONG SEGMENT COUNT — two segments, no signature at all.
+check('1 WRONG SEGMENT COUNT', false, verifyJws('abc.def', resolveKey), JwsRejected);
+
+// 2-6 GARBAGE INPUT FUZZ — five hostile strings, none may throw (a throw
+// here would crash the whole check file rather than print a line, which is
+// itself the failure this proves absent).
+{
+  const fuzz = ['', 'not a jws', '....', 'ñáéí🎉.b.c', 'a'.repeat(5000) + '.b.c'];
+  let allRejectedNoThrow = true;
+  for (const f of fuzz) {
+    let v;
+    try {
+      v = verifyJws(f, resolveKey);
+    } catch (e) {
+      allRejectedNoThrow = false;
+      console.log(`  fuzz threw on ${JSON.stringify(f).slice(0, 20)}...: ${e.message}`);
+      continue;
+    }
+    if (v.ok !== false || !(v.reason instanceof JwsRejected)) allRejectedNoThrow = false;
+  }
+  checkTrue('2-6 GARBAGE INPUT FUZZ (5 strings, none throw, all reject)', allRejectedNoThrow);
+}
+
+// 7 EXTRA HEADER MEMBER — {alg,kid,jwk} would be the classic embedded-key
+// attack shape; signJws can never construct this, so it must be forged.
+{
+  const base = freshBase();
+  const payloadText = JSON.stringify({ ...base, maxAge: 2160, swapped: false });
+  const token = forge({ alg: 'EdDSA', kid: OP_KID, jwk: 'attacker-embedded-key' }, payloadText, operator.privateKey);
+  check('7 EXTRA HEADER MEMBER', false, verifyJws(token, resolveKey), JwsRejected);
+}
+
+// 8 ALG NONE — a REAL EdDSA signature (the actual operator key) over a
+// header whose alg field literally reads "none". Node's null-algorithm
+// verify does not itself consult the header text, so only the explicit
+// `alg === 'EdDSA'` check stops this from verifying as genuine.
+{
+  const base = freshBase();
+  const payloadText = JSON.stringify({ ...base, maxAge: 2160, swapped: false });
+  const token = forge({ alg: 'none', kid: OP_KID }, payloadText, operator.privateKey);
+  check('8 ALG NONE (genuine signature, forged label)', false, verifyJws(token, resolveKey), JwsRejected);
+}
+
+// 9 ALG ES256 — same forged-label attack, different bogus label.
+{
+  const base = freshBase();
+  const payloadText = JSON.stringify({ ...base, maxAge: 2160, swapped: false });
+  const token = forge({ alg: 'ES256', kid: OP_KID }, payloadText, operator.privateKey);
+  check('9 ALG ES256 (genuine signature, forged label)', false, verifyJws(token, resolveKey), JwsRejected);
+}
+
+// 10 UNKNOWN KID — resolveKey has nothing under this kid.
+{
+  const base = freshBase();
+  const token = signJws(operator.privateKey, 'no-such-kid', { ...base, maxAge: 2160, swapped: false });
+  check('10 UNKNOWN KID', false, verifyJws(token, resolveKey), JwsRejected);
+}
+
+// 11 WRONG KEY FROM resolveKey — a stale/misconfigured directory resolves
+// OP_KID to the IMPOSTOR's public key; the token itself is genuinely signed
+// by the real operator key, so this is purely a directory-resolution fault.
+{
+  const base = freshBase();
+  const token = signJws(operator.privateKey, OP_KID, { ...base, maxAge: 2160, swapped: false });
+  const wrongResolve = () => impostor.publicKey;
+  check('11 WRONG KEY FROM resolveKey', false, verifyJws(token, wrongResolve), JwsRejected);
+}
+
+// 12 FLIPPED PAYLOAD BYTE — one bit tampered after signing.
+{
+  const base = freshBase();
+  const token = signJws(operator.privateKey, OP_KID, { ...base, maxAge: 2160, swapped: false });
+  const [h, p, s] = token.split('.');
+  const pBuf = Buffer.from(p, 'base64url');
+  pBuf[0] ^= 0xff;
+  const tampered = `${h}.${pBuf.toString('base64url')}.${s}`;
+  check('12 FLIPPED PAYLOAD BYTE', false, verifyJws(tampered, resolveKey), JwsRejected);
+}
+
+// 13 DUPLICATE KEY IN PAYLOAD — "swapped" signed twice; JSON.parse is
+// last-wins, other parsers first-wins — same equivocation M1 closed.
+{
+  const base = freshBase();
+  const payloadText = `{"iss":"${base.iss}","aud":"${base.aud}","nonce":"${base.nonce}",` +
+    `"iat":${base.iat},"exp":${base.exp},"maxAge":2160,"swapped":true,"swapped":false}`;
+  const token = forge({ alg: 'EdDSA', kid: OP_KID }, payloadText, operator.privateKey);
+  check('13 DUPLICATE KEY IN PAYLOAD', false, verifyJws(token, resolveKey), JwsRejected);
+}
+
+// 14 EXTRA CLAIM — a leaky operator ships a raw field alongside the answer.
+{
+  const base = freshBase();
+  const token = signJws(operator.privateKey, OP_KID, { ...base, maxAge: 2160, swapped: false, swapTimestamp: '2026-01-02' });
+  check('14 EXTRA CLAIM', false,
+    verifyAnswer(token, resolveKey, SIM_SWAP_CHECK, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW }),
+    ClaimRejected, 'EXTRA_CLAIM');
+}
+
+// 15 MISSING CLAIM — labelled and in-window, but the schema's own answer
+// field is absent.
+{
+  const base = freshBase();
+  const token = signJws(operator.privateKey, OP_KID, { ...base, maxAge: 2160 });
+  check('15 MISSING CLAIM', false,
+    verifyAnswer(token, resolveKey, SIM_SWAP_CHECK, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW }),
+    ClaimRejected, 'MISSING_CLAIM');
+}
+
+// 16 WRONG TYPE — the string "false", which is truthy: a caller testing
+// `claims.swapped` naively would read it as a yes.
+{
+  const base = freshBase();
+  const token = signJws(operator.privateKey, OP_KID, { ...base, maxAge: 2160, swapped: 'false' });
+  check('16 WRONG TYPE (swapped:"false")', false,
+    verifyAnswer(token, resolveKey, SIM_SWAP_CHECK, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW }),
+    ClaimRejected, 'WRONG_TYPE');
+}
+
+// 17 EXP <= IAT — attestAnswer itself would refuse to construct this (same
+// checkClosedPayload runs at build time), so this bypasses it via signJws
+// directly to prove verifyAnswer holds the line independently too.
+{
+  const nonce = randomUUID();
+  nonceStore.issue(nonce);
+  const badBase = { iss: ISS, aud: AUD, nonce, iat: NOW, exp: NOW };
+  const token = signJws(operator.privateKey, OP_KID, { ...badBase, maxAge: 2160, swapped: false });
+  check('17 EXP <= IAT', false,
+    verifyAnswer(token, resolveKey, SIM_SWAP_CHECK, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW }),
+    ClaimRejected, 'EXP_NOT_AFTER_IAT');
+}
+
+// 18 ISS MISMATCH — signed and structurally fine, wrong issuer claimed.
+{
+  const base = freshBase();
+  const token = signJws(operator.privateKey, OP_KID, { ...base, maxAge: 2160, swapped: false });
+  check('18 ISS MISMATCH', false,
+    verifyAnswer(token, resolveKey, SIM_SWAP_CHECK, { expectedIss: 'someone-else.example', expectedAud: AUD, nonceStore, now: NOW }),
+    ClaimRejected, 'ISS_MISMATCH');
+}
+
+// 19 AUD MISMATCH — a valid answer to a different requester.
+{
+  const base = freshBase();
+  const token = signJws(operator.privateKey, OP_KID, { ...base, maxAge: 2160, swapped: false });
+  check('19 AUD MISMATCH', false,
+    verifyAnswer(token, resolveKey, SIM_SWAP_CHECK, { expectedIss: ISS, expectedAud: 'someone-else.example', nonceStore, now: NOW }),
+    ClaimRejected, 'AUD_MISMATCH');
+}
+
+// 20 EXPIRED — exp already in the past relative to the injected clock, but
+// still strictly after iat (so this exercises the EXPIRED check alone, not
+// EXP_NOT_AFTER_IAT, which case 17 already covers).
+{
+  const nonce = randomUUID();
+  nonceStore.issue(nonce);
+  const base = { iss: ISS, aud: AUD, nonce, iat: NOW - 1000, exp: NOW - 500 };
+  const token = signJws(operator.privateKey, OP_KID, { ...base, maxAge: 2160, swapped: false });
+  check('20 EXPIRED', false,
+    verifyAnswer(token, resolveKey, SIM_SWAP_CHECK, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW }),
+    ClaimRejected, 'EXPIRED');
+}
+
+// 21 UNKNOWN NONCE — never issued into the store at all.
+{
+  const nonce = randomUUID(); // deliberately never nonceStore.issue()'d
+  const token = signJws(operator.privateKey, OP_KID, { iss: ISS, aud: AUD, nonce, iat: NOW, exp: NOW + 300, maxAge: 2160, swapped: false });
+  check('21 UNKNOWN NONCE', false,
+    verifyAnswer(token, resolveKey, SIM_SWAP_CHECK, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW }),
+    ClaimRejected, 'NONCE_REJECTED');
+}
+
+// 22 REPLAYED NONCE — the SAME token verified twice; the first consumes the
+// nonce, the second must find it already used.
+{
+  const base = freshBase();
+  const token = signJws(operator.privateKey, OP_KID, { ...base, maxAge: 2160, swapped: false });
+  const first = verifyAnswer(token, resolveKey, SIM_SWAP_CHECK, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW });
+  const second = verifyAnswer(token, resolveKey, SIM_SWAP_CHECK, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW });
+  checkTrue('22a REPLAYED NONCE first use accepts', first.ok === true);
+  check('22b REPLAYED NONCE second use rejects', false, second, ClaimRejected, 'NONCE_REJECTED');
+}
+
+// 23 REFUSAL ERROR OFF ENUM — attestRefusal itself would refuse to build
+// this; bypass via signJws to prove verifyRefusal holds independently.
+{
+  const base = freshBase();
+  const token = signJws(operator.privateKey, OP_KID, { ...base, error: 'MADE_UP_REASON' });
+  check('23 REFUSAL ERROR OFF ENUM', false,
+    verifyRefusal(token, resolveKey, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW }),
+    ClaimRejected, 'INVALID_ERROR');
+}
+
+// 24 WRONG SCHEMA — a valid SIM_SWAP_CHECK answer verified against
+// TENURE_CHECK's schema; every field that IS present is well-formed, but
+// the schemas don't overlap, so the closed set must still reject it.
+{
+  const base = freshBase();
+  const token = signJws(operator.privateKey, OP_KID, { ...base, maxAge: 2160, swapped: false });
+  check('24 WRONG SCHEMA (SIM_SWAP token vs TENURE_CHECK)', false,
+    verifyAnswer(token, resolveKey, TENURE_CHECK, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW }),
+    ClaimRejected, 'MISSING_CLAIM');
+}
+
+// 25 SIGNJWS NEVER THROWS ON BAD INPUT — non-object payload is the sender's
+// own mistake, refused, not thrown (mirrors M1's own contract for its
+// attest()).
+{
+  let threw = false;
+  let v;
+  try {
+    v = signJws(operator.privateKey, OP_KID, 'not an object');
+  } catch {
+    threw = true;
+  }
+  checkTrue('25 SIGNJWS REFUSES NON-OBJECT PAYLOAD, NEVER THROWS', !threw && v && v.ok === false && v.reason instanceof JwsRejected);
+}
+
+// =====================================================================
+// POSITIVES
+// =====================================================================
+
+// 26 SIM_SWAP ROUND TRIP — must match camara/v2/docs/camara-attested-
+// windowed-disclosure.md §4's seven-claim payload shape exactly (field
+// names, types, and — since it costs nothing to also hold — key order).
+{
+  const base = freshBase();
+  const token = attestAnswer(operator.privateKey, OP_KID, base, SIM_SWAP_CHECK, { maxAge: 2160 }, { swapped: false });
+  const isString = typeof token === 'string';
+  const v = isString
+    ? verifyAnswer(token, resolveKey, SIM_SWAP_CHECK, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW })
+    : token;
+  check('26 SIM_SWAP ROUND TRIP', true, v, undefined, undefined);
+  const shapeOk = isString && v.ok && Object.keys(v.claims).join(',') === 'iss,aud,nonce,iat,exp,maxAge,swapped' &&
+    v.claims.iss === ISS && v.claims.aud === AUD && v.claims.nonce === base.nonce &&
+    v.claims.maxAge === 2160 && v.claims.swapped === false;
+  checkTrue('26b SIM_SWAP payload matches docs §4 shape exactly', shapeOk);
+}
+
+// 27 TENURE ROUND TRIP — proves the schema mechanism generalizes beyond
+// SimSwap.
+{
+  const base = freshBase();
+  const token = attestAnswer(operator.privateKey, OP_KID, base, TENURE_CHECK, { tenureDate: '2024-01-01' }, { tenureDateCheck: true });
+  const v = typeof token === 'string'
+    ? verifyAnswer(token, resolveKey, TENURE_CHECK, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW })
+    : token;
+  check('27 TENURE ROUND TRIP', true, v);
+  checkTrue('27b TENURE payload fidelity', v.ok && v.claims.tenureDate === '2024-01-01' && v.claims.tenureDateCheck === true);
+}
+
+// 28 REFUSAL ROUND TRIP — a signed excuse, from the closed enum.
+{
+  const base = freshBase();
+  const token = attestRefusal(operator.privateKey, OP_KID, base, OFF_MENU_THRESHOLD);
+  const v = typeof token === 'string'
+    ? verifyRefusal(token, resolveKey, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW })
+    : token;
+  check('28 REFUSAL ROUND TRIP', true, v);
+  checkTrue('28b REFUSAL payload fidelity', v.ok && v.claims.error === OFF_MENU_THRESHOLD);
+}
+
+// 29 SIZE GUARD — a SIM_SWAP_CHECK answer with a 30-char iss/aud, a UUID
+// nonce, and a 20-char kid must fit under the M2 RSA-4096 OAEP cap. The
+// cap is DERIVED here from a freshly generated RSA-4096 key (bits/8 - 66),
+// never hard-coded, mirroring m2-envelope.mjs's own seal()-side derivation
+// exactly — m2 exports the constant 446 but not a standalone deriving
+// function, so this re-derives from the same formula against a real key.
+{
+  const rsaKey = generateKeyPairSync('rsa', { modulusLength: 4096 });
+  const modulusBits = rsaKey.publicKey.asymmetricKeyDetails.modulusLength;
+  const capacity = modulusBits / 8 - 66;
+  const longIss = 'a'.repeat(30);
+  const longAud = 'b'.repeat(30);
+  const kid20 = 'k'.repeat(20);
+  const nonce = randomUUID();
+  nonceStore.issue(nonce);
+  const base = { iss: longIss, aud: longAud, nonce, iat: NOW, exp: NOW + 300 };
+  const token = attestAnswer(operator.privateKey, kid20, base, SIM_SWAP_CHECK, { maxAge: 2160 }, { swapped: false });
+  const size = typeof token === 'string' ? compactSize(token) : Infinity;
+  checkTrue(`29 SIZE GUARD (${size}B < ${capacity}B derived RSA-4096 OAEP cap)`, typeof token === 'string' && size < capacity);
+}
+
+conclude(29);
