@@ -1,279 +1,183 @@
-> **v2 WORKING COPY** — copied unchanged from v1 on 2026-08-31. Scope
-> agreed 2026-08-31 (findings): rewrite as a Commonalities Scope
-> Enhancement — signed nonce-bound expiring envelope + floor rule
-> (+ optional blind hub); use case 2 dropped from CAMARA. NOT filed. Text
-> below is still the v1 text until the rewrite lands.
-
-> **This is the filled CAMARA API-proposal template**, to be added by pull
-> request as `documentation/API proposals/APIProposal_CarrierAttestation.md`
-> in `camaraproject/APIBacklog`. This is step 2 of CAMARA's two-step
-> intake, filed as a follow-up PR once the step-1 GitHub issue exists. The
-> SHORT step-1 issue body (the repo's own four-field `💡 API Proposal`
-> issue template) lives separately at
-> `camara/v1/docs/camara-filing-issue.md` — that file, not this one, is
-> what gets pasted into the GitHub issue. Verbatim text prepared 2026-08-25
-> from `camara-attested-windowed-disclosure.md` §10.
+> **This is the filled CAMARA API Scope Enhancement template**, per
+> `camaraproject/APIBacklog/documentation/API-Scope-Enhancement-Template.md`
+> (fetched 2026-08-31; headings below are verbatim and in the same order).
+> This is step 2 of the two-step intake: step 1 is the short GitHub issue
+> body, `camara/v2/docs/camara-filing-issue.md`. NOT FILED — drafting only,
+> 2026-08-31, following APIBacklog codeowner feedback on the v1 filing
+> (`camara/v1/docs/feedback-2026-08-31.md`).
 >
-> **Filed:** Submitted as PR #331 on 2026-08-28 —
-> https://github.com/camaraproject/APIBacklog/pull/331 — adding this file's
-> body as
-> `documentation/API proposals/APIProposal_CarrierAttestation.md` in
-> `camaraproject/APIBacklog`. Open, awaiting Working Group evaluation;
-> nothing has been approved. Follow-up to step-1 issue #330 — see
-> `camara/v1/docs/camara-filing-issue.md` for its own filed record.
->
-> **This file is now a FROZEN record of what was filed.** The text below
-> the paste marker must not change — amend
-> `camara-attested-windowed-disclosure.md` instead and, if the filed PR
-> needs a correction, file it as a follow-up PR against CAMARA, not as an
-> edit here.
->
-> Everything above this line (through the marker below) is repo bookkeeping
-> for whoever is filing this — it must NOT be pasted into the GitHub issue.
->
-> Feedback received 2026-08-31 — see `feedback-2026-08-31.md`; v2 in `../v2/`.
+> This document supersedes the v1 API-proposal-template filing
+> (`camara/v1/docs/camara-filing-template.md`, frozen as filed under PR
+> #331) in intent, not in record — the v1 file stays an immutable record
+> of what was actually submitted. Amend `camara-attested-windowed-disclosure.md`
+> (v2) for design changes, not this file, once this is filed.
 
-<!-- ==== EVERYTHING BELOW THIS LINE IS THE ISSUE BODY — PASTE FROM HERE ==== -->
+<!-- ==== EVERYTHING BELOW THIS LINE IS THE TEMPLATE BODY ==== -->
 
-# New API Family Proposal: CarrierAttestation
+## API name
 
-> Filing target: `camaraproject/APIBacklog`, opened as a GitHub issue using
-> the repo's own issue template, ahead of a linked PR adding the filled
-> `documentation/API-proposal-template.md`. Source:
-> https://github.com/hamr0/justabit/blob/main/docs/product/camara-attested-windowed-disclosure.md
-> §10, re-verified 2026-08-25 — the authoritative, already filing-ready
-> mapping this issue body is copied from verbatim wherever the template asks
-> the same question twice.
->
-> The proposal, PoC, and OpenAPI sketch referenced throughout this issue
-> live at https://github.com/hamr0/justabit (Apache 2.0, public, not itself
-> a CAMARA deliverable — the author's own staging ground for this
-> submission). See "Reference material" at the end of the References
-> section for the direct links.
->
-> **Framing, stated up front so the Working Group reads this proposal
-> correctly:** this is not a request to approve a new, free-standing API.
-> CAMARA already ships two structural precedents for exactly this shape of
-> answer — `POST /retrieve-age-band` (SimSwap v2.1.0), which coarsens a raw
-> timestamp into a band because the raw value over-discloses, and
-> `GET /device-phone-number` (NumberVerification v2.1.0), which takes no
-> request body at all and derives the line from the 3-legged access token
-> instead of a supplied identifier. `kyc-age-verification` already ships a
-> boolean age-threshold predicate in the catalog. The ask is to **finish
-> what those three started, catalog-wide** — a horizontal profile
-> ("attested windowed disclosure") that any existing API answering a
-> question about a subscriber or device can adopt, so that a predicate
-> answer is a signed, nonce-bound, expiring boolean and never the underlying
-> raw value. `CarrierAttestation` is filed here, as a new API family, only
-> for the residual that no existing catalog API can be adopted into: agent-
-> grade floor bundles and holder-presentment (Mode B). The profile itself is
-> proposed separately to Commonalities/ICM and to per-API adoption PRs (see
-> the proposal doc §6) — this filing is the "new case" half only.
+Commonalities — CAMARA API Design Guide (catalog-wide), first adoption:
+SimSwap `/check`.
 
----
+## New API name
 
-## Contact
+None — this is a Scope Enhancement to Commonalities' design guidance, not
+a new API or API family.
 
-- **Contact email:** avoidaccess@msn.com
-- **Submitter:** Amr Hassan, Cairenes Solutions — independent telecom
-  consultant (10 yrs wholesale roaming / signaling / SoR).
+## Scope Enhancement owner
 
-## API family name
+Cairenes Solutions.
 
-CarrierAttestation
+## Scope Enhancement summary
 
-## API family owner
+CAMARA's predicate APIs (SimSwap `/check`, Tenure `/check-tenure`, KYC Age
+Verification `ageCheck`, location-verification `verify`) already answer in
+booleans. Today that boolean is TLS-only, trusted by the direct caller
+only, replayable, and non-transferable to a third party. This enhancement
+adds three things to the response envelope, catalog-wide, via Commonalities:
+(1) a **signed, nonce-bound, expiring attestation** over the existing
+answer, as a JWS (RFC 7515) verifiable offline through a per-operator JWKS
+(RFC 7517); (2) a **floor rule** — the operator publishes a threshold menu,
+the requester may only tighten it, off-menu requests are refused, never
+rounded; (3) an **optional** end-to-end-encrypted "blind hub" mode so an
+aggregator meters and bills without reading identifiers, questions, or
+answers. First adoption example: SimSwap `/check`.
 
-Cairenes Solutions
+Two business cases: (1) a bank authorizes a transfer on "unswapped ≥ 90
+days" and holds a signed attestation it can show its own auditor without
+calling the operator a second time; (2) a relying party's independent
+auditor re-verifies a previously issued attestation offline, against the
+operator's published JWKS, months later, without any new API call.
 
-## API summary
+## CAMARA scope alignment
 
-Identity data should not become a tradeable asset. This family lets the
-operator answer a boolean and keep custody of the underlying fact, and lets
-an aggregator carrying the query meter and bill without ever reading
-identifiers, predicates, or answers: signed, nonce-bound, expiring predicate
-attestations over network facts operators already compute (SIM-swap age,
-tenure, subscription class), under monotone floors — for the cases no
-existing API covers: agent-grade floor bundles (proposal doc §3.4) and
-holder presentment (proposal doc §5).
+### Northbound API type
 
-Business cases:
-1. A bank authorizes a transfer on "unswapped ≥ 90d" without receiving a
-   timestamp.
-2. An AI agent presents a floor-gated carrier credential ("voice+data ∧
-   tenure ≥ 2y ∧ swapAge ≥ 90d") to a service that never learns the MSISDN.
-3. A content service verifies "device in licensed region" without location
-   custody.
+- [x] Service API
+- [ ] Service Management API
 
-## Northbound API type
+### Scope fit with CAMARA
 
-Service API.
+Northbound only — this enhancement adds fields to the request/response of
+existing customer-facing Service APIs (SimSwap, and by the adoption
+checklist, Tenure/KYC-age/location-verification); it introduces no
+east-west, federation, or roaming surface. Project Charter
+(`camaraproject/Governance/ProjectCharter.md`) line 62: "CAMARA only works
+on customer-facing northbound APIs. East-west federation / roaming APIs
+are out of scope for CAMARA" — satisfied, nothing here crosses that line.
+Line 248: "Technical decisions that span multiple parts of the CAMARA
+Project should be discussed and made in the Commonalities Working Group"
+— this is exactly such a decision, which is why it is filed as a
+Commonalities Scope Enhancement rather than against any single
+sub-project.
 
-## Scope fit with CAMARA
+### Telco capability exposed
 
-Customer-facing northbound exposure of telco network capabilities
-(subscription facts, SIM lifecycle, network authentication); no
-east-west/federation surface. The consumption modes this filing adds are
-additive to existing catalog APIs, per Project Charter scope. The design
-keeps any aggregator in the path a blind hub — metering and billing, never
-reading identifiers, predicates, or answers — so the capability to
-accumulate and monetize subscriber data against the ecosystem is removed by
-construction rather than left to a middle layer's restraint.
+The operator's existing signing authority over facts it already computes
+and already exposes as booleans (SIM-swap recency, tenure, age
+verification, location match) — no new telco capability, only a
+cryptographic attestation layer over capabilities already in the catalog.
 
-## Proposal owner declaration
+### Overlap with existing CAMARA APIs
 
-The proposal owner confirms this proposal has been reviewed against the
-current CAMARA Project Charter scope (see References below) and fits
-within it as described above.
+- [x] The CAMARA API portfolio has been reviewed, and it has been
+  confirmed that there is no overlap.
 
-## Telco capability exposed
+Stated plainly rather than left as a checkbox: SimSwap `/check`, Tenure
+`/check-tenure`, and KYC Age Verification `ageCheck` already answer the
+underlying boolean question — this enhancement changes only the response
+**envelope** around that existing answer (attestation + floor), not the
+predicate itself. There is no overlap in the sense of a duplicate
+capability; there is deliberate, acknowledged overlap in the sense that
+this enhancement's adoption checklist touches those APIs' response shapes.
+This full-portfolio review sweep was run 2026-08-31, after the v1 filing's
+own "no overlap" declaration (2026-08-14, re-verified 2026-08-24) was
+found to have missed the Tenure API — see the LESSON entry in
+`docs/logs/findings.md`, 2026-08-31.
 
-Operator-held subscription and SIM-lifecycle facts (swap recency, tenure,
-SIM type/class) plus network-session authentication (silent auth), exposed
-as signed predicates rather than raw values.
+## Scope change justification
 
-## Overlap with existing CAMARA APIs
+### Why backlog validation is required
 
-Reviewed 2026-08-14, re-verified 2026-08-24. No overlap. Existing APIs
-(sim-swap, number-verification, kyc-age-verification) are the *adoption
-targets* of the horizontal profile (proposed separately via Commonalities);
-CarrierAttestation covers only what none of them expose: floor-bundle
-attestations and holder presentment.
+This is a cross-sub-project change to the response format used across
+multiple existing CAMARA APIs (SimSwap, Tenure, KYC Age Verification,
+location-verification), which is exactly the class of decision Project
+Charter line 248 routes to Commonalities and, per APIBacklog process, to
+API Backlog Working Group validation before a design-guideline change
+lands.
 
-## Explicit out-of-scope items
+### Impact on the existing API scope
 
-- Raw-value retrieval of any kind.
-- Identity assertion (no name/document facts).
-- Consent framework changes (rides on ICM).
-- The aggregator's commercial model (unchanged by design — per-query
-  billing and revenue share continue as today).
+Extends existing APIs with an additive response field (`attestation`) and
+two additive request fields (`nonce`, `floor`); no new repository, no new
+API family, no broader scope needed. Existing non-attested request/response
+shapes remain valid and unchanged — this is a new, opt-in profile mode,
+not a breaking change.
+
+### Explicit out-of-scope items for this enhancement
+
+New predicates or fact types (nothing beyond what SimSwap, Tenure,
+KYC-age, and location-verification already compute); holder presentment
+(Mode B, proof-based credential presentment without an inbound identifier);
+agent identity or agent-grade floor bundles; consent-flow changes (rides
+existing ICM mechanisms unchanged); the aggregator's commercial model
+(per-query billing and revenue share are unaffected by design). All of
+these remain live only in the IETF track (`ietf/v1/docs/`), not here.
 
 ## Technical viability
 
-Every attested fact is already computed for existing catalog APIs; issuance
-authentication is the same network-auth mechanism `number-verification`
-uses today; signing/verification is SD-JWT VC + JWKS per PLMN (standard
-tooling operators need for eIDAS 2.0 regardless).
+JWS (RFC 7515) signing and JWKS (RFC 7517) key resolution — both standard
+JOSE tooling, already partially present in CAMARA's dependency graph via
+ICM's DPoP profile (`camara:qh`/`camara:bh` extension claims are
+Base64URL-encoded per RFC 7515 §2). Reference PoC status: the v1 PoC
+(`camara/v1/poc/`, Node.js, zero dependencies) implements the same
+signed-nonce-bound-expiring-boolean pattern using raw Ed25519 signatures
+over a closed claim set, not yet JWS. Migrating the PoC's signing layer
+from raw Ed25519 to JWS/JWKS is **planned**, not done — it is the next
+code module for this repository and needs its own user checkpoint before
+it starts (see `camara/v2/poc/README.md`).
 
 ## Commercial viability
 
-Open-source reference PoC at
-https://github.com/hamr0/justabit/tree/main/poc (Node.js, zero
-dependencies); SD-JWT VC / OpenID4VCI/VP open-source stacks are available;
-per-query billing is preserved in Mode A by construction — the aggregator
-meters and bills but is structurally unable to read identifiers,
-predicates, or answers.
+Open-source JOSE libraries exist and are widely adopted for exactly this
+kind of signing/verification: `node-jose` (https://github.com/cisco/node-jose)
+and `jose` (https://github.com/panva/jose, npm `jose`) both implement
+JWS/JWK/JWKS per RFC 7515/7517 and are actively maintained. Either would
+be a candidate dependency for a production (non-PoC) implementation; the
+reference PoC in this repository stays zero-dependency by policy and
+therefore does not adopt either yet.
 
-## YAML code available
+## YAML code available?
 
-YES — illustrative sketch at
-https://github.com/hamr0/justabit/blob/main/spec/carrier-attestation.yaml
-(non-normative draft; predicate ids in it are illustrative spellings, not a
-normative enumeration).
+YES — illustrative, non-normative sketch at `camara/v2/spec/carrier-attestation.yaml`,
+reshaped to the SimSwap `/check` adoption example (single path,
+`POST /sim-swap/v2/check`, real request/response fields from
+`camaraproject/SimSwap/code/API_definitions/sim-swap.yaml` plus the added
+`nonce`/`floor`/`attestation` fields).
 
-## Validated in lab/productive environments
+## Validated in lab/productive environments?
 
-YES, sandbox tier only. The Mode A PoC was run live against the Orange
-Network APIs Playground, an operator public sandbox environment (not a
-production network), exercising Orange's test tier with scripted test
-numbers. User-run, by exit code, all green: `m5-check-live.mjs` 20/20 and
+YES, sandbox tier only. The Mode A PoC (raw-Ed25519 envelope, not yet
+migrated to JWS) was run live against the Orange Network APIs Playground,
+an operator public sandbox environment (not a production network),
+exercising Orange's test tier with scripted test numbers. User-run, by
+exit code, all green: `m5-check-live.mjs` 20/20 and
 `demo.mjs --backend orange` 35/35 (CHANGELOG 0.5.0, 2026-08-18), with an
 injected clock and quota accounted 1-of-10 custom slots at both start and
-end. No production environment has been exercised, and no operator
-endorsement is implied by this validation.
+end. These runs exercised the envelope shape (signed, nonce-bound,
+expiring boolean) on raw Ed25519 signatures, not on JWS — stated
+precisely, because the JWS migration has not yet been run against the
+Playground. No production environment has been exercised.
 
-## Validated with real customers
+## Validated with real customers?
 
 NO.
 
-## Validated with operators
+## Validated with operators?
 
-NO — no operator has reviewed or validated this proposal. Naming
-supporters is Working Group business that happens during evaluation,
-downstream of filing (see the Supporters field below); no recruitment is
-currently underway.
+NO — no operator has reviewed or validated this enhancement.
 
 ## Supporters in API Backlog Working Group
 
-*Left blank per the template's own instruction: "List of supporters. NOTE:
-That shall be added by the Working Group." Our own targeting note, not a
-claim of existing support: ICM's privacy-forward operator pool — DT,
-Orange, Telefónica — looks like the likely fit to approach once this issue
-and its linked PR exist.*
-
----
-
-## Known limits and open questions
-
-The following residuals are stated
-plainly rather than smoothed over, because a Working Group reviewer will
-ask about them and a proposal that omits them reads as unaware, not clean:
-
-- **Mode A retains the operator-side query log.** The operator always knows
-  it attested fact T about subscriber S at time t. Acceptable where the
-  requester already holds its customer's number (KYC, fraud); only holder
-  presentment (Mode B, roadmap) removes it.
-- **Economic scarcity is not uniqueness.** The agent-grade floor (§3.4 of
-  the proposal doc) raises the cost of an agent identity; it does not
-  create uniqueness. One subscription can back many agents. "One
-  accountable human" requires a document-rooted principal layer above this
-  profile, which this filing does not provide and does not claim to.
-- **The trust directory is a centralization point.** Verifiers need
-  operator public keys per PLMN; governance of that directory belongs with
-  existing GSMA key-distribution rails (RAEX/IR.21-shaped) and is the one
-  unavoidable centralization point in this design.
-- **MNP breaks naive tenure.** Porting resets the operator relationship, so
-  a naive `tenure ≥ 2y` floor punishes honest porters, not farms. This is
-  an open design question (proposal doc §9.8), not resolved by this
-  filing.
-
-## Terminology
-
-Mode A — the mode this filing's business cases and validation evidence
-describe — is **attested windowed disclosure**. It is not zero-knowledge, and
-the author does not claim it as such anywhere in this issue or any
-follow-up. Zero-knowledge terminology applies only to Mode B (holder
-presentment), which is roadmap, not what is being filed for evaluation
-here.
-
-## References
-
-- CAMARA API Backlog process & template:
-  https://github.com/camaraproject/APIBacklog
-  (`documentation/APIbacklog.md`; `documentation/API-proposal-template.md`,
-  re-verified 2026-08-14, re-verified again 2026-08-24 and 2026-08-25;
-  filled examples under `documentation/SupportingDocuments/API proposals/`)
-- CAMARA governance/structure: https://camaraproject.org/structure/ ·
-  https://github.com/camaraproject/Governance/blob/main/ProjectStructureAndRoles.md
-  · Project Charter:
-  https://github.com/camaraproject/Governance/blob/main/ProjectCharter.md
-- Verified spec baseline (2026-08-14, re-verified 2026-08-24): SimSwap
-  v2.1.0 (`/check`, `/retrieve-date`, `/retrieve-age-band`):
-  https://github.com/camaraproject/SimSwap · NumberVerification v2.1.0
-  (`/verify`, `/device-phone-number`; TS.43 or OIDC `prompt=none`,
-  3-legged, AMR-validated):
-  https://github.com/camaraproject/NumberVerification · KnowYourCustomer
-  split into three repos post-Spring25: kyc-match (r1.2, v0.4.0)
-  https://github.com/camaraproject/KnowYourCustomerMatch · kyc-fill-in
-  (r1.3, v0.4.1)
-  https://github.com/camaraproject/KnowYourCustomerFill-in ·
-  kyc-age-verification (r1.3, v0.2.1, Sandbox per its lifecycle badge,
-  though its own README body text still says "Incubating stage since
-  February 2025" — a contradiction, not resolved here)
-  https://github.com/camaraproject/KnowYourCustomerAgeVerification
-- One existing implementation of the document-rooted principal layer
-  referenced in the "agent-grade floor" business case above exists in the
-  authors' prior work (8een/zkagent). This proposal is standards-neutral
-  and does not depend on it — it is cited as one implementation, not a
-  dependency.
-
-### Reference material
-
-The following is the author's own staging ground for this submission —
-Apache 2.0, public, and not itself a CAMARA deliverable:
-
-- Repo root: https://github.com/hamr0/justabit
-- CAMARA proposal document (full normative "attested windowed disclosure"
-  profile): https://github.com/hamr0/justabit/blob/main/docs/product/camara-attested-windowed-disclosure.md
-- Reference PoC (Mode A, Node.js, zero dependencies): https://github.com/hamr0/justabit/tree/main/poc
-- OpenAPI sketch (illustrative, non-normative): https://github.com/hamr0/justabit/blob/main/spec/carrier-attestation.yaml
+*(left blank per the template's own instruction: "List of supporters.
+NOTE: That shall be added by the Working Group.")*

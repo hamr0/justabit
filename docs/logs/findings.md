@@ -14,7 +14,62 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
-## 2026-08-31 (latest) — CAMARA feedback on #330/#331: profile framing rejected, use case 2 Charter-excluded, signing layer routed to Commonalities; Tenure API overlap missed by the filed "no overlap" declaration
+## 2026-08-31 (latest) — CAMARA v2 drafted as a Commonalities Scope Enhancement (AGENT-RUN; user review PENDING)
+
+**EVIDENCE**
+
+1. Grounded 2026-08-31 via `gh api` against live CAMARA repos: (a)
+   `camaraproject/APIBacklog/documentation/API-Scope-Enhancement-Template.md`
+   — headings copied verbatim into `camara/v2/docs/camara-filing-template.md`;
+   (b) `camaraproject/APIBacklog/.github/ISSUE_TEMPLATE/issue_enhancement_template.md`
+   — confirmed as the template precedent #276/#277 actually used (fetched
+   issue #276 body directly: Problem description / Possible evolution /
+   Alternative solution / Additional context, matching the template
+   field-for-field); (c)
+   `camaraproject/IdentityAndConsentManagement/documentation/CAMARA-Security-Interoperability.md`,
+   section "Additional Recommendations for DPoP Implementations" —
+   `camara:qh`/`camara:bh` are Base64URL-encoded per RFC 7515 §2, request-
+   side only, confirming the "ICM already cites RFC 7515" claim used to
+   justify the JWS signing choice; (d)
+   `camaraproject/SimSwap/code/API_definitions/sim-swap.yaml`, main —
+   `CreateCheckSimSwap` (`phoneNumber`, `maxAge` integer 1–2400) and
+   `CheckSimSwapInfo` (`swapped` boolean), quoted exactly in the worked
+   example; (e)
+   `camaraproject/Commonalities/documentation/CAMARA-API-Design-Guide.md`
+   — no single section is an obvious home for a response-envelope field;
+   §3.1 "Business-level Outcomes in Successful Responses" (additive
+   response-body fields) and §5.8.5 "Headers" (the `x-correlator`
+   cross-API header pattern) are named as candidates and the choice is
+   left to Commonalities maintainers rather than invented.
+2. Wrote five new files under `camara/v2/docs/` and `camara/v2/spec/`:
+   `camara-attested-windowed-disclosure.md` (261 lines, full rewrite),
+   `camara-filing-template.md` (filled Scope Enhancement template),
+   `camara-filing-issue.md` (28-line issue body below the paste marker),
+   `pr331-reply-draft.md` (28-line draft comment below the paste marker,
+   new file), `wg-deck-outline.md` (10-slide outline, new file); reshaped
+   `camara/v2/spec/carrier-attestation.yaml` to a single path,
+   `POST /sim-swap/v2/check`, YAML-parse-checked with
+   `python3 -c "import yaml; yaml.safe_load(open(...))"` — VALID.
+3. What was NOT done: the v2 PoC (`camara/v2/poc/`) is untouched — it
+   still signs with raw Ed25519 bytes, not JWS; migrating it is recorded
+   as the next code module in `camara/v2/poc/README.md`, needing its own
+   user checkpoint. Nothing in this entry has been posted to CAMARA — no
+   issue opened, no PR filed, no comment posted to PR #331. The Design
+   Guide section for the envelope is explicitly left open, not decided.
+
+**LESSON.** The v1 overlap review checked the APIs the author knew, not
+the full APIBacklog table; the Tenure API (TSC-approved 2024-05-16) was
+missed. Rule: an overlap declaration is made only after a sweep of
+`APIBacklog/documentation/APIbacklog.md`'s full table, and the sweep date
+is written next to the declaration.
+
+**DECISION:** none — this entry is drafting work only, executed under an
+existing user decision (2026-08-31, entry below); nothing new was decided
+in this round.
+
+---
+
+## 2026-08-31 — CAMARA feedback on #330/#331: profile framing rejected, use case 2 Charter-excluded, signing layer routed to Commonalities; Tenure API overlap missed by the filed "no overlap" declaration
 
 **EVIDENCE**
 

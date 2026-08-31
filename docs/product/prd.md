@@ -51,7 +51,7 @@ not created. Proposal docs follow the target body's proposal standards.
 |---|---|---|---|
 | D1 | **This PRD** — requirements, sequence, no-gos, decisions | `docs/product/prd.md` | us |
 | D2 | **CAMARA proposal** — problem, the normative profile (8 rules), modes, phase plan, risks, pre-filled APIBacklog template mapping. CAMARA filing is now versioned per project, per version at the repo root: v1 is the frozen record as filed 2026-08-28; v2 is the working rescoping draft opened 2026-08-31 after WG feedback. | `camara/v1/docs/camara-attested-windowed-disclosure.md` (v1); `camara/v2/docs/camara-attested-windowed-disclosure.md` (v2, drafting) | CAMARA Commonalities / ICM / APIBacklog WG |
-| D2 v2 | **CAMARA resubmission** — as a Commonalities Scope Enhancement, not a new sub-project | `camara/v2/docs/` — drafting, not filed | CAMARA Commonalities WG |
+| D2 v2 | **CAMARA resubmission** — as a Commonalities Scope Enhancement, not a new sub-project. Five files: `camara-attested-windowed-disclosure.md` (rewrite), `camara-filing-template.md`, `camara-filing-issue.md`, `pr331-reply-draft.md`, `wg-deck-outline.md` | `camara/v2/docs/` — drafting, not filed | CAMARA Commonalities WG |
 | D3 | **Agent/delegation proposal** — agent/delegation side only, targets the IETF OAuth WG. Lives in its own `ietf/v1/docs/` directory, separate from the CAMARA versioning above since the IETF track is not affected by the CAMARA feedback. | `ietf/v1/docs/ietf-agent-delegation.md` | IETF (OAuth WG); supersedes `docs/archive/aaif-agent-auth.md`, retained only as a dated, superseded record of the earlier AAIF-targeted text |
 | D4 | **PoC** — Mode A demo, 4 assertions, mock + Orange backends | `camara/v1/poc/` | WG readers, demo audiences |
 | D5 | Sustained WG presence (meetings, mailing lists, PR responses) | calendars, minutes | CAMARA anti-staleness rules |
@@ -599,6 +599,8 @@ Explicit and binding. "Useful" is not a defense for any of these.
 15. **Never file CarrierAttestation, or any predicate API, as a new CAMARA
     sub-project again.** The delta is the envelope, not a new API; it
     belongs in Commonalities, as a Scope Enhancement (findings 2026-08-31).
+16. **No overlap declaration without a full APIBacklog table sweep, dated**
+    (findings 2026-08-31).
 
 ## 6. Sequence
 
@@ -626,6 +628,7 @@ Phase 4  File: Commonalities guideline proposal + sim-swap
          on Commonalities; use case 2 dropped from CAMARA (IETF
          only). v2 in `camara/v2/docs/`, drafting. See findings
          2026-08-31.
+         v2 drafted 2026-08-31 (agent-run, user review pending), signing = JWS.
 Phase 5  WG evaluation populates named supporters (template
          validation → company support analysis → bi-weekly
          Backlog WG lazy consensus)                                [G5]
@@ -816,7 +819,8 @@ The full rationale for every decision lives in `docs/logs/findings.md`; this tab
 
 | Date | Decision | Status | Where |
 |---|---|---|---|
-| 2026-08-31 | CAMARA feedback and rescoping: Scope Enhancement on Commonalities, use case 2 dropped, layout option B | active | [findings.md](../logs/findings.md#2026-08-31-latest--camara-feedback-on-330331-profile-framing-rejected-use-case-2-charter-excluded-signing-layer-routed-to-commonalities-tenure-api-overlap-missed-by-the-filed-no-overlap-declaration) |
+| 2026-08-31 | CAMARA v2 drafted as a Commonalities Scope Enhancement (agent-run, user review pending) | active | [findings.md](../logs/findings.md#2026-08-31-latest--camara-v2-drafted-as-a-commonalities-scope-enhancement-agent-run-user-review-pending) |
+| 2026-08-31 | CAMARA feedback and rescoping: Scope Enhancement on Commonalities, use case 2 dropped, layout option B | active | [findings.md](../logs/findings.md#2026-08-31--camara-feedback-on-330331-profile-framing-rejected-use-case-2-charter-excluded-signing-layer-routed-to-commonalities-tenure-api-overlap-missed-by-the-filed-no-overlap-declaration) |
 | 2026-08-31 | Scope made mechanically decidable; test vectors + negative control; 2 cross-repo handovers closed | active | [findings.md](../logs/findings.md#2026-08-31--scope-made-mechanically-decidable-test-vectors-with-a-negative-control-two-cross-repo-handovers-closed) |
 | 2026-08-30 | IETF draft-00 written and VALIDATED (not submitted); RFC 9421 has no delegation vocabulary; 2 ZK attributions corrected | active | [findings.md](../logs/findings.md#2026-08-2930--ietf-draft-00-written-and-validated-rfc-9421-has-no-delegation-vocabulary-two-zk-attributions-corrected) |
 | 2026-08-25 | Fold-in-vs-distinguish resolved as HYBRID (klrc-aiagent-auth-03 read) | active | [findings.md](../logs/findings.md#2026-08-25--open-decision-from-the-entry-below-closed-fold-in-versus-distinguish-resolved-as-hybrid-after-a-full-read-of-draft-klrc-aiagent-auth-03-raw-text) |

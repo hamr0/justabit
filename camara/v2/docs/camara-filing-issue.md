@@ -1,71 +1,53 @@
-> **v2 WORKING COPY** — copied unchanged from v1 on 2026-08-31. Scope
-> agreed 2026-08-31 (findings): rewrite as a Commonalities Scope
-> Enhancement — signed nonce-bound expiring envelope + floor rule
-> (+ optional blind hub); use case 2 dropped from CAMARA. NOT filed. Text
-> below is still the v1 text until the rewrite lands.
-
 > **This is the text to paste into a new GitHub issue** at
-> `camaraproject/APIBacklog`, using that repo's own `💡 API Proposal`
-> issue template (four fields: Description, Use cases, Related to,
-> Supporting material). Exact title to use:
-> `[API Proposal] CarrierAttestation`. Label: `API Proposal`.
+> `camaraproject/APIBacklog`, using that repo's `💡 Enhancement 🌟` issue
+> template (`.github/ISSUE_TEMPLATE/issue_enhancement_template.md`, fetched
+> 2026-08-31; four fields: Problem description, Possible evolution,
+> Alternative solution, Additional context — the same template used by
+> precedent issue #276, "Evolution of Consent Info API to support
+> Controlled Delegation"). Title to use:
+> `[Scope Enhancement] Attested responses for CAMARA APIs (Commonalities; first adoption SimSwap)`.
+> Label: `enhancement`.
 >
-> This is step 1 of a two-step CAMARA intake. Step 2 is a follow-up pull
-> request adding the long template as
-> `documentation/API proposals/APIProposal_CarrierAttestation.md` — that
-> file is `camara/v1/docs/camara-filing-template.md` in this repo, already
-> prepared. Do not paste that long file into the issue; the issue is this
-> short body only.
->
-> **Filed:** Filed as issue #330 on 2026-08-28 —
-> https://github.com/camaraproject/APIBacklog/issues/330. Open, awaiting
-> Working Group evaluation; nothing has been approved. Follow-up PR #331
-> (adding the filled template) is `camara/v1/docs/camara-filing-template.md`
-> in this repo — see that file for its own filed record.
->
-> **This file is now a FROZEN record of what was filed.** The text below
-> the paste marker must not change — amend
-> `camara-attested-windowed-disclosure.md` instead and, if the issue itself
-> needs a correction, file it as a follow-up comment/PR against CAMARA, not
-> as an edit here.
->
-> Everything above this line (through the marker below) is repo bookkeeping
-> for whoever is filing this — it must NOT be pasted into the GitHub issue.
->
-> Feedback received 2026-08-31 — see `feedback-2026-08-31.md`; v2 in `../v2/`.
+> This is step 1 of a two-step intake; step 2 is a follow-up pull request
+> adding the filled Scope Enhancement template as
+> `documentation/API proposals/` (path TBD) — that file is
+> `camara/v2/docs/camara-filing-template.md` in this repo. NOT FILED —
+> drafting only, 2026-08-31.
 
 <!-- ==== EVERYTHING BELOW THIS LINE IS THE ISSUE BODY — PASTE FROM HERE ==== -->
 
-**Description**
+**Problem description**
 
-Identity data should not become a tradeable asset — that is this proposal's
-stance. The operator answers a boolean and keeps custody of the underlying
-fact; an aggregator carrying the query meters and bills but never reads
-identifiers, predicates, or answers. Concretely: CarrierAttestation proposes
-a horizontal profile — "attested windowed disclosure" — not a new
-free-standing API. A predicate answer becomes a signed, nonce-bound, expiring
-boolean, never the raw value. CAMARA already has the precedent: `POST
-/retrieve-age-band` (SimSwap v2.1.0) coarsens a timestamp; `GET
-/device-phone-number` (NumberVerification v2.1.0) takes no request body,
-deriving the line from the token; `kyc-age-verification` ships a boolean age
-predicate. The ask is to finish what those three started, catalog-wide.
-`CarrierAttestation` is filed only for the residual no existing API covers:
-agent-grade floor bundles and holder presentment.
+SimSwap `/check`, Tenure `/check-tenure`, KYC Age Verification `ageCheck`,
+and location-verification `verify` already answer subscriber/device
+questions as booleans. Today that boolean is TLS-only: trusted by the
+direct caller only, replayable, and non-transferable — a relying party's
+own auditor cannot re-verify it later without calling the operator again.
 
-**Use cases**
+**Possible evolution**
 
-1. A bank authorizes a transfer on "unswapped ≥ 90d" without a timestamp.
-2. An AI agent presents a floor-gated credential ("voice+data ∧ tenure ≥
-   2y ∧ swapAge ≥ 90d") without the verifier learning the MSISDN.
+Add, as a Commonalities design guideline any predicate API can adopt: (1)
+a signed, nonce-bound, expiring attestation over the existing answer (JWS,
+RFC 7515, verifiable offline via per-operator JWKS); (2) a floor rule —
+the operator publishes a threshold menu, the requester may only tighten
+it; (3) optionally, end-to-end encryption through an aggregator so it
+meters and bills without reading identifiers, questions, or answers.
+First adoption example: SimSwap `/check`, worked wire example attached.
 
-**Related to**
+**Alternative solution**
 
-None yet. Pull request to follow, adding the filled long template.
+SD-JWT VC or W3C Verifiable Credentials were considered for the signing
+layer and not chosen: both solve selective disclosure across multiple
+claims, which this proposal does not need — there is exactly one claim,
+the bit itself. JWS is also already partially present in CAMARA's own
+tooling via ICM's DPoP extension claims (RFC 7515 §2 encoding).
 
-**Supporting material**
+**Additional context**
 
-Author's own Apache 2.0 staging ground, not a CAMARA deliverable.
-Repo: https://github.com/hamr0/justabit — proposal doc:
-https://github.com/hamr0/justabit/blob/main/docs/product/camara-attested-windowed-disclosure.md
-— PoC: https://github.com/hamr0/justabit/tree/main/poc — OpenAPI sketch:
-https://github.com/hamr0/justabit/blob/main/spec/carrier-attestation.yaml
+This is a resubmission of a proposal previously filed as a new
+sub-project (APIBacklog issue #330 / PR #331), reframed per codeowner
+feedback (2026-08-31) that the signing layer belongs in Commonalities and
+that the previous use case 2 (AI-agent holder presentment) is
+Charter-excluded east-west infrastructure — use case 2 is withdrawn from
+CAMARA and pursued only at the IETF. Supporting materials (proposal v2,
+OpenAPI sketch) to follow on this issue.

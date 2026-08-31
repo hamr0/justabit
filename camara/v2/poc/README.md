@@ -2,6 +2,11 @@
 
 **v2 working copy, copied unchanged from v1 on 2026-08-31.**
 
+**2026-08-31 addendum:** v2 PoC code is unchanged from v1 (Ed25519
+raw-bytes envelope). Migrating the signing layer to JWS (RFC 7515) is the
+next code module and needs its own user checkpoint. Until then, v2 docs
+describe JWS; v2 code does not.
+
 **Requirements & no-gos:** [`docs/product/prd.md`](../../docs/product/prd.md) §4–§5.
 **Status:** all six modules M1–M6 are BUILT — a first build was
 **rolled back 2026-08-15** (it went monolith-then-integrate without
