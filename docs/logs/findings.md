@@ -127,6 +127,20 @@ approved and started; ES256 deferred.
 enhancement issue in camaraproject/Commonalities. Blind-hub placement
 still OPEN.
 
+8. USER VALIDATION at `8a454c9` (2026-08-31, run by the user in their own
+   terminal via `!`, verified by EXIT CODE): all nine suites 0 — v2
+   `m1-jws-check` (29 cases), `m1-check` (20), `m2-check` (10),
+   `m3-check` (26), `m4-check` (42), `m5-check` offline (67), `m6-check`
+   (47), `demo.mjs` mock (35), and v1 `m1-check` (20). This validates
+   V2-M1 and the consolidated tree AT THIS COMMIT ONLY; the record does
+   not carry forward across any code or count change. G1-equivalent for
+   V2-M1: MET at `8a454c9`. Live Orange run: NOT part of this record.
+
+**DECISION:** V2-M1 user-validated at `8a454c9`; branch cleared for
+push, /code-review, /release. Branch consolidation closed:
+`docs/ietf-submitted` deleted, tip preserved at tag
+`backup/ietf-submitted-tip`.
+
 ---
 
 ## 2026-08-31 — CAMARA feedback on #330/#331: profile framing rejected, use case 2 Charter-excluded, signing layer routed to Commonalities; Tenure API overlap missed by the filed "no overlap" declaration
