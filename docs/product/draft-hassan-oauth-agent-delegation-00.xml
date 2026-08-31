@@ -1222,22 +1222,45 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
       </t>
       <table>
         <thead>
-          <tr><th>Vector</th><th>Link</th><th>Scope</th><th>tenureMin</th><th>credentialAgeMin</th><th>Expiry</th></tr>
+          <tr><th>Link</th><th>Scope</th></tr>
         </thead>
         <tbody>
-          <tr><td>V1</td><td>L(0)</td><td>booking:read, booking:create, payment:authorize</td><td>P1Y</td><td>P90D</td><td>2026-12-01T00:00:00Z</td></tr>
-          <tr><td>V1</td><td>L(1)</td><td>booking:read, booking:create</td><td>P1Y</td><td>P180D</td><td>2026-11-30T00:00:00Z</td></tr>
-          <tr><td>V2</td><td>L(0)</td><td>booking:read</td><td>P1Y</td><td>P90D</td><td>2026-12-01T00:00:00Z</td></tr>
-          <tr><td>V2</td><td>L(1)</td><td>booking:read, booking:create</td><td>P1Y</td><td>P90D</td><td>2026-11-30T00:00:00Z</td></tr>
-          <tr><td>V3</td><td>L(0)</td><td>booking:read</td><td>P2Y</td><td>P180D</td><td>2026-12-01T00:00:00Z</td></tr>
-          <tr><td>V3</td><td>L(1)</td><td>booking:read</td><td>P1Y</td><td>P180D</td><td>2026-11-30T00:00:00Z</td></tr>
-          <tr><td>V4</td><td>L(0)</td><td>booking:read</td><td>P2Y</td><td>P180D</td><td>2026-12-01T00:00:00Z</td></tr>
-          <tr><td>V4</td><td>L(1)</td><td>booking:read</td><td>P2Y</td><td>(omitted)</td><td>2026-11-30T00:00:00Z</td></tr>
-          <tr><td>V5</td><td>L(0)</td><td>booking:read</td><td>P1Y</td><td>P90D</td><td>2026-11-01T12:00:00Z</td></tr>
-          <tr><td>V5</td><td>L(1)</td><td>booking:read</td><td>P1Y</td><td>P90D</td><td>2026-11-01T13:00:00Z</td></tr>
-          <tr><td>V6</td><td>L(0)</td><td>booking:read</td><td>P2Y</td><td>P180D</td><td>2026-12-01T00:00:00Z</td></tr>
-          <tr><td>V6</td><td>L(1)</td><td>booking:read, booking:create</td><td>P2Y</td><td>P180D</td><td>2026-11-30T00:00:00Z</td></tr>
-          <tr><td>V6</td><td>L(2)</td><td>booking:read</td><td>P2Y</td><td>P180D</td><td>2026-11-29T00:00:00Z</td></tr>
+          <tr><td>V1 L(0)</td><td>booking:read, booking:create, payment:authorize</td></tr>
+          <tr><td>V1 L(1)</td><td>booking:read, booking:create</td></tr>
+          <tr><td>V2 L(0)</td><td>booking:read</td></tr>
+          <tr><td>V2 L(1)</td><td>booking:read, booking:create</td></tr>
+          <tr><td>V3 L(0)</td><td>booking:read</td></tr>
+          <tr><td>V3 L(1)</td><td>booking:read</td></tr>
+          <tr><td>V4 L(0)</td><td>booking:read</td></tr>
+          <tr><td>V4 L(1)</td><td>booking:read</td></tr>
+          <tr><td>V5 L(0)</td><td>booking:read</td></tr>
+          <tr><td>V5 L(1)</td><td>booking:read</td></tr>
+          <tr><td>V6 L(0)</td><td>booking:read</td></tr>
+          <tr><td>V6 L(1)</td><td>booking:read, booking:create</td></tr>
+          <tr><td>V6 L(2)</td><td>booking:read</td></tr>
+        </tbody>
+      </table>
+      <t>
+        The floor and expiry for the same links follow.
+      </t>
+      <table>
+        <thead>
+          <tr><th>Link</th><th>tenureMin</th><th>credentialAgeMin</th><th>Expiry</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>V1 L(0)</td><td>P1Y</td><td>P90D</td><td>2026-12-01T00:00:00Z</td></tr>
+          <tr><td>V1 L(1)</td><td>P1Y</td><td>P180D</td><td>2026-11-30T00:00:00Z</td></tr>
+          <tr><td>V2 L(0)</td><td>P1Y</td><td>P90D</td><td>2026-12-01T00:00:00Z</td></tr>
+          <tr><td>V2 L(1)</td><td>P1Y</td><td>P90D</td><td>2026-11-30T00:00:00Z</td></tr>
+          <tr><td>V3 L(0)</td><td>P2Y</td><td>P180D</td><td>2026-12-01T00:00:00Z</td></tr>
+          <tr><td>V3 L(1)</td><td>P1Y</td><td>P180D</td><td>2026-11-30T00:00:00Z</td></tr>
+          <tr><td>V4 L(0)</td><td>P2Y</td><td>P180D</td><td>2026-12-01T00:00:00Z</td></tr>
+          <tr><td>V4 L(1)</td><td>P2Y</td><td>(omitted)</td><td>2026-11-30T00:00:00Z</td></tr>
+          <tr><td>V5 L(0)</td><td>P1Y</td><td>P90D</td><td>2026-11-01T12:00:00Z</td></tr>
+          <tr><td>V5 L(1)</td><td>P1Y</td><td>P90D</td><td>2026-11-01T13:00:00Z</td></tr>
+          <tr><td>V6 L(0)</td><td>P2Y</td><td>P180D</td><td>2026-12-01T00:00:00Z</td></tr>
+          <tr><td>V6 L(1)</td><td>P2Y</td><td>P180D</td><td>2026-11-30T00:00:00Z</td></tr>
+          <tr><td>V6 L(2)</td><td>P2Y</td><td>P180D</td><td>2026-11-29T00:00:00Z</td></tr>
         </tbody>
       </table>
       <table>
