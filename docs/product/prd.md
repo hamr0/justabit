@@ -54,6 +54,7 @@ not created. Proposal docs follow the target body's proposal standards.
 | D3 | **Agent/delegation proposal** — agent/delegation side only, targets the IETF OAuth WG. | `docs/product/ietf-agent-delegation.md` | IETF (OAuth WG); supersedes `docs/archive/aaif-agent-auth.md`, retained only as a dated, superseded record of the earlier AAIF-targeted text |
 | D4 | **PoC** — Mode A demo, 4 assertions, mock + Orange backends | `poc/` | WG readers, demo audiences |
 | D5 | Sustained WG presence (meetings, mailing lists, PR responses) | calendars, minutes | CAMARA anti-staleness rules |
+| D6 | **IETF submission artifact** — RFCXML v3, WRITTEN and author-tools VALIDATED but NOT submitted, NOT adopted, and reviewed by no one; IETF 127 submission cutoff is 2 November 2026, 23:59 UTC | `docs/product/draft-hassan-oauth-agent-delegation-00.xml` | IETF (OAuth WG) |
 
 Supporting artifacts (not documents): `spec/carrier-attestation.yaml` stays an
 illustrative OpenAPI sketch (non-normative); `README.md` is the adopter-facing
@@ -804,6 +805,8 @@ The full rationale for every decision lives in `docs/logs/findings.md`; this tab
 
 | Date | Decision | Status | Where |
 |---|---|---|---|
+| 2026-08-31 | Scope made mechanically decidable; test vectors + negative control; 2 cross-repo handovers closed | active | [findings.md](../logs/findings.md#2026-08-31-latest--scope-made-mechanically-decidable-test-vectors-with-a-negative-control-two-cross-repo-handovers-closed) |
+| 2026-08-30 | IETF draft-00 written and VALIDATED (not submitted); RFC 9421 has no delegation vocabulary; 2 ZK attributions corrected | active | [findings.md](../logs/findings.md#2026-08-2930--ietf-draft-00-written-and-validated-rfc-9421-has-no-delegation-vocabulary-two-zk-attributions-corrected) |
 | 2026-08-25 | Fold-in-vs-distinguish resolved as HYBRID (klrc-aiagent-auth-03 read) | active | [findings.md](../logs/findings.md#2026-08-25--open-decision-from-the-entry-below-closed-fold-in-versus-distinguish-resolved-as-hybrid-after-a-full-read-of-draft-klrc-aiagent-auth-03-raw-text) |
 | 2026-08-25 | AAIF dropped; agent arm re-homed to IETF; no-go 12 retired | active | [findings.md](../logs/findings.md#2026-08-25--submission-strategy-shift-aaif-dropped-agent-arm-re-homed-to-ietf-no-go-12-retired-api-family-owner-decided) |
 | 2026-08-18 | Full user validation run, uncommitted tree — BOTH GATES MET | active | [findings.md](../logs/findings.md#2026-08-18--user-ran-the-full-validation-suite-on-their-own-machine-against-the-current-uncommitted-tree-the-tree-the-entries-below-describe-every-suite-clean-zero-fail-zero-typeerror-zero-error-lines-in-either-log-both-gates-met-on-this-tree) |

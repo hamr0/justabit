@@ -14,7 +14,365 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
-## 2026-08-28 (latest) — five orphaned-reference failures in one session; no-go 14 added
+## 2026-08-31 (latest) — Scope made mechanically decidable; test vectors with a negative control; two cross-repo handovers closed
+
+**EVIDENCE**
+
+1. **The draft's Attenuation Rule 1 was mandated but unexecutable.**
+   Rule 1 required a verifier to check that L(i)'s scope is a subset
+   of L(i-1)'s, but the draft defined no value space for a scope, no
+   meaning for "subset" over it, and no case sensitivity. "Scope" was
+   absent from the Terminology list while "Floor" and "Link" were
+   present. Observed by direct grep of the draft: the only hits for
+   `subset` were Rule 1 itself, the verification-procedure prose, and
+   the worked example — no definition anywhere.
+2. Floors were already mechanically checkable and scope was the
+   uneven half. The Floor Axes table states `larger value is tighter`
+   for the duration-typed axes `tenureMin` and `credentialAgeMin`,
+   and `equality only` for the enum axes `subjectClass`,
+   `accountClass`, `partialPolicy`. Verified by reading that section
+   directly.
+3. author-tools returned one warning class with 34 symptoms, on the
+   user's own run: `Total table width (79) exceeds available width
+   (69)`, plus 34 `Too long line found` lines, every one exactly 10
+   characters over 72.
+4. **The session's first width model was WRONG and was disproved by
+   the tool's own number.** The model was "sum each column's longest
+   cell". It predicts 124 for the flagged six-column table; the
+   validator measured 79. The corrected model, inferred from the
+   tool's output: the renderer wraps cell content at whitespace and
+   punctuation, so rendered width is driven by each column's longest
+   UNBREAKABLE token, not its longest cell. Confirming observation:
+   the third table holds a 117-character prose cell and was NOT
+   flagged, because prose wraps.
+5. Measured longest unbreakable tokens after the fix: Table 1
+   `payment:authorize` (17); Table 2 `2026-12-01T00:00:00Z` (20);
+   Table 3 `non-relaxation):` (16). The flagged table had carried a
+   20-character timestamp, the 16-character `credentialAgeMin`
+   header, and 17-character capability strings in one row of
+   columns.
+6. Draft state after both changes: well-formed XML exit 0; zero
+   non-ASCII bytes; zero BCP 14 keywords in capitals anywhere after
+   `<back>`; 32 vector rows across three tables (13 + 13 + 6); 1321
+   lines. Commits `ff9863f` (scope + vectors) and `cad490c` (table
+   split).
+7. bareagent has a rubric; it never compares two rubrics. Read
+   directly in `/home/hamr/PycharmProjects/bareagent`. A rubric is a
+   free-text string in a `Criteria` object (`src/evaluator.js:36-47`),
+   judged by one LLM call at temperature 0 (`src/evaluator.js:194`),
+   returning a structured `Verdict` (`src/evaluator.js:9-23`). Greps
+   for `tighte`, `subset`, `stricter`, `monoton` across `src/` and
+   docs returned no rubric-to-rubric comparison of any kind. No
+   rubric registry, no versioning, no ordering relation. Verdicts
+   never leave the process, are never signed, and no third party can
+   check one. Temperature is pinned but no seed is set and no test
+   asserts two runs agree.
+8. bareagent's own backlog says a rubric close gets gamed, verbatim
+   from `docs/archive/RSI-POC-BACKLOG.md:179-191`: a rubric close "is
+   closer to self-consistency than to an exit code and will get gamed
+   without its own judged-floor / adversarial-isolation analog".
+   Sensor-gaming is CONFIRMED in-repo, not theoretical: a model gamed
+   a verifier 5/5 by neutering the test.
+9. bareguard's tighten-only is array intersection,
+   `docs/02-features/harness-cookbook.md:41-49`, and it lives only in
+   cookbook/example code. The shipped `Gate` class has no floor
+   object and no subset check. CONFIRMED by the bareguard session
+   line by line, and confirmed DELIBERATE, not a gap: PRD D2 (LOCKED)
+   records that a bundle is "ergonomics, not a guard" and the floor
+   is the guard, and the structural reason it cannot ship is that the
+   tool catalog is operator-authored per deployment, so bareguard
+   could ship the filter but not the part that matters. No fix;
+   rationale recorded.
+10. A real fail-open existed in bareguard and was fixed
+    independently, before this session's handover arrived: empty
+    `tools.allowlist: []` was treated as "not configured" and fell
+    through to default-allow. Branch
+    `fix/empty-allowlist-fails-closed`, commit `f4d70dd`, unmerged.
+    Their regression test is the exact predicted path — two
+    misspelled tool names make the bundle/floor intersection empty,
+    turning the narrowest bundle into allow-all. Red before, green
+    after, plus two mutation checks.
+11. A real defect existed in bareagent and was fixed on handover.
+    `src/evaluator.js:194` requested `{ temperature: 0 }` and never
+    read the `temperatureDropped` flag that
+    `src/provider-temperature.js:54` sets when a model rejects a
+    non-default temperature and the call is retried without it. A
+    sibling module already handled it: `src/recurse.js:940-942` reads
+    the flag, and the comment at `src/recurse.js:901` says recording
+    the requested temp "would claim a value the model ignored".
+    Fixed on branch `fix/evaluator-temperature-dropped`,
+    mutation-proven red-then-green, suite 1126 -> 1127 pass, 0 fail,
+    exit 0. Unmerged.
+12. **A test-count baseline taken in a working directory is not
+    trustworthy.** The bareguard session measured 261 in a clean
+    detached worktree at `18847a5`, run three times, against this
+    session's subagent-reported 262 taken in the working directory.
+    Two harness confounds they reported: a fresh git worktree has no
+    `node_modules` and then fails 28 of 29 suites with
+    `ERR_MODULE_NOT_FOUND`, which looks like a broken baseline but is
+    a missing symlink; and `node --test` in a working directory globs
+    up gitignored scratch files a clean checkout does not have. The
+    bareagent session checked this for its own count and found all
+    56 globbed files git-tracked, so its 1127 was not inflated.
+13. **klrc re-verified against the live Datatracker page.**
+    `draft-klrc-aiagent-auth` is still at version `-03`, latest
+    revision 6 July 2026, expiring 7 January 2027, still an
+    individual submission not adopted by a working group. Authors
+    and affiliations unchanged: Pieter Kasselman (Defakto Security),
+    Jeff Lombardo (AWS), Yaroslav Rosomakho (Zscaler), Brian Campbell
+    (Ping Identity), Nick Steele (OpenAI), Aaron Parecki (Okta). The
+    draft's own `<reference>` block and its prose were checked
+    against this and match exactly. This matters because the draft's
+    prose names the version explicitly, so a version bump between
+    now and submission would make the citation wrong at the moment a
+    reviewer opens it.
+14. **The test vectors have never been executed, by anyone.**
+    Verified by direct grep of `poc/`: zero code implementing scope
+    containment, chain attenuation, or any delegation chain. Every
+    apparent hit is an unrelated use of the word (a duration
+    "subset", the phrase "out of scope" in prose). The six vectors
+    were derived by hand and independently re-derived by a review
+    pass, but no implementation exists to run them against. The
+    appendix's closing sentence previously read "No independent
+    party has run these vectors", which implied the author had;
+    corrected in the same change to say plainly that nobody has.
+
+**DECISION**
+
+- **Scope is now defined as the minimum that makes Rule 1
+  executable, and nothing more.** A scope is a set of opaque
+  capability strings; comparison is exact set containment over
+  case-sensitive, octet-for-octet equality; wildcard and prefix
+  matching, hierarchical containment, case folding, Unicode
+  normalisation, whitespace trimming, and every other canonicalisation
+  are forbidden. The why, stated in the draft itself: a verifier
+  applying a matching rule the profile does not define can accept a
+  chain another conforming verifier rejects, which makes attenuation
+  unverifiable in exactly the way the profile exists to prevent.
+  Wildcard and hierarchical semantics are stated OUT OF SCOPE for
+  this version with no registry or future mechanism promised. The
+  alternative considered and rejected was defining hierarchy or
+  wildcard semantics: a far larger design surface, the place
+  reviewers would pile on, and unnecessary to the draft's point.
+- **Ship test vectors, not a conformance harness.** The user asked
+  whether a harness should be mandated. It should not: an IETF
+  profile specifies the verification procedure, not anyone's
+  implementation, and a mandated harness binds conformance to one
+  codebase's assumptions and dates immediately. Vectors give the same
+  mechanical assurance and bind only to observable behaviour.
+  Supporting evidence from the user's own prior art: bareagent's note
+  that judge calibration does not transfer across model tiers
+  ("re-run the harness on any tier you deviate to").
+- **The vector suite must contain a negative control, and V6 is
+  it.** A suite composed only of chains expected to be accepted
+  cannot distinguish a correct verifier from one that accepts
+  everything; both pass identically. V6 is a three-link chain whose
+  leaf pair attenuates correctly and whose interior pair violates
+  Rule 1, so a verifier that checks only the final link accepts it
+  and does not conform. This is the same shape as bareagent's shipped
+  `src/judge-calibration.js`, where a `constantHonored` negative-
+  control judge MUST fail the admission floor — arrived at
+  independently in the user's own code, which is why it was adopted
+  here.
+- **Rubric-judging cannot survive a hop, and that is structural.**
+  Attenuation compares L(i) against L(i-1) across administrative
+  domains. Under a rubric, hop 3 would have to re-derive hop 1's
+  judgement to check tightening; it cannot, because it has different
+  criteria, a different judge, and no way to prove its verdict
+  matches. A rubric verdict is meaningful only to whoever ran it.
+  Confirmed twice independently: bareagent never compares two
+  rubrics, and bareguard never compares hop N to hop N-1 and
+  evaluates one action against one config. What DOES transfer from
+  that prior art is the frozen labelled case set with a negative
+  control — a conformance vector suite — not the judging.
+- **LESSON, generalisable: a requirement that cannot be executed the
+  same way twice is worse than a requirement that is merely absent.**
+  "Mandated but undefined" forces an implementer to comply with
+  something unspecified, and two conforming implementations then
+  disagree. This was the exact state of Rule 1 before this change.
+- **LESSON: do not model a renderer you cannot run.** The session
+  gave an agent a hand-computed width formula that the tool's own
+  output disproved. The agent implemented the instruction as given,
+  measured, found the numbers did not clear the budget, and escalated
+  instead of shipping numbers it could not defend or quietly
+  restructuring further. That escalation was correct and is the
+  desired behaviour. The corrected approach reports the observable
+  input (longest unbreakable token per column) and leaves the
+  measurement to the only thing that can measure it.
+- **Cross-repo handovers must ask for validation first, not a
+  fix.** Both handovers were framed as hypotheses to test with an
+  explicit instruction to fix only if the finding proved real and the
+  fix proved needed. One returned "correct reading, deliberate
+  design, no fix, rationale recorded"; the other returned a real
+  defect fixed and mutation-proven. Both outcomes are successes. A
+  handover framed as a defect report would have pressured the first
+  session into building something unrequested.
+- **STATUS, unchanged and to be stated plainly: the draft is
+  WRITTEN and VALIDATED. It is NOT submitted, NOT adopted, and
+  reviewed by no one.** The IETF 127 submission cutoff is 2 November
+  2026, 23:59 UTC. An I-D expires 185 days after posting; posting
+  confers a timestamp and visibility, not standing. Nothing in the
+  bareguard or bareagent work is merged or released; both are the
+  user's call.
+
+---
+
+## 2026-08-29/30 — IETF draft-00 written and validated; RFC 9421 has no delegation vocabulary; two ZK attributions corrected
+
+**EVIDENCE**
+
+1. RFC 9421 raw text fetched by direct curl, 2026-08-29: **ZERO**
+   occurrences of `delegat`, ZERO of `attenuat`, ZERO of `chain of`. The
+   RFC has no delegation vocabulary at all. This grounds the IETF track
+   as a verified gap rather than an impression. RFC 9421 §2.3 defines
+   exactly six signature parameters: `created`, `expires`, `nonce`,
+   `alg`, `keyid`, `tag`. §7.2.2 says the nonce lets a verifier detect
+   replay if repeated, and `created`/`expires` limit the utility of a
+   captured signature; enforcement is left to the application.
+   `Accept-Signature` is the RFC's own mechanism for a verifier to hand
+   a signer a chosen nonce.
+2. Datatracker: `draft-hassan-oauth-agent-delegation` is FREE (HTTP 404
+   on the doc URL). No pre-reservation mechanism exists; the name is
+   claimed by submitting.
+3. Datatracker keyword search for carrier + attestation + telco + SIM +
+   MNO returned ZERO documents.
+4. `draft-klrc-aiagent-auth` is still **-03**, 6 July 2026, still an
+   individual submission, NOT WG-adopted. Its §11 says a participant
+   **MAY** subscribe to SSF/CAEP change notifications — it does NOT
+   require them. The repo's `ietf-agent-delegation.md` said "requires";
+   that was wrong and is corrected in this same change.
+5. Three new individual drafts appeared since July 2026 (asor/reece/
+   sweeney, listed in `ietf-agent-delegation.md` §8 and References).
+   None touches SIM, carrier, or economic scarcity.
+6. Grep of `poc/`: ZERO hits for `9421`, `signature-input`, `@method`,
+   `hkdf`, `delegat`. The PoC has no HTTP layer between parties at all —
+   they are in-process function calls. So RFC 9421 presentment, the
+   multi-hop chain, and the per-service unlinkable identifier are NOT
+   implemented. The draft's RFC 7942 Implementation Status section
+   states this without qualification.
+7. `8een/README.md:22` — 8een IS zero-knowledge: it verifies real ZK
+   proofs via `google/longfellow-zk`, the scheme in
+   `draft-google-cfrg-libzk`, over ISO/IEC 18013-5 mdoc.
+   `8een/README.md:48` — "No proof from a real phone has ever reached
+   this verifier." Interop was proved against the EU's JVM reference
+   prover; the M5 demo is a recorded video, not a live endpoint. 8een
+   does not sign its verdict and its verifier is self-hosted by the
+   relying service, so it does NOT match this profile's cross-party
+   signed-attestation shape without unbuilt work.
+8. `zkagent/docs/product/zkagent-prd.md:11`, as of 2026-08-29 — "v1 is
+   attested selective disclosure, not zero-knowledge." zkagent was NOT
+   zero-knowledge.
+9. zkagent PIVOTED 2026-08-30 (its decisions D24 and D25, read directly
+   in that repo): D1 amended to allow ZK proofs in v1 as a
+   validation-grade evidence plug;
+   `packages/chiproof/src/plugs/zk-passport.js` ships in M1 tier A
+   with the verifier checking a real proof via a pinned Barretenberg
+   `bb` binary; Play Integrity turned
+   out NOT to be borrowable (decoding is tied to the app developer's
+   own Cloud project) so device attestation was demoted from mandatory
+   to one optional evidence type among several, including a bare mode
+   with no evidence at all.
+10. A local `python3 ElementTree.parse` tests WELL-FORMEDNESS ONLY and
+    cannot test RFCXML schema VALIDITY. The user's own runs of
+    `https://author-tools.ietf.org/` caught three faults the session's
+    local checks were structurally unable to see: ten invalid `<b>`
+    elements (RFCXML has `<strong>`, not `<b>`; reported two different
+    ways but one root cause); `consensus="false"` invalid alongside
+    `submissionType="IETF"` + `category="std"`; and a `<reference>`
+    whose `<front>` had no `<author>` before its `<date>`, which the
+    schema requires.
+11. The session put wrong data into three references by writing
+    citations from memory: an invented title, a wrong title on klrc,
+    and a missing author. The IETF publishes canonical bibliography XML
+    at `https://bib.ietf.org/public/rfc/bibxml3/reference.I-D.<name>.xml`.
+    Correct data for the one that was wrong: `draft-google-cfrg-libzk`
+    is titled "Longfellow ZK", authors Matteo Frigo and abhi shelat
+    (both Google; surname lowercase "shelat"), version -02, 22 July
+    2026.
+12. FINAL STATE, 2026-08-30:
+    `docs/product/draft-hassan-oauth-agent-delegation-00.xml`, 1137
+    lines, RFCXML v3, 24 sections. Well-formed XML exit 0; zero
+    non-ASCII bytes; zero BCP 14 keywords in capitals anywhere after
+    `<back>`; zero unresolved xrefs; zero uncited
+    references. The user ran author-tools on this exact file and
+    reported it CLEAN.
+
+**DECISION**
+
+- The draft is shaped as a **PROFILE**, not a new credential format. It
+  invents nothing; it says normatively how existing pieces combine and
+  how a verifier checks them. Intended status Standards Track
+  (`category="std"`, `consensus="true"`). Note explicitly that
+  `consensus="true"` selects a boilerplate sentence and is NOT a claim
+  that anyone agreed to the draft.
+- Framing is an **abstract Attestation Issuer**. The normative body
+  never says SIM, mobile operator, MNO, carrier, or CAMARA; those
+  appear only in non-normative Appendix A. Why: the profile must stand
+  without the telco instantiation, and a venue-neutral body survives WG
+  scrutiny that a carrier-specific one would not.
+- Transport is ONE new HTTP header field `Agent-Delegation`, an RFC
+  8941 Structured Field List of Byte Sequences, registered with IANA.
+  Signature parameters are PROFILED from RFC 9421 rather than
+  reinvented: sender MUST include keyid/alg/created/expires/nonce and
+  cover the `Agent-Delegation` field, MUST set `tag` to
+  `agent-delegation`; verifier MUST reject an expired signature (the
+  RFC leaves enforcement to the application, so the profile adds it)
+  and SHOULD use `Accept-Signature` for nonce delivery. The RFC 9421
+  message nonce and the attestation nonce are two distinct nonces at
+  two layers and MUST NOT be conflated.
+- The heart of the draft is three attenuation rules, checked on EVERY
+  link relative to its parent: scope MUST be a subset; floor MUST be at
+  least as tight on every axis; expiry MUST NOT be later. Whole-chain
+  verification is a MUST, a configurable maximum depth is a MUST, and a
+  verifier that checks only the final link defeats the mechanism —
+  stated as the primary security consideration.
+- Appendix A describes three instantiation directions by MECHANISM and
+  STANDARD only, naming no product. Why: a named product dates the
+  draft and imports claims the draft cannot stand behind.
+- **Direction 3 was rewritten on 2026-08-30 because zkagent's pivot
+  falsified two of its four claims** ("combined with a device-platform
+  attestation" and "is NOT a zero-knowledge proof"). It now describes
+  only the STABLE part: the chip-signature root under ICAO 9303
+  establishes that the document is genuine, and what accompanies it
+  varies by deployment — device attestation, a trusted party's
+  signature, a zero-knowledge proof, or nothing — with the trust model
+  differing by evidence type. The unchanged limit stays in the text:
+  passive authentication does NOT bind the presenter to the document,
+  so identities are bounded by documents held, never one per human.
+- **LESSON, generalisable:** Direction 3 broke because it described a
+  COMBINATION as if the combination were the mechanism. Only the
+  document root was stable. The draft's normative body already applies
+  this discipline through the abstract Attestation Issuer; Appendix A
+  had quietly broken it. Describe the stable mechanism, not the
+  current combination.
+- **LESSON:** never write a citation from memory — fetch the canonical
+  bibliography XML from `bib.ietf.org`. Hand-written `<reference>`
+  elements were nonetheless kept over `xi:include` deliberately: an
+  `xi:include` resolves at render time, so if klrc moves to -04 the
+  reference would silently change while the body prose still says -03
+  — exactly the orphaned-reference failure no-go 14 exists to prevent.
+- **LESSON:** well-formed is not valid. Only
+  `https://author-tools.ietf.org/` validates RFCXML, it needs no local
+  install, and only the user can run it. Nothing is installed locally:
+  no xml2rfc, no kramdown-rfc, no mmark.
+- The two ZK attributions were corrected before submission, not after:
+  8een IS zero-knowledge and zkagent (as of 2026-08-29) was NOT. The
+  session had them backwards, which would have put a false claim in an
+  IETF submission. Restate the standing invariant: the subscription
+  lane is NEVER described as zero-knowledge; ZK language is reserved
+  for holder presentment.
+- OPEN, unresolved, recorded as such and NOT as a win:
+  `draft-klrc-aiagent-auth-03` §6 wants a STABLE workload identifier
+  for audit; this draft wants per-Relying-Service unlinkable ones.
+  Appendix B carries this as unresolved.
+- STATUS: the draft is WRITTEN and VALIDATED. It is NOT submitted, NOT
+  adopted, NOT reviewed by anyone. Submission cutoff for IETF 127 is 2
+  November 2026, 23:59 UTC. An I-D expires 185 days after posting, and
+  posting confers a timestamp and visibility, not standing.
+
+---
+
+## 2026-08-28 — five orphaned-reference failures in one session; no-go 14 added
 
 **EVIDENCE**
 

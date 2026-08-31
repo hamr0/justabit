@@ -318,12 +318,21 @@ re-homing:
   attention against an already-visible, multi-organization submission.
   The differentiators (§2) are real but narrow; the HYBRID verdict (§2)
   keeps this draft short and citing rather than standalone-competing,
-  which mitigates but does not remove the crowding risk.
+  which mitigates but does not remove the crowding risk. The space
+  has since gotten more crowded still:
+  `draft-asor-wimse-agent-delegation-chain-00`,
+  `draft-reece-wimse-cross-org-delegation-01`, and
+  `draft-sweeney-wimse-credential-delegation-00` are three further
+  individual drafts in adjacent territory (verified 2026-08-28/29 on
+  the IETF Datatracker). None of the three touches SIM, carrier, or
+  economic scarcity, so the differentiator against them holds — but
+  this is recorded as a worsening limit, not a win.
 - **Two divergences with `draft-klrc-aiagent-auth-03`, recorded honestly
-  rather than smoothed over.** (1) Revocation: they go *further* than
-  this proposal, not less — their §11 requires SSF/CAEP revocation-
-  signal infrastructure, where this proposal relies on short expiry with
-  no revocation infrastructure to stand up. (2) Identifier stability:
+  rather than smoothed over.** (1) Revocation: they offer *more* than
+  this proposal, not less — their §11 says a participant MAY subscribe
+  to SSF/CAEP change notifications as an optional revocation-signal
+  channel, where this proposal relies on short expiry with no
+  revocation infrastructure to stand up. (2) Identifier stability:
   their model wants an identifier that stays stable for the lifetime of
   the workload identity, for audit; this proposal's per-service
   unlinkable tags want the opposite. Neither is resolved here — both are
@@ -359,6 +368,14 @@ re-homing:
   https://datatracker.ietf.org/doc/draft-klrc-aiagent-auth/ · raw text
   (1624 lines), verified directly for §2 and §7's findings:
   https://www.ietf.org/archive/id/draft-klrc-aiagent-auth-03.txt
+- `draft-asor-wimse-agent-delegation-chain-00`, R. Asor, Attenu, 27
+  August 2026: https://datatracker.ietf.org/doc/draft-asor-wimse-agent-delegation-chain/
+- `draft-reece-wimse-cross-org-delegation-01`, M. Reece, TowerGuardian
+  Consulting, 30 July 2026:
+  https://datatracker.ietf.org/doc/draft-reece-wimse-cross-org-delegation/
+- `draft-sweeney-wimse-credential-delegation-00`, K. Sweeney, no
+  affiliation, 27 July 2026:
+  https://datatracker.ietf.org/doc/draft-sweeney-wimse-credential-delegation/
 - OAuth WG charter (updated 2026-06-04):
   https://datatracker.ietf.org/doc/charter-ietf-oauth/
 - WIMSE WG charter: https://datatracker.ietf.org/wg/wimse/about/
