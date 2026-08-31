@@ -43,7 +43,7 @@ consistently catalog-wide, not in a new sub-project.
 v2 therefore: drops use case 2 and the whole Mode B / agent-grade-floor /
 trust-directory design entirely from this document (it lives only at the
 IETF); drops the CarrierAttestation new-case filing and its template
-mapping; renumbers the normative rules down to the three-item delta the
+mapping; renumbers the normative rules down to the four-item delta the
 catalog does not already have; and reframes the filing vehicle as a single
 Commonalities Scope Enhancement instead of a new APIBacklog sub-project.
 One correction made visible rather than quietly fixed: the v1 filing's
@@ -74,9 +74,9 @@ auditor cannot re-verify it without calling the operator again). The
 boolean itself is not the gap — the catalog already answers in booleans.
 The gap is the envelope around the boolean.
 
-## 2. The three-item ask
+## 2. The four-item ask
 
-This document proposes exactly three additions, as ONE Commonalities Scope
+This document proposes exactly four additions, as ONE Commonalities Scope
 Enhancement, on top of the existing predicate responses above — nothing
 else.
 
@@ -100,14 +100,49 @@ against `sim-swap.yaml`, `CreateCheckSimSwap.maxAge`); Tenure's
 may tighten, never loosen; widening is a distinct, consent-visible
 operation, never a default.
 
-### 2.3 Blind hub (optional, clearly marked optional)
+### 2.3 Blind hub
 
 End-to-end encryption of the request and response through an aggregator,
 so the hub meters and bills but cannot read identifiers, questions, or
-answers. This part is separable from 2.1 and 2.2, and is stated plainly as
-politically sensitive: aggregators are CAMARA members, and this section
-does not ask them to give up their commercial role, only the ability to
-read content they do not need in order to meter and bill it.
+answers. This is proposed as part of this enhancement, not offered as an
+optional extra; whether it is filed together with items 2.1–2.4 or as a
+separate enhancement is an open question put to the APIBacklog codeowner
+on 2026-08-31 (`camara/v2/docs/pr331-reply-posted-2026-08-31.md`), pending
+their answer. It is stated plainly as politically sensitive: aggregators
+are CAMARA members, and this section does not ask them to give up their
+commercial role, only the ability to read content they do not need in
+order to meter and bill it.
+
+### 2.4 Range on open predicate responses
+
+Not every catalog answer is a boolean. SimSwap `/retrieve-date` returns a
+timestamp (`latestSimChange`) and `/retrieve-age-band` returns a band
+index (`simSwapAgeBand`) — both open, ordered values, not yes/no
+predicates. In profile mode such an API returns a **range drawn from the
+operator's published menu** (e.g. "swapped within the last 30–90 days"),
+never the point value and never a finer band than the menu allows. The
+range is carried in the attestation payload the same way a boolean answer
+is (§4): signed, nonce-bound, expiring, and bounded by the same floor rule
+as §2.2 — the requester may ask for a coarser range, never a finer one
+than the published menu offers.
+
+(Verified 2026-08-31 against
+`camaraproject/SimSwap/code/API_definitions/sim-swap.yaml`, main:
+`/retrieve-date`'s `RetrieveSimSwapDateInfo.latestSimChange`, RFC 3339
+timestamp, nullable; `/retrieve-age-band`'s
+`SimSwapAgeBandInfo.simSwapAgeBand`, standardized band 1–17 plus sentinel
+`111`.)
+
+### 2.5 Why operators gain: no replay, no resale
+
+Today an aggregator that carries the query can read the answer and could
+serve it again from cache. With expiry, a stale answer is worthless after
+`exp`; with the blind hub (§2.3), the aggregator cannot read the answer it
+carries at all, so it cannot replay or resell it. Every fresh answer
+requires a fresh billed API call — operator revenue per genuine query is
+protected rather than leaked into the middle. Honest counterweight,
+unchanged from §6: the operator still logs the query, and the requester
+can still cache an unexpired answer for its own use within `exp`.
 
 ## 3. Signing standard
 
@@ -220,6 +255,8 @@ payload, never the plain copy.
 | API | Existing predicate | Profile-mode change |
 |---|---|---|
 | SimSwap `/check` | boolean `swapped` | add `nonce` to request, `attestation` to response (worked example above) |
+| SimSwap `/retrieve-date` | timestamp `latestSimChange` | add `nonce` to request; response attests a **range from the published menu** (§2.4), never the point timestamp |
+| SimSwap `/retrieve-age-band` | band index `simSwapAgeBand` (1–17, sentinel `111`) | add `nonce` to request; response attests a **range from the published menu** (§2.4), never a finer band than the menu offers |
 | Tenure `/check-tenure` | boolean `tenureDateCheck` | same shape: `nonce` on request, `attestation` on response |
 | KnowYourCustomerAgeVerification `ageCheck` | string enum `'true'\|'false'\|'not_available'` | same shape; `'not_available'` MUST attest a refusal, never a rounded `'false'` |
 | location-verification `verify` | `TRUE\|FALSE\|PARTIAL` | same shape; `PARTIAL` MUST attest a refusal, never a rounded boolean |
@@ -280,6 +317,10 @@ maintainers**, not invented here.
 - SimSwap v2.1.0 `/check`: `camaraproject/SimSwap/code/API_definitions/sim-swap.yaml`
   (fetched 2026-08-31) — `CreateCheckSimSwap` (`phoneNumber`, `maxAge`
   1–2400 hours) and `CheckSimSwapInfo` (`swapped` boolean).
+- SimSwap v2.1.0 `/retrieve-date` and `/retrieve-age-band`: same file
+  (fetched 2026-08-31) — `RetrieveSimSwapDateInfo.latestSimChange`
+  (RFC 3339 timestamp, nullable) and `SimSwapAgeBandInfo.simSwapAgeBand`
+  (standardized band 1–17, sentinel `111`); grounds §2.4.
 - CAMARA API Design Guide: `camaraproject/Commonalities/documentation/CAMARA-API-Design-Guide.md`
   (fetched 2026-08-31) — §3.1 Business-level Outcomes in Successful
   Responses, §5.8.5 Headers.

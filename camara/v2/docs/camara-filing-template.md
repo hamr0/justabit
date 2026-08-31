@@ -32,16 +32,21 @@ Cairenes Solutions.
 
 CAMARA's predicate APIs (SimSwap `/check`, Tenure `/check-tenure`, KYC Age
 Verification `ageCheck`, location-verification `verify`) already answer in
-booleans. Today that boolean is TLS-only, trusted by the direct caller
-only, replayable, and non-transferable to a third party. This enhancement
-adds three things to the response envelope, catalog-wide, via Commonalities:
-(1) a **signed, nonce-bound, expiring attestation** over the existing
-answer, as a JWS (RFC 7515) verifiable offline through a per-operator JWKS
-(RFC 7517); (2) a **floor rule** — the operator publishes a threshold menu,
-the requester may only tighten it, off-menu requests are refused, never
-rounded; (3) an **optional** end-to-end-encrypted "blind hub" mode so an
-aggregator meters and bills without reading identifiers, questions, or
-answers. First adoption example: SimSwap `/check`.
+booleans; SimSwap `/retrieve-date` and `/retrieve-age-band` answer in open
+values (a timestamp, a band index). Today that answer is TLS-only, trusted
+by the direct caller only, replayable, and non-transferable to a third
+party. This enhancement adds four things to the response envelope,
+catalog-wide, via Commonalities: (1) a **signed, nonce-bound, expiring
+attestation** over the existing answer, as a JWS (RFC 7515) verifiable
+offline through a per-operator JWKS (RFC 7517); (2) a **floor rule** — the
+operator publishes a threshold menu, the requester may only tighten it,
+off-menu requests are refused, never rounded; (3) a **blind hub** mode,
+proposed as part of this enhancement, so an aggregator meters and bills
+without reading identifiers, questions, or answers; (4) a **range on open
+predicate responses** — for APIs whose answer is an open value rather
+than a boolean, the attested response is a range from the operator's
+published menu, never the point value. First adoption example: SimSwap
+`/check`.
 
 Two business cases: (1) a bank authorizes a transfer on "unswapped ≥ 90
 days" and holds a signed attestation it can show its own auditor without
@@ -112,7 +117,10 @@ Extends existing APIs with an additive response field (`attestation`) and
 one additive request field (`nonce`); no new repository, no new API
 family, no broader scope needed. Existing non-attested request/response
 shapes remain valid and unchanged — this is a new, opt-in profile mode,
-not a breaking change.
+not a breaking change. For open-value APIs (SimSwap `/retrieve-date`,
+`/retrieve-age-band`), the attestation carries a range from the operator's
+published menu instead of the point value — the same additive shape, no
+new field beyond `attestation`/`nonce`.
 
 ### Explicit out-of-scope items for this enhancement
 
@@ -139,6 +147,15 @@ it starts (see `camara/v2/poc/README.md`).
 
 ## Commercial viability
 
+Expiry plus the blind hub protect operator revenue: today an aggregator
+carrying the query can read the answer and could serve it again from
+cache; with expiry a stale answer is worthless after `exp`, and with the
+blind hub the aggregator cannot read the answer it carries at all, so it
+cannot replay or resell it. Every fresh answer is a fresh billed API call.
+Honest counterweight: the operator still logs the query, and the
+requester can still cache an unexpired answer for its own use within
+`exp`.
+
 Open-source JOSE libraries exist and are widely adopted for exactly this
 kind of signing/verification: `node-jose` (https://github.com/cisco/node-jose)
 and `jose` (https://github.com/panva/jose, npm `jose`) both implement
@@ -150,10 +167,11 @@ therefore does not adopt either yet.
 ## YAML code available?
 
 YES — illustrative, non-normative sketch at `camara/v2/spec/carrier-attestation.yaml`,
-reshaped to the SimSwap `/check` adoption example (single path,
-`POST /sim-swap/v2/check`, real request/response fields from
+reshaped to two SimSwap adoption examples (`POST /sim-swap/v2/check` and
+`POST /sim-swap/v2/retrieve-age-band`), real request/response fields from
 `camaraproject/SimSwap/code/API_definitions/sim-swap.yaml` plus the added
-`nonce`/`attestation` fields).
+`nonce`/`attestation` fields; `/retrieve-age-band`'s attested payload
+carries a closed range (§2.4) rather than a point band value.
 
 ## Validated in lab/productive environments?
 

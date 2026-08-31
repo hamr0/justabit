@@ -30,9 +30,11 @@ Add, as a Commonalities design guideline any predicate API can adopt: (1)
 a signed, nonce-bound, expiring attestation over the existing answer (JWS,
 RFC 7515, verifiable offline via per-operator JWKS); (2) a floor rule —
 the operator publishes a threshold menu, the requester may only tighten
-it; (3) optionally, end-to-end encryption through an aggregator so it
-meters and bills without reading identifiers, questions, or answers.
-First adoption example: SimSwap `/check`, worked wire example attached.
+it; (3) end-to-end encryption through an aggregator so it meters and bills
+without reading identifiers, questions, or answers; (4) for open-value
+predicates (SimSwap `/retrieve-date`, `/retrieve-age-band`), a range from
+the published menu instead of the point value. First adoption example:
+SimSwap `/check`, worked wire example attached.
 
 **Alternative solution**
 
@@ -49,5 +51,8 @@ sub-project (APIBacklog issue #330 / PR #331), reframed per codeowner
 feedback (2026-08-31) that the signing layer belongs in Commonalities and
 that the previous use case 2 (AI-agent holder presentment) is
 Charter-excluded east-west infrastructure — use case 2 is withdrawn from
-CAMARA and pursued only at the IETF. Supporting materials (proposal v2,
-OpenAPI sketch) to follow on this issue.
+CAMARA and pursued only at the IETF. Expiry and the blind hub also protect
+operator revenue: neither lets an aggregator replay or resell an answer it
+cannot read or that has gone stale, so each genuine query stays a fresh
+billed API call. Supporting materials (proposal v2, OpenAPI sketch) to
+follow on this issue.

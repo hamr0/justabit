@@ -1,16 +1,18 @@
 openapi: 3.0.3
 info:
-  title: Attested SimSwap check (sketch)
+  title: Attested SimSwap check and age-band (sketch)
   description: >
-    ILLUSTRATIVE, NON-NORMATIVE. Sketch of the SimSwap `/check` adoption
-    example under the v2 "Attested Responses" Commonalities Scope
+    ILLUSTRATIVE, NON-NORMATIVE. Sketch of two SimSwap adoption examples
+    (`/check`, boolean; `/retrieve-age-band`, open value attested as a
+    range per §2.4) under the v2 "Attested Responses" Commonalities Scope
     Enhancement (camara/v2/docs/camara-attested-windowed-disclosure.md).
-    Request/response base fields (phoneNumber, maxAge, swapped) are copied
-    from camaraproject/SimSwap/code/API_definitions/sim-swap.yaml (fetched
+    Request/response base fields (phoneNumber, maxAge, swapped,
+    simSwapAgeBand) are copied from
+    camaraproject/SimSwap/code/API_definitions/sim-swap.yaml (fetched
     2026-08-31); nonce and attestation are the fields this enhancement
     adds. This is not a fork of SimSwap and carries no
-    authority of its own — it exists to make the wire example concrete for
-    WG review. The normative text is the proposal document, not this
+    authority of its own — it exists to make the wire examples concrete
+    for WG review. The normative text is the proposal document, not this
     sketch.
   version: 0.1.0
   license:
@@ -50,6 +52,36 @@ paths:
             `OFF_MENU_THRESHOLD` — `maxAge` is not one of the operator's
             published menu values (rejected, never rounded to the
             nearest menu value), or a malformed `nonce`.
+  /sim-swap/v2/retrieve-age-band:
+    post:
+      summary: >
+        Attest a SIM-swap age band as a range from the operator's
+        published menu, nonce-bound and expiring.
+      description: >
+        Same operation as SimSwap `/retrieve-age-band`, with one additive
+        request field (nonce) and one additive response field
+        (attestation). Because `/retrieve-age-band` answers with an open,
+        ordered band index rather than a boolean, the attested payload
+        carries a range `{ notBefore, notAfter }` drawn from the
+        operator's published menu — never the single band value, and
+        never a finer range than the menu allows (§2.4 of the proposal).
+        Existing non-attested `/retrieve-age-band` behaviour is unchanged;
+        this is an additional, opt-in profile mode.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AttestedRetrieveAgeBandRequest'
+      responses:
+        '200':
+          description: Attested SIM-swap age-band range result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttestedRetrieveAgeBandInfo'
+        '400':
+          description: A malformed `nonce`.
 components:
   schemas:
     PhoneNumber:
@@ -175,3 +207,104 @@ components:
             `swapped` field in the response body; this is the copy a
             verifier actually trusts.
           example: false
+    AttestedRetrieveAgeBandRequest:
+      type: object
+      description: >
+        SimSwap CreateSimSwapAgeBand (phoneNumber) plus this enhancement's
+        nonce. No threshold field exists on this operation to menu-check —
+        the menu instead bounds the range width the operator is willing to
+        attest in the response (§2.4).
+      additionalProperties: false
+      required:
+        - phoneNumber
+        - nonce
+      properties:
+        phoneNumber:
+          $ref: '#/components/schemas/PhoneNumber'
+        nonce:
+          type: string
+          minLength: 1
+          maxLength: 128
+          description: >
+            Requester-supplied freshness value, echoed inside the signed
+            attestation payload as `nonce`.
+          example: "b4333c46-49c0-4f62-80d7-f0ef930f1c46"
+    AttestedRetrieveAgeBandInfo:
+      type: object
+      description: >
+        Attested range result for the /retrieve-age-band operation. Unlike
+        AttestedCheckSimSwapInfo, this response carries no plain
+        convenience copy of the answer — the range exists only inside the
+        signed attestation payload, since there is no unsigned equivalent
+        field on the upstream operation to mirror.
+      required:
+        - attestation
+      properties:
+        attestation:
+          type: string
+          description: >
+            JWS (RFC 7515) compact serialization, same form as
+            AttestedCheckSimSwapInfo.attestation. Decoded payload shape:
+            AttestationPayloadRange below.
+    AttestationPayloadRange:
+      type: object
+      description: >
+        The JWS payload decoded from a /retrieve-age-band attestation.
+        Documented here for readability; not a schema of any field
+        actually present top-level in the HTTP response body. Carries a
+        closed range object drawn from the operator's published menu
+        (§2.4 of the proposal) — never the single band value the operator
+        actually computed.
+      required:
+        - iss
+        - aud
+        - nonce
+        - iat
+        - exp
+        - band
+      additionalProperties: false
+      properties:
+        iss:
+          type: string
+          description: >
+            Operator identifier, resolvable through its published JWKS
+            (RFC 7517).
+          example: "opengateway.operator.example"
+        aud:
+          type: string
+          description: Requester identifier.
+          example: "requester.example"
+        nonce:
+          type: string
+          description: Echo of the request's nonce.
+        iat:
+          type: integer
+          description: Issued-at, Unix epoch seconds.
+        exp:
+          type: integer
+          description: Expiry, Unix epoch seconds. Short-lived.
+        band:
+          type: object
+          description: >
+            Closed range, in hours, drawn from the operator's published
+            menu — never a finer range than the menu offers, and never
+            the point band value.
+          additionalProperties: false
+          required:
+            - notBefore
+            - notAfter
+          properties:
+            notBefore:
+              type: integer
+              format: int32
+              description: >
+                Lower bound of the attested window, in hours before the
+                request instant.
+              example: 720
+            notAfter:
+              type: integer
+              format: int32
+              description: >
+                Upper bound of the attested window, in hours before the
+                request instant.
+              example: 2160

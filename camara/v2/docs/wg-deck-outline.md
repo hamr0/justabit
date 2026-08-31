@@ -21,14 +21,22 @@
 | KYC Age Verification `ageCheck` | enum `'true'\|'false'\|'not_available'` | TLS-only, no nonce, no expiry |
 | location-verification `verify` | `TRUE\|FALSE\|PARTIAL` | TLS-only, no nonce, no expiry |
 
-## 3. The delta (three items only)
+## 3. The delta (four items only)
 
 - **Attested response** — signed (JWS), nonce-bound, expiring, verifiable
   offline by any third party via a per-operator JWKS.
 - **Floor rule** — operator publishes a threshold menu; requester may
   only tighten; off-menu is refused, never rounded.
-- **Blind hub (optional)** — end-to-end encryption through an aggregator
-  so it meters and bills without reading content.
+- **Blind hub** — proposed as part of this enhancement; end-to-end
+  encryption through an aggregator so it meters and bills without reading
+  content; placement (same enhancement or separate) is an open question
+  put to the codeowner 2026-08-31.
+- **Range on open predicate responses** — for open-value answers (SimSwap
+  `/retrieve-date`, `/retrieve-age-band`), attest a range from the
+  published menu, never the point value.
+- Operator revenue: expiry + blinding remove the replay and resale path
+  — a stale or unread answer can't be served again from an aggregator's
+  cache, so each genuine query stays a fresh billed API call.
 
 ## 4. Wire example — SimSwap `/check`
 
@@ -89,6 +97,7 @@
   is the maintainers').
 - Named supporters, per Working Group process (populated during
   evaluation, not a precondition of filing).
+- Operator revenue: expiry + blinding remove the replay and resale path.
 
 ## 10. Links
 

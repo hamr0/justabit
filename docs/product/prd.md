@@ -631,6 +631,9 @@ Phase 4  File: Commonalities guideline proposal + sim-swap
          v2 drafted 2026-08-31 (agent-run, user review pending), signing = JWS.
          2026-08-31: reply posted to PR #331 with two scoping questions
          (route, blind hub); answers pending.
+         2026-08-31: v2 scope = four items (attested response, floor rule,
+         blind hub, range on open responses); V2-M1 JWS core approved and
+         building.
 Phase 5  WG evaluation populates named supporters (template
          validation → company support analysis → bi-weekly
          Backlog WG lazy consensus)                                [G5]

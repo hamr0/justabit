@@ -82,10 +82,27 @@ missed. Rule: an overlap declaration is made only after a sweep of
 `APIBacklog/documentation/APIbacklog.md`'s full table, and the sweep date
 is written next to the declaration.
 
+6. User scope restatement (2026-08-31) applied to v2 docs: fourth item
+   added — range on open predicate responses (`/retrieve-date`
+   `latestSimChange`, `/retrieve-age-band` `simSwapAgeBand`, verified
+   2026-08-31 against `camaraproject/SimSwap/code/API_definitions/sim-swap.yaml`,
+   main); revenue argument for expiry + blinding added with its honest
+   counterweight (operator still logs the query; requester can still
+   cache an unexpired answer within `exp`); blind hub changed from
+   "optional" to "proposed, placement pending codeowner answer". Spike
+   `spike-jws` (scratchpad, throwaway): zero-dependency EdDSA JWS from
+   `node:crypto` verified by `jose` in both directions, 18/18 checks
+   incl. five negative controls, exit 0; token 371 bytes, 75 under the
+   446-byte M2 cap; ES256 369 bytes needs DER→raw. V2-M1 build approved
+   by the user on that evidence; build in progress (separate commit).
+
 **DECISION:** none — this entry is drafting work only, executed under an
 existing user decision (2026-08-31, entry below); nothing new was decided
 in this round. OPEN until the codeowner answers: filing route; blind-hub
 placement.
+
+**DECISION (2026-08-31):** V2-M1 (JWS attestation core, EdDSA only)
+approved and started; ES256 deferred.
 
 ---
 
