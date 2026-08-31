@@ -351,7 +351,7 @@ re-homing:
   and meeting presence over multiple IETF cycles — filing is the easy
   part.
 - **The PoC is single-author with no external adoption.** The companion
-  repository's proof of concept (`poc/`) demonstrates the mechanism
+  repository's proof of concept (`camara/v1/poc/`) demonstrates the mechanism
   end-to-end but has not been run, reviewed, or adopted by any party
   outside this project. It is evidence that the idea works, not evidence
   that anyone else wants it.
@@ -387,7 +387,7 @@ re-homing:
   Gateway):
   https://www.mwcbarcelona.com/articles/mplify-colt-orange-google-cloud-and-gsma-open-gateway-demonstrate-agentic-connected-experiences-at-mwc26-barcelona
 - Companion CAMARA proposal (v1, as filed):
-  `docs/camara/v1/camara-attested-windowed-disclosure.md`
+  `camara/v1/docs/camara-attested-windowed-disclosure.md`
 - Superseded prior draft of this document, retained as a dated record:
   `docs/archive/aaif-agent-auth.md`
 - PRD process facts and decisions log:

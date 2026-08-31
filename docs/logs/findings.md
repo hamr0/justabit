@@ -93,16 +93,41 @@ observed record, so nothing gets re-tried or re-argued from memory.
    09:00 UTC and Thu 2026-09-24 15:00 UTC (calendar arithmetic; agenda
    not yet confirmed).
 
-**DECISION**
+**DECISION (user, 2026-08-31)**
 
-PENDING — user decides: (a) use case 2 / Mode B dropped from the CAMARA
-track entirely (it stays in the IETF draft) vs reframed with a Charter
-justification; (b) resubmission vehicle: one Scope Enhancement on
-Commonalities (signed nonce-bound expiring response envelope + monotone
-floor rule) with SimSwap as the first adoption example, vs separate Scope
-Enhancements on SimSwap and KYC Age Verification. Repo restructured this
-session: v1 archived at `docs/camara/v1/`, v2 working copy at
-`docs/camara/v2/`, IETF at `docs/ietf/`; branch `camara/v2-rescope`.
+1. Scope agreed. The reviewer's reading holds: the catalog already answers
+   in booleans on every axis (SimSwap `/check`, Tenure `/check-tenure`, KYC
+   Age Verification `ageCheck`, location-verification). The v1 "residual no
+   existing API covers" was an over-scoped analysis by the orchestrator,
+   not a fact. What remains, and is the whole CAMARA v2 ask: (1) a signed,
+   nonce-bound, expiring envelope around the existing boolean — today the
+   boolean is TLS-only, trusted by the direct caller only, replayable, not
+   transferable; (2) an operator-published floor with a tighten-only rule
+   and loud refusal off-menu — today thresholds are free-form (`maxAge` any
+   hours, `tenureDate` any date); (3) optionally, end-to-end encryption
+   through an aggregator so the hub meters and bills but cannot read —
+   politically sensitive, aggregators are CAMARA members. Home for all
+   three: Commonalities, as ONE Scope Enhancement, with SimSwap `/check` as
+   the first adoption example.
+2. Use case 2 (AI-agent holder presentment, trust directory, Mode B) is
+   DROPPED from the CAMARA track. It lives only in the IETF draft
+   (`ietf/v1/docs/`). Charter line 62 excludes east-west.
+3. Signing standard for v2 text and deck: OPEN. Orchestrator recommends
+   JOSE/JWS (RFC 7515) — ICM already cites RFC 7515 and DPoP JWTs; a
+   boolean needs no selective disclosure. SD-JWT VC and W3C VC not chosen.
+   User has not decided.
+4. Repository layout: option B — per project, per version, code and docs
+   together: `camara/v1/{docs,poc,spec}` (as filed, frozen),
+   `camara/v2/{docs,poc,spec}` (working copy), `ietf/v1/docs/`. `docs/`
+   holds only `prd.md`, `logs/`, `archive/`, and link-preserving stubs. The
+   earlier `docs/camara/`, `docs/ietf/` layout from commit `5fbb905` is
+   superseded by this commit.
+5. Next: rewrite `camara/v2/docs/` as a Commonalities Scope Enhancement
+   (template:
+   `APIBacklog/documentation/API-Scope-Enhancement-Template.md`); prepare
+   the WG deck; upload the OpenAPI sketch and the proposal doc onto
+   APIBacklog issue #330 as the reviewer asked; target the APIBacklog WG
+   session of 2026-09-10 09:00 UTC or 2026-09-24 15:00 UTC.
 
 ---
 

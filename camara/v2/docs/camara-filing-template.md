@@ -1,10 +1,16 @@
+> **v2 WORKING COPY** — copied unchanged from v1 on 2026-08-31. Scope
+> agreed 2026-08-31 (findings): rewrite as a Commonalities Scope
+> Enhancement — signed nonce-bound expiring envelope + floor rule
+> (+ optional blind hub); use case 2 dropped from CAMARA. NOT filed. Text
+> below is still the v1 text until the rewrite lands.
+
 > **This is the filled CAMARA API-proposal template**, to be added by pull
 > request as `documentation/API proposals/APIProposal_CarrierAttestation.md`
 > in `camaraproject/APIBacklog`. This is step 2 of CAMARA's two-step
 > intake, filed as a follow-up PR once the step-1 GitHub issue exists. The
 > SHORT step-1 issue body (the repo's own four-field `💡 API Proposal`
 > issue template) lives separately at
-> `docs/camara/v1/camara-filing-issue.md` — that file, not this one, is
+> `camara/v1/docs/camara-filing-issue.md` — that file, not this one, is
 > what gets pasted into the GitHub issue. Verbatim text prepared 2026-08-25
 > from `camara-attested-windowed-disclosure.md` §10.
 >
@@ -14,7 +20,7 @@
 > `documentation/API proposals/APIProposal_CarrierAttestation.md` in
 > `camaraproject/APIBacklog`. Open, awaiting Working Group evaluation;
 > nothing has been approved. Follow-up to step-1 issue #330 — see
-> `docs/camara/v1/camara-filing-issue.md` for its own filed record.
+> `camara/v1/docs/camara-filing-issue.md` for its own filed record.
 >
 > **This file is now a FROZEN record of what was filed.** The text below
 > the paste marker must not change — amend

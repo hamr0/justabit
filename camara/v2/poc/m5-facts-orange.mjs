@@ -92,7 +92,7 @@ const ADMIN_URL = 'https://api.orange.com/camara/playground/admin/v1.0/action';
 //      windowed boolean is the profile working, not the profile being bypassed.
 //   2. `/check` is not used for a MEASURED reason, not a preference. Its
 //      `maxAge` is in HOURS, capped at 2400 (≈100 days, measured 2026-08-14 —
-//      see poc/README.md). The published threshold menu runs to `P180D` and
+//      see camara/v2/poc/README.md). The published threshold menu runs to `P180D` and
 //      `P365D`, which that cap cannot express at all, so `/check` cannot serve
 //      this profile as specified. NOT re-tested 2026-08-16: unused here, so it
 //      is recorded as untested rather than carried forward as re-verified.
@@ -378,7 +378,7 @@ function makeRedactor(supplied, normalized) {
  * @param {string} opts.basicAuth  The Playground Basic Auth string, from the
  *   ENVIRONMENT only (`ORANGE_BASIC_AUTH`) — never the tree. A leading
  *   `Basic ` is tolerated and stripped: measured 2026-08-16, the credential as
- *   it is stored and as `poc/README.md`'s runbook line yields it is ALREADY
+ *   it is stored and as `camara/v2/poc/README.md`'s runbook line yields it is ALREADY
  *   scheme-prefixed, and sending `Basic Basic …` fails both token endpoints
  *   with `400 invalid_request` / `401 "Basic authentication is malformed"`.
  * @param {Function} [opts.fetchImpl]  Injected transport. Defaults to global

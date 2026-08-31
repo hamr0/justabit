@@ -1,8 +1,8 @@
-> **v2 WORKING COPY** — copied unchanged from v1 on 2026-08-31 to be
-> reshaped per the 2026-08-31 APIBacklog feedback
-> (`../v1/feedback-2026-08-31.md`). NOT filed. Until the rescoping
-> decisions recorded in `docs/logs/findings.md` (2026-08-31) land, the
-> text below is still the v1 text.
+> **v2 WORKING COPY** — copied unchanged from v1 on 2026-08-31. Scope
+> agreed 2026-08-31 (findings): rewrite as a Commonalities Scope
+> Enhancement — signed nonce-bound expiring envelope + floor rule
+> (+ optional blind hub); use case 2 dropped from CAMARA. NOT filed. Text
+> below is still the v1 text until the rewrite lands.
 
 # Attested Windowed Disclosure — a horizontal profile for CAMARA network APIs
 

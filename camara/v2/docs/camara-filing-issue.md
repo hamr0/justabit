@@ -1,3 +1,9 @@
+> **v2 WORKING COPY** — copied unchanged from v1 on 2026-08-31. Scope
+> agreed 2026-08-31 (findings): rewrite as a Commonalities Scope
+> Enhancement — signed nonce-bound expiring envelope + floor rule
+> (+ optional blind hub); use case 2 dropped from CAMARA. NOT filed. Text
+> below is still the v1 text until the rewrite lands.
+
 > **This is the text to paste into a new GitHub issue** at
 > `camaraproject/APIBacklog`, using that repo's own `💡 API Proposal`
 > issue template (four fields: Description, Use cases, Related to,
@@ -7,14 +13,14 @@
 > This is step 1 of a two-step CAMARA intake. Step 2 is a follow-up pull
 > request adding the long template as
 > `documentation/API proposals/APIProposal_CarrierAttestation.md` — that
-> file is `docs/camara/v1/camara-filing-template.md` in this repo, already
+> file is `camara/v1/docs/camara-filing-template.md` in this repo, already
 > prepared. Do not paste that long file into the issue; the issue is this
 > short body only.
 >
 > **Filed:** Filed as issue #330 on 2026-08-28 —
 > https://github.com/camaraproject/APIBacklog/issues/330. Open, awaiting
 > Working Group evaluation; nothing has been approved. Follow-up PR #331
-> (adding the filled template) is `docs/camara/v1/camara-filing-template.md`
+> (adding the filled template) is `camara/v1/docs/camara-filing-template.md`
 > in this repo — see that file for its own filed record.
 >
 > **This file is now a FROZEN record of what was filed.** The text below

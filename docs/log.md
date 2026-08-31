@@ -5,3 +5,4 @@
 ## [2026-08-31] apply-reorg | moved 0, skipped 0, 0 oversized split candidate(s), 0 link(s) rewritten, 0 sync failure(s), 0 empty dir(s) removed, CLAUDE.md updated: true
 ## [2026-08-31] reorg | discover+apply-reorg+lint over 7 doc(s), no ledger stamp yet
 ## [2026-08-31] index-flat | 12 row(s) (10 product, 1 logs, 1 archive)
+## [2026-08-31] index-flat | 4 row(s) (2 product, 1 logs, 1 archive)

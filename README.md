@@ -87,7 +87,7 @@ conforming to profile mode:
 ```
 
 Full text with definitions, the per-API adoption checklist, and the residuals stated
-honestly: [`docs/camara/v1/camara-attested-windowed-disclosure.md`](docs/camara/v1/camara-attested-windowed-disclosure.md) §3 (v1, as filed).
+honestly: [`camara/v1/docs/camara-attested-windowed-disclosure.md`](camara/v1/docs/camara-attested-windowed-disclosure.md) §3 (v1, as filed).
 
 ## Why a profile, not one more API
 
@@ -131,35 +131,37 @@ docs/product/       prd.md — the PRD that leads everything: requirements,
                     camara-attested-windowed-disclosure.md — stub: file
                     moved 2026-08-31, kept so the filed APIBacklog links
                     keep resolving (GitHub has no redirects)
-docs/camara/v1/     frozen record of what was actually filed 2026-08-28:
+docs/logs/          findings.md — dated evidence + decision log
+docs/archive/       aaif-agent-auth.md — superseded 2026-08-25, dated
+                    record only (agent side now lives at
+                    ietf/v1/docs/ietf-agent-delegation.md)
+camara/v1/docs/     frozen record of what was actually filed 2026-08-28:
                     camara-attested-windowed-disclosure.md (the CAMARA
                     proposal), camara-filing-issue.md (step 1: the GitHub
                     issue body), camara-filing-template.md (step 2: the
                     filled API-proposal template), plus the 2026-08-31
                     reviewer feedback
-docs/camara/v2/     working copy being reshaped per that feedback — not
-                    filed
-docs/ietf/          ietf-agent-delegation.md — the IETF proposal (agent/
-                    delegation side, OAuth WG target)
-docs/logs/          findings.md — dated evidence + decision log
-docs/archive/       aaif-agent-auth.md — superseded 2026-08-25, dated
-                    record only (agent side now lives at
-                    docs/ietf/ietf-agent-delegation.md)
-spec/               carrier-attestation.yaml — OpenAPI sketch (CAMARA-style)
-poc/                Mode A demo: mock backend by default, Orange Network
+camara/v1/poc/      Mode A demo: mock backend by default, Orange Network
                     APIs Playground as a swappable live backend
+camara/v1/spec/     carrier-attestation.yaml — OpenAPI sketch (CAMARA-style)
+camara/v2/docs/     working copy being reshaped per the 2026-08-31 feedback
+                    — not filed
+camara/v2/poc/      working copy of camara/v1/poc/, copied unchanged
+camara/v2/spec/     working copy of camara/v1/spec/, copied unchanged
+ietf/v1/docs/       ietf-agent-delegation.md — the IETF proposal (agent/
+                    delegation side, OAuth WG target)
 ```
 
 ## The two tracks
 
 Each track cites the other as its counterpart; neither depends on the other's approval.
 
-- **[CAMARA](docs/camara/v1/camara-attested-windowed-disclosure.md)** — the
+- **[CAMARA](camara/v1/docs/camara-attested-windowed-disclosure.md)** — the
   operator/attestation side (v1, as filed; v2 rescoping working copy at
-  `docs/camara/v2/`). What the operator attests and how it travels. Profile to
+  `camara/v2/docs/`). What the operator attests and how it travels. Profile to
   Commonalities, consent hooks to ICM, adoption PRs to sim-swap and roaming-status,
   new-case proposal to APIBacklog (template pre-filled in §10).
-- **[IETF](docs/ietf/ietf-agent-delegation.md)** — the agent/delegation side. What the
+- **[IETF](ietf/v1/docs/ietf-agent-delegation.md)** — the agent/delegation side. What the
   agent carries and how permissions flow: floor-gated SIM attestation, scoped monotone
   delegations, presentment via RFC 9421. The OAuth Working Group (`oauth@ietf.org`) is
   the target.
@@ -175,7 +177,7 @@ monotone floor (looser queries rejected, never silently widened).
 
 **Status:** all six modules M1–M6 are built and user-validated at their current counts.
 Run the demo with
-**`node poc/demo.mjs`** — zero credentials, zero network, against a built-in mock operator
+**`node camara/v1/poc/demo.mjs`** — zero credentials, zero network, against a built-in mock operator
 with scriptable backstories; `--backend orange` re-proves the same code path live on the
 Network APIs Playground with a free Orange developer account. Each module also has its own
 check, negatives first, exit code 0 only if every case holds: `m1-check.mjs` (20 cases),
@@ -195,7 +197,7 @@ fix mutation-proven. This record covers `4446517`/`c921508` only, per this repo'
 standing rule that a user record does not transfer to a later change. See
 `docs/logs/findings.md`, 2026-08-18 (latest).
 Requirements live in the [PRD §4](docs/product/prd.md); status, setup and caveats in
-[`poc/README.md`](poc/README.md).
+[`camara/v1/poc/README.md`](camara/v1/poc/README.md).
 
 ## Lineage
 

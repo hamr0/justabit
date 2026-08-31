@@ -1,4 +1,4 @@
-// PoC M6 — the one-command demo. Run: node poc/demo.mjs [--backend mock|orange]
+// PoC M6 — the one-command demo. Run: node camara/v2/poc/demo.mjs [--backend mock|orange]
 //
 // This is the surface a CAMARA/IETF reader sees, so it explains itself as it
 // goes. It composes M1 (attestation core), M2 (blind envelope), M3 (floor gate)
@@ -1539,7 +1539,7 @@ const PREREQS = [
   '  1. A free Orange developer account with a Network APIs Playground app',
   '     (developer.orange.com → My Apps → Add an API → Network APIs Playground).',
   '  2. The app\'s Basic Auth string in the ENVIRONMENT, never in the tree:',
-  '       ORANGE_BASIC_AUTH="$(pass camara/orange_network | head -1)" node poc/demo.mjs --backend orange',
+  '       ORANGE_BASIC_AUTH="$(pass camara/orange_network | head -1)" node camara/v2/poc/demo.mjs --backend orange',
   '  3. Network reachability to api.orange.com.',
   '  4. A free custom-number slot (the demo scripts ' + DEMO_NUMBER + '; the app allows 10).',
   '',
@@ -1557,7 +1557,7 @@ const PREREQS = [
 export async function main(argv = process.argv.slice(2), { createBackendImpl = createBackend } = {}) {
   const args = parseArgs(argv);
   if (args.error) {
-    console.error(`${args.error}\nusage: node poc/demo.mjs [--backend mock|orange]`);
+    console.error(`${args.error}\nusage: node camara/v2/poc/demo.mjs [--backend mock|orange]`);
     return 2;
   }
   let backend;
@@ -1588,7 +1588,7 @@ export async function main(argv = process.argv.slice(2), { createBackendImpl = c
   }
 }
 
-// Only when RUN, never when imported — poc/m6-check.mjs imports the seams above
+// Only when RUN, never when imported — camara/v2/poc/m6-check.mjs imports the seams above
 // and drives them itself.
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().then((code) => process.exit(code));

@@ -1,4 +1,4 @@
-// PoC module M5 — standalone OFFLINE check. Run: node poc/m5-check.mjs
+// PoC module M5 — standalone OFFLINE check. Run: node camara/v2/poc/m5-check.mjs
 //
 // ZERO credentials, zero network, deterministic: it runs on a clean clone. The
 // transport is injected and replays responses CAPTURED VERBATIM from the live

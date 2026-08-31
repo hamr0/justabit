@@ -1,4 +1,4 @@
-// PoC module M3 — standalone check. Run: node poc/m3-check.mjs
+// PoC module M3 — standalone check. Run: node camara/v2/poc/m3-check.mjs
 // Negatives first: every silent-widening path the spike identified is shown
 // being rejected before the happy paths.
 import { checkFloor } from './m3-floor.mjs';

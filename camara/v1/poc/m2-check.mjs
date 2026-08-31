@@ -1,4 +1,4 @@
-// PoC module M2 — standalone check. Run: node poc/m2-check.mjs
+// PoC module M2 — standalone check. Run: node camara/v1/poc/m2-check.mjs
 // Negatives first: every malformed, tampered, wrong-key and hub-side attempt is shown
 // being rejected before the happy end-to-end path is shown working.
 import { randomBytes, generateKeyPairSync } from 'node:crypto';

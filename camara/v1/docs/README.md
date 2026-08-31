@@ -16,5 +16,6 @@ is what a CAMARA reviewer actually read.
 Feedback was received 2026-08-31 from an APIBacklog codeowner — see
 `feedback-2026-08-31.md` in this directory.
 
-This filing is superseded by v2 (`../v2/`), a working copy being reshaped
-per that feedback. v2 is drafting only; it has not been filed with CAMARA.
+This filing is superseded by v2 (`../../camara/v2/docs/`), a working copy
+being reshaped per that feedback. v2 is drafting only; it has not been
+filed with CAMARA.
