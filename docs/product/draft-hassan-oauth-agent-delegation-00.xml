@@ -139,6 +139,11 @@
           The service that receives a request bearing a delegation chain
           and must decide whether to honor it.
         </dd>
+        <dt>Scope:</dt>
+        <dd>
+          The set of capabilities a link grants, expressed as a set of
+          opaque strings. See <xref target="scope"/>.
+        </dd>
         <dt>Floor:</dt>
         <dd>
           A named set of conditions a subject must satisfy, expressed as
@@ -289,6 +294,58 @@
       </t>
     </section>
 
+    <section anchor="scope" numbered="true" toc="default">
+      <name>Scope</name>
+      <t>
+        A scope is a set of zero or more capability strings. A capability
+        string is OPAQUE to this profile: this document defines no
+        syntax, no internal structure, and no namespace for it. Any
+        structure a deployment gives it, for example a resource:action
+        convention, is a deployment convention and MUST NOT be
+        interpreted by a verifier implementing this profile.
+      </t>
+      <t>
+        Comparison is by exact set containment over case-sensitive,
+        octet-for-octet string equality. A scope S1 is contained in a
+        scope S2 if and only if every member of S1 is octet-for-octet
+        identical to some member of S2.
+      </t>
+      <t>
+        A verifier MUST NOT apply any of the following when comparing
+        scopes, because none is defined by this profile:
+      </t>
+      <ul spacing="normal">
+        <li>wildcard or prefix matching;</li>
+        <li>
+          hierarchical or namespace containment (a verifier MUST NOT
+          treat one capability string as containing another because of
+          any shared prefix, separator, or apparent parent/child
+          relation);
+        </li>
+        <li>case folding;</li>
+        <li>Unicode normalisation;</li>
+        <li>whitespace trimming; or</li>
+        <li>any other canonicalisation.</li>
+      </ul>
+      <t>
+        The presented bytes are compared as presented. A verifier that
+        applies a matching rule this profile does not define can accept
+        a chain another conforming verifier rejects, which makes
+        attenuation unverifiable in exactly the way this profile exists
+        to prevent.
+      </t>
+      <t>
+        The empty set is a valid scope and is contained in every scope;
+        a link granting the empty scope grants no capability and is not,
+        by itself, an error.
+      </t>
+      <t>
+        Wildcard, hierarchical, and pattern-based scope semantics are
+        OUT OF SCOPE for this version of the profile and are future
+        work; they are not defined here.
+      </t>
+    </section>
+
     <section anchor="attenuation" numbered="true" toc="default">
       <name>Attenuation Rules</name>
       <t>
@@ -301,8 +358,8 @@
         <li>
           <t>
             <strong>Scope containment.</strong> The scope granted by L(i) MUST be a
-            subset of the scope granted by L(i-1). L(i) MUST NOT name a
-            capability that L(i-1) did not itself hold.
+            subset of the scope granted by L(i-1), per <xref target="scope"/>.
+            L(i) MUST NOT name a capability that L(i-1) did not itself hold.
           </t>
         </li>
         <li>
@@ -1131,6 +1188,110 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         This document does not resolve this tension. It is recorded here
         as an open item for the Working Group's consideration, not
         presented as solved by either document.
+      </t>
+    </section>
+
+    <section anchor="vectors" numbered="true" toc="default">
+      <name>Test Vectors</name>
+      <t>
+        This appendix is non-normative. The vectors below are an aid to
+        implementers checking their own understanding of the attenuation
+        rules in <xref target="attenuation"/> against a common set of
+        examples; they are not an additional requirement, and they do not
+        modify or extend the normative requirements stated in the body of
+        this document. Where a vector appears to conflict with a normative
+        section, the normative section governs.
+      </t>
+      <t>
+        Each vector is a delegation chain: an ordered sequence of links,
+        each carrying a scope (<xref target="scope"/>), a floor, and an
+        expiry, together with the outcome a conforming verifier is expected
+        to reach and, where that outcome is rejection, which rule of
+        <xref target="attenuation"/> the chain violates. An implementation
+        checking itself against this appendix is expected to reproduce
+        every expected outcome listed below, using the scope and floor
+        values shown.
+      </t>
+      <t>
+        In every vector, subjectClass is interactive on every link, and
+        accountClass and partialPolicy are not exercised and are omitted
+        from every link; a floor is a set of axis/value pairs and is not
+        required to name every axis in <xref target="floors"/>. Only
+        scope, tenureMin, credentialAgeMin, and expiry vary below, and
+        those are what the tables show.
+      </t>
+      <table>
+        <thead>
+          <tr><th>Vector</th><th>Link</th><th>Scope</th><th>tenureMin</th><th>credentialAgeMin</th><th>Expiry</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>V1</td><td>L(0)</td><td>booking:read, booking:create, payment:authorize</td><td>P1Y</td><td>P90D</td><td>2026-12-01T00:00:00Z</td></tr>
+          <tr><td>V1</td><td>L(1)</td><td>booking:read, booking:create</td><td>P1Y</td><td>P180D</td><td>2026-11-30T00:00:00Z</td></tr>
+          <tr><td>V2</td><td>L(0)</td><td>booking:read</td><td>P1Y</td><td>P90D</td><td>2026-12-01T00:00:00Z</td></tr>
+          <tr><td>V2</td><td>L(1)</td><td>booking:read, booking:create</td><td>P1Y</td><td>P90D</td><td>2026-11-30T00:00:00Z</td></tr>
+          <tr><td>V3</td><td>L(0)</td><td>booking:read</td><td>P2Y</td><td>P180D</td><td>2026-12-01T00:00:00Z</td></tr>
+          <tr><td>V3</td><td>L(1)</td><td>booking:read</td><td>P1Y</td><td>P180D</td><td>2026-11-30T00:00:00Z</td></tr>
+          <tr><td>V4</td><td>L(0)</td><td>booking:read</td><td>P2Y</td><td>P180D</td><td>2026-12-01T00:00:00Z</td></tr>
+          <tr><td>V4</td><td>L(1)</td><td>booking:read</td><td>P2Y</td><td>(omitted)</td><td>2026-11-30T00:00:00Z</td></tr>
+          <tr><td>V5</td><td>L(0)</td><td>booking:read</td><td>P1Y</td><td>P90D</td><td>2026-11-01T12:00:00Z</td></tr>
+          <tr><td>V5</td><td>L(1)</td><td>booking:read</td><td>P1Y</td><td>P90D</td><td>2026-11-01T13:00:00Z</td></tr>
+          <tr><td>V6</td><td>L(0)</td><td>booking:read</td><td>P2Y</td><td>P180D</td><td>2026-12-01T00:00:00Z</td></tr>
+          <tr><td>V6</td><td>L(1)</td><td>booking:read, booking:create</td><td>P2Y</td><td>P180D</td><td>2026-11-30T00:00:00Z</td></tr>
+          <tr><td>V6</td><td>L(2)</td><td>booking:read</td><td>P2Y</td><td>P180D</td><td>2026-11-29T00:00:00Z</td></tr>
+        </tbody>
+      </table>
+      <table>
+        <thead>
+          <tr><th>Vector</th><th>Expected outcome</th><th>Rule violated</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>V1</td><td>accept</td><td>n/a - chain tightens correctly on all three rules</td></tr>
+          <tr><td>V2</td><td>reject</td><td>Rule 1 (scope containment): L(1) names booking:create, which L(0) did not hold</td></tr>
+          <tr><td>V3</td><td>reject</td><td>Rule 2 (floor non-relaxation): L(1)'s tenureMin of P1Y is looser than L(0)'s P2Y</td></tr>
+          <tr><td>V4</td><td>reject</td><td>Rule 2 (floor non-relaxation): L(1) omits credentialAgeMin, an axis L(0) constrained</td></tr>
+          <tr><td>V5</td><td>reject</td><td>Rule 3 (expiry non-extension): L(1)'s expiry is later than L(0)'s</td></tr>
+          <tr><td>V6</td><td>reject</td><td>Rule 1 (scope containment), violated at the interior pair (L(0), L(1)); the pair (L(1), L(2)) is correctly attenuated</td></tr>
+        </tbody>
+      </table>
+      <t>
+        V4 is a distinct and easily missed failure mode from V3: a floor
+        can be relaxed either by widening a value already present on an
+        axis, as in V3, or by dropping the axis from the link entirely, as
+        in V4. Rule 2 in <xref target="attenuation"/> treats both as the
+        same violation, and an implementation that checks only for a
+        looser value on an axis both links carry, without also checking
+        for an axis the parent link carried and the child link dropped,
+        does not detect V4.
+      </t>
+      <t>
+        V6 is the negative control. The violation is not at the leaf link:
+        the pair (L(1), L(2)) attenuates correctly by every rule, and only
+        the interior pair (L(0), L(1)) violates rule 1. A verifier that
+        checks only the final link, or only the pair adjacent to the leaf,
+        accepts this chain; such a verifier does not conform to
+        <xref target="verification"/>, which requires every adjacent pair
+        in the chain to be checked. This vector exists specifically to
+        detect that failure.
+      </t>
+      <t>
+        More generally, a suite composed only of chains expected to be
+        accepted cannot distinguish a verifier that correctly implements
+        the rules of <xref target="attenuation"/> from one that accepts
+        every chain unconditionally; both pass such a suite identically.
+        At least one vector expected to be rejected is therefore required
+        for a suite to have any diagnostic value at all, and V6 in
+        particular is required to detect a verifier that checks only the
+        leaf of the chain.
+      </t>
+      <t>
+        These vectors are illustrative and not exhaustive. Passing them
+        does not establish conformance to this document as a whole: they
+        cover the three attenuation rules of <xref target="attenuation"/>
+        only, and do not exercise signature verification, nonce binding,
+        expiry evaluation against wall-clock time, or the header field
+        encoding described in <xref target="header"/> and
+        <xref target="rfc9421-profile"/>. No independent party has run
+        these vectors against any implementation.
       </t>
     </section>
   </back>
