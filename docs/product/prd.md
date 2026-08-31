@@ -54,6 +54,7 @@ not created. Proposal docs follow the target body's proposal standards.
 | D3 | **Agent/delegation proposal** — agent/delegation side only, targets the IETF OAuth WG. | `docs/product/ietf-agent-delegation.md` | IETF (OAuth WG); supersedes `docs/archive/aaif-agent-auth.md`, retained only as a dated, superseded record of the earlier AAIF-targeted text |
 | D4 | **PoC** — Mode A demo, 4 assertions, mock + Orange backends | `poc/` | WG readers, demo audiences |
 | D5 | Sustained WG presence (meetings, mailing lists, PR responses) | calendars, minutes | CAMARA anti-staleness rules |
+| D6 | **IETF submission artifact** — RFCXML v3, WRITTEN and author-tools VALIDATED but NOT submitted, NOT adopted, and reviewed by no one; IETF 127 submission cutoff is 2 November 2026, 23:59 UTC | `docs/product/draft-hassan-oauth-agent-delegation-00.xml` | IETF (OAuth WG) |
 
 Supporting artifacts (not documents): `spec/carrier-attestation.yaml` stays an
 illustrative OpenAPI sketch (non-normative); `README.md` is the adopter-facing

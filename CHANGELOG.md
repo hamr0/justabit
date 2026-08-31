@@ -1,5 +1,71 @@
 # Changelog
 
+## 0.9.0 — 2026-08-31
+
+- **IETF companion Internet-Draft WRITTEN and author-tools VALIDATED. It is
+  NOT submitted, NOT adopted, and reviewed by no one.** File
+  `docs/product/draft-hassan-oauth-agent-delegation-00.xml`, RFCXML v3,
+  1323 lines. The IETF 127 submission cutoff is 2 November 2026, 23:59
+  UTC. Posting an Internet-Draft confers a timestamp and visibility, not
+  standing; an I-D expires 185 days after posting.
+- **Shape.** A profile, not a new credential format. It invents nothing and
+  says normatively how existing pieces combine and how a verifier checks
+  them. Intended status Standards Track. The normative body names an
+  abstract Attestation Issuer only; SIM, mobile operator, MNO, carrier, and
+  CAMARA appear solely in non-normative Appendix A.
+- **Transport.** One new HTTP header field `Agent-Delegation`, an RFC 8941
+  Structured Field List of Byte Sequences, registered with IANA. Signature
+  parameters are profiled from RFC 9421 rather than reinvented.
+- **The three attenuation rules**, checked on every link relative to its
+  parent: scope must be a subset, floor must be at least as tight on every
+  axis, expiry must not be later. Whole-chain verification is required, and
+  a verifier that checks only the final link defeats the mechanism —
+  stated as the primary security consideration.
+- **Scope is now mechanically decidable.** Rule 1 previously required a
+  subset check but the draft defined no value space for a scope, no
+  meaning for "subset", and no case sensitivity — mandated but
+  unexecutable, so two conforming verifiers could disagree on the same
+  chain. A scope is now a set of opaque capability strings compared by
+  exact set containment over case-sensitive, octet-for-octet equality.
+  Wildcard and prefix matching, hierarchical containment, case folding,
+  Unicode normalisation, whitespace trimming, and every other
+  canonicalisation are forbidden. Wildcard and hierarchical semantics are
+  stated out of scope for this version with no registry promised.
+- **A non-normative test-vector appendix with a negative control.** Six
+  vectors, each isolating one violation. V6 is the negative control: a
+  three-link chain whose leaf pair attenuates correctly and whose interior
+  pair violates rule 1, so a verifier that checks only the final link
+  accepts it and does not conform. A suite composed only of chains
+  expected to be accepted cannot distinguish a correct verifier from one
+  that accepts everything. **The vectors have never been executed against
+  any implementation by anyone, including the author** — they were derived
+  by hand.
+- **Test vectors were shipped instead of a mandated conformance harness**,
+  deliberately: an IETF profile specifies the verification procedure, not
+  anyone's implementation, and a mandated harness binds conformance to one
+  codebase's assumptions.
+- **Two corrections to `docs/product/ietf-agent-delegation.md`.**
+  `draft-klrc-aiagent-auth-03` Section 11 says a participant MAY subscribe
+  to SSF/CAEP change notifications; the doc previously said "requires".
+  And the crowding limit named only that draft; three further individual
+  drafts (`draft-asor-wimse-agent-delegation-chain-00`,
+  `draft-reece-wimse-cross-org-delegation-01`,
+  `draft-sweeney-wimse-credential-delegation-00`) are now named there and
+  in the references. None of the three touches SIM, carrier, or economic
+  scarcity, so the differentiator holds — recorded as a worsening limit,
+  not a win.
+- **Honest limits kept in the draft on purpose:** RFC 9421 presentment, the
+  multi-hop chain, and the per-Relying-Service unlinkable identifier are
+  NOT implemented in the proof-of-concept, which has no HTTP layer between
+  the parties at all. Single author, no external review, no adoption, and
+  no Attestation Issuer has reviewed or validated the profile.
+- **Re-verified 2026-08-31 against the live Datatracker:**
+  `draft-klrc-aiagent-auth` is still `-03`, 6 July 2026, expiring 7 January
+  2027, still an individual submission not adopted by a working group,
+  same six authors and affiliations.
+- `docs/logs/findings.md` carries the full dated evidence and decision
+  record for this round.
+
 ## 0.8.0 — 2026-08-28
 
 - **FILED TO CAMARA.** `CarrierAttestation` is filed against

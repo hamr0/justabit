@@ -1313,8 +1313,10 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         only, and do not exercise signature verification, nonce binding,
         expiry evaluation against wall-clock time, or the header field
         encoding described in <xref target="header"/> and
-        <xref target="rfc9421-profile"/>. No independent party has run
-        these vectors against any implementation.
+        <xref target="rfc9421-profile"/>. These vectors have not been
+        executed against any implementation by anyone, including the
+        author; they were derived by hand from the rules in
+        <xref target="attenuation"/>.
       </t>
     </section>
   </back>

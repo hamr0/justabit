@@ -114,6 +114,28 @@ observed record, so nothing gets re-tried or re-argued from memory.
     up gitignored scratch files a clean checkout does not have. The
     bareagent session checked this for its own count and found all
     56 globbed files git-tracked, so its 1127 was not inflated.
+13. **klrc re-verified against the live Datatracker page.**
+    `draft-klrc-aiagent-auth` is still at version `-03`, latest
+    revision 6 July 2026, expiring 7 January 2027, still an
+    individual submission not adopted by a working group. Authors
+    and affiliations unchanged: Pieter Kasselman (Defakto Security),
+    Jeff Lombardo (AWS), Yaroslav Rosomakho (Zscaler), Brian Campbell
+    (Ping Identity), Nick Steele (OpenAI), Aaron Parecki (Okta). The
+    draft's own `<reference>` block and its prose were checked
+    against this and match exactly. This matters because the draft's
+    prose names the version explicitly, so a version bump between
+    now and submission would make the citation wrong at the moment a
+    reviewer opens it.
+14. **The test vectors have never been executed, by anyone.**
+    Verified by direct grep of `poc/`: zero code implementing scope
+    containment, chain attenuation, or any delegation chain. Every
+    apparent hit is an unrelated use of the word (a duration
+    "subset", the phrase "out of scope" in prose). The six vectors
+    were derived by hand and independently re-derived by a review
+    pass, but no implementation exists to run them against. The
+    appendix's closing sentence previously read "No independent
+    party has run these vectors", which implied the author had;
+    corrected in the same change to say plainly that nobody has.
 
 **DECISION**
 
