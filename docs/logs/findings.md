@@ -46,7 +46,8 @@ observed record, so nothing gets re-tried or re-argued from memory.
    `camara-filing-template.md` (filled Scope Enhancement template),
    `camara-filing-issue.md` (28-line issue body below the paste marker),
    `pr331-reply-draft.md` (28-line draft comment below the paste marker,
-   new file), `wg-deck-outline.md` (10-slide outline, new file); reshaped
+   new file; renamed to `pr331-reply-posted-2026-08-31.md` after posting),
+   `wg-deck-outline.md` (10-slide outline, new file); reshaped
    `camara/v2/spec/carrier-attestation.yaml` to a single path,
    `POST /sim-swap/v2/check`, YAML-parse-checked with
    `python3 -c "import yaml; yaml.safe_load(open(...))"` — VALID.
@@ -63,6 +64,17 @@ observed record, so nothing gets re-tried or re-argued from memory.
    answer had no window. Fixed in <this commit>: request adds only
    `nonce`; payload carries `maxAge` and `swapped`; `responseHash`
    removed.
+5. Reply POSTED to PR #331 on 2026-08-31 (comment 5479308991, by the
+   user): accepts all three points, withdraws use case 2 from CAMARA,
+   corrects the v1 "no overlap" statement (Tenure API) ourselves, states
+   the Commonalities Scope Enhancement path with SimSwap first and JWS
+   signing, and asks two scoping questions — (a) route: APIBacklog Scope
+   Enhancement naming Commonalities vs an enhancement issue in the
+   Commonalities repo; (b) whether the optional aggregator
+   end-to-end-encryption item rides in the same enhancement or
+   separately — plus a WG slot request (2026-09-10 or 2026-09-24).
+   Answers PENDING; the filing route and the blind-hub placement wait on
+   them.
 
 **LESSON.** The v1 overlap review checked the APIs the author knew, not
 the full APIBacklog table; the Tenure API (TSC-approved 2024-05-16) was
@@ -72,7 +84,8 @@ is written next to the declaration.
 
 **DECISION:** none — this entry is drafting work only, executed under an
 existing user decision (2026-08-31, entry below); nothing new was decided
-in this round.
+in this round. OPEN until the codeowner answers: filing route; blind-hub
+placement.
 
 ---
 
