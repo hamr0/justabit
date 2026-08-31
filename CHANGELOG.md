@@ -1,5 +1,57 @@
 # Changelog
 
+## 0.10.0 — 2026-08-31
+
+- **The IETF companion Internet-Draft is SUBMITTED.**
+  `draft-hassan-oauth-agent-delegation-00`, "An Attenuated Delegation
+  Profile for Automated Agents", posted 31 August 2026, expires 4 March
+  2027 (185 days after posting). Author Amr Hassan, Independent. Intended
+  status Standards Track. Verified directly on the Datatracker page:
+  https://datatracker.ietf.org/doc/draft-hassan-oauth-agent-delegation/.
+  It is an INDIVIDUAL submission, NOT a working-group document, NOT
+  adopted, and reviewed by no one. Posting confers a timestamp and
+  visibility, not standing; submission is not adoption, and adoption is
+  not publication. The Datatracker page's own words: the draft is "not
+  endorsed by the IETF" and has "no formal standing in the IETF standards
+  process."
+- **Six stale claims in `docs/product/prd.md` were corrected in the same
+  change**, because the submission made them false at once and a partial
+  sweep is the failure no-go 14 exists to name: the D6 deliverable row now
+  carries the Datatracker URL and both dates; the G6 gate's evidence
+  column held the placeholder `draft link` and now reads MET with the
+  real URL; the Phase B sequence line that said "submit before the IETF
+  127 cutoff" is now past tense; a second Phase B line that said
+  "remaining work is turning it into an actual Internet-Draft" now
+  reflects that the work is done; the Key dates block that presented 2
+  November 2026 as this draft's deadline now states the submission and
+  the 4 March 2027 expiry, with the cutoff kept as context only; and risk
+  item 3, which named I-D conversion as the remaining risk, now names the
+  real remaining risk as sustained mailing-list and meeting presence
+  across multiple IETF cycles.
+- **One §9 decisions row added, dated 2026-08-31.** The 2026-08-30 row
+  below it still reads "not submitted" and is left alone on purpose — it
+  was true on its date, and this repo keeps dated history rather than
+  rewriting it.
+- **The v0.9.0 changelog entry below is likewise left as written.** It
+  says "NOT submitted", which was true when written. It is a dated
+  record, not a live claim.
+- **Honest limits unchanged and restated:** the draft's test vectors have
+  still never been executed against any implementation by anyone,
+  including the author — they were derived by hand, and no chain
+  verifier exists to run them against. The proof-of-concept still does
+  not implement RFC 9421 presentment, the multi-hop delegation chain, or
+  the per-Relying-Service unlinkable identifier, and has no HTTP layer
+  between the parties at all. Single author, no external review, no
+  adoption.
+- **Re-verified 2026-08-31 against the live Datatracker:**
+  `draft-klrc-aiagent-auth` is still `-03`, 6 July 2026, expiring 7
+  January 2027, still an individual submission not adopted by a working
+  group, same six authors. The draft's citation of it is correct as
+  posted.
+- **Next:** the draft expires 4 March 2027; a `-01` before then is how it
+  stays alive. IETF 127 is 14–20 November 2026 in San Francisco, Hackathon
+  14–15 November.
+
 ## 0.9.0 — 2026-08-31
 
 - **IETF companion Internet-Draft WRITTEN and author-tools VALIDATED. It is
