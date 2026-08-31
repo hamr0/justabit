@@ -257,7 +257,7 @@ still OPEN.
    request was never verified either way; moot after submission). That
    action creates TWO documents on the Datatracker, not one renamed
    document — the old name does not disappear, it changes state.
-2. **Datatracker API facts, confirmed live (verbatim, do not re-fetch):**
+2. **Datatracker API facts, confirmed live:**
    the new draft is `draft-hamr-oauth-agent-delegation-00`, title "An
    Attenuated Delegation Profile for Automated Agents",
    https://datatracker.ietf.org/doc/draft-hamr-oauth-agent-delegation/,
