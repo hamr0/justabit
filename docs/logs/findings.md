@@ -56,6 +56,13 @@ observed record, so nothing gets re-tried or re-argued from memory.
    user checkpoint. Nothing in this entry has been posted to CAMARA — no
    issue opened, no PR filed, no comment posted to PR #331. The Design
    Guide section for the envelope is explicitly left open, not decided.
+4. Orchestrator review of `5072aaf` found three envelope defects — D1
+   request-side `floor` menu inverted the floor rule; D2 `responseHash`
+   was circular (body contained the attestation) with no canonicalization
+   rule; D3 payload lacked the predicate parameters, so the attested
+   answer had no window. Fixed in <this commit>: request adds only
+   `nonce`; payload carries `maxAge` and `swapped`; `responseHash`
+   removed.
 
 **LESSON.** The v1 overlap review checked the APIs the author knew, not
 the full APIBacklog table; the Tenure API (TSC-approved 2024-05-16) was

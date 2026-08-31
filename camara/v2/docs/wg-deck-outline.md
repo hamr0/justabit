@@ -32,13 +32,16 @@
 
 ## 4. Wire example — SimSwap `/check`
 
-- Request adds `nonce` + `floor` to the existing `phoneNumber`/`maxAge`.
+- Request adds `nonce` to the existing `phoneNumber`/`maxAge`; `maxAge`
+  must be one of the operator's published menu values or the request is
+  refused (`OFF_MENU_THRESHOLD`), never rounded.
 - Response adds one field, `attestation` (JWS compact string), beside the
   existing `swapped` boolean.
-- Attestation payload: `iss`, `aud`, `nonce`, `iat`, `exp`, `responseHash`
-  (hash of the exact response body), `kid` in the JWS header.
+- Attestation payload: `iss`, `aud`, `nonce`, `iat`, `exp`, `maxAge`
+  (the window attested), `swapped` (the attested answer), `kid` in the
+  JWS header.
 - Verification is offline: resolve JWKS from `iss`, check signature,
-  check `exp`/`nonce`, recompute `responseHash`.
+  check `exp`/`nonce`, then read `maxAge`/`swapped` from the payload.
 
 ## 5. Signing choice: JWS
 

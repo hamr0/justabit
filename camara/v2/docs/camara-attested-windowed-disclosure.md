@@ -90,12 +90,15 @@ SimSwap `/check` worked example.
 ### 2.2 Floor rule
 
 The operator publishes a threshold menu (a floor); the requester may only
-tighten it. Off-menu requests are refused loudly, never rounded. Today
-thresholds are free-form — SimSwap `/check`'s `maxAge` accepts any integer
-hour 1–2400 (verified against `sim-swap.yaml`, `CreateCheckSimSwap.maxAge`);
-Tenure's `tenureDate` accepts any date. Floors are monotone: any party
-downstream may tighten, never loosen; widening is a distinct,
-consent-visible operation, never a default.
+tighten it, by choosing an existing request field's value (e.g. SimSwap's
+`maxAge`) from that menu — nothing is added to the request to carry the
+menu itself. Off-menu requests are refused loudly, never rounded (see the
+`OFF_MENU_THRESHOLD` sketch in §4). Today thresholds are free-form —
+SimSwap `/check`'s `maxAge` accepts any integer hour 1–2400 (verified
+against `sim-swap.yaml`, `CreateCheckSimSwap.maxAge`); Tenure's
+`tenureDate` accepts any date. Floors are monotone: any party downstream
+may tighten, never loosen; widening is a distinct, consent-visible
+operation, never a default.
 
 ### 2.3 Blind hub (optional, clearly marked optional)
 
@@ -135,34 +138,50 @@ shipped the first half and this proposal is the second.
 
 ## 4. Worked example: SimSwap `/check`
 
-**Request** (unchanged fields, `nonce` and `floor` added):
+**Request** (unchanged fields, `nonce` added):
 
 ```json
 POST /sim-swap/v2/check
 {
   "phoneNumber": "+346661113334",
   "maxAge": 2160,
-  "nonce": "b4333c46-49c0-4f62-80d7-f0ef930f1c46",
-  "floor": { "maxAgeMenu": [720, 2160, 4380, 8760] }
+  "nonce": "b4333c46-49c0-4f62-80d7-f0ef930f1c46"
 }
 ```
 
 `phoneNumber` and `maxAge` are exactly `sim-swap.yaml`'s existing
-`CreateCheckSimSwap` fields (verified 2026-08-31). `nonce` and `floor` are
-the two fields this proposal adds; `floor` states the requester's own
-accepted menu, closed-set and tighten-only per §2.2.
+`CreateCheckSimSwap` fields (verified 2026-08-31). `nonce` is the one
+field this proposal adds. `maxAge` MUST equal one of the values on the
+operator's published threshold menu (§2.2); a value off that menu is
+refused with a 400 (`OFF_MENU_THRESHOLD`), never rounded to the nearest
+menu value. Where the operator publishes the menu — in its API
+documentation or a discovery document — is not settled by this document;
+the publication mechanism is for Commonalities to settle.
 
 **Response** (existing body plus one added field, `attestation`):
 
 ```json
 {
   "swapped": false,
-  "attestation": "eyJhbGciOiJFUzI1NiIsImtpZCI6Im9wZW5nYXRld2F5Lm9wZXJhdG9yLmV4YW1wbGUuMjYyMDEifQ.eyJpc3MiOiJvcGVuZ2F0ZXdheS5vcGVyYXRvci5leGFtcGxlIiwiYXVkIjoicmVxdWVzdGVyLmV4YW1wbGUiLCJub25jZSI6ImI0MzMzYzQ2LTQ5YzAtNGY2Mi04MGQ3LWYwZWY5MzBmMWM0NiIsImlhdCI6MTc4NTk2MDAwMCwiZXhwIjoxNzg1OTYwMzAwLCJyZXNwb25zZUhhc2giOiI0N0RFUXBqOEhCU2EtX1RJbVctNUpDZXVRZVJrbTVOTXBKV1pHM2hTdUZVIn0.<signature>"
+  "attestation": "<base64url(header)>.<base64url(payload)>.<signature>"
 }
 ```
 
-The `attestation` value is a JWS compact-serialized string. Its decoded
+The `attestation` value is a JWS compact-serialized string:
+`<base64url(header)>.<base64url(payload)>.<signature>`. Its decoded
 payload:
+
+```json
+{
+  "iss": "opengateway.operator.example",
+  "aud": "requester.example",
+  "nonce": "b4333c46-49c0-4f62-80d7-f0ef930f1c46",
+  "iat": 1785960000,
+  "exp": 1785960300,
+  "maxAge": 2160,
+  "swapped": false
+}
+```
 
 | Field | Meaning |
 |---|---|
@@ -171,8 +190,16 @@ payload:
 | `nonce` | Echo of the requester's nonce from the request |
 | `iat` | Issued-at, Unix epoch seconds |
 | `exp` | Expiry, Unix epoch seconds — short-lived |
-| `responseHash` | SHA-256 (Base64URL, RFC 7515 §2) of the canonical response body (`{"swapped":false}`), so the attestation is bound to the exact answer given, not just to the fact that *an* answer was given |
+| `maxAge` | The window attested, in hours, as requested — the predicate parameter that gives the answer below its meaning |
+| `swapped` | The attested answer itself |
 | `kid` | (JWS header, not payload) Key id, resolvable via `iss`'s JWKS |
+
+The payload carries both the query that defines the predicate (`maxAge`)
+and the answer (`swapped`); a verifier that saw only `swapped: false`
+would have no way to know what window that answer covers. The plain
+`swapped` field in the response body is a convenience copy for clients
+that do not verify; a verifier trusts only the value inside the signed
+payload, never the plain copy.
 
 **Verification steps** (any third party, offline):
 
@@ -181,20 +208,26 @@ payload:
    hint to select which key to check against (mirrors profile rule 3 from
    the v1 text, unchanged principle).
 2. Verify the JWS signature against the resolved key.
-3. Check `exp` has not passed and `nonce` matches the nonce the verifier
-   itself (or its principal) issued.
-4. Recompute `responseHash` over the response body actually received and
-   compare.
-5. Only if all four pass, trust `swapped: false` as attested.
+3. Check `exp` has not passed and `nonce` matches one the verifier itself
+   (or its principal) issued and has not already seen answered.
+4. Read `maxAge` and `swapped` from the payload and check `maxAge` is the
+   window the verifier's own policy requires — tighter is acceptable,
+   looser is not.
+5. Only after all four checks pass, act on `swapped`.
 
 ## 5. Adoption checklist for other predicate APIs
 
 | API | Existing predicate | Profile-mode change |
 |---|---|---|
-| SimSwap `/check` | boolean `swapped` | add `nonce`+`floor` to request, `attestation` to response (worked example above) |
-| Tenure `/check-tenure` | boolean `tenureDateCheck` | same shape: `nonce`+`floor` on request, `attestation` on response |
+| SimSwap `/check` | boolean `swapped` | add `nonce` to request, `attestation` to response (worked example above) |
+| Tenure `/check-tenure` | boolean `tenureDateCheck` | same shape: `nonce` on request, `attestation` on response |
 | KnowYourCustomerAgeVerification `ageCheck` | string enum `'true'\|'false'\|'not_available'` | same shape; `'not_available'` MUST attest a refusal, never a rounded `'false'` |
 | location-verification `verify` | `TRUE\|FALSE\|PARTIAL` | same shape; `PARTIAL` MUST attest a refusal, never a rounded boolean |
+
+For each adopting API the payload carries that API's predicate parameters
+and its answer field, under the same names the API already uses — e.g.
+Tenure's payload would carry `tenureDate`/`contractType` and
+`tenureDateCheck`, not `maxAge`/`swapped`.
 
 Where the envelope itself would be specified in the Design Guide is not
 settled by this document. Two sections of

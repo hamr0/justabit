@@ -109,8 +109,8 @@ lands.
 ### Impact on the existing API scope
 
 Extends existing APIs with an additive response field (`attestation`) and
-two additive request fields (`nonce`, `floor`); no new repository, no new
-API family, no broader scope needed. Existing non-attested request/response
+one additive request field (`nonce`); no new repository, no new API
+family, no broader scope needed. Existing non-attested request/response
 shapes remain valid and unchanged — this is a new, opt-in profile mode,
 not a breaking change.
 
@@ -153,7 +153,7 @@ YES — illustrative, non-normative sketch at `camara/v2/spec/carrier-attestatio
 reshaped to the SimSwap `/check` adoption example (single path,
 `POST /sim-swap/v2/check`, real request/response fields from
 `camaraproject/SimSwap/code/API_definitions/sim-swap.yaml` plus the added
-`nonce`/`floor`/`attestation` fields).
+`nonce`/`attestation` fields).
 
 ## Validated in lab/productive environments?
 

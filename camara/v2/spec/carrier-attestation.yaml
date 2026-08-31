@@ -7,8 +7,8 @@ info:
     Enhancement (camara/v2/docs/camara-attested-windowed-disclosure.md).
     Request/response base fields (phoneNumber, maxAge, swapped) are copied
     from camaraproject/SimSwap/code/API_definitions/sim-swap.yaml (fetched
-    2026-08-31); nonce, floor, and attestation are the fields this
-    enhancement adds. This is not a fork of SimSwap and carries no
+    2026-08-31); nonce and attestation are the fields this enhancement
+    adds. This is not a fork of SimSwap and carries no
     authority of its own — it exists to make the wire example concrete for
     WG review. The normative text is the proposal document, not this
     sketch.
@@ -23,10 +23,15 @@ paths:
         Check SIM-swap recency against a floor, with an attested,
         nonce-bound, expiring response.
       description: >
-        Same operation as SimSwap `/check`, with two additive request
-        fields (nonce, floor) and one additive response field
-        (attestation). Existing non-attested `/check` behaviour is
-        unchanged; this is an additional, opt-in profile mode.
+        Same operation as SimSwap `/check`, with one additive request
+        field (nonce) and one additive response field (attestation).
+        `maxAge` must equal one of the operator's published threshold
+        menu values (published in its API documentation or a discovery
+        document — the publication mechanism is for Commonalities to
+        settle); an off-menu value is refused with 400
+        (`OFF_MENU_THRESHOLD`), never rounded. Existing non-attested
+        `/check` behaviour is unchanged; this is an additional, opt-in
+        profile mode.
       requestBody:
         required: true
         content:
@@ -42,12 +47,9 @@ paths:
                 $ref: '#/components/schemas/AttestedCheckSimSwapInfo'
         '400':
           description: >
-            Off-menu floor request (rejected, never rounded) or malformed
-            nonce/floor.
-        '403':
-          description: >
-            Request below the operator's published floor. Floors are
-            monotone: a requester may only tighten, never loosen.
+            `OFF_MENU_THRESHOLD` — `maxAge` is not one of the operator's
+            published menu values (rejected, never rounded to the
+            nearest menu value), or a malformed `nonce`.
 components:
   schemas:
     PhoneNumber:
@@ -59,39 +61,21 @@ components:
         verbatim from SimSwap's own PhoneNumber schema
         (../common/CAMARA_common.yaml#/components/schemas/PhoneNumber
         upstream).
-    Floor:
-      type: object
-      description: >
-        Operator-published threshold menu for maxAge, in hours. The
-        requester's request MUST choose a value present in this menu (or
-        the operator's own published menu if narrower); a value off the
-        menu is refused, never rounded. Closed set — an unrecognised key
-        is a rejection, not a silently ignored field.
-      additionalProperties: false
-      required:
-        - maxAgeMenu
-      properties:
-        maxAgeMenu:
-          type: array
-          description: >
-            Legal maxAge values in hours, matching SimSwap's own maxAge
-            bounds (1-2400).
-          items:
-            type: integer
-            minimum: 1
-            maximum: 2400
-          example: [720, 2160, 4380, 8760]
     AttestedCheckSimSwapRequest:
       type: object
       description: >
         SimSwap CreateCheckSimSwap (phoneNumber, maxAge) plus this
-        enhancement's nonce and floor.
+        enhancement's nonce. The operator's own published threshold menu
+        for maxAge is not carried on the wire in this request — it is
+        published out-of-band (API documentation or a discovery document;
+        the mechanism is for Commonalities to settle) and enforced
+        server-side: a maxAge value off that menu is refused with 400
+        (OFF_MENU_THRESHOLD), never rounded.
       additionalProperties: false
       required:
         - phoneNumber
         - maxAge
         - nonce
-        - floor
       properties:
         phoneNumber:
           $ref: '#/components/schemas/PhoneNumber'
@@ -103,7 +87,9 @@ components:
           example: 2160
           description: >
             Period in hours to be checked for SIM swap. Identical field to
-            upstream SimSwap CreateCheckSimSwap.maxAge.
+            upstream SimSwap CreateCheckSimSwap.maxAge, but MUST equal one
+            of the operator's published threshold menu values in this
+            profile mode.
         nonce:
           type: string
           minLength: 1
@@ -112,8 +98,6 @@ components:
             Requester-supplied freshness value, echoed inside the signed
             attestation payload as `nonce`.
           example: "b4333c46-49c0-4f62-80d7-f0ef930f1c46"
-        floor:
-          $ref: '#/components/schemas/Floor'
     AttestedCheckSimSwapInfo:
       type: object
       description: >
@@ -132,26 +116,31 @@ components:
         attestation:
           type: string
           description: >
-            JWS (RFC 7515) compact serialization, e.g.
-            "<base64url-header>.<base64url-payload>.<base64url-signature>".
-            The decoded JWS payload is described by
-            AttestationPayload below; it is not sent as a separate JSON
-            object on the wire, only as this compact string.
-          example: >-
-            eyJhbGciOiJFUzI1NiIsImtpZCI6Im9wZW5nYXRld2F5Lm9wZXJhdG9yLmV4YW1wbGUuMjYyMDEifQ.eyJpc3MiOiJvcGVuZ2F0ZXdheS5vcGVyYXRvci5leGFtcGxlIiwiYXVkIjoicmVxdWVzdGVyLmV4YW1wbGUiLCJub25jZSI6ImI0MzMzYzQ2LTQ5YzAtNGY2Mi04MGQ3LWYwZWY5MzBmMWM0NiIsImlhdCI6MTc4NTk2MDAwMCwiZXhwIjoxNzg1OTYwMzAwLCJyZXNwb25zZUhhc2giOiI0N0RFUXBqOEhCU2EtX1RJbVctNUpDZXVRZVJrbTVOTXBKV1pHM2hTdUZVIn0.SIGNATURE
+            JWS (RFC 7515) compact serialization:
+            "<base64url(header)>.<base64url(payload)>.<signature>". The
+            decoded JWS payload is described by AttestationPayload below;
+            it is not sent as a separate JSON object on the wire, only as
+            this compact string. Fabricating an example compact string
+            here would require a real key pair to sign, so this sketch
+            gives only the decoded payload shape (AttestationPayload) and
+            the generic compact-serialization form above.
     AttestationPayload:
       type: object
       description: >
         The JWS payload decoded from `attestation` above. Documented here
         for readability; not a schema of any field actually present
-        top-level in the HTTP response body.
+        top-level in the HTTP response body. Carries both the predicate
+        parameters that define the question (`maxAge`) and the answer
+        (`swapped`), so a verifier who sees only the attestation still
+        knows what window the answer covers.
       required:
         - iss
         - aud
         - nonce
         - iat
         - exp
-        - responseHash
+        - maxAge
+        - swapped
       additionalProperties: false
       properties:
         iss:
@@ -173,12 +162,16 @@ components:
         exp:
           type: integer
           description: Expiry, Unix epoch seconds. Short-lived.
-        responseHash:
-          type: string
+        maxAge:
+          type: integer
           description: >
-            Base64URL-encoded (RFC 7515 §2) SHA-256 of the canonical
-            response body (e.g. the exact bytes of
-            {"swapped":false,"attestation":""} with attestation excluded
-            during the hash computation, since attestation cannot hash
-            itself; exact canonicalization to be settled in the
-            normative Commonalities specification, not by this sketch).
+            The window attested, in hours, as requested. Identical value
+            to the request's `maxAge`.
+          example: 2160
+        swapped:
+          type: boolean
+          description: >
+            The attested answer itself. Identical value to the plain
+            `swapped` field in the response body; this is the copy a
+            verifier actually trusts.
+          example: false
