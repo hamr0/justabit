@@ -4,13 +4,16 @@
 ### OAuth Working Group
 
 **Author:** Amr Hassan, independent telecom consultant (10 yrs wholesale roaming / signaling / SoR)
-**Status:** Draft v0.1 — position document, not an Internet-Draft. Re-homed
-2026-08-25 from the AAIF Identity & Trust WG after AAIF's
-`project-proposals` intake was verified to be an open-source-project
-donation gate, not a standards-proposal track (see
-`docs/archive/aaif-agent-auth.md`, marked superseded, and PRD §9
+**Status:** SUBMITTED to the IETF as `draft-hamr-oauth-agent-delegation-00`
+(https://datatracker.ietf.org/doc/draft-hamr-oauth-agent-delegation/),
+posted 31 August 2026, expires 4 March 2027; an individual submission, NOT
+adopted by the OAuth WG, and reviewed by no one — posting confers a
+timestamp and visibility, not standing. Re-homed 2026-08-25 from the AAIF
+Identity & Trust WG after AAIF's `project-proposals` intake was verified to
+be an open-source-project donation gate, not a standards-proposal track
+(see `docs/archive/aaif-agent-auth.md`, marked superseded, and PRD §9
 decisions log, 2026-08-25 entry).
-**Date:** 2026-08-25
+**Date:** 2026-08-25 (position paper); submitted 2026-08-31
 **Companion:** the operator/attestation side is proposed separately to
 CAMARA (`camara-attested-windowed-disclosure.md`). The two tracks meet at
 the RFC 9421 HTTP Message Signatures header; **neither depends on the

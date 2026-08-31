@@ -6,3 +6,4 @@
 ## [2026-08-31] reorg | discover+apply-reorg+lint over 7 doc(s), no ledger stamp yet
 ## [2026-08-31] index-flat | 12 row(s) (10 product, 1 logs, 1 archive)
 ## [2026-08-31] index-flat | 4 row(s) (2 product, 1 logs, 1 archive)
+## [2026-08-31] index-flat | 4 row(s) (2 product, 1 logs, 1 archive)
