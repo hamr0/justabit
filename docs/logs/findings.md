@@ -14,7 +14,399 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
-## 2026-08-31 (latest) — CAMARA v2 drafted as a Commonalities Scope Enhancement (AGENT-RUN; user review PENDING)
+## 2026-09-01 (latest) — User validation run at the uncommitted `camara/v2-rescope` tree: all seven v2 suites green, superseding the voided `8a454c9` record
+
+**EVIDENCE**
+
+1. Command run by the user, in their own terminal, verbatim:
+   ```
+   for f in m1-check m1-jws-check m2-check m3-check m4-check m5-check m6-check; do node camara/v2/poc/$f.mjs; echo "$f exit=$?"; done
+   ```
+
+2. Per-suite declared RESULT line and shell exit code:
+
+   | suite        | RESULT | exit |
+   |--------------|--------|------|
+   | m1-check     | 20/20  | 0    |
+   | m1-jws-check | 33/33  | 0    |
+   | m2-check     | 10/10  | 0    |
+   | m3-check     | 26/26  | 0    |
+   | m4-check     | 42/42  | 0    |
+   | m5-check     | 67/67  | 0    |
+   | m6-check     | 47/47  | 0    |
+
+3. Zero FAIL lines across the combined 47.8KB output of all seven runs.
+
+4. Capture location: session scratch path
+   `/home/hamr/.claude/projects/-home-hamr-PycharmProjects-justabit/8376fcaa-6159-4387-a8b7-fcde1f4cea16/tool-results/b3nujbins.txt`
+   — session-local, not part of the repo; cited here only as where the
+   output was captured, not as a repo artifact.
+
+5. Tree state at run time: branch `camara/v2-rescope`, tip commit
+   `64f8c26`, working tree UNCOMMITTED with 16 files modified (`CLAUDE.md`,
+   `README.md`, and the v2 docs/poc/spec files touched by the rescope).
+   Not a clean-tree run.
+
+6. Scope: this run covers the seven v2 check runners only. It does not
+   include `demo.mjs` or the v1 `m1-check` suite, both of which were part
+   of the prior nine-suite record below. It is the tree the 2026-08-31
+   entries describe, with no code change since.
+
+7. **SUPERSESSION.** This run supersedes the user validation record at
+   `8a454c9` (2026-08-31, nine suites, `m1-jws-check` at 29/29 — see
+   "USER VALIDATION at `8a454c9`" further down this log). That record was
+   VOIDED when the reserved-claim-clobber fix (see the "V2-M1-JWS fix
+   round" entry below) changed `m1-jws-check`'s count from 29 to 33: per
+   the repo rule, a user run validates only at the count and tree it was
+   run at, and a count change voids the prior record rather than updating
+   it. The `8a454c9` entry itself is NOT rewritten and is left standing as
+   a dated record of what was true then.
+
+**DECISION:** none — this entry is a validation record only.
+
+---
+
+## 2026-08-31 — Live re-verification against canonical CAMARA YAML: SimSwap age-band retracted, kyc-match score refuted, Commonalities notification-signing precedent found
+
+**EVIDENCE**
+
+All facts below were fetched from canonical raw YAML on
+`raw.githubusercontent.com` and independently re-confirmed by the main
+session.
+
+1. **SimSwap `sim-swap.yaml` tag `r3.3`** = `info.version: 2.1.0`. Paths
+   present: `/retrieve-date`, `/check` ONLY. `/retrieve-age-band` is ABSENT.
+2. `/retrieve-age-band` is absent from EVERY release tag checked: r3.3
+   (2.1.0), r3.2 (2.1.0), r3.1 (2.1.0-rc.2), r2.2 (2.0.0). It exists ONLY on
+   `main`, where `info.version: wip`.
+3. **RETRACTION.** CLAUDE.md's grounding baseline states "SimSwap v2.1.0
+   (`/check`, `/retrieve-date`, `/retrieve-age-band`)". The third path is
+   NOT in v2.1.0. Corrected baseline: v2.1.0 ships `/check` and
+   `/retrieve-date`; `/retrieve-age-band` exists only on unreleased `main`.
+   (CLAUDE.md itself is being corrected by a concurrent agent this
+   session — recorded here only as the retraction of record.)
+4. **CONSEQUENCE for the filing.** The APIBacklog codeowner's review
+   comment (2026-08-31, `feedback-2026-08-31.md` point 2) states "SimSwap
+   v2.1.0 age-band already covers the windowed swap recency pattern." That
+   is factually incorrect as written — v2.1.0 has no age-band operation. To
+   raise politely, with the tag citation, when filing: it weakens their
+   "the only delta is the signing wrapper" argument.
+5. `maxAge` on SimSwap `/check` (r3.3) and DeviceSwap `/check` (r3.2) are
+   IDENTICAL: `type: integer`, `format: int32`, `minimum: 1`,
+   `maximum: 2400`, `default: 240`. Descriptions verbatim: "Period in hours
+   to be checked for SIM swap." / "Period in hours to be checked for device
+   swap." The "HOURS, cap 2400" fact is now CANONICAL, not merely an Orange
+   Playground measurement. DeviceSwap r3.2 = `info.version: 1.0.0`, paths
+   `/retrieve-date` + `/check`, no age-band operation on any branch.
+6. Both take `phoneNumber` directly, not a `device` wrapper.
+7. **DeviceLocation `location-verification.yaml` tag `r3.2`** =
+   `info.version: 3.0.0`. Its `MaxAge` schema: `type: integer`, NO
+   `minimum`, NO `maximum`, NO `default`. Description verbatim: "The
+   maximum age (in seconds) for the location known by the implementation,
+   which is accepted for the verification. Absence of maxAge means \"any
+   age\" and maxAge=0 means a fresh calculation."
+8. So `maxAge` means TWO DIFFERENT THINGS in TWO DIFFERENT UNITS: on the
+   swap APIs it is an EVENT LOOKBACK WINDOW in hours, bounded 1-2400; on
+   location verification it is ACCEPTABLE STALENESS OF A CACHED LOCATION
+   FIX in seconds, unbounded. Standing hazard: never assume a CAMARA
+   parameter name carries the same unit or the same meaning across APIs.
+9. Location's real disclosure threshold is `Circle.radius`: `type: number`,
+   `minimum: 1`, no maximum, unit METERS. Description verbatim: "Expected
+   accuracy for the verification, in meters from `center`."
+10. DeviceStatus r2.2 (`info.version: 1.0.0`), roaming and reachability:
+    request body is only an optional `device` wrapper. NEITHER exposes any
+    threshold field. This CONFIRMS the existing decision to give them no
+    menu.
+11. **Tenure "TSC-approved 2024-05-16" CONFIRMED, not retracted.** Source:
+    `camaraproject/APIBacklog/documentation/APIbacklog.md`, the Tenure row,
+    column "API backlog & TSC - Status", reads verbatim "TSC Approved
+    (2024/05/16)". Template registered 2024/04/25; Sandbox repo created
+    2024-05-20. A verification pass earlier this round initially reported
+    this claim as unverifiable and recommended striking it — that
+    recommendation was WRONG and is recorded here as a caught error. The
+    claim posted in `pr331-reply-posted-2026-08-31.md` stands and needs no
+    correction.
+12. Tenure release precision: the APIbacklog table lists the latest release
+    as v0.2.0 (r2.2, 2025/09/19). Tags r3.1 and r3.2 exist; r3.2 carries
+    v0.3.0-rc.1, a release candidate, not a final release. Cite v0.2.0 as
+    the release, or say "r3.2, rc".
+13. **REFUTED.** kyc-match (`camaraproject/KnowYourCustomer`, r2.2,
+    `info.version: 0.3.0`): the PRIMARY response is per-field discrete
+    indicators (`nameMatch`, `addressMatch`, `idDocumentMatch`, …), each a
+    string enum "true"/"false"/"not_available". It is NOT primarily a
+    similarity score. `MatchScoreResult` (0-100, Jaro-Winkler) is OPTIONAL
+    and operator-capability-dependent, and its description states verbatim:
+    "This property shall only be returned when the value of the
+    corresponding match field is `false`." The repo's blanket claim that
+    "kyc-match returns a similarity SCORE and the score is a GRADIENT"
+    (`demo.mjs` comment) is refuted as a description of the API.
+14. **But the hill-climbing argument survives and is STRENGTHENED**: the
+    score is disclosed precisely when the requester guessed WRONG, which is
+    exactly the feedback a hill-climber needs. The repo's 2026-08-17
+    measurement (wrong name scored 53; registered name with one letter
+    changed scored 97) remains valid evidence about the optional score.
+15. **NEW PROBLEM.** kyc-match has NO threshold or score parameter in its
+    REQUEST body — the threshold is entirely operator-internal. The repo's
+    published menu `numberMatch: [60, 70, 80, 90]` (`demo.mjs`) would
+    therefore ADD A NEW REQUEST FIELD, which contradicts the proposal's own
+    §2.2 rule that "nothing is added to the request to carry the menu
+    itself". Swap APIs reuse the existing `maxAge`; KYC has nothing to
+    reuse.
+16. KYC Age Verification: the canonical repo is now
+    `camaraproject/KnowYourCustomerAgeVerification` (post-Spring25), r1.3,
+    `kyc-age-verification` v0.2.1, Sandbox/incubating. The version matches
+    the existing baseline; the REPO PATH in the docs does not. Also
+    `ageCheck` is a string enum "true"/"false"/"not_available", NOT a JSON
+    boolean — imprecise to call it "a boolean predicate" in a document
+    whose thesis is about boolean predicates.
+17. NumberVerification CONFIRMED on both halves: `POST /verify` requires a
+    body with exactly one of `phoneNumber`/`hashedPhoneNumber`
+    (`minProperties: 1, maxProperties: 1`); `GET /device-phone-number`
+    takes no request body and derives the line from the 3-legged token.
+    Released version 2.1.0 (r3.2, Fall25).
+18. **`camaraproject/Commonalities/documentation/CAMARA-API-Event-Subscription-and-Notification-Guide.md`
+    lines 672-673**, verbatim: "CloudEvent Security and Privacy
+    considerations RECOMMEND protecting event **data** through signature
+    and encryption. The value of the `data` field of the notifications
+    SHOULD be signed and encrypted." and "As Camara Notifications are
+    JSON, Camara RECOMMENDS that the Camara Notification is signed and
+    then encrypted using [JSON Web Signature (JWS)](rfc7515) and [JSON Web
+    Encryption (JWE)](rfc7516)."
+19. Scope is ASYNCHRONOUS CloudEvent notifications only.
+    `CAMARA-API-Design-Guide.md` is 1714 lines and has ZERO hits for
+    RFC 9421, "message signature", "response signing", JWS or JWE.
+20. Commonalities issue template confirmed:
+    `.github/ISSUE_TEMPLATE/issue_enhancement_template.md`, name "💡
+    Enhancement 🌟", sections Problem description / Possible evolution /
+    Alternative solution / Additional context.
+
+**DECISIONS**
+
+- DECIDED (evidence-backed): the "maxAge = hours, cap 2400" fact is
+  canonical for both swap APIs (items 1, 5, 6).
+- DECIDED: Tenure TSC-approval claim STANDS; no retraction, no correction
+  to the posted reply (item 11).
+- DECIDED (user's call, 2026-08-31 — final bucket set, signed off): bracket
+  the swap-recency menu at 30/60/90 days — `P30D`=720 hours, `P60D`=1440
+  hours, `P90D`=2160 hours — all of which fit under the canonical
+  2400-hour cap. Rationale: removes the above-cap fallback to
+  `/retrieve-date` entirely — deleting a raw-value code path instead of
+  guarding it — and keeps the oracle at 2 bits. **Implementation is
+  DEFERRED to V2-M2**, not done in this round — do NOT change
+  `PUBLISHED_THRESHOLD_MENU` in `camara/v2/poc/demo.mjs` yet, and do not
+  touch any test. Load-bearing reason to hold off: `demo.mjs` (around line
+  1103) defines `LEAK_PREDICATE` using `P365D` **specifically because it
+  is above the 2400-hour cap** — that is what makes the raw-disclosure
+  fallback path structurally reachable so the leak-control assertion can
+  actually fail (this repo already fixed a vacuous version of this test
+  once, P90D → P365D). Removing P180D/P365D from the menu without
+  re-aiming that test would make the leak control unreachable and
+  vacuous again. V2-M2's acceptance criterion: change the menu to
+  30/60/90, and re-aim the leak control to assert that an above-cap or
+  off-menu request is **REFUSED**, not redacted — the invariant moves
+  from "raw value never leaks past the redaction path" to "raw value
+  never leaks because the path that could reach it refuses instead."
+- DECIDED (user's call, 2026-08-31): the kyc-match threshold problem (item
+  15) is resolved as option (a) — the operator publishes ONE threshold and
+  applies it itself; the requester chooses nothing. Consequences: no
+  bisection and no hill-climbing at all for this predicate, since there is
+  no requester-chosen threshold to steer; and no new request field is
+  added, so the proposal's §2.2 rule ("nothing is added to the request to
+  carry the menu itself") is preserved. This supersedes the four-bucket
+  `numberMatch: [60, 70, 80, 90]` menu idea for kyc-match specifically —
+  that menu stays valid for the swap-recency predicates, which reuse the
+  existing `maxAge` field; kyc-match has no field to reuse and gets a
+  single published operator-side threshold instead. Implementation
+  (removing/adjusting `numberMatch` wiring for kyc-match in `demo.mjs`) is
+  deferred to a later module (V2-M2), not done in this round.
+- **DECIDED (blind-hub scope, main session, on the user's explicit
+  delegation — 2026-08-31).** The user could not settle whether item 2.3
+  (blind hub) files together with 2.1/2.2/2.4 or separately, and asked the
+  main session to pick whichever option CAMARA is most likely to accept
+  and is simpler. Decision: **file 2.1 (attested response), 2.2 (floor
+  rule) and 2.4 (range on open responses) only; hold 2.3 (blind hub)
+  entirely for a separate, later filing.** Rationale:
+  1. The codeowner's invitation (comment 5479522050, `rartych`) is worded
+     narrowly: "propose **signing mechanism** — **if it can be applied in
+     many CAMARA APIs**... Commonalities should define common guidelines
+     in CAMARA API Design Guide." Filing exactly what was invited
+     maximises acceptance.
+  2. 2.1, 2.2 and 2.4 are one coherent subject — what the operator signs,
+     and how tightly the signed payload is bounded. 2.3 is a different
+     subject — who can READ the exchange. Splitting on that line is
+     defensible and easy to explain to a WG.
+  3. v1 was rejected in part for bundling. 2.3 is documented in the
+     proposal itself as politically sensitive (aggregators are CAMARA
+     members). Bundling a politically sensitive item with an
+     uncontroversial one risks sinking both.
+  4. **This SUPERSEDES the main session's earlier suggestion to file the
+     JWE envelope alongside signing** (the item this bullet previously
+     recorded as OPEN, citing item 18's Commonalities JWE precedent). That
+     precedent is real — the JWE envelope has clear prior art — but riding
+     it in expands the filing beyond what was invited; the reversal is
+     recorded here openly, with the reason.
+  5. Honest cost, stated rather than hidden: without blinding, an
+     aggregator in the path still sees the identifier and the question in
+     this filing. Filing 2.3 separately is SEQUENCING, not abandonment —
+     the proposal text states a companion proposal follows, so the
+     omission is visible rather than silent.
+- DECIDED (filing requirement): the enhancement text MUST cite the
+  Commonalities notification-signing guidance (item 18) as adjacent prior
+  art and state the delta as synchronous response signing, which
+  Commonalities has not addressed. Reason: v1 was rejected for duplicating
+  existing capability; leaving this uncited invites the same objection.
+
+**Two standing rules — CONFIRMED by the user, 2026-08-31** (were recorded
+as candidate no-gos, now settled; mirrored as prd.md §5 no-gos 17 and 18):
+
+- Never cite a path or field that exists only on `main` as a released
+  capability. Check the release tags, and say "on main, unreleased" when
+  that is the truth.
+- Never assume a CAMARA parameter name carries the same unit or meaning
+  across APIs. `maxAge` is hours/event-window on the swap APIs and
+  seconds/data-staleness on location verification.
+
+**EVIDENCE (addendum, 2026-08-31) — refusal-guard hoist, mutation-proven**
+
+The user's fourth decision: keep `checkNoReservedCollision`/
+`checkClosedPayload`'s guard on the refusal profile, but stop feeding it a
+hardcoded inline `{ error: 'string' }` literal at each of its four call
+sites in `camara/v2/poc/m1-jws.mjs` (`attestRefusal` ×2,
+`verifyRefusal` ×2) — a guard fed a literal it constructs itself can never
+fire. Hoisted to one frozen module constant, `REFUSAL_FIELDS =
+Object.freeze({ error: 'string' })`, next to `BASE_FIELDS`, used at all
+four sites. The guard is honestly commented as structurally unreachable
+today (`error` cannot collide with any `BASE_FIELDS` name) — it exists so
+a *future* addition to `REFUSAL_FIELDS` cannot silently clobber a base
+claim, the same failure class the reserved-claim-clobber fix (this same
+entry, "V2-M1-JWS fix round" below) closed for the answer profile.
+
+Because production code cannot be changed to add a reachable test case
+(AGENT_RULES forbids it, and doing so would defeat the point — the guard
+must stay unreachable at the current field set), this was mutation-proven
+by hand instead of shipping a test:
+
+1. `cp m1-jws.mjs /tmp/m1-jws.mjs.bak`.
+2. Edited `REFUSAL_FIELDS` in place to
+   `Object.freeze({ error: 'string', iat: 'integer' })` (a deliberate
+   collision with `BASE_FIELDS.iat`).
+3. Ran `node m1-jws-check.mjs`: **RED**, exit 1, `RESULT: 30/33`. Two
+   pre-existing cases broke as a direct, expected consequence of the
+   injected collision (case 23's `INVALID_ERROR` expectation instead saw
+   `RESERVED_CLAIM` first, since the guard now fires before the enum
+   check runs; cases 32/32b, the refusal round trip, rejected instead of
+   signing) — verbatim: `FAIL 23 REFUSAL ERROR OFF ENUM: expected REJECT,
+   got REJECT — reason expected ClaimRejected/INVALID_ERROR, got
+   ClaimRejected/RESERVED_CLAIM (match=false)`; `FAIL 32 REFUSAL ROUND
+   TRIP: expected OK, got REJECT`; `FAIL 32b REFUSAL payload fidelity`.
+4. Direct call, same mutated tree: `attestRefusal(privateKey, kid, base,
+   UNAVAILABLE)` returned verbatim
+   `{"ok":false,"name":"ClaimRejected","code":"RESERVED_CLAIM","message":"schema
+   claim collides with a reserved base claim: iat"}` — a typed
+   `ClaimRejected`/`RESERVED_CLAIM`, exactly the class the guard is
+   documented to produce.
+5. `cp /tmp/m1-jws.mjs.bak m1-jws.mjs` (restore). Ran `node
+   m1-jws-check.mjs` again: **GREEN**, exit 0, `RESULT: 33/33`, count
+   unchanged (no test case was added — the suite count stays 33, matching
+   the "V2-M1-JWS fix round" entry below).
+
+Guard is real and load-bearing against a future edit; it is not, and is
+not claimed to be, reachable at today's `REFUSAL_FIELDS`.
+
+---
+
+## 2026-08-31 — V2-M1-JWS fix round: reserved-claim clobber closed, three items deferred and documented
+
+**EVIDENCE**
+
+1. **FIXED — reserved-name clobber in `m1-jws.mjs`.** `attestAnswer` built
+   `{...base, ...params, ...answer}` and `checkClosedPayload` built
+   `{...BASE_FIELDS, ...extraFields}`; a schema key colliding with a base
+   claim name overwrote both the value AND its required type. PROVEN:
+   schema `{params:{iat:'boolean'}}` with `params={iat:true}` signed a
+   payload carrying `"iat":true`, defeating the `exp > iat` guard (exp=1400,
+   iat=2000 signed successfully because `true` coerces to 1); the token then
+   verified before `exp`, returning claims with `iat: true`. The expiry gate
+   itself (`now` vs `exp`) still worked correctly — this was a type/value
+   clobber that defeated the `exp > iat` sanity guard, not a freshness
+   bypass. Closed by a shared `checkNoReservedCollision()` guard, applied at
+   both construction (`attestAnswer`/`attestRefusal`) and verification
+   (`verifyAnswer`/`verifyRefusal`) from one definition, rejecting with a
+   typed `ClaimRejected('RESERVED_CLAIM', …)`. Four new cases in
+   `m1-jws-check.mjs` (26–29: colliding `params` key, colliding `answer`
+   key, the exact exp=1400/iat=2000 exploit, and a negative control proving
+   a non-colliding schema still signs and verifies); suite count moved
+   29 → 33.
+2. **Off-menu `maxAge` has no executable enforcement in the new JWS core.**
+   Validated: `attestRefusal` only checks enum membership;
+   `attestAnswer(..., {maxAge: 999})` signs successfully (999 is off every
+   menu value 720/2160/4320/8760 but inside the wire schema's 1–2400 bound);
+   `demo.mjs`'s only real gate keys on the OLD ISO-duration
+   `req.predicate.type`/`.value` model and never sees `maxAge`. Honestly
+   deferred to V2-M3 by `m1-jws.mjs:3`.
+3. **OAEP capacity re-derivation is duplicated (latent, not a live
+   defect).** `modulusBits/8 - 66` is re-derived independently at TWO sites
+   outside `seal()` — `m1-jws-check.mjs:433` and `demo.mjs:598` (a third
+   candidate site, `m2-check.mjs:62`, is NOT a duplicate: that block asserts
+   `seal()`'s own runtime behaviour and contains no formula). No site
+   hard-codes a bare number, so the "derive, never hard-code" invariant
+   holds today.
+4. **Dual-core closed-set duplication.** `m1-attestation.mjs` and
+   `m1-jws.mjs` each enforce their own closed claim set with no shared code
+   except `hasDuplicateTopLevelKey`. Same shape as the historical M6 defect
+   (a second verifier that did not call the scanner M1 exported).
+
+**DECISION**
+
+Item 1 (reserved-claim clobber) is a real code defect and was fixed
+immediately, mutation-proven (guard reverted → exploit case goes RED,
+restored → GREEN).
+
+Items 2–4 are deferred, not fixed, each for a stated reason:
+
+- **Item 2 (off-menu `maxAge`)** is deferred to V2-M3, which is where the
+  JWS core's callers migrate off the old ISO-duration model. RECORDED TRAP
+  for that migration: the doc publishes the threshold menu in ISO durations
+  while the wire field is in HOURS, and no conversion helper exists
+  anywhere — V2-M3 needs a stated conversion or an hours-native menu before
+  the gate can be written unambiguously.
+- **Item 3 (OAEP capacity duplication)** is deferred because
+  `m2-envelope.mjs` and `demo.mjs` are frozen v1-copied code slated to
+  migrate at V2-M3; touching them now would diverge them from v1 and
+  invalidate their existing user-validation record. Risk is a future
+  padding/hash change in `seal()` silently desyncing the two re-derivation
+  sites — same class as the 2026-08-18 regression. Proposed fix when V2-M3
+  lands: export `capacityFor(key)` from `m2-envelope.mjs` and call it at
+  both sites.
+- **Item 4 (dual-core duplication)** is deferred because `m1-attestation.mjs`
+  is frozen v1 code with a user-validation record, slated to retire at
+  V2-M3. Proposed mitigation: a cross-core differential test in the V2-M1
+  check suite.
+
+Also swept and fixed this round, all orphaned-reference class: `CLAUDE.md`'s
+repo map claiming `camara/v2/poc/` and `camara/v2/spec/` were "copied
+unchanged 2026-08-31" (false — `camara/v2/poc/` gained the JWS core above,
+`camara/v2/spec/` was rewritten 215→310 lines for the JWS envelope);
+`demo.mjs`'s two citations of "profile rule 4" (zero occurrences in v2's
+renumbered rules — cited as v1's now-DROPPED and REVERSED rule instead, per
+the phoneNumber-required correction below); `m4-facts-mock.mjs`'s citation
+of `camara/v2/spec/carrier-attestation.yaml`'s "Predicate enum" (that file
+no longer has one — corrected to cite the v1 spec explicitly as the dated
+as-filed record); and `camara/v2/docs/camara-attested-windowed-disclosure.md`'s
+"v1 → v2: what changed and why" section, which described the rules
+renumbering without flagging that v1's rule 4 (subscriber identifier MUST
+NOT be carried where token-derivable) is REVERSED, not merely renumbered —
+v2's spec now REQUIRES `phoneNumber`. That reversal is grounded, not
+ungrounded: the 2026-08-24 finding (below) already established that
+identifier-free 3-legged flows do not exist (`POST /verify` requires an
+identifier; only `GET /device-phone-number` is structurally
+identifier-free). Also moved `TENURE_CHECK` out of `m1-jws.mjs` (exported
+from production with zero real callers repo-wide) into `m1-jws-check.mjs`
+as a test-only fixture, per the standing test-only-production-code rule.
+
+---
+
+## 2026-08-31 — CAMARA v2 drafted as a Commonalities Scope Enhancement (AGENT-RUN; user review PENDING)
 
 **EVIDENCE**
 

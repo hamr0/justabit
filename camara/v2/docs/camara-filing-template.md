@@ -39,21 +39,23 @@ Cairenes Solutions.
 
 CAMARA's predicate APIs (SimSwap `/check`, Tenure `/check-tenure`, KYC Age
 Verification `ageCheck`, location-verification `verify`) already answer in
-booleans; SimSwap `/retrieve-date` and `/retrieve-age-band` answer in open
+booleans; SimSwap `/retrieve-date` (tagged release) and `/retrieve-age-band`
+(unreleased, `main` only — not in any tagged SimSwap release) answer in open
 values (a timestamp, a band index). Today that answer is TLS-only, trusted
 by the direct caller only, replayable, and non-transferable to a third
-party. This enhancement adds four things to the response envelope,
+party. This enhancement adds three things to the response envelope,
 catalog-wide, via Commonalities: (1) a **signed, nonce-bound, expiring
 attestation** over the existing answer, as a JWS (RFC 7515) verifiable
 offline through a per-operator JWKS (RFC 7517); (2) a **floor rule** — the
 operator publishes a threshold menu, the requester may only tighten it,
-off-menu requests are refused, never rounded; (3) a **blind hub** mode,
-proposed as part of this enhancement, so an aggregator meters and bills
-without reading identifiers, questions, or answers; (4) a **range on open
+off-menu requests are refused, never rounded; (3) a **range on open
 predicate responses** — for APIs whose answer is an open value rather
 than a boolean, the attested response is a range from the operator's
 published menu, never the point value. First adoption example: SimSwap
-`/check`.
+`/check`. A fourth item, a **blind hub** mode so an aggregator meters and
+bills without reading identifiers, questions, or answers, is deliberately
+held for a separate companion filing (2026-08-31 decision) — not part of
+this ask; see `camara-attested-windowed-disclosure.md` §2.3.
 
 Two business cases: (1) a bank authorizes a transfer on "unswapped ≥ 90
 days" and holds a signed attestation it can show its own auditor without
@@ -125,9 +127,9 @@ one additive request field (`nonce`); no new repository, no new API
 family, no broader scope needed. Existing non-attested request/response
 shapes remain valid and unchanged — this is a new, opt-in profile mode,
 not a breaking change. For open-value APIs (SimSwap `/retrieve-date`,
-`/retrieve-age-band`), the attestation carries a range from the operator's
-published menu instead of the point value — the same additive shape, no
-new field beyond `attestation`/`nonce`.
+tagged; `/retrieve-age-band`, unreleased — `main` only), the attestation
+carries a range from the operator's published menu instead of the point
+value — the same additive shape, no new field beyond `attestation`/`nonce`.
 
 ### Explicit out-of-scope items for this enhancement
 
@@ -154,14 +156,16 @@ it starts (see `camara/v2/poc/README.md`).
 
 ## Commercial viability
 
-Expiry plus the blind hub protect operator revenue: today an aggregator
-carrying the query can read the answer and could serve it again from
-cache; with expiry a stale answer is worthless after `exp`, and with the
-blind hub the aggregator cannot read the answer it carries at all, so it
-cannot replay or resell it. Every fresh answer is a fresh billed API call.
-Honest counterweight: the operator still logs the query, and the
-requester can still cache an unexpired answer for its own use within
-`exp`.
+Expiry alone (this filing) protects operator revenue against resale of a
+stale answer: today an aggregator carrying the query can read the answer
+and could serve it again from cache; with expiry a stale answer is
+worthless after `exp`. The aggregator can still read the identifier and
+the answer while it is live — the stronger claim, that it cannot read the
+answer it carries at all, needs the blind hub, held for a companion
+filing (§2.3 of `camara-attested-windowed-disclosure.md`). Every fresh
+answer is a fresh billed API call. Honest counterweight: the operator
+still logs the query, and the requester can still cache an unexpired
+answer for its own use within `exp`.
 
 Open-source JOSE libraries exist and are widely adopted for exactly this
 kind of signing/verification: `node-jose` (https://github.com/cisco/node-jose)
@@ -175,7 +179,9 @@ therefore does not adopt either yet.
 
 YES — illustrative, non-normative sketch at `camara/v2/spec/carrier-attestation.yaml`,
 reshaped to two SimSwap adoption examples (`POST /sim-swap/v2/check` and
-`POST /sim-swap/v2/retrieve-age-band`), real request/response fields from
+`POST /sim-swap/v2/retrieve-age-band` — the latter models an operation
+that is unreleased, `main` only, not in any tagged SimSwap release), real
+request/response fields from
 `camaraproject/SimSwap/code/API_definitions/sim-swap.yaml` plus the added
 `nonce`/`attestation` fields; `/retrieve-age-band`'s attested payload
 carries a closed range (§2.4) rather than a point band value.

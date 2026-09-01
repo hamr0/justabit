@@ -3,8 +3,12 @@ info:
   title: Attested SimSwap check and age-band (sketch)
   description: >
     ILLUSTRATIVE, NON-NORMATIVE. Sketch of two SimSwap adoption examples
-    (`/check`, boolean; `/retrieve-age-band`, open value attested as a
-    range per §2.4) under the v2 "Attested Responses" Commonalities Scope
+    (`/check`, boolean, tagged release v2.1.0; `/retrieve-age-band`, open
+    value attested as a range per §2.4 — NOTE: `/retrieve-age-band` is
+    unreleased upstream, present only on SimSwap branch `main`
+    (`info.version: wip`), absent from every tagged release r2.2/r3.1/
+    r3.2/r3.3; cited here as precedent for the pattern, not as a shipped
+    capability) under the v2 "Attested Responses" Commonalities Scope
     Enhancement (camara/v2/docs/camara-attested-windowed-disclosure.md).
     Request/response base fields (phoneNumber, maxAge, swapped,
     simSwapAgeBand) are copied from
@@ -52,13 +56,18 @@ paths:
             `OFF_MENU_THRESHOLD` — `maxAge` is not one of the operator's
             published menu values (rejected, never rounded to the
             nearest menu value), or a malformed `nonce`.
+  # NOTE: `/retrieve-age-band` is unreleased upstream — SimSwap branch
+  # `main` only (`info.version: wip`), not in any tagged release
+  # (r2.2/r3.1/r3.2/r3.3 all lack it). Modeled here as precedent for the
+  # attested-range pattern, not as an existing shipped capability.
   /sim-swap/v2/retrieve-age-band:
     post:
       summary: >
         Attest a SIM-swap age band as a range from the operator's
         published menu, nonce-bound and expiring.
       description: >
-        Same operation as SimSwap `/retrieve-age-band`, with one additive
+        Same operation as SimSwap `/retrieve-age-band` (unreleased,
+        `main` only), with one additive
         request field (nonce) and one additive response field
         (attestation). Because `/retrieve-age-band` answers with an open,
         ordered band index rather than a boolean, the attested payload

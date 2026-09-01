@@ -1,6 +1,6 @@
 # PoC — Mode A, four assertions, one command
 
-**v2 working copy, copied unchanged from v1 on 2026-08-31.**
+**v2 working copy, started as an unchanged copy of v1 on 2026-08-31; V2-M1 has since built alongside it (see addendum below).**
 
 **2026-08-31 addendum:** v2 PoC code (M1-M6, demo) is still unchanged from
 v1 (Ed25519 raw-bytes envelope) — that is what M2/M6/`demo.mjs` run on, and
@@ -10,12 +10,13 @@ attestation core with two layers — a generic `signJws`/`verifyJws`
 primitive, and `attestAnswer`/`verifyAnswer` + `attestRefusal`/
 `verifyRefusal` closed-claim-set profiles matching
 `camara/v2/docs/camara-attested-windowed-disclosure.md` §4 exactly
-(`SIM_SWAP_CHECK` and `TENURE_CHECK` schemas). AGENT-RUN 29/29, user
-validation PENDING:
+(the exported `SIM_SWAP_CHECK` schema; `m1-jws-check.mjs` also carries a
+test-only `TENURE_CHECK` fixture proving the mechanism generalizes).
+AGENT-RUN 33/33, user validation PENDING:
 
 ```
-node camara/v2/poc/m1-jws-check.mjs   # V2-M1 JWS attestation core — 29 cases (AGENT-RUN
-                        #   29/29, 2026-08-31; user validation PENDING)
+node camara/v2/poc/m1-jws-check.mjs   # V2-M1 JWS attestation core — 33 cases (AGENT-RUN
+                        #   33/33, 2026-08-31; user validation PENDING)
 ```
 
 **Requirements & no-gos:** [`docs/product/prd.md`](../../docs/product/prd.md) §4–§5.

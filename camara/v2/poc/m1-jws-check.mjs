@@ -8,8 +8,16 @@ import {
   signJws, verifyJws, compactSize,
   attestAnswer, verifyAnswer, attestRefusal, verifyRefusal,
   makeNonceStore, JwsRejected, ClaimRejected,
-  SIM_SWAP_CHECK, TENURE_CHECK, OFF_MENU_THRESHOLD,
+  SIM_SWAP_CHECK, OFF_MENU_THRESHOLD,
 } from './m1-jws.mjs';
+
+// Test-only fixture (moved out of m1-jws.mjs — it had no real caller
+// anywhere in the tree): a second schema, unrelated to SimSwap, proving the
+// schema mechanism in attestAnswer/verifyAnswer is not SimSwap-specific.
+const TENURE_CHECK = Object.freeze({
+  params: Object.freeze({ tenureDate: 'string' }),
+  answer: Object.freeze({ tenureDateCheck: 'boolean' }),
+});
 
 // ---- local harness (m1-jws's reasons are typed classes, not strings, so
 // check-harness.mjs's string-equality `reason` comparator does not fit —
@@ -41,10 +49,21 @@ function checkTrue(name, cond, detail) {
   results.push(pass);
   console.log(`${pass ? 'PASS' : 'FAIL'} ${name}${detail ? ' :: ' + detail : ''}`);
 }
+// Prints the tally and exits: 0 only if every case (including its extra) held
+// AND — when the caller declares one — the suite still has the case count it
+// is supposed to have. Measured 2026-08-16: truncating m4-check to drop its
+// six assertion cases printed `RESULT: 18/18` and exited 0, and emptying the
+// tally entirely printed `RESULT: 0/0` and exited 0. A suite that quietly
+// loses the cases carrying its guarantee must not read as green, so a
+// declared count is asserted like any other case.
 function conclude(expected) {
   const passed = results.filter(Boolean).length;
   const countOk = expected === undefined || results.length === expected;
   console.log(`RESULT: ${passed}/${results.length}`);
+  // AFTER the tally, so the LAST line of a count-failing run is the red one:
+  // the runbook (and any `| tail -1`) reads the final line, and a green
+  // `RESULT: 18/18` printed last would bury the count failure it sits above —
+  // the exact eyeball fail-open this argument exists to close.
   if (!countOk) {
     console.log(`FAIL CASE COUNT: expected ${expected} cases, ran ${results.length}` +
       ' — the suite lost or gained cases; a shrinking suite is not a passing suite');
@@ -309,11 +328,60 @@ check('1 WRONG SEGMENT COUNT', false, verifyJws('abc.def', resolveKey), JwsRejec
   checkTrue('25 SIGNJWS REFUSES NON-OBJECT PAYLOAD, NEVER THROWS', !threw && v && v.ok === false && v.reason instanceof JwsRejected);
 }
 
+// 26 RESERVED CLAIM IN params — a schema whose `params` field name collides
+// with a base claim (`iat`) must be refused at attest time, before the
+// clobbering merge ever runs.
+{
+  const base = freshBase();
+  const collidingSchema = { params: { iat: 'boolean' }, answer: { swapped: 'boolean' } };
+  check('26 RESERVED CLAIM IN params (schema.params.iat collides with base)', false,
+    attestAnswer(operator.privateKey, OP_KID, base, collidingSchema, { iat: true }, { swapped: false }),
+    ClaimRejected, 'RESERVED_CLAIM');
+}
+
+// 27 RESERVED CLAIM IN answer — same collision, on the `answer` side of the
+// schema instead of `params`.
+{
+  const base = freshBase();
+  const collidingSchema = { params: { maxAge: 'integer' }, answer: { exp: 'boolean' } };
+  check('27 RESERVED CLAIM IN answer (schema.answer.exp collides with base)', false,
+    attestAnswer(operator.privateKey, OP_KID, base, collidingSchema, { maxAge: 2160 }, { exp: true }),
+    ClaimRejected, 'RESERVED_CLAIM');
+}
+
+// 28 PROVEN EXPLOIT NOW REFUSED — the exact defect this fix closes: schema
+// {params:{iat:'boolean'}} with params={iat:true} used to sign a payload
+// carrying "iat":true (truthy, coerces to 1), defeating the `exp > iat`
+// sanity guard (exp=1400, iat=2000 verified as if exp were after iat). It
+// must now be refused at attestAnswer time, before any signature exists.
+{
+  const nonce = randomUUID();
+  nonceStore.issue(nonce);
+  const exploitBase = { iss: ISS, aud: AUD, nonce, iat: 2000, exp: 1400 };
+  const exploitSchema = { params: { iat: 'boolean' }, answer: { swapped: 'boolean' } };
+  check('28 PROVEN EXPLOIT (exp=1400/iat=2000, schema.params.iat) now refused', false,
+    attestAnswer(operator.privateKey, OP_KID, exploitBase, exploitSchema, { iat: true }, { swapped: false }),
+    ClaimRejected, 'RESERVED_CLAIM');
+}
+
+// 29 NEGATIVE CONTROL — a non-colliding schema must still sign and verify
+// normally; the reserved-claim guard must not be reachable from ordinary
+// schemas, only from ones that actually name a base claim.
+{
+  const base = freshBase();
+  const okSchema = { params: { maxAge: 'integer' }, answer: { swapped: 'boolean' } };
+  const token = attestAnswer(operator.privateKey, OP_KID, base, okSchema, { maxAge: 2160 }, { swapped: false });
+  const v = typeof token === 'string'
+    ? verifyAnswer(token, resolveKey, okSchema, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW })
+    : token;
+  check('29 NEGATIVE CONTROL (non-colliding schema still signs and verifies)', true, v);
+}
+
 // =====================================================================
 // POSITIVES
 // =====================================================================
 
-// 26 SIM_SWAP ROUND TRIP — must match camara/v2/docs/camara-attested-
+// 30 SIM_SWAP ROUND TRIP — must match camara/v2/docs/camara-attested-
 // windowed-disclosure.md §4's seven-claim payload shape exactly (field
 // names, types, and — since it costs nothing to also hold — key order).
 {
@@ -323,14 +391,14 @@ check('1 WRONG SEGMENT COUNT', false, verifyJws('abc.def', resolveKey), JwsRejec
   const v = isString
     ? verifyAnswer(token, resolveKey, SIM_SWAP_CHECK, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW })
     : token;
-  check('26 SIM_SWAP ROUND TRIP', true, v, undefined, undefined);
+  check('30 SIM_SWAP ROUND TRIP', true, v, undefined, undefined);
   const shapeOk = isString && v.ok && Object.keys(v.claims).join(',') === 'iss,aud,nonce,iat,exp,maxAge,swapped' &&
     v.claims.iss === ISS && v.claims.aud === AUD && v.claims.nonce === base.nonce &&
     v.claims.maxAge === 2160 && v.claims.swapped === false;
-  checkTrue('26b SIM_SWAP payload matches docs §4 shape exactly', shapeOk);
+  checkTrue('30b SIM_SWAP payload matches docs §4 shape exactly', shapeOk);
 }
 
-// 27 TENURE ROUND TRIP — proves the schema mechanism generalizes beyond
+// 31 TENURE ROUND TRIP — proves the schema mechanism generalizes beyond
 // SimSwap.
 {
   const base = freshBase();
@@ -338,22 +406,22 @@ check('1 WRONG SEGMENT COUNT', false, verifyJws('abc.def', resolveKey), JwsRejec
   const v = typeof token === 'string'
     ? verifyAnswer(token, resolveKey, TENURE_CHECK, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW })
     : token;
-  check('27 TENURE ROUND TRIP', true, v);
-  checkTrue('27b TENURE payload fidelity', v.ok && v.claims.tenureDate === '2024-01-01' && v.claims.tenureDateCheck === true);
+  check('31 TENURE ROUND TRIP', true, v);
+  checkTrue('31b TENURE payload fidelity', v.ok && v.claims.tenureDate === '2024-01-01' && v.claims.tenureDateCheck === true);
 }
 
-// 28 REFUSAL ROUND TRIP — a signed excuse, from the closed enum.
+// 32 REFUSAL ROUND TRIP — a signed excuse, from the closed enum.
 {
   const base = freshBase();
   const token = attestRefusal(operator.privateKey, OP_KID, base, OFF_MENU_THRESHOLD);
   const v = typeof token === 'string'
     ? verifyRefusal(token, resolveKey, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW })
     : token;
-  check('28 REFUSAL ROUND TRIP', true, v);
-  checkTrue('28b REFUSAL payload fidelity', v.ok && v.claims.error === OFF_MENU_THRESHOLD);
+  check('32 REFUSAL ROUND TRIP', true, v);
+  checkTrue('32b REFUSAL payload fidelity', v.ok && v.claims.error === OFF_MENU_THRESHOLD);
 }
 
-// 29 SIZE GUARD — a SIM_SWAP_CHECK answer with a 30-char iss/aud, a UUID
+// 33 SIZE GUARD — a SIM_SWAP_CHECK answer with a 30-char iss/aud, a UUID
 // nonce, and a 20-char kid must fit under the M2 RSA-4096 OAEP cap. The
 // cap is DERIVED here from a freshly generated RSA-4096 key (bits/8 - 66),
 // never hard-coded, mirroring m2-envelope.mjs's own seal()-side derivation
@@ -371,7 +439,7 @@ check('1 WRONG SEGMENT COUNT', false, verifyJws('abc.def', resolveKey), JwsRejec
   const base = { iss: longIss, aud: longAud, nonce, iat: NOW, exp: NOW + 300 };
   const token = attestAnswer(operator.privateKey, kid20, base, SIM_SWAP_CHECK, { maxAge: 2160 }, { swapped: false });
   const size = typeof token === 'string' ? compactSize(token) : Infinity;
-  checkTrue(`29 SIZE GUARD (${size}B < ${capacity}B derived RSA-4096 OAEP cap)`, typeof token === 'string' && size < capacity);
+  checkTrue(`33 SIZE GUARD (${size}B < ${capacity}B derived RSA-4096 OAEP cap)`, typeof token === 'string' && size < capacity);
 }
 
-conclude(29);
+conclude(33);

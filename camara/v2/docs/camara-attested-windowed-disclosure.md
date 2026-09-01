@@ -34,23 +34,23 @@ CAMARA APIBacklog codeowner feedback on PR #331 (2026-08-31,
 `camara/v1/docs/feedback-2026-08-31.md`) made three points, all accepted:
 (1) "horizontal profile" is not a valid sub-project type under the Project
 Charter, and use case 2 (AI-agent holder presentment / trust directory) is
-east-west verifiable-credential infrastructure the Charter excludes;
-(2) the overlap with KYC Age Verification and SimSwap age-band is
-functional, not inspirational — both already return a predicate over an
-operator-held fact, and the only delta is the signing wrapper;
-(3) a signed-response layer belongs in Commonalities, where it applies
-consistently catalog-wide, not in a new sub-project.
+east-west VC infrastructure the Charter excludes; (2) the overlap with KYC
+Age Verification and SimSwap age-band is functional, not inspirational —
+both already return a predicate over an operator-held fact, the only delta
+is the signing wrapper; (3) a signed-response layer belongs in
+Commonalities, applied consistently catalog-wide, not in a new sub-project.
 
 v2 therefore: drops use case 2 and the whole Mode B / agent-grade-floor /
-trust-directory design entirely from this document (it lives only at the
-IETF); drops the CarrierAttestation new-case filing and its template
-mapping; renumbers the normative rules down to the four-item delta the
-catalog does not already have; and reframes the filing vehicle as a single
-Commonalities Scope Enhancement instead of a new APIBacklog sub-project.
-One correction made visible rather than quietly fixed: the v1 filing's
-"no overlap" declaration was itself wrong — it missed the Tenure API
-(`/check-tenure`, TSC-approved 2024-05-16) — see §Adoption checklist and
-the LESSON entry in `docs/logs/findings.md` 2026-08-31.
+trust-directory design (IETF-only now); drops the CarrierAttestation
+new-case filing; renumbers the normative rules to the four-item delta the
+catalog lacks; and files as a Commonalities Scope Enhancement, not a new
+APIBacklog sub-project. Two visible corrections: v1's "no overlap" claim
+missed the Tenure API (`/check-tenure`, TSC-approved 2024-05-16 — see
+§Adoption checklist, `docs/logs/findings.md` 2026-08-31); and v1's rule 4
+(MUST NOT carry a subscriber identifier where token-derivable) is REVERSED,
+not renumbered — the spec now REQUIRES `phoneNumber`, per the 2026-08-24
+finding that identifier-free 3-legged flows do not exist
+(`docs/logs/findings.md`).
 
 ## 1. Problem statement
 
@@ -60,7 +60,7 @@ return a predicate on every axis this proposal cares about:
 | API | Predicate endpoint | Response shape |
 |---|---|---|
 | SimSwap v2.1.0 | `POST /check` | boolean `swapped` |
-| Tenure (Vodafone, TSC-approved 2024-05-16, r3.2) | `POST /check-tenure` | boolean `tenureDateCheck` (+ optional `contractType`) |
+| Tenure (Vodafone, TSC-approved 2024-05-16, r2.2, v0.2.0 — tag r3.2 carries v0.3.0-rc.1, a release candidate, not cited here) | `POST /check-tenure` | boolean `tenureDateCheck` (+ optional `contractType`) |
 | KnowYourCustomerAgeVerification | `ageCheck` operation | string enum `'true' \| 'false' \| 'not_available'` |
 | location-verification | `verify` | `TRUE \| FALSE \| PARTIAL` |
 
@@ -75,11 +75,13 @@ auditor cannot re-verify it without calling the operator again). The
 boolean itself is not the gap — the catalog already answers in booleans.
 The gap is the envelope around the boolean.
 
-## 2. The four-item ask
+## 2. The ask
 
-This document proposes exactly four additions, as ONE Commonalities Scope
-Enhancement, on top of the existing predicate responses above — nothing
-else.
+This document proposes exactly three additions (§2.1, §2.2, §2.4), as ONE
+Commonalities Scope Enhancement, on top of the existing predicate
+responses above — nothing else. A fourth item, the blind hub (§2.3), is
+argued here but deliberately held for a separate companion filing
+(decision below, §2.3) — it is not part of this ask.
 
 ### 2.1 Attested response
 
@@ -90,60 +92,107 @@ SimSwap `/check` worked example.
 
 ### 2.2 Floor rule
 
-The operator publishes a threshold menu (a floor); the requester may only
-tighten it, by choosing an existing request field's value (e.g. SimSwap's
-`maxAge`) from that menu — nothing is added to the request to carry the
-menu itself. Off-menu requests are refused loudly, never rounded (see the
-`OFF_MENU_THRESHOLD` sketch in §4). Today thresholds are free-form —
+The operator publishes a threshold menu (a floor); where an existing
+request field already carries an ordered threshold, the requester may
+only tighten it by choosing a value from that menu — nothing is added to
+the request to carry the menu itself. Off-menu requests are refused
+loudly, never rounded (see the `OFF_MENU_THRESHOLD` sketch in §4). Today
+thresholds are free-form. The existing field, its unit, and its bound
+vary per API — this is not one shape repeated catalog-wide:
+
+| API | Threshold field | Type / unit | Bound |
+|---|---|---|---|
+| SimSwap `/check` (r3.3, v2.1.0) | `maxAge` | integer, **hours** | min 1, max 2400, default 240 — "Period in hours to be checked for SIM swap." |
+| DeviceSwap `/check` (r3.2, v1.0.0) | `maxAge` | integer, **hours** | min 1, max 2400, default 240 — "Period in hours to be checked for device swap." |
+| location-verification (r3.2, v3.0.0) | `Circle.radius` | number, **meters** | min 1, no maximum — "Expected accuracy for the verification, in meters from `center`." |
+| DeviceStatus roaming / reachability (r2.2, v1.0.0) | *(none)* | — | no threshold field exists in the request (an optional `device` wrapper is the only body); the absence of a menu here is deliberate, not an oversight (see the roaming/reachability note below) |
+| kyc-match (r2.2, v0.3.0) | *(none)* | — | no threshold field exists in the request — see §6, open item |
+
+(All verified 2026-08-31 against each API's canonical `code/API_definitions/*.yaml`.)
+
+**A same-named trap: location-verification's `maxAge` is a different field
+in a different unit.** location-verification also has a field literally
+named `maxAge`, but it is not the threshold above — it is cache
+freshness: `type: integer`, **seconds**, no minimum/maximum/default,
+described verbatim as "The maximum age (in seconds) for the location
+known by the implementation, which is accepted for the verification.
+Absence of `maxAge` means 'any age' and `maxAge=0` means a fresh
+calculation." This profile does **not** use location-verification's
+`maxAge` as its threshold field — `Circle.radius` is the threshold; the
+two `maxAge` fields must never be conflated.
+
 SimSwap `/check`'s `maxAge` accepts any integer hour 1–2400 (verified
 against `sim-swap.yaml`, `CreateCheckSimSwap.maxAge`); Tenure's
 `tenureDate` accepts any date. Floors are monotone: any party downstream
 may tighten, never loosen; widening is a distinct, consent-visible
 operation, never a default.
 
-### 2.3 Blind hub
+### 2.3 Blind hub (held for a companion filing — not part of this enhancement)
 
 End-to-end encryption of the request and response through an aggregator,
 so the hub meters and bills but cannot read identifiers, questions, or
-answers. This is proposed as part of this enhancement, not offered as an
-optional extra; whether it is filed together with items 2.1–2.4 or as a
-separate enhancement is an open question put to the APIBacklog codeowner
-on 2026-08-31 (`camara/v2/docs/pr331-reply-posted-2026-08-31.md`), pending
-their answer. It is stated plainly as politically sensitive: aggregators
-are CAMARA members, and this section does not ask them to give up their
-commercial role, only the ability to read content they do not need in
-order to meter and bill it.
+answers. **This is documented here as the argument, but it is deliberately
+NOT part of this filing.** Decision (2026-08-31): this enhancement files
+items 2.1 (attested response), 2.2 (floor rule) and 2.4 (range on open
+responses) only; item 2.3 is held for a separate, later companion
+proposal. Reasons: the codeowner's invitation to file (comment 5479522050)
+is worded narrowly around a signing mechanism — 2.1/2.2/2.4 are one
+coherent subject, what the operator signs and how tightly the signed
+payload is bounded; 2.3 is a different subject, who can read the exchange
+in transit. v1 was rejected in part for bundling unrelated items into one
+filing, and 2.3 is politically sensitive in a way 2.1/2.2/2.4 are not:
+aggregators are CAMARA members, and this section asks them to give up the
+ability to read content they do not need in order to meter and bill it —
+not their commercial role, but a capability some may be reluctant to
+concede. Bundling a politically sensitive item with an uncontroversial one
+risks sinking both.
+
+Honest cost of holding it back: without §2.3, an aggregator in the path
+still sees the identifier and the question this filing carries — only the
+attested boolean answer is signed and bound, not blinded from the hub.
+Holding 2.3 is sequencing, not abandonment: a companion proposal follows,
+and this document says so on purpose rather than letting the omission
+pass silently.
 
 ### 2.4 Range on open predicate responses
 
 Not every catalog answer is a boolean. SimSwap `/retrieve-date` returns a
-timestamp (`latestSimChange`) and `/retrieve-age-band` returns a band
-index (`simSwapAgeBand`) — both open, ordered values, not yes/no
-predicates. In profile mode such an API returns a **range drawn from the
-operator's published menu** (e.g. "swapped within the last 30–90 days"),
-never the point value and never a finer band than the menu allows. The
-range is carried in the attestation payload the same way a boolean answer
-is (§4): signed, nonce-bound, expiring, and bounded by the same floor rule
-as §2.2 — the requester may ask for a coarser range, never a finer one
-than the published menu offers.
+timestamp (`latestSimChange`) and `/retrieve-age-band` (unreleased — see
+below) returns a band index (`simSwapAgeBand`) — both open, ordered
+values, not yes/no predicates. In profile mode such an API returns a
+**range drawn from the operator's published menu** (e.g. "swapped within
+the last 30–90 days"), never the point value and never a finer band than
+the menu allows. The range is carried in the attestation payload the same
+way a boolean answer is (§4): signed, nonce-bound, expiring, and bounded
+by the same floor rule as §2.2 — the requester may ask for a coarser
+range, never a finer one than the published menu offers.
 
 (Verified 2026-08-31 against
-`camaraproject/SimSwap/code/API_definitions/sim-swap.yaml`, main:
-`/retrieve-date`'s `RetrieveSimSwapDateInfo.latestSimChange`, RFC 3339
-timestamp, nullable; `/retrieve-age-band`'s
-`SimSwapAgeBandInfo.simSwapAgeBand`, standardized band 1–17 plus sentinel
-`111`.)
+`camaraproject/SimSwap/code/API_definitions/sim-swap.yaml`, branch
+`main`: `/retrieve-date`'s `RetrieveSimSwapDateInfo.latestSimChange`, RFC
+3339 timestamp, nullable — shipped in tagged release v2.1.0;
+`/retrieve-age-band`'s `SimSwapAgeBandInfo.simSwapAgeBand`, standardized
+band 1–17 plus sentinel `111` — this operation is **not in any tagged
+release**. Checked against r3.3/r3.2 (`info.version: 2.1.0`), r3.1
+(`2.1.0-rc.2`), and r2.2 (`2.0.0`): none of them carry
+`/retrieve-age-band`; it exists only on unreleased branch `main`
+(`info.version: wip`). The band range 1–17 and sentinel `111` above are
+`main`-content-only and may still change before release.)
 
 ### 2.5 Why operators gain: no replay, no resale
 
 Today an aggregator that carries the query can read the answer and could
-serve it again from cache. With expiry, a stale answer is worthless after
-`exp`; with the blind hub (§2.3), the aggregator cannot read the answer it
-carries at all, so it cannot replay or resell it. Every fresh answer
-requires a fresh billed API call — operator revenue per genuine query is
-protected rather than leaked into the middle. Honest counterweight,
-unchanged from §6: the operator still logs the query, and the requester
-can still cache an unexpired answer for its own use within `exp`.
+serve it again from cache. With expiry alone (this filing), a stale answer
+is worthless after `exp`, which already stops resale of a cached answer
+past its window — the aggregator can still read the identifier and the
+answer while it is live, it just cannot resell it once expired. The
+stronger claim, that the aggregator cannot read the answer it carries at
+all, needs the blind hub (§2.3), held for the companion filing. Every
+fresh answer requires a fresh billed API call — operator revenue per
+genuine query is protected rather than leaked into the middle. Honest
+counterweight, unchanged from §6: the operator still logs the query, and
+the requester can still cache an unexpired answer for its own use within
+`exp`.
 
 ## 3. Signing standard
 
@@ -155,6 +204,20 @@ reviewer named (SD-JWT VC, W3C VC):
   per RFC 7515 §2 (`CAMARA-Security-Interoperability.md`, "Additional
   Recommendations for DPoP Implementations", verified 2026-08-31). CAMARA
   already has JOSE tooling in its dependency graph on the request side.
+- **Commonalities has already chosen JWS on the notification leg.**
+  `camaraproject/Commonalities/documentation/CAMARA-API-Event-Subscription-and-Notification-Guide.md`,
+  "Notifications Security Considerations" (lines 672–673, verified
+  2026-08-31), states verbatim that CAMARA "RECOMMENDS that the Camara
+  Notification is signed and then encrypted using [JSON Web Signature
+  (JWS)] and [JSON Web Encryption (JWE)]." This proposal completes the
+  same choice on the synchronous response leg — same signing standard,
+  the other half of the request/response cycle. The delta, stated
+  plainly: that guidance is scoped to asynchronous CloudEvent
+  notifications, and `CAMARA-API-Design-Guide.md` (1714 lines, verified
+  2026-08-31) contains zero references to RFC 9421, message signatures,
+  or response signing. v1 was rejected in part for duplicating existing
+  capability — leaving this adjacent precedent uncited would invite the
+  same objection against v2.
 - A boolean needs no selective disclosure. SD-JWT VC's core feature —
   disclosing a subset of claims from a larger credential — solves a
   problem this proposal does not have: there is exactly one claim, the
@@ -257,7 +320,7 @@ payload, never the plain copy.
 |---|---|---|
 | SimSwap `/check` | boolean `swapped` | add `nonce` to request, `attestation` to response (worked example above) |
 | SimSwap `/retrieve-date` | timestamp `latestSimChange` | add `nonce` to request; response attests a **range from the published menu** (§2.4), never the point timestamp |
-| SimSwap `/retrieve-age-band` | band index `simSwapAgeBand` (1–17, sentinel `111`) | add `nonce` to request; response attests a **range from the published menu** (§2.4), never a finer band than the menu offers |
+| SimSwap `/retrieve-age-band` (unreleased, `main` only — not in v2.1.0 or any tagged release) | band index `simSwapAgeBand` (1–17, sentinel `111`) | add `nonce` to request; response attests a **range from the published menu** (§2.4), never a finer band than the menu offers |
 | Tenure `/check-tenure` | boolean `tenureDateCheck` | same shape: `nonce` on request, `attestation` on response |
 | KnowYourCustomerAgeVerification `ageCheck` | string enum `'true'\|'false'\|'not_available'` | same shape; `'not_available'` MUST attest a refusal, never a rounded `'false'` |
 | location-verification `verify` | `TRUE\|FALSE\|PARTIAL` | same shape; `PARTIAL` MUST attest a refusal, never a rounded boolean |
@@ -302,6 +365,22 @@ invented here.
 - **This document never claims the underlying boolean, or the predicate
   pattern, is new.** The delta claimed here is exactly the envelope: a
   signature, a nonce binding, an expiry, and a floor rule. Nothing else.
+- **kyc-match's threshold field is an open item, not resolved here.**
+  kyc-match's primary response is per-field discrete indicators
+  (`nameMatch`, `addressMatch`, `idDocumentMatch`, …), each a string enum
+  `'true'|'false'|'not_available'` — it does not return a similarity
+  score by default. An optional `MatchScoreResult` (0–100, Jaro-Winkler)
+  exists, but is operator-capability-dependent and, per its spec
+  description, "shall only be returned when the value of the
+  corresponding match field is `false`" (r2.2, v0.3.0, verified
+  2026-08-31). That conditioning does not weaken the hill-climbing
+  concern — it sharpens it: the score surfaces exactly when the requester
+  guessed wrong, which is the feedback a hill-climber needs. Separately,
+  kyc-match's request has **no** existing threshold field, so a
+  `numberMatch` menu (§2.2) would add a field to the request, which
+  contradicts §2.2's "nothing is added to the request to carry the menu
+  itself." Whether and how to profile kyc-match at all is not resolved
+  by this document.
 
 ## References
 
@@ -319,13 +398,22 @@ invented here.
 - SimSwap v2.1.0 `/check`: `camaraproject/SimSwap/code/API_definitions/sim-swap.yaml`
   (fetched 2026-08-31) — `CreateCheckSimSwap` (`phoneNumber`, `maxAge`
   1–2400 hours) and `CheckSimSwapInfo` (`swapped` boolean).
-- SimSwap v2.1.0 `/retrieve-date` and `/retrieve-age-band`: same file
-  (fetched 2026-08-31) — `RetrieveSimSwapDateInfo.latestSimChange`
-  (RFC 3339 timestamp, nullable) and `SimSwapAgeBandInfo.simSwapAgeBand`
-  (standardized band 1–17, sentinel `111`); grounds §2.4.
+- SimSwap `/retrieve-date` (v2.1.0, tagged release) and `/retrieve-age-band`
+  (unreleased, branch `main` only — absent from every tagged release
+  r2.2–r3.3): same file (fetched 2026-08-31) —
+  `RetrieveSimSwapDateInfo.latestSimChange` (RFC 3339 timestamp, nullable)
+  and `SimSwapAgeBandInfo.simSwapAgeBand` (standardized band 1–17,
+  sentinel `111`); grounds §2.4.
 - CAMARA API Design Guide: `camaraproject/Commonalities/documentation/CAMARA-API-Design-Guide.md`
-  (fetched 2026-08-31) — §3.1 Business-level Outcomes in Successful
-  Responses, §5.8.5 Headers.
+  (fetched 2026-08-31, 1714 lines) — §3.1 Business-level Outcomes in
+  Successful Responses, §5.8.5 Headers; zero references to RFC 9421,
+  message signatures, or response signing (grounds §3's "why v2, not
+  duplication" argument).
+- CAMARA API Event Subscription and Notification Guide:
+  `camaraproject/Commonalities/documentation/CAMARA-API-Event-Subscription-and-Notification-Guide.md`,
+  "Notifications Security Considerations", lines 672–673 (fetched
+  2026-08-31) — recommends JWS + JWE signing for CAMARA Notifications;
+  prior art cited in §3.
 - CAMARA Project Charter: `camaraproject/Governance/ProjectCharter.md`,
   line 62 (northbound-only scope) and line 248 (cross-sub-project
   decisions go to Commonalities).

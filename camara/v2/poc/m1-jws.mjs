@@ -181,6 +181,19 @@ export function compactSize(token) {
 
 const BASE_FIELDS = { iss: 'string', aud: 'string', nonce: 'string', iat: 'integer', exp: 'integer' };
 
+// The refusal profile's one extra claim, hoisted to a single named constant
+// (was four separate inline `{ error: 'string' }` literals, one at each
+// call site below). `checkNoReservedCollision`/`checkClosedPayload` guard
+// this constant against colliding with `BASE_FIELDS`, exactly as they guard
+// an answer schema's `params`/`answer` fields. Honest note: with the
+// current single-key value, that guard is structurally unreachable —
+// `error` never collides with any `BASE_FIELDS` name — so it cannot fire
+// today. It stays wired so that if a future edit ever adds a colliding key
+// to REFUSAL_FIELDS, the guard catches it instead of silently clobbering a
+// base claim, the same failure class the reserved-claim clobber fix above
+// closed for the answer profile.
+const REFUSAL_FIELDS = Object.freeze({ error: 'string' });
+
 function typeOk(type, value) {
   if (type === 'string') return typeof value === 'string' && value.length > 0;
   if (type === 'integer') return Number.isSafeInteger(value);
@@ -216,6 +229,24 @@ function checkClosedPayload(payload, extraFields) {
   return null;
 }
 
+// Fails closed on a schema field that would clobber a base claim's NAME and
+// VALUE at merge time (`{...base, ...params, ...answer}`/`{...BASE_FIELDS,
+// ...extraFields}` are both last-key-wins). PROVEN exploit: schema
+// `{params:{iat:'boolean'}}` with `params={iat:true}` signed a payload
+// carrying `"iat":true`, which coerces truthy and defeated the `exp > iat`
+// sanity guard. Checked from this one shared definition at BOTH construction
+// (attestAnswer/attestRefusal, before the payload is built) and verification
+// (verifyAnswer/verifyRefusal, before checkClosedPayload runs), so the two
+// sides cannot drift apart.
+function checkNoReservedCollision(extraFields) {
+  for (const k of Object.keys(extraFields)) {
+    if (k in BASE_FIELDS) {
+      return new ClaimRejected('RESERVED_CLAIM', `schema claim collides with a reserved base claim: ${k}`);
+    }
+  }
+  return null;
+}
+
 function verifyRequesterChecks(payload, { expectedIss, expectedAud, nonceStore, now }) {
   if (payload.iss !== expectedIss) return new ClaimRejected('ISS_MISMATCH', 'iss mismatch');
   if (payload.aud !== expectedAud) return new ClaimRejected('AUD_MISMATCH', 'aud mismatch');
@@ -230,16 +261,14 @@ function verifyRequesterChecks(payload, { expectedIss, expectedAud, nonceStore, 
   return null;
 }
 
-// Two named schemas. SIM_SWAP_CHECK produces the exact seven-claim payload
-// in camara/v2/docs/camara-attested-windowed-disclosure.md §4. TENURE_CHECK
-// exists to prove the schema mechanism is not SimSwap-specific.
+// The named schema. SIM_SWAP_CHECK produces the exact seven-claim payload
+// in camara/v2/docs/camara-attested-windowed-disclosure.md §4. (A second,
+// TENURE_CHECK schema used to live here to prove the mechanism is not
+// SimSwap-specific; it had no real caller anywhere in the tree, so it now
+// lives as a test-only fixture in m1-jws-check.mjs instead.)
 export const SIM_SWAP_CHECK = Object.freeze({
   params: Object.freeze({ maxAge: 'integer' }),
   answer: Object.freeze({ swapped: 'boolean' }),
-});
-export const TENURE_CHECK = Object.freeze({
-  params: Object.freeze({ tenureDate: 'string' }),
-  answer: Object.freeze({ tenureDateCheck: 'boolean' }),
 });
 
 // Closed refusal-reason enum. A refusal is signed too — a signed excuse is
@@ -262,8 +291,11 @@ export function attestAnswer(privateKey, kid, base, schema, params, answer) {
       !isPlainObject(params) || !isPlainObject(answer)) {
     return { ok: false, reason: new ClaimRejected('MALFORMED_INPUT', 'base/schema/params/answer must be plain objects') };
   }
+  const extraFields = { ...schema.params, ...schema.answer };
+  const collisionErr = checkNoReservedCollision(extraFields);
+  if (collisionErr) return { ok: false, reason: collisionErr };
   const payload = { ...base, ...params, ...answer };
-  const err = checkClosedPayload(payload, { ...schema.params, ...schema.answer });
+  const err = checkClosedPayload(payload, extraFields);
   if (err) return { ok: false, reason: err };
   return signJws(privateKey, kid, payload);
 }
@@ -271,7 +303,10 @@ export function attestAnswer(privateKey, kid, base, schema, params, answer) {
 export function verifyAnswer(token, resolveKey, schema, { expectedIss, expectedAud, nonceStore, now }) {
   const r = verifyJws(token, resolveKey);
   if (!r.ok) return r;
-  const closedErr = checkClosedPayload(r.payload, { ...schema.params, ...schema.answer });
+  const extraFields = { ...schema.params, ...schema.answer };
+  const collisionErr = checkNoReservedCollision(extraFields);
+  if (collisionErr) return { ok: false, reason: collisionErr };
+  const closedErr = checkClosedPayload(r.payload, extraFields);
   if (closedErr) return { ok: false, reason: closedErr };
   const reqErr = verifyRequesterChecks(r.payload, { expectedIss, expectedAud, nonceStore, now });
   if (reqErr) return { ok: false, reason: reqErr };
@@ -285,8 +320,10 @@ export function attestRefusal(privateKey, kid, base, error) {
   if (!REFUSAL_REASONS.includes(error)) {
     return { ok: false, reason: new ClaimRejected('INVALID_ERROR', 'error not in the closed enum') };
   }
+  const collisionErr = checkNoReservedCollision(REFUSAL_FIELDS);
+  if (collisionErr) return { ok: false, reason: collisionErr };
   const payload = { ...base, error };
-  const err = checkClosedPayload(payload, { error: 'string' });
+  const err = checkClosedPayload(payload, REFUSAL_FIELDS);
   if (err) return { ok: false, reason: err };
   return signJws(privateKey, kid, payload);
 }
@@ -294,7 +331,9 @@ export function attestRefusal(privateKey, kid, base, error) {
 export function verifyRefusal(token, resolveKey, { expectedIss, expectedAud, nonceStore, now }) {
   const r = verifyJws(token, resolveKey);
   if (!r.ok) return r;
-  const closedErr = checkClosedPayload(r.payload, { error: 'string' });
+  const collisionErr = checkNoReservedCollision(REFUSAL_FIELDS);
+  if (collisionErr) return { ok: false, reason: collisionErr };
+  const closedErr = checkClosedPayload(r.payload, REFUSAL_FIELDS);
   if (closedErr) return { ok: false, reason: closedErr };
   if (!REFUSAL_REASONS.includes(r.payload.error)) {
     return { ok: false, reason: new ClaimRejected('INVALID_ERROR', 'error not in the closed enum') };

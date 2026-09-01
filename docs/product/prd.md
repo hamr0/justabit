@@ -601,6 +601,15 @@ Explicit and binding. "Useful" is not a defense for any of these.
     belongs in Commonalities, as a Scope Enhancement (findings 2026-08-31).
 16. **No overlap declaration without a full APIBacklog table sweep, dated**
     (findings 2026-08-31).
+17. **CONFIRMED (user's call, 2026-08-31; findings 2026-08-31):** Never
+    cite a path or field that exists only on `main` as a released
+    capability — check the release tags, and say "on main, unreleased"
+    when that is the truth. (Triggered by the `/retrieve-age-band`
+    retraction, §7 baseline above.)
+18. **CONFIRMED (user's call, 2026-08-31; findings 2026-08-31):** Never
+    assume a CAMARA parameter name carries the same unit or meaning across
+    APIs — `maxAge` is hours/event-window on the swap APIs and
+    seconds/data-staleness on location verification.
 
 ## 6. Sequence
 
@@ -639,6 +648,13 @@ Phase 4  File: Commonalities guideline proposal + sim-swap
          blind-hub placement pending.
          2026-08-31: user validated the consolidated branch at `8a454c9`
          (nine suites, exit 0 — findings).
+         2026-08-31: blind-hub placement DECIDED (§8 risk 6, findings) —
+         filing scope is now 2.1/2.2/2.4 only; 2.3 (blind hub) held for a
+         separate companion filing.
+         2026-08-31: V2-M2 defined (§8 risk 7, findings) — shrink
+         `PUBLISHED_THRESHOLD_MENU` to 30/60/90 days (720/1440/2160h) and
+         re-aim `demo.mjs`'s leak control to assert REFUSAL of an
+         above-cap/off-menu request; not yet built.
 Phase 5  WG evaluation populates named supporters (template
          validation → company support analysis → bi-weekly
          Backlog WG lazy consensus)                                [G5]
@@ -719,18 +735,28 @@ be repeated.
   existential past Sandbox, not political nicety, even though they are no
   longer a precondition for filing (G4; no-go 12 retired 2026-08-25).
   Sub-project cadence example: SimSwap meets every 4 weeks, Thu 07:30 UTC.
-- **Verified spec baseline (2026-08-14, re-verified 2026-08-24):** SimSwap
-  v2.1.0 (`/check`, `/retrieve-date`, `/retrieve-age-band`) and
-  NumberVerification v2.1.0 (`/verify`, `/device-phone-number`) hold, both
-  still Incubating; `GET /device-phone-number` takes no request body and is
-  structurally identifier-free off the 3-legged token (its sibling
-  `POST /verify` still requires an identifier). KYC is no longer one r2.2
-  spec — it split into three repos post-Spring25: kyc-match (r1.2, v0.4.0),
-  kyc-fill-in (r1.3, v0.4.1), kyc-age-verification (r1.3, v0.2.1, Sandbox
-  per its lifecycle badge — though its own README body text still says
-  "Incubating stage since February 2025", an unresolved contradiction).
-  Open Gateway: 86 operator groups, 300+ networks. Full citations live in
-  D2 §References.
+- **Verified spec baseline (2026-08-14, re-verified 2026-08-24, RETRACTED
+  and corrected 2026-08-31 — findings):** SimSwap v2.1.0 ships `/check` and
+  `/retrieve-date` ONLY — `/retrieve-age-band` is NOT in v2.1.0 (confirmed
+  absent from every released tag r2.2/r3.1/r3.2/r3.3; it exists only on
+  unreleased `main`, `info.version: wip`). Do not cite it as a shipped
+  capability. `maxAge` on both SimSwap and DeviceSwap `/check` is
+  canonical, not just Playground-measured: hours, `minimum:1`,
+  `maximum:2400`, `default:240`. NumberVerification v2.1.0 (`/verify`,
+  `/device-phone-number`) holds; both APIs still Incubating.
+  `GET /device-phone-number` takes no request body and is structurally
+  identifier-free off the 3-legged token (its sibling `POST /verify` still
+  requires an identifier). KYC is no longer one r2.2 spec — it split into
+  three repos post-Spring25: kyc-match (r1.2, v0.4.0 — its primary response
+  is per-field discrete match indicators, NOT a similarity score;
+  `MatchScoreResult` is optional and returned only when the corresponding
+  field is `false`), kyc-fill-in (r1.3, v0.4.1), kyc-age-verification (r1.3,
+  v0.2.1, Sandbox per its lifecycle badge — though its own README body text
+  still says "Incubating stage since February 2025", an unresolved
+  contradiction; `ageCheck` is a string enum "true"/"false"/"not_available",
+  not a JSON boolean). Open Gateway: 86 operator groups, 300+ networks.
+  Full citations live in D2 §References and in the 2026-08-31 findings
+  entry.
 - **AAIF — DROPPED as a submission target (2026-08-25 re-verification).**
   **Correction (2026-08-25 re-verification):** the entry that stood here
   said the process was "grounded 2026-08-15" and described a 4-stage
@@ -835,6 +861,40 @@ we manage here:
    modular (summary / proposal / seam sections survive any format).
 4. **Scope leak from Mode B enthusiasm** — the no-go list (§5.5) is the
    guard; PoC reviews check against it.
+5. **DECIDED (user's call, findings 2026-08-31): kyc-match has no
+   request-side threshold field, and the operator publishes ONE threshold
+   and applies it itself — the requester chooses nothing.** No bisection,
+   no hill-climbing, no new request field for this predicate; the
+   proposal's §2.2 rule ("nothing is added to the request to carry the
+   menu itself") is preserved. This supersedes the four-bucket
+   `numberMatch: [60, 70, 80, 90]` menu for kyc-match specifically (that
+   menu still applies to the swap-recency predicates, which reuse the
+   existing `maxAge` field). Implementation in `demo.mjs` is deferred to
+   V2-M2, not done in this round.
+6. **DECIDED (blind-hub scope, main session on the user's explicit
+   delegation, 2026-08-31; findings 2026-08-31): file 2.1/2.2/2.4 only,
+   hold 2.3 (blind hub) for a separate companion filing.** The
+   codeowner's invitation was worded narrowly around a signing mechanism;
+   2.1/2.2/2.4 are one coherent subject (what is signed, how tightly
+   bounded), 2.3 is a different one (who can read the exchange) and is
+   documented as politically sensitive; v1 was rejected in part for
+   bundling. This supersedes the earlier suggestion to ride the JWE
+   envelope in alongside signing — that JWE precedent (Commonalities'
+   notification-signing guide) is real but expands the filing beyond what
+   was invited, so it is withdrawn. Honest cost, stated not hidden:
+   without 2.3, an aggregator in the path still sees the identifier and
+   the question in this filing; holding 2.3 is sequencing, not
+   abandonment — the proposal text says a companion proposal follows.
+7. **DECIDED (user's call, 2026-08-31; findings 2026-08-31): swap-recency
+   threshold menu is 30/60/90 days** — `P30D`=720h, `P60D`=1440h,
+   `P90D`=2160h, all under the canonical 2400-hour `maxAge` cap, removing
+   the above-cap fallback to `/retrieve-date` entirely rather than
+   guarding it. **Implementation is deferred to V2-M2** (see §6 module
+   sequence) — `PUBLISHED_THRESHOLD_MENU` in `camara/v2/poc/demo.mjs` is
+   unchanged this round, because `demo.mjs`'s `LEAK_PREDICATE` relies on
+   `P365D` being above the 2400h cap to keep the leak-control assertion
+   reachable; V2-M2 must re-aim that assertion to REFUSAL of an
+   above-cap/off-menu request in the same change that shrinks the menu.
 
 ## 9. Decisions log
 
@@ -842,7 +902,14 @@ The full rationale for every decision lives in `docs/logs/findings.md`; this tab
 
 | Date | Decision | Status | Where |
 |---|---|---|---|
-| 2026-08-31 | CAMARA v2 drafted as a Commonalities Scope Enhancement (agent-run, user review pending) | active | [findings.md](../logs/findings.md#2026-08-31-latest--camara-v2-drafted-as-a-commonalities-scope-enhancement-agent-run-user-review-pending) |
+| 2026-09-01 | User validation run on the uncommitted `camara/v2-rescope` tree at tip `64f8c26`: all seven v2 check suites green (20/20, 33/33, 10/10, 26/26, 42/42, 67/67, 47/47), every one exit 0 — supersedes the voided `8a454c9` nine-suite record | active | [findings.md](../logs/findings.md#2026-09-01-latest--user-validation-run-at-the-uncommitted-camarav2-rescope-tree-all-seven-v2-suites-green-superseding-the-voided-8a454c9-record) |
+| 2026-08-31 | Live re-verification vs canonical CAMARA YAML: SimSwap age-band retracted (v2.1.0 has no `/retrieve-age-band`), kyc-match score claim refuted, Commonalities notification-signing precedent found; two candidate no-gos proposed | active | [findings.md](../logs/findings.md#2026-08-31--live-re-verification-against-canonical-camara-yaml-simswap-age-band-retracted-kyc-match-score-refuted-commonalities-notification-signing-precedent-found) |
+| 2026-08-31 | kyc-match threshold DECIDED (user's call): operator publishes one threshold, applies it itself — no bisection, no hill-climbing, no new request field; supersedes the `numberMatch` menu for kyc-match only | active | [findings.md](../logs/findings.md#2026-08-31--live-re-verification-against-canonical-camara-yaml-simswap-age-band-retracted-kyc-match-score-refuted-commonalities-notification-signing-precedent-found) |
+| 2026-08-31 | Swap-recency bucket set DECIDED (user's call): 30/60/90 days (720/1440/2160h), all under the 2400h cap — implementation deferred to V2-M2 | active | [findings.md](../logs/findings.md#2026-08-31--live-re-verification-against-canonical-camara-yaml-simswap-age-band-retracted-kyc-match-score-refuted-commonalities-notification-signing-precedent-found) |
+| 2026-08-31 | Blind-hub scope DECIDED (main session, on the user's delegation): file 2.1/2.2/2.4 only, hold 2.3 for a separate companion filing — supersedes the earlier JWE-riding-along suggestion | active | [findings.md](../logs/findings.md#2026-08-31--live-re-verification-against-canonical-camara-yaml-simswap-age-band-retracted-kyc-match-score-refuted-commonalities-notification-signing-precedent-found) |
+| 2026-08-31 | No-gos 17 and 18 CONFIRMED by the user (were candidate) | active | [findings.md](../logs/findings.md#2026-08-31--live-re-verification-against-canonical-camara-yaml-simswap-age-band-retracted-kyc-match-score-refuted-commonalities-notification-signing-precedent-found) |
+| 2026-08-31 | Fix round: V2-M1-JWS reserved-claim clobber closed (mutation-proven); 3 items deferred and documented; orphaned-reference sweep (CLAUDE.md repo map, demo.mjs "profile rule 4", m4-facts-mock.mjs spec citation, v2 docs identifier-omission reversal) | active | [findings.md](../logs/findings.md#2026-08-31--v2-m1-jws-fix-round-reserved-claim-clobber-closed-three-items-deferred-and-documented) |
+| 2026-08-31 | CAMARA v2 drafted as a Commonalities Scope Enhancement (agent-run, user review pending) | active | [findings.md](../logs/findings.md#2026-08-31--camara-v2-drafted-as-a-commonalities-scope-enhancement-agent-run-user-review-pending) |
 | 2026-08-31 | CAMARA feedback and rescoping: Scope Enhancement on Commonalities, use case 2 dropped, layout option B | active | [findings.md](../logs/findings.md#2026-08-31--camara-feedback-on-330331-profile-framing-rejected-use-case-2-charter-excluded-signing-layer-routed-to-commonalities-tenure-api-overlap-missed-by-the-filed-no-overlap-declaration) |
 | 2026-08-31 | Draft renamed via replacement: `draft-hamr-...-00` posted, `draft-hassan-...-00` now Replaced | active | [findings.md](../logs/findings.md#2026-08-31--draft-renamed-via-replacement-draft-hamr-oauth-agent-delegation-00-posted-draft-hassan-oauth-agent-delegation-00-now-replaced) |
 | 2026-08-31 | IETF draft-00 SUBMITTED — individual, NOT adopted, no formal standing | active | [findings.md](../logs/findings.md#2026-08-31--scope-made-mechanically-decidable-test-vectors-with-a-negative-control-two-cross-repo-handovers-closed) |

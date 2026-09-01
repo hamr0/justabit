@@ -21,22 +21,20 @@
 | KYC Age Verification `ageCheck` | enum `'true'\|'false'\|'not_available'` | TLS-only, no nonce, no expiry |
 | location-verification `verify` | `TRUE\|FALSE\|PARTIAL` | TLS-only, no nonce, no expiry |
 
-## 3. The delta (four items only)
+## 3. The delta (three items filed; a fourth held for later)
 
 - **Attested response** — signed (JWS), nonce-bound, expiring, verifiable
   offline by any third party via a per-operator JWKS.
 - **Floor rule** — operator publishes a threshold menu; requester may
   only tighten; off-menu is refused, never rounded.
-- **Blind hub** — proposed as part of this enhancement; end-to-end
-  encryption through an aggregator so it meters and bills without reading
-  content; placement (same enhancement or separate) is an open question
-  put to the codeowner 2026-08-31.
 - **Range on open predicate responses** — for open-value answers (SimSwap
-  `/retrieve-date`, `/retrieve-age-band`), attest a range from the
+  `/retrieve-date`, tagged; `/retrieve-age-band`, unreleased — `main`
+  only, not in any tagged SimSwap release), attest a range from the
   published menu, never the point value.
-- Operator revenue: expiry + blinding remove the replay and resale path
-  — a stale or unread answer can't be served again from an aggregator's
-  cache, so each genuine query stays a fresh billed API call.
+- Operator revenue: expiry (this filing) removes the replay/resale of a
+  *stale* answer — a companion filing's blind hub (held out of this ask,
+  §2.3 of the proposal) would remove the read path itself, so no answer
+  can be served again from an aggregator's cache at all.
 
 ## 4. Wire example — SimSwap `/check`
 

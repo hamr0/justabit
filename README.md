@@ -91,7 +91,8 @@ honestly: [`camara/v1/docs/camara-attested-windowed-disclosure.md`](camara/v1/do
 
 ## Why a profile, not one more API
 
-CAMARA's own catalog is already halfway here and stopped. `/retrieve-age-band` coarsens a
+CAMARA's own catalog is already halfway here and stopped. `/retrieve-age-band` (unreleased,
+`main` only — not in any tagged SimSwap release) coarsens a
 response because raw timestamps over-disclose. `GET /device-phone-number` already takes no
 request body at all — it derives the line from the 3-legged access token instead of asking
 for an identifier. `kyc-age-verification` already ships as a boolean predicate API in the
@@ -205,9 +206,9 @@ Requirements live in the [PRD §4](docs/product/prd.md); status, setup and cavea
   tightening) and the delegation model agents carry.
 - **8een** — the one-bit verifier pattern, trust-anchor handling, and the evidence
   discipline (claims pinned to file/line/commit; retractions kept).
-- **CAMARA's own specs** — `/retrieve-age-band`, `GET /device-phone-number`'s no-body
-  shape, `kyc-age-verification`: the catalog is already halfway here. This profile
-  finishes the trajectory, catalog-wide.
+- **CAMARA's own specs** — `/retrieve-age-band` (unreleased, `main` only), `GET
+  /device-phone-number`'s no-body shape, `kyc-age-verification`: the catalog is already
+  halfway here. This profile finishes the trajectory, catalog-wide.
 
 ## License
 

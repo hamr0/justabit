@@ -47,12 +47,18 @@ exception (profile rule 7), not a loophole.
 Every claim about CAMARA/GSMA/IETF state is pinned to a source — spec YAML,
 repo, or dated page — and re-verified before any submission. Current verified
 baseline (2026-08-14, re-verified 2026-08-24): SimSwap v2.1.0 (`/check`,
-`/retrieve-date`, `/retrieve-age-band`), NumberVerification v2.1.0 (`/verify`
-requires an identifier; `/device-phone-number` takes no request body and
-derives the line from the 3-legged token), KYC split post-Spring25 into
-kyc-match (r1.2, v0.4.0), kyc-fill-in (r1.3, v0.4.1), kyc-age-verification
-(r1.3, v0.2.1 — Sandbox). If a claim dies on re-verification, retract it
-visibly — retractions build WG credibility.
+`/retrieve-date`), NumberVerification v2.1.0 (`/verify` requires an
+identifier; `/device-phone-number` takes no request body and derives the
+line from the 3-legged token), KYC split post-Spring25 into kyc-match
+(r1.2, v0.4.0), kyc-fill-in (r1.3, v0.4.1), kyc-age-verification (r1.3,
+v0.2.1 — Sandbox). **RETRACTED (2026-08-31):** the baseline previously
+listed `/retrieve-age-band` as part of SimSwap v2.1.0. VERIFIED FALSE
+against every tagged release (r3.3/r3.2 both `info.version: 2.1.0`, r3.1
+`2.1.0-rc.2`, r2.2 `2.0.0`) — none of them carry `/retrieve-age-band`; it
+exists only on unreleased branch `main` (`info.version: wip`). Any
+reference to `/retrieve-age-band` must say "unreleased, `main` only," not
+"v2.1.0." If a claim dies on re-verification, retract it visibly —
+retractions build WG credibility.
 
 **No orphaned references.** Retracting a claim, renaming/moving a file,
 dropping a term, or changing a heading is not done until the whole repo is
@@ -114,8 +120,12 @@ camara/v1/poc/     Mode A demo: mock backend default, Orange adapter swappable;
                    four assertions (each with its negative), Node zero-dep, PRD §4
 camara/v1/spec/    carrier-attestation.yaml — illustrative OpenAPI sketch, not normative
 camara/v2/docs/    working copy being reshaped per the 2026-08-31 feedback — not filed
-camara/v2/poc/     working copy of camara/v1/poc/, copied unchanged 2026-08-31
-camara/v2/spec/    working copy of camara/v1/spec/, copied unchanged 2026-08-31
+camara/v2/poc/     v1 M1-M6/demo copied unchanged 2026-08-31 (still what M2/M6/
+                   demo run on) PLUS a new JWS attestation core built the same
+                   day (m1-jws.mjs, m1-jws-check.mjs) — caller migration is V2-M3
+camara/v2/spec/    working copy of camara/v1/spec/, rewritten 2026-08-31 for the
+                   JWS envelope (renamed schemas, required phoneNumber, replaces
+                   the old {claims,sig} shape) — 215 -> 310 lines, not unchanged
 ietf/v1/docs/      ietf-agent-delegation.md — IETF proposal (agent/delegation
                    side only, OAuth WG target) + the draft XML
 .claude/           local session context (gitignored — never publish)
