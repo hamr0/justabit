@@ -14,7 +14,56 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
-## 2026-09-01 (latest) — Second reply sent on the EMILIA pre-flight thread after a full read of asor -00; Rafael (asor) and Iman (EMILIA) both aligned; the no-menu case and who-verifies settled in discussion; PR #19 merged
+## 2026-09-01 (latest) — Rafael (asor) accepts the -00 §10 correction; asor -01 will register a mirrored `min` comparator; §9.1 parent-validity confirmed shared
+
+**EVIDENCE**
+
+1. Rafael Asor replied a third time on the private EMILIA pre-flight
+   thread, received 2026-09-01, after the user's second reply SENT
+   2026-09-01T20:11:29+02:00. Record (paraphrased, quoted third-party
+   text stripped per this repo's convention) at
+   `ietf/v1/docs/asor-reply-3-received-2026-09-01.md`.
+
+2. Rafael accepts the correction: the "Agent Delegation Constraint Types"
+   registry and the fail-closed unknown-type-denies rule are already in
+   asor -00 Sections 4.1 and 10; nothing about that shape was waiting on
+   -01. He attributes his own earlier "-01" citation to habit, not to a
+   claim that the shape is unposted.
+
+3. Rafael reframes `min`: it is a missing constraint TYPE, not a
+   normalization achievable by negating `max`. Max over a negated
+   quantity preserves order but loses value semantics a third party can
+   read without a decoder ring (a tenure floor written as a negative
+   number fails that readability test). asor -01 (still not submitted)
+   will add `min` to the initial registry entries alongside `max`, with
+   a mirrored subsumption line: a `min` present in the parent must be
+   present in the child with `C.min >= P.min`, non-droppable, unknown
+   types still deny. Against -00 as posted this is one Specification
+   Required registration away — the same shape as the evidence field. He
+   asks that the negation trick not be graded as equivalent, since the
+   value semantics are exactly what it loses.
+
+4. Rafael confirms the parent-stays-valid-after-attenuation problem
+   (asor §9.1) is shared and structural, sitting in the composition
+   boundary; none of §9.1's listed mitigations turn it into a
+   token-profile fix. The EMILIA matrix's framing of this as shared
+   between the two drafts is accurate.
+
+5. What changes for HAMR -01 scope item 1 (axis names bound to
+   comparator types): the alignment target now includes `min`, but only
+   once asor -01 is actually posted. Until then, any -01 text must cite
+   asor **-00 §10** for the registry and describe `min` as *pending in
+   asor -01* — never as present in a posted asor document. No HAMR draft
+   text has changed; this is a citation-accuracy constraint recorded
+   ahead of writing.
+
+**DECISION: none.** No reply has been sent by the user to this message;
+nothing here is a course change, only a refinement of the item-1 mapping
+already recorded in the entry below, gated on asor -01 actually posting.
+
+---
+
+## 2026-09-01 — Second reply sent on the EMILIA pre-flight thread after a full read of asor -00; Rafael (asor) and Iman (EMILIA) both aligned; the no-menu case and who-verifies settled in discussion; PR #19 merged
 
 **EVIDENCE**
 
