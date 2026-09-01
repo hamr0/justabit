@@ -88,7 +88,7 @@ const validName = (v) => typeof v === 'string' && v.length >= 1 && v.length <= M
 // why it can never be an answer.
 // `reachable` was carried here ahead of the spec sketch and flagged rather than
 // minted silently; on the user's decision (2026-08-16) it is now also in
-// `spec/carrier-attestation.yaml`'s illustrative Predicate enum. Reachability is
+// `camara/v1/spec/carrier-attestation.yaml`'s illustrative Predicate enum. Reachability is
 // a required mock FACT (PRD FR5), and a fact no predicate can consume is dead
 // weight. The sketch is illustrative, not normative — the normative profile
 // (proposal rules 1–8) enumerates no predicate types, so nothing else moved.

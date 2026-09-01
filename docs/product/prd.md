@@ -4,7 +4,7 @@
 **Date:** 2026-08-14 (consolidated from `carrier-attestation-proposal.md`,
 `camara-plan.md`, `aaif-plan.md` — all three deleted; outward content moved to
 `docs/product/`).
-**Last updated:** 2026-08-25.
+**Last updated:** 2026-09-01.
 **Doctrine:** `CLAUDE.md` (invariants, claims discipline). This PRD is the
 *what/when/how-good*; CLAUDE.md is the *never-break*.
 
@@ -30,12 +30,12 @@ Define "good" before building (AGENT_RULES). In order of proof strength:
 | Gate | Success looks like | Evidence |
 |---|---|---|
 | G0 Docs consolidated | Exactly 3 living docs (this PRD + 2 proposals); no orphan cross-references | repo grep |
-| G1 PoC runnable | `node poc/demo.mjs` passes all 4 assertions on a clean clone, zero credentials, exit code 0 | run output |
+| G1 PoC runnable | `node camara/v1/poc/demo.mjs` passes all 4 assertions on a clean clone, zero credentials, exit code 0 | run output |
 | G2 PoC live | Same demo, `--backend orange`, against Orange Playground with scripted backstories | run output |
 | G3 Circulated | Profile posted to ICM discussion / GitHub Discussion; reactions collected | links |
 | G4 Filed (CAMARA) | Commonalities guideline proposal + sim-swap adoption PR + APIBacklog issue/PR submitted (API family owner: Cairenes Solutions) — filing does not wait on named supporters | issue/PR links |
 | G5 Supported | Named operator supporters recorded in the template's Supporters field — populated by the Working Group during evaluation, downstream of filing (no-go 12 retired 2026-08-25) | names in template |
-| G6 IETF filed | Internet-Draft submitted covering agent/delegation semantics (target: OAuth WG automated-agent-authorization work item; CATALIST as a routing venue if OAuth WG doesn't fit) | draft link |
+| G6 IETF filed | Internet-Draft submitted covering agent/delegation semantics (target: OAuth WG automated-agent-authorization work item; CATALIST as a routing venue if OAuth WG doesn't fit) | MET 2026-08-31, re-posted 2026-08-31 as `draft-hamr-...`: https://datatracker.ietf.org/doc/draft-hamr-oauth-agent-delegation/ |
 
 Timescale is telecom-speed: quarters, not weeks. Sustained presence is itself
 a deliverable (CAMARA freezes proposals after 6+ weeks GitHub inactivity or 3
@@ -50,22 +50,25 @@ not created. Proposal docs follow the target body's proposal standards.
 | # | Deliverable | Where | Consumer |
 |---|---|---|---|
 | D1 | **This PRD** — requirements, sequence, no-gos, decisions | `docs/product/prd.md` | us |
-| D2 | **CAMARA proposal** — problem, the normative profile (8 rules), modes, phase plan, risks, pre-filled APIBacklog template mapping | `docs/product/camara-attested-windowed-disclosure.md` | CAMARA Commonalities / ICM / APIBacklog WG |
-| D3 | **Agent/delegation proposal** — agent/delegation side only, targets the IETF OAuth WG. | `docs/product/ietf-agent-delegation.md` | IETF (OAuth WG); supersedes `docs/archive/aaif-agent-auth.md`, retained only as a dated, superseded record of the earlier AAIF-targeted text |
-| D4 | **PoC** — Mode A demo, 4 assertions, mock + Orange backends | `poc/` | WG readers, demo audiences |
+| D2 | **CAMARA proposal** — problem, the normative profile (8 rules), modes, phase plan, risks, pre-filled APIBacklog template mapping. CAMARA filing is now versioned per project, per version at the repo root: v1 is the frozen record as filed 2026-08-28; v2 is the working rescoping draft opened 2026-08-31 after WG feedback. | `camara/v1/docs/camara-attested-windowed-disclosure.md` (v1); `camara/v2/docs/camara-attested-windowed-disclosure.md` (v2, drafting) | CAMARA Commonalities / ICM / APIBacklog WG |
+| D2 v2 | **CAMARA resubmission** — as a Commonalities Scope Enhancement, not a new sub-project. Five files: `camara-attested-windowed-disclosure.md` (rewrite), `camara-filing-template.md`, `camara-filing-issue.md`, `pr331-reply-posted-2026-08-31.md`, `wg-deck-outline.md` | `camara/v2/docs/` — drafting, not filed | CAMARA Commonalities WG |
+| D3 | **Agent/delegation proposal** — agent/delegation side only, targets the IETF OAuth WG. Lives in its own `ietf/v1/docs/` directory, separate from the CAMARA versioning above since the IETF track is not affected by the CAMARA feedback. | `ietf/v1/docs/ietf-agent-delegation.md` | IETF (OAuth WG); supersedes `docs/archive/aaif-agent-auth.md`, retained only as a dated, superseded record of the earlier AAIF-targeted text |
+| D4 | **PoC** — Mode A demo, 4 assertions, mock + Orange backends | `camara/v1/poc/` | WG readers, demo audiences |
 | D5 | Sustained WG presence (meetings, mailing lists, PR responses) | calendars, minutes | CAMARA anti-staleness rules |
-| D6 | **IETF submission artifact** — RFCXML v3, WRITTEN and author-tools VALIDATED but NOT submitted, NOT adopted, and reviewed by no one; IETF 127 submission cutoff is 2 November 2026, 23:59 UTC | `docs/product/draft-hassan-oauth-agent-delegation-00.xml` | IETF (OAuth WG) |
+| D6 | **IETF submission artifact** — posted 31 August 2026 as `draft-hassan-oauth-agent-delegation-00`, then re-posted the same day as `draft-hamr-oauth-agent-delegation-00` (https://datatracker.ietf.org/doc/draft-hamr-oauth-agent-delegation/), `Replaces` pointing at the `-hassan-` draft, which is now Datatracker state `repl`/Replaced (stays posted, un-deleted, until its own 4 March 2027 expiry); the live document expires 4 March 2027; an individual submission, NOT adopted by the OAuth WG, and reviewed by no one — posting confers a timestamp and visibility, not standing; submission is not adoption, adoption is not publication | `ietf/v1/docs/draft-hamr-oauth-agent-delegation-00.xml` | IETF (OAuth WG) |
 
-Supporting artifacts (not documents): `spec/carrier-attestation.yaml` stays an
+Supporting artifacts (not documents): `camara/v1/spec/carrier-attestation.yaml` stays an
 illustrative OpenAPI sketch (non-normative); `README.md` is the adopter-facing
 front door and mirrors — never forks — the proposals;
 `docs/logs/findings.md` is the dated evidence log (what experiments
 showed, including dead ends) — it complements this PRD, which stays the home
-of decisions; `docs/product/camara-filing-issue.md` (step 1, the GitHub
-issue body) and `docs/product/camara-filing-template.md` (step 2, the
-filled API-proposal template) are the live filing deliverables for CAMARA
-APIBacklog, derived verbatim from D2 §10 and never a source of design
-content — each becomes an immutable record once filed. Design content
+of decisions; `camara/v1/docs/camara-filing-issue.md` (step 1, the GitHub
+issue body) and `camara/v1/docs/camara-filing-template.md` (step 2, the
+filled API-proposal template) are the filed CAMARA APIBacklog deliverables,
+derived verbatim from D2 §10 and never a source of design
+content — each is an immutable record now that it has been filed. A stub at
+the old `docs/product/camara-attested-windowed-disclosure.md` path keeps the
+filed issue #330/PR #331 links resolving (GitHub has no redirects). Design content
 still folds into the 3 docs, never into findings.
 
 ## 4. PoC requirements (the only build)
@@ -121,7 +124,7 @@ Each assertion must be able to FAIL, and the demo must show the negative:
   - The demo, assertions, and printed evidence are byte-for-byte the same code
     path either way; only the facts source swaps. Anyone with a free Orange
     account can flip `--backend orange` and re-prove the point live.
-- **FR6** Single entry point: `node poc/demo.mjs [--backend mock|orange]`.
+- **FR6** Single entry point: `node camara/v1/poc/demo.mjs [--backend mock|orange]`.
   Prints per-assertion evidence, exits 0 only if all four (including
   negatives) hold.
 
@@ -169,7 +172,7 @@ findings fixed → runbook green). **M3 user-validated 22/22** (user ran 14/14
 at the pre-review build gate, then 22/22 post-release after two review rounds
 plus a release-gate round hardened the module to 22 cases) (spec
 signed off with 3 user decisions → spike at the silent-widening traps →
-build → user ran `node poc/m3-check.mjs` 14/14 → 3 mutants killed → review
+build → user ran `node camara/v1/poc/m3-check.mjs` 14/14 → 3 mutants killed → review
 round 1: 7 warnings fixed, +3 canary cases → 17/17 → review round 2: 8
 findings, +2 canary cases → 19/19 → release gate: 3 surviving mutants found
 on already-fixed guards, +3 cases → 22/22, plus 500k-iteration differential
@@ -220,12 +223,12 @@ sharper mechanism (a bare `UPDATE` on an unclaimed built-in now fails loud with
 behaviour exactly: echo carried the written date, the next READ did not). The
 spike also found the stored credential is already `Basic `-prefixed — a
 double-prefix that fails both token endpoints, and cost the spike's first
-round. Build: `poc/m5-facts-orange.mjs` (same interface, `evaluatePredicate`
+round. Build: `camara/v1/poc/m5-facts-orange.mjs` (same interface, `evaluatePredicate`
 NOT reimplemented — M5 exports `createOrangeFacts` and nothing else, asserted
-by a case). **Offline `node poc/m5-check.mjs` 47/47 exit 0 with zero
+by a case). **Offline `node camara/v1/poc/m5-check.mjs` 47/47 exit 0 with zero
 credentials and zero network** (injected transport replaying the spike's
 captured bytes, so it runs on a clean clone); **live `node
-poc/m5-check-live.mjs` 11/11 exit 0**, including the FR1 negative on real
+camara/v1/poc/m5-check-live.mjs` 11/11 exit 0**, including the FR1 negative on real
 infrastructure and the write-trap defence firing on a real built-in with the
 custom-slot control succeeding; **32 mutations, 32 killed, 0 survivors.** The
 sweep found two defects in the CHECK itself — a redaction case that was
@@ -249,7 +252,7 @@ killed, 0 survivors — the 16 above plus 2 minted against the new guards); a
 unchanged by exit code.
 
 **Then the user ran M5 on their own machine and G2 was MET** — `node
-poc/m5-check.mjs` **47/47** and the live `node poc/m5-check-live.mjs` **11/11**
+camara/v1/poc/m5-check.mjs` **47/47** and the live `node camara/v1/poc/m5-check-live.mjs` **11/11**
 at commit `69b6f2e` (dated findings entry, 2026-08-16). That is the first G2
 validation in the project, and it stands as a record of that tree state.
 
@@ -295,7 +298,7 @@ are **AGENT-RUN 20/20 and 23/23 by exit code; a user re-run is PENDING.** The
 user's 19/19 and 22/22 records stand for the trees they were run on and are not
 transferred to these — same rule the M4 and M5 rounds followed.
 
-**M6 BUILT (2026-08-17) — `poc/demo.mjs` + `poc/m6-check.mjs`. AGENT-RUN 22/22
+**M6 BUILT (2026-08-17) — `camara/v1/poc/demo.mjs` + `camara/v1/poc/m6-check.mjs`. AGENT-RUN 22/22
 (demo) and 28/28 (check) by exit code; USER VALIDATION PENDING, so G1 is NOT
 yet met.** POC first: a throwaway composition spike outside the tree attacked
 "the modules compose without weakening any single module's guarantee" and came
@@ -351,7 +354,7 @@ real defects plus one found while fixing them are pinned beside them. The live
 `--backend orange` run is the user's, in the runbook — nothing in this round
 touched the network.
 
-On §4.3's simplicity bound, honestly: `poc/demo.mjs` is 1093 lines, of which 452
+On §4.3's simplicity bound, honestly: `camara/v1/poc/demo.mjs` is 1093 lines, of which 452
 are comment, 90 blank and 551 code — and roughly half of that code is the narrative
 PRINTING the reader asked for (the `Q:`/`A:`/negative-flip transcript), not
 composition machinery, which is closer to 200 lines. That is over "a few hundred
@@ -373,8 +376,8 @@ rounds changed — M1 19→20, M3 22→24, M6 22 assertions / 38 cases — is AG
 with a **user re-run PENDING**. At commit
 `5d5e8aa` (dated findings record, 2026-08-16) the user ran 19/19, 10/10, 22/22
 and 30/30. The v0.2.0 release gate then changed two files —
-`poc/m4-facts-mock.mjs` and `poc/m4-check.mjs` — taking M4 to 33 cases, leaving
-M1/M2/M3 untouched (no module source, no check file, and `poc/check-harness.mjs`
+`camara/v1/poc/m4-facts-mock.mjs` and `camara/v1/poc/m4-check.mjs` — taking M4 to 33 cases, leaving
+M1/M2/M3 untouched (no module source, no check file, and `camara/v1/poc/check-harness.mjs`
 unchanged). **After the v0.2.0 merge (main at `7c41c83`, tag `v0.2.0`) the user
 re-ran all four and reported 19/19, 10/10, 22/22, 33/33** (dated findings record,
 2026-08-16) — closing the last "user re-run pending" marker, per the 0.1.0
@@ -407,7 +410,7 @@ appear to cover code it never saw.
 cases without a user re-run at the time (recorded PENDING in the decisions
 log below); the user then ran it live at tip `3276ed0` and reported 19/19,
 retiring it again. The same live session also produced **M6's first CLEAN
-user run of `poc/demo.mjs` itself**, `--backend orange` → 33/33 — but not its
+user run of `camara/v1/poc/demo.mjs` itself**, `--backend orange` → 33/33 — but not its
 first user run: the user had already run it live on 2026-08-17 and scored
 **32/33**, and that run is what surfaced the vacuous leaky-operator control
 (the fix this whole entry is about). M6's asterisk stayed up through that
@@ -431,7 +434,7 @@ module has been user-validated at its current count on the same tree. See
 (For the record, an earlier version of this note said the `/code-review` round
 "changed exactly four files … verified by `git diff --stat`". `git show --stat
 5d5e8aa` reports **seven**: those four plus `findings.md`, `prd.md` and
-`poc/README.md`. The four were the code/spec files; the claim as written was
+`camara/v1/poc/README.md`. The four were the code/spec files; the claim as written was
 checkable and did not check out, so it is corrected here rather than dropped.)
 
 **Asterisks raised and retired a further time, on the uncommitted tree
@@ -508,7 +511,7 @@ repo's stated discipline (CLAUDE.md, "Honest limits stay in the text"),
 neither item below is softened.
 
 1. **The raw-value leak scan cannot test very short values.**
-   `poc/demo.mjs`'s raw-value leak scan drops needles shorter than
+   `camara/v1/poc/demo.mjs`'s raw-value leak scan drops needles shorter than
    `PLAIN_MIN_NEEDLE = 2` — a value whose every spelling is under 2
    characters cannot be leak-tested by this scan at all. Accepted because the
    alternative is worse: `DEVICE_FLIPPED_DAYS_AGO = 4` produces the bare
@@ -593,6 +596,20 @@ Explicit and binding. "Useful" is not a defense for any of these.
     an empty directory), and internal anchors (a changed heading changes
     its slug). Evidence: five instances missed in one session,
     `docs/logs/findings.md` (2026-08-28).
+15. **Never file CarrierAttestation, or any predicate API, as a new CAMARA
+    sub-project again.** The delta is the envelope, not a new API; it
+    belongs in Commonalities, as a Scope Enhancement (findings 2026-08-31).
+16. **No overlap declaration without a full APIBacklog table sweep, dated**
+    (findings 2026-08-31).
+17. **CONFIRMED (user's call, 2026-08-31; findings 2026-08-31):** Never
+    cite a path or field that exists only on `main` as a released
+    capability — check the release tags, and say "on main, unreleased"
+    when that is the truth. (Triggered by the `/retrieve-age-band`
+    retraction, §7 baseline above.)
+18. **CONFIRMED (user's call, 2026-08-31; findings 2026-08-31):** Never
+    assume a CAMARA parameter name carries the same unit or meaning across
+    APIs — `maxAge` is hours/event-window on the swap APIs and
+    seconds/data-staleness on location verification.
 
 ## 6. Sequence
 
@@ -615,20 +632,45 @@ Phase 4  File: Commonalities guideline proposal + sim-swap
          OPEN, awaiting Working Group evaluation — nothing
          approved yet. The Commonalities/ICM half is still
          outstanding.**                                           [G4 partial]
+         2026-08-31: APIBacklog codeowner feedback on #330/#331 —
+         new sub-project rejected in favour of a Scope Enhancement
+         on Commonalities; use case 2 dropped from CAMARA (IETF
+         only). v2 in `camara/v2/docs/`, drafting. See findings
+         2026-08-31.
+         v2 drafted 2026-08-31 (agent-run, user review pending), signing = JWS.
+         2026-08-31: reply posted to PR #331 with two scoping questions
+         (route, blind hub); answers pending.
+         2026-08-31: v2 scope = four items (attested response, floor rule,
+         blind hub, range on open responses); V2-M1 JWS core approved and
+         building.
+         2026-08-31 14:06 UTC: route answered by a Commonalities
+         codeowner — file an enhancement issue in Commonalities;
+         blind-hub placement pending.
+         2026-08-31: user validated the consolidated branch at `8a454c9`
+         (nine suites, exit 0 — findings).
+         2026-08-31: blind-hub placement DECIDED (§8 risk 6, findings) —
+         filing scope is now 2.1/2.2/2.4 only; 2.3 (blind hub) held for a
+         separate companion filing.
+         2026-08-31: V2-M2 defined (§8 risk 7, findings) — shrink
+         `PUBLISHED_THRESHOLD_MENU` to 30/60/90 days (720/1440/2160h) and
+         re-aim `demo.mjs`'s leak control to assert REFUSAL of an
+         above-cap/off-menu request; not yet built.
 Phase 5  WG evaluation populates named supporters (template
          validation → company support analysis → bi-weekly
          Backlog WG lazy consensus)                                [G5]
 Phase B  (re-homed from AAIF, 2026-08-25) Draft the agent/
          delegation Internet-Draft (RFCXML/xml2rfc v3,
-         `draft-<lastname>-<wg>-<topic>-00`) → submit before the
-         IETF 127 cutoff, 2 Nov 2026 23:59 UTC → attend the
-         IETF 127 Hackathon, 14–15 Nov 2026 (free, non-members
+         `draft-<lastname>-<wg>-<topic>-00`) → SUBMITTED 31 August
+         2026 as `draft-hassan-oauth-agent-delegation-00`, then
+         re-posted same-day as `draft-hamr-oauth-agent-delegation-00`
+         (author's own surname mismatch is deliberate, §9) → attend
+         the IETF 127 Hackathon, 14–15 Nov 2026 (free, non-members
          welcome) → IETF 127 meeting, 14–20 Nov 2026, San
          Francisco. Target WG: OAuth (automated-agent-
          authorization work item); CATALIST as a fallback routing
-         venue. D3 (`docs/product/ietf-agent-delegation.md`)
-         is drafted; remaining work is turning it into an actual
-         Internet-Draft (RFCXML/xml2rfc toolchain)                [G6]
+         venue. D3 (`ietf/v1/docs/ietf-agent-delegation.md`) is
+         drafted and IS `draft-hamr-oauth-agent-delegation-00`,
+         submitted above — G6 MET, not adopted                    [G6]
 Phase ∞  Attend cadence: Backlog WG + ICM + sub-project calls +
          IETF WG list/meetings; respond within the 6-week/
          3-meeting staleness windows (CAMARA) and I-D 185-day
@@ -660,7 +702,8 @@ be repeated.
     meetings/mailing list; **adoption = the maintainers merging the PR** into
     a guidelines release, which then propagates to all APIs via the
     meta-release cycle (every API must align with latest Commonalities to
-    release). No TSC new-repo machinery.
+    release). No TSC new-repo machinery. Confirmed as the route on
+    2026-08-31 (findings).
   - **CarrierAttestation → APIBacklog (the heavy path):** GitHub issue
     (their issue template) + linked PR with the filled
     `API-proposal-template.md` → codeowners validate the template → member
@@ -692,18 +735,28 @@ be repeated.
   existential past Sandbox, not political nicety, even though they are no
   longer a precondition for filing (G4; no-go 12 retired 2026-08-25).
   Sub-project cadence example: SimSwap meets every 4 weeks, Thu 07:30 UTC.
-- **Verified spec baseline (2026-08-14, re-verified 2026-08-24):** SimSwap
-  v2.1.0 (`/check`, `/retrieve-date`, `/retrieve-age-band`) and
-  NumberVerification v2.1.0 (`/verify`, `/device-phone-number`) hold, both
-  still Incubating; `GET /device-phone-number` takes no request body and is
-  structurally identifier-free off the 3-legged token (its sibling
-  `POST /verify` still requires an identifier). KYC is no longer one r2.2
-  spec — it split into three repos post-Spring25: kyc-match (r1.2, v0.4.0),
-  kyc-fill-in (r1.3, v0.4.1), kyc-age-verification (r1.3, v0.2.1, Sandbox
-  per its lifecycle badge — though its own README body text still says
-  "Incubating stage since February 2025", an unresolved contradiction).
-  Open Gateway: 86 operator groups, 300+ networks. Full citations live in
-  D2 §References.
+- **Verified spec baseline (2026-08-14, re-verified 2026-08-24, RETRACTED
+  and corrected 2026-08-31 — findings):** SimSwap v2.1.0 ships `/check` and
+  `/retrieve-date` ONLY — `/retrieve-age-band` is NOT in v2.1.0 (confirmed
+  absent from every released tag r2.2/r3.1/r3.2/r3.3; it exists only on
+  unreleased `main`, `info.version: wip`). Do not cite it as a shipped
+  capability. `maxAge` on both SimSwap and DeviceSwap `/check` is
+  canonical, not just Playground-measured: hours, `minimum:1`,
+  `maximum:2400`, `default:240`. NumberVerification v2.1.0 (`/verify`,
+  `/device-phone-number`) holds; both APIs still Incubating.
+  `GET /device-phone-number` takes no request body and is structurally
+  identifier-free off the 3-legged token (its sibling `POST /verify` still
+  requires an identifier). KYC is no longer one r2.2 spec — it split into
+  three repos post-Spring25: kyc-match (r1.2, v0.4.0 — its primary response
+  is per-field discrete match indicators, NOT a similarity score;
+  `MatchScoreResult` is optional and returned only when the corresponding
+  field is `false`), kyc-fill-in (r1.3, v0.4.1), kyc-age-verification (r1.3,
+  v0.2.1, Sandbox per its lifecycle badge — though its own README body text
+  still says "Incubating stage since February 2025", an unresolved
+  contradiction; `ageCheck` is a string enum "true"/"false"/"not_available",
+  not a JSON boolean). Open Gateway: 86 operator groups, 300+ networks.
+  Full citations live in D2 §References and in the 2026-08-31 findings
+  entry.
 - **AAIF — DROPPED as a submission target (2026-08-25 re-verification).**
   **Correction (2026-08-25 re-verification):** the entry that stood here
   said the process was "grounded 2026-08-15" and described a 4-stage
@@ -724,7 +777,7 @@ be repeated.
   The Identity & Trust WG's TOPIC still fits the work; the DOOR is wrong,
   not the idea — recorded that way, not as "AAIF was a dead end." D3 has
   since been re-homed onto the IETF track below as
-  `docs/product/ietf-agent-delegation.md`;
+  `ietf/v1/docs/ietf-agent-delegation.md`;
   `docs/archive/aaif-agent-auth.md` is retained only as a dated,
   superseded record of the earlier AAIF-targeted text.
 - **Agent/delegation arm re-homed to IETF (grounded 2026-08-25).** An
@@ -747,9 +800,15 @@ be repeated.
   drafting WG — good place to float the idea and get routed). I-D
   mechanics: format RFCXML (xml2rfc v3); naming
   `draft-<lastname>-<wg>-<topic>-00`; an I-D EXPIRES 185 days after
-  posting unless refreshed. **Key dates:** I-D submission cutoff for IETF
-  127 is **2 November 2026, 23:59 UTC**; IETF 127 Hackathon **14–15
-  November 2026** (free, open to non-members, needs only a free
+  posting unless refreshed. **Key dates:** `draft-hassan-oauth-agent-
+  delegation-00` was SUBMITTED 31 August 2026, then re-posted the same
+  day as `draft-hamr-oauth-agent-delegation-00` (a posted I-D cannot be
+  renamed; a new `-00` with `Replaces` set is the only route, and it
+  creates two documents — §9). The live document expires 4 March 2027
+  (185 days after posting) unless refreshed by a -01 — the IETF 127
+  I-D submission cutoff, 2 November 2026 23:59 UTC, is noted for context
+  only and is not a pending deadline for this draft. IETF 127 Hackathon
+  **14–15 November 2026** (free, open to non-members, needs only a free
   Datatracker account); IETF 127 meeting 14–20 November 2026, San
   Francisco. Main-meeting registration fee COULD NOT BE VERIFIED — left
   unstated, not guessed. **Prior art, load-bearing:**
@@ -790,14 +849,52 @@ we manage here:
    the two threads is no longer preparatory, it is due.
 2. **Orange account is a user action** — PoC live tier (G2) blocks on it;
    mock tier (G1) does not. Don't let G2 block G3.
-3. **`ietf-agent-delegation.md` still has to become an actual Internet-Draft
-   (§7, §9)** — the AAIF→IETF re-homing is DONE (D3 already targets IETF);
-   the remaining risk is turning the doc into I-D form (RFCXML/xml2rfc v3,
-   `draft-<lastname>-<wg>-<topic>-00`) ahead of the IETF 127 cutoff, 2 Nov
-   2026 23:59 UTC; keep it modular (summary / proposal / seam sections
-   survive any format).
+3. **The draft is submitted but NOT adopted (§7, §9).** The AAIF→IETF
+   re-homing is DONE (D3 already targets IETF) and `draft-hassan-oauth-
+   agent-delegation-00` was SUBMITTED 31 August 2026, then re-posted the
+   same day as `draft-hamr-oauth-agent-delegation-00` — but posting an
+   I-D confers a timestamp and visibility, not standing: it is an
+   individual submission, reviewed by no one, with no formal standing in
+   the IETF process. The remaining risk is sustained mailing-list
+   participation and WG meeting presence over multiple IETF cycles, and
+   the draft expires 4 March 2027 unless refreshed by a -01; keep it
+   modular (summary / proposal / seam sections survive any format).
 4. **Scope leak from Mode B enthusiasm** — the no-go list (§5.5) is the
    guard; PoC reviews check against it.
+5. **DECIDED (user's call, findings 2026-08-31): kyc-match has no
+   request-side threshold field, and the operator publishes ONE threshold
+   and applies it itself — the requester chooses nothing.** No bisection,
+   no hill-climbing, no new request field for this predicate; the
+   proposal's §2.2 rule ("nothing is added to the request to carry the
+   menu itself") is preserved. This supersedes the four-bucket
+   `numberMatch: [60, 70, 80, 90]` menu for kyc-match specifically (that
+   menu still applies to the swap-recency predicates, which reuse the
+   existing `maxAge` field). Implementation in `demo.mjs` is deferred to
+   V2-M2, not done in this round.
+6. **DECIDED (blind-hub scope, main session on the user's explicit
+   delegation, 2026-08-31; findings 2026-08-31): file 2.1/2.2/2.4 only,
+   hold 2.3 (blind hub) for a separate companion filing.** The
+   codeowner's invitation was worded narrowly around a signing mechanism;
+   2.1/2.2/2.4 are one coherent subject (what is signed, how tightly
+   bounded), 2.3 is a different one (who can read the exchange) and is
+   documented as politically sensitive; v1 was rejected in part for
+   bundling. This supersedes the earlier suggestion to ride the JWE
+   envelope in alongside signing — that JWE precedent (Commonalities'
+   notification-signing guide) is real but expands the filing beyond what
+   was invited, so it is withdrawn. Honest cost, stated not hidden:
+   without 2.3, an aggregator in the path still sees the identifier and
+   the question in this filing; holding 2.3 is sequencing, not
+   abandonment — the proposal text says a companion proposal follows.
+7. **DECIDED (user's call, 2026-08-31; findings 2026-08-31): swap-recency
+   threshold menu is 30/60/90 days** — `P30D`=720h, `P60D`=1440h,
+   `P90D`=2160h, all under the canonical 2400-hour `maxAge` cap, removing
+   the above-cap fallback to `/retrieve-date` entirely rather than
+   guarding it. **Implementation is deferred to V2-M2** (see §6 module
+   sequence) — `PUBLISHED_THRESHOLD_MENU` in `camara/v2/poc/demo.mjs` is
+   unchanged this round, because `demo.mjs`'s `LEAK_PREDICATE` relies on
+   `P365D` being above the 2400h cap to keep the leak-control assertion
+   reachable; V2-M2 must re-aim that assertion to REFUSAL of an
+   above-cap/off-menu request in the same change that shrinks the menu.
 
 ## 9. Decisions log
 
@@ -805,7 +902,24 @@ The full rationale for every decision lives in `docs/logs/findings.md`; this tab
 
 | Date | Decision | Status | Where |
 |---|---|---|---|
-| 2026-08-31 | Scope made mechanically decidable; test vectors + negative control; 2 cross-repo handovers closed | active | [findings.md](../logs/findings.md#2026-08-31-latest--scope-made-mechanically-decidable-test-vectors-with-a-negative-control-two-cross-repo-handovers-closed) |
+| 2026-09-01 | User validation run at `0a261e4`: all seven v2 check suites exit 0 at `m1-jws-check` 94/94 (20/20, 94/94, 10/10, 26/26, 42/42, 67/67, 47/47) — first user run covering the equivalent-mutant and empty-answer-schema fixes, supersedes the voided `4ba6f5e` 82/82 record | active | [findings.md](../logs/findings.md#2026-09-01-latest--user-validation-run-at-0a261e4-all-seven-v2-suites-green-at-m1-jws-check-94-first-user-run-covering-the-equivalent-mutant-and-empty-answer-schema-fixes) |
+| 2026-09-01 | Fourth `/branch-review` cycle at `f07bf75` came back clean on findings (no Critical, no Warning) but exposed an EQUIVALENT MUTANT: the projection layer had no test that could fail. S1 (deleted `projectClaims` call sites, still 82/82) and S2 (`__proto__`-key answer-schema footgun) both fixed; `m1-jws-check` 82 -> 94; user validation VOID pending a fresh run | active | [findings.md](../logs/findings.md#2026-09-01--fourth-branch-review-cycle-at-f07bf75-came-back-clean-but-found-an-equivalent-mutant-the-projection-layer-had-no-test-that-could-fail-m1-jws-check-82---94) |
+| 2026-09-01 | User validation run at `4ba6f5e`: all seven v2 check suites exit 0 at `m1-jws-check` 82/82 (20/20, 82/82, 10/10, 26/26, 42/42, 67/67, 47/47) — first user run covering the prototype-chain fix, supersedes the voided `2c71a20` 39/39 record | active | [findings.md](../logs/findings.md#2026-09-01--user-validation-run-at-4ba6f5e-all-seven-v2-suites-green-at-m1-jws-check-82-first-user-run-covering-the-prototype-chain-fix) |
+| 2026-09-01 | Second `/branch-review` at `7bfe111` found a CRITICAL prototype-chain bypass leaking raw values through a signed response; fixed with `hasOwn` + a projection layer; `m1-jws-check` 39 -> 82 | active | [findings.md](../logs/findings.md#2026-09-01--second-branch-review-at-7bfe111-found-a-critical-prototype-chain-bypass-in-checkclosedpayload-raw-values-rode-through-a-signed-profile-mode-response-fixed-with-hasown--a-projection-layer-m1-jws-check-39---82) |
+| 2026-09-01 | User validation run at `2c71a20`, first clean-tree run this session: all seven v2 check suites exit 0 at `m1-jws-check` 39/39 (20/20, 39/39, 10/10, 26/26, 42/42, 67/67, 47/47) — supersedes the voided `64f8c26` 33/33 record | active | [findings.md](../logs/findings.md#2026-09-01--user-validation-run-at-2c71a20-first-clean-tree-run-this-session-all-seven-v2-suites-green-at-m1-jws-check-39) |
+| 2026-09-01 | `/branch-review` gate at `f1c73a1` — 2 warnings fixed, a regression caught inside the fix round, `m1-jws-check` 33 -> 39, user validation VOID pending a fresh run | active | [findings.md](../logs/findings.md#2026-09-01--branch-review-gate-at-f1c73a1-two-findings-a-regression-caught-in-the-fix-round-itself-m1-jws-check-33---39) |
+| 2026-09-01 | User validation run on the uncommitted `camara/v2-rescope` tree at tip `64f8c26`: all seven v2 check suites green (20/20, 33/33, 10/10, 26/26, 42/42, 67/67, 47/47), every one exit 0 — supersedes the voided `8a454c9` nine-suite record | active | [findings.md](../logs/findings.md#2026-09-01--user-validation-run-at-the-uncommitted-camarav2-rescope-tree-all-seven-v2-suites-green-superseding-the-voided-8a454c9-record) |
+| 2026-08-31 | Live re-verification vs canonical CAMARA YAML: SimSwap age-band retracted (v2.1.0 has no `/retrieve-age-band`), kyc-match score claim refuted, Commonalities notification-signing precedent found; two candidate no-gos proposed | active | [findings.md](../logs/findings.md#2026-08-31--live-re-verification-against-canonical-camara-yaml-simswap-age-band-retracted-kyc-match-score-refuted-commonalities-notification-signing-precedent-found) |
+| 2026-08-31 | kyc-match threshold DECIDED (user's call): operator publishes one threshold, applies it itself — no bisection, no hill-climbing, no new request field; supersedes the `numberMatch` menu for kyc-match only | active | [findings.md](../logs/findings.md#2026-08-31--live-re-verification-against-canonical-camara-yaml-simswap-age-band-retracted-kyc-match-score-refuted-commonalities-notification-signing-precedent-found) |
+| 2026-08-31 | Swap-recency bucket set DECIDED (user's call): 30/60/90 days (720/1440/2160h), all under the 2400h cap — implementation deferred to V2-M2 | active | [findings.md](../logs/findings.md#2026-08-31--live-re-verification-against-canonical-camara-yaml-simswap-age-band-retracted-kyc-match-score-refuted-commonalities-notification-signing-precedent-found) |
+| 2026-08-31 | Blind-hub scope DECIDED (main session, on the user's delegation): file 2.1/2.2/2.4 only, hold 2.3 for a separate companion filing — supersedes the earlier JWE-riding-along suggestion | active | [findings.md](../logs/findings.md#2026-08-31--live-re-verification-against-canonical-camara-yaml-simswap-age-band-retracted-kyc-match-score-refuted-commonalities-notification-signing-precedent-found) |
+| 2026-08-31 | No-gos 17 and 18 CONFIRMED by the user (were candidate) | active | [findings.md](../logs/findings.md#2026-08-31--live-re-verification-against-canonical-camara-yaml-simswap-age-band-retracted-kyc-match-score-refuted-commonalities-notification-signing-precedent-found) |
+| 2026-08-31 | Fix round: V2-M1-JWS reserved-claim clobber closed (mutation-proven); 3 items deferred and documented; orphaned-reference sweep (CLAUDE.md repo map, demo.mjs "profile rule 4", m4-facts-mock.mjs spec citation, v2 docs identifier-omission reversal) | active | [findings.md](../logs/findings.md#2026-08-31--v2-m1-jws-fix-round-reserved-claim-clobber-closed-three-items-deferred-and-documented) |
+| 2026-08-31 | CAMARA v2 drafted as a Commonalities Scope Enhancement (agent-run, user review pending) | active | [findings.md](../logs/findings.md#2026-08-31--camara-v2-drafted-as-a-commonalities-scope-enhancement-agent-run-user-review-pending) |
+| 2026-08-31 | CAMARA feedback and rescoping: Scope Enhancement on Commonalities, use case 2 dropped, layout option B | active | [findings.md](../logs/findings.md#2026-08-31--camara-feedback-on-330331-profile-framing-rejected-use-case-2-charter-excluded-signing-layer-routed-to-commonalities-tenure-api-overlap-missed-by-the-filed-no-overlap-declaration) |
+| 2026-08-31 | Draft renamed via replacement: `draft-hamr-...-00` posted, `draft-hassan-...-00` now Replaced | active | [findings.md](../logs/findings.md#2026-08-31--draft-renamed-via-replacement-draft-hamr-oauth-agent-delegation-00-posted-draft-hassan-oauth-agent-delegation-00-now-replaced) |
+| 2026-08-31 | IETF draft-00 SUBMITTED — individual, NOT adopted, no formal standing | active | [findings.md](../logs/findings.md#2026-08-31--scope-made-mechanically-decidable-test-vectors-with-a-negative-control-two-cross-repo-handovers-closed) |
+| 2026-08-31 | Scope made mechanically decidable; test vectors + negative control; 2 cross-repo handovers closed | active | [findings.md](../logs/findings.md#2026-08-31--scope-made-mechanically-decidable-test-vectors-with-a-negative-control-two-cross-repo-handovers-closed) |
 | 2026-08-30 | IETF draft-00 written and VALIDATED (not submitted); RFC 9421 has no delegation vocabulary; 2 ZK attributions corrected | active | [findings.md](../logs/findings.md#2026-08-2930--ietf-draft-00-written-and-validated-rfc-9421-has-no-delegation-vocabulary-two-zk-attributions-corrected) |
 | 2026-08-25 | Fold-in-vs-distinguish resolved as HYBRID (klrc-aiagent-auth-03 read) | active | [findings.md](../logs/findings.md#2026-08-25--open-decision-from-the-entry-below-closed-fold-in-versus-distinguish-resolved-as-hybrid-after-a-full-read-of-draft-klrc-aiagent-auth-03-raw-text) |
 | 2026-08-25 | AAIF dropped; agent arm re-homed to IETF; no-go 12 retired | active | [findings.md](../logs/findings.md#2026-08-25--submission-strategy-shift-aaif-dropped-agent-arm-re-homed-to-ietf-no-go-12-retired-api-family-owner-decided) |

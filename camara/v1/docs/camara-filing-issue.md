@@ -7,14 +7,14 @@
 > This is step 1 of a two-step CAMARA intake. Step 2 is a follow-up pull
 > request adding the long template as
 > `documentation/API proposals/APIProposal_CarrierAttestation.md` — that
-> file is `docs/product/camara-filing-template.md` in this repo, already
+> file is `camara/v1/docs/camara-filing-template.md` in this repo, already
 > prepared. Do not paste that long file into the issue; the issue is this
 > short body only.
 >
 > **Filed:** Filed as issue #330 on 2026-08-28 —
 > https://github.com/camaraproject/APIBacklog/issues/330. Open, awaiting
 > Working Group evaluation; nothing has been approved. Follow-up PR #331
-> (adding the filled template) is `docs/product/camara-filing-template.md`
+> (adding the filled template) is `camara/v1/docs/camara-filing-template.md`
 > in this repo — see that file for its own filed record.
 >
 > **This file is now a FROZEN record of what was filed.** The text below
@@ -25,6 +25,8 @@
 >
 > Everything above this line (through the marker below) is repo bookkeeping
 > for whoever is filing this — it must NOT be pasted into the GitHub issue.
+>
+> Feedback received 2026-08-31 — see `feedback-2026-08-31.md`; v2 in `../../camara/v2/docs/`.
 
 <!-- ==== EVERYTHING BELOW THIS LINE IS THE ISSUE BODY — PASTE FROM HERE ==== -->
 

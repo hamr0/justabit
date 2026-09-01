@@ -1,4 +1,4 @@
-// PoC M6 — the one-command demo. Run: node poc/demo.mjs [--backend mock|orange]
+// PoC M6 — the one-command demo. Run: node camara/v2/poc/demo.mjs [--backend mock|orange]
 //
 // This is the surface a CAMARA/IETF reader sees, so it explains itself as it
 // goes. It composes M1 (attestation core), M2 (blind envelope), M3 (floor gate)
@@ -145,14 +145,27 @@ export const PUBLISHED_FLOOR = Object.freeze({ simType: 'voice+data', tenureMin:
 export const PUBLISHED_THRESHOLD_MENU = Object.freeze({
   simSwapAge: Object.freeze(['P30D', 'P90D', 'P180D', 'P365D']),
   deviceSwapAge: Object.freeze(['P30D', 'P90D', 'P180D', 'P365D']),
-  // The THIRD ordered threshold, and the one with measured urgency. `kyc-match`
-  // returns a similarity SCORE, and the score is a GRADIENT: measured 2026-08-17,
-  // a wrong name scored 53 and the registered name with ONE letter changed scored
-  // 97. A free-choice threshold against a gradient is not merely bisectable — it
-  // is a warmer/colder oracle a requester can HILL-CLIMB toward the subscriber's
-  // real registered name, which is strictly worse than binary guessing, because
-  // binary guessing has no gradient to follow. Four buckets, and the score itself
-  // never crosses the wire in any spelling.
+  // The THIRD ordered threshold, and the one with measured urgency. VERIFIED
+  // 2026-08-31 against kyc-match's own spec: the PRIMARY response is discrete
+  // tri-state indicators (`nameMatch`, `addressMatch`, `idDocumentMatch`, ...),
+  // each `'true' | 'false' | 'not_available'` — kyc-match does NOT return a
+  // similarity score by default. An OPTIONAL `MatchScoreResult` (0-100,
+  // Jaro-Winkler) exists, operator-capability-dependent, and per its spec
+  // description is returned ONLY when the corresponding match field is
+  // `false`. That conditioning is what makes it hill-climbable, not weaker:
+  // the score surfaces exactly when the requester guessed wrong, which is the
+  // feedback a hill-climber needs. Measured 2026-08-17 (still valid evidence
+  // about the optional score): a wrong name scored 53 and the registered name
+  // with ONE letter changed scored 97. A free-choice threshold against that
+  // gradient is not merely bisectable — it is a warmer/colder oracle a
+  // requester can HILL-CLIMB toward the subscriber's real registered name,
+  // which is strictly worse than binary guessing, because binary guessing has
+  // no gradient to follow. Four buckets, and the score itself never crosses
+  // the wire in any spelling. OPEN ITEM: kyc-match has no request-side
+  // threshold field today (unlike simSwapAge/deviceSwapAge's `maxAge`), so a
+  // `numberMatch` menu would ADD a field to the request — whether and how to
+  // profile kyc-match at all is not resolved; this menu is a design sketch,
+  // not a settled shape.
   numberMatch: Object.freeze([60, 70, 80, 90]),
 });
 
@@ -633,8 +646,11 @@ export function createRP({ keys, directory }) {
     // never sees it (note 1 in the demo output). It stands in for token-derived
     // identity: a real 3-legged deployment derives the subject from the access
     // token instead of asking for an identifier — the shape CAMARA's own
-    // `GET /device-phone-number` already takes (no request body at all),
-    // generalised by profile rule 4.
+    // `GET /device-phone-number` already takes (no request body at all). v1
+    // generalised this as profile rule 4 (camara/v1/docs/camara-attested-
+    // windowed-disclosure.md, frozen as filed); v2 DROPPED that rule — the
+    // spec now REQUIRES phoneNumber instead (see the "v1 -> v2" section of
+    // camara/v2/docs/camara-attested-windowed-disclosure.md).
     const req = { number, predicate, floor: floorDemanded, nonce };
     const want = { predicate: canonicalPredicate(predicate) };
     const plain = packSigned(attest(keys.rpSig.privateKey, req), keys.rpIss);
@@ -1494,7 +1510,7 @@ export async function runDemo(backend) {
   out('      token-derived identity: a real 3-legged deployment derives the subject from');
   out('      the access token instead of asking for an identifier — the shape CAMARA\'s');
   out('      own `GET /device-phone-number` already takes (no request body at all),');
-  out('      generalised catalog-wide by profile rule 4.');
+  out('      generalised by v1\'s now-dropped profile rule 4 — v2 REQUIRES phoneNumber instead.');
   out('   2. THE THRESHOLD MENU is this profile\'s answer to the oracle above, not a CAMARA');
   out('      requirement — the normative profile enumerates no predicate types or thresholds.');
   out('   3. THE NONCE STORE ONLY GROWS. A request that never receives a response leaves');
@@ -1539,7 +1555,7 @@ const PREREQS = [
   '  1. A free Orange developer account with a Network APIs Playground app',
   '     (developer.orange.com → My Apps → Add an API → Network APIs Playground).',
   '  2. The app\'s Basic Auth string in the ENVIRONMENT, never in the tree:',
-  '       ORANGE_BASIC_AUTH="$(pass camara/orange_network | head -1)" node poc/demo.mjs --backend orange',
+  '       ORANGE_BASIC_AUTH="$(pass camara/orange_network | head -1)" node camara/v2/poc/demo.mjs --backend orange',
   '  3. Network reachability to api.orange.com.',
   '  4. A free custom-number slot (the demo scripts ' + DEMO_NUMBER + '; the app allows 10).',
   '',
@@ -1557,7 +1573,7 @@ const PREREQS = [
 export async function main(argv = process.argv.slice(2), { createBackendImpl = createBackend } = {}) {
   const args = parseArgs(argv);
   if (args.error) {
-    console.error(`${args.error}\nusage: node poc/demo.mjs [--backend mock|orange]`);
+    console.error(`${args.error}\nusage: node camara/v2/poc/demo.mjs [--backend mock|orange]`);
     return 2;
   }
   let backend;
@@ -1588,7 +1604,7 @@ export async function main(argv = process.argv.slice(2), { createBackendImpl = c
   }
 }
 
-// Only when RUN, never when imported — poc/m6-check.mjs imports the seams above
+// Only when RUN, never when imported — camara/v2/poc/m6-check.mjs imports the seams above
 // and drives them itself.
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().then((code) => process.exit(code));

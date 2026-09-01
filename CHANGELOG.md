@@ -1,5 +1,139 @@
 # Changelog
 
+## 0.11.0 — 2026-09-01
+
+- **CAMARA v2 rescoped as a Commonalities Scope Enhancement.** After
+  reviewer feedback on the v1 filing (issue #330 / PR #331), the proposal
+  moved from a new API-family case to an enhancement against
+  Commonalities. Items 2.1 (attested response), 2.2 (floor rule) and 2.4
+  (range on open responses) are filed; item 2.3 (blind hub) is HELD for
+  a separate companion filing, on the main session's delegated decision.
+  Working copy: `camara/v2/docs/`. Findings: `docs/logs/findings.md`,
+  2026-08-31.
+- **New JWS attestation core**, `camara/v2/poc/m1-jws.mjs`, replacing the
+  v1 `{claims, sig}` envelope with a signed-JWS shape (required
+  `phoneNumber`, renamed schemas). Its check suite,
+  `m1-jws-check.mjs`, grew from 29 to 94 cases across this branch as
+  successive `/branch-review` rounds found and closed real defects.
+  Caller migration to the new core is tracked as V2-M3, not yet wired
+  into `demo.mjs`.
+- **Security fixes in the JWS core, five `/branch-review` cycles, each
+  mutation-proven:**
+  - a reserved-claim clobber, where a schema key colliding with a base
+    claim overwrote both the value and the required type and defeated
+    the `exp > iat` guard;
+  - a schema self-collision, where a key named in both `params` and
+    `answer` silently dropped the caller's `params` value;
+  - **a CRITICAL prototype-chain bypass**: `k in allowed` on a plain
+    object literal walks the prototype chain, so a claim named after any
+    `Object.prototype` member bypassed the `EXTRA_CLAIM` guard, escaped
+    type-checking, and rode through a signed, verified profile-mode
+    response carrying a raw value. All 12 `Object.prototype` member
+    names leaked on the wire path. Fixed with a `hasOwn()` helper at
+    four lookup sites plus a `projectClaims()` layer returning only
+    declared claims;
+  - a reject-never-throw violation on a hostile schema, fixed with a
+    try/catch backstop on the four entry points;
+  - an EQUIVALENT MUTANT: deleting both `projectClaims` call sites still
+    passed 82/82 — the projection layer had no test that could fail.
+    Closed with key-order assertions;
+  - `EMPTY_ANSWER_SCHEMA`, rejecting a schema whose answer half declares
+    zero fields — what a literal `__proto__:` key silently produces.
+- **Live re-verification against canonical CAMARA YAML.** RETRACTION:
+  SimSwap v2.1.0 does NOT ship `/retrieve-age-band` — confirmed again
+  this branch; it exists only on unreleased branch `main`
+  (`info.version: wip`). Also found: `maxAge` means two different things
+  in two different units across CAMARA APIs (event lookback in HOURS,
+  bounded 1-2400, on the swap APIs; cached-fix staleness in SECONDS,
+  unbounded, on location verification); the kyc-match similarity-score
+  claim was REFUTED; and a Commonalities prior-art precedent was found
+  for signing asynchronous CloudEvent notifications with JWS/JWE, which
+  the filing cites, with the delta stated as synchronous response
+  signing.
+- **Four dated user validation runs this branch**, the last at
+  `0a261e4` with all seven v2 PoC check suites green
+  (`m1-check` 20/20, `m1-jws-check` 94/94, `m2-check` 10/10, `m3-check`
+  26/26, `m4-check` 42/42, `m5-check` 67/67, `m6-check` 47/47) — see
+  `docs/logs/findings.md`, 2026-09-01 (latest), for the full sequence
+  and the superseded counts each run replaced.
+- **The v1 CAMARA filing and PoC are frozen** under `camara/v1/` as the
+  as-filed record (issue #330 / PR #331, filed 2026-08-28); this
+  release does not touch it.
+
+## 0.10.0 — 2026-08-31
+
+- **The IETF companion Internet-Draft is SUBMITTED.**
+  `draft-hassan-oauth-agent-delegation-00`, "An Attenuated Delegation
+  Profile for Automated Agents", posted 31 August 2026, expires 4 March
+  2027 (185 days after posting). Author Amr Hassan, Independent. Intended
+  status Standards Track. Verified directly on the Datatracker page:
+  https://datatracker.ietf.org/doc/draft-hassan-oauth-agent-delegation/.
+  It is an INDIVIDUAL submission, NOT a working-group document, NOT
+  adopted, and reviewed by no one. Posting confers a timestamp and
+  visibility, not standing; submission is not adoption, and adoption is
+  not publication. The Datatracker page's own words: the draft is "not
+  endorsed by the IETF" and has "no formal standing in the IETF standards
+  process."
+- **Renamed via replacement, same day: `draft-hamr-oauth-agent-delegation-00`
+  is now the live document.** The author's working identity across this
+  repo and prior filings is `hamr0`/hamr, not the surname Hassan, so the
+  draft was corrected to match. A posted I-D cannot be renamed in place —
+  the confirmed route is a new `-00` with `Replaces` set (whether the
+  secretariat renames in place on request was never verified either way;
+  moot after submission), which creates a second document rather than
+  editing the first. Verified live on the
+  Datatracker: the new draft is
+  https://datatracker.ietf.org/doc/draft-hamr-oauth-agent-delegation/,
+  state `posted`, submitted and dated 31 August 2026, expires 4 March
+  2027, 28 pages, `replaces` correctly set to
+  `draft-hassan-oauth-agent-delegation`, submission id 168367; the old
+  draft's state is now `repl` (Replaced) — it stays posted until its own
+  4 March 2027 expiry. The document is named `draft-hamr-...` while its
+  author block still reads `Amr Hassan` — IETF convention names the
+  surname, so this is a deliberate mismatch, the author's own call, not
+  an oversight. The XML file is renamed to
+  `ietf/v1/docs/draft-hamr-oauth-agent-delegation-00.xml`. The honest
+  qualifiers above are unchanged by the rename: still an individual
+  submission, not adopted, no formal standing. Findings:
+  `docs/logs/findings.md`, 2026-08-31.
+- **Six stale claims in `docs/product/prd.md` were corrected in the same
+  change**, because the submission made them false at once and a partial
+  sweep is the failure no-go 14 exists to name: the D6 deliverable row now
+  carries the Datatracker URL and both dates; the G6 gate's evidence
+  column held the placeholder `draft link` and now reads MET with the
+  real URL; the Phase B sequence line that said "submit before the IETF
+  127 cutoff" is now past tense; a second Phase B line that said
+  "remaining work is turning it into an actual Internet-Draft" now
+  reflects that the work is done; the Key dates block that presented 2
+  November 2026 as this draft's deadline now states the submission and
+  the 4 March 2027 expiry, with the cutoff kept as context only; and risk
+  item 3, which named I-D conversion as the remaining risk, now names the
+  real remaining risk as sustained mailing-list and meeting presence
+  across multiple IETF cycles.
+- **One §9 decisions row added, dated 2026-08-31.** The 2026-08-30 row
+  below it still reads "not submitted" and is left alone on purpose — it
+  was true on its date, and this repo keeps dated history rather than
+  rewriting it.
+- **The v0.9.0 changelog entry below is likewise left as written.** It
+  says "NOT submitted", which was true when written. It is a dated
+  record, not a live claim.
+- **Honest limits unchanged and restated:** the draft's test vectors have
+  still never been executed against any implementation by anyone,
+  including the author — they were derived by hand, and no chain
+  verifier exists to run them against. The proof-of-concept still does
+  not implement RFC 9421 presentment, the multi-hop delegation chain, or
+  the per-Relying-Service unlinkable identifier, and has no HTTP layer
+  between the parties at all. Single author, no external review, no
+  adoption.
+- **Re-verified 2026-08-31 against the live Datatracker:**
+  `draft-klrc-aiagent-auth` is still `-03`, 6 July 2026, expiring 7
+  January 2027, still an individual submission not adopted by a working
+  group, same six authors. The draft's citation of it is correct as
+  posted.
+- **Next:** the draft expires 4 March 2027; a `-01` before then is how it
+  stays alive. IETF 127 is 14–20 November 2026 in San Francisco, Hackathon
+  14–15 November.
+
 ## 0.9.0 — 2026-08-31
 
 - **IETF companion Internet-Draft WRITTEN and author-tools VALIDATED. It is

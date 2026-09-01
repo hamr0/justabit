@@ -1,4 +1,4 @@
-// PoC module M6 — standalone check. Run: node poc/m6-check.mjs
+// PoC module M6 — standalone check. Run: node camara/v1/poc/m6-check.mjs
 //
 // ZERO credentials, zero network — including the `--backend orange` cases, which
 // drive M5 through an INJECTED transport replaying captured Playground bytes

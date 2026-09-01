@@ -1,5 +1,5 @@
 // PoC module M5 — LIVE check against the Orange Network APIs Playground.
-// Run: ORANGE_BASIC_AUTH="$(pass camara/orange_network | head -1)" node poc/m5-check-live.mjs
+// Run: ORANGE_BASIC_AUTH="$(pass camara/orange_network | head -1)" node camara/v2/poc/m5-check-live.mjs
 //
 // This is the G2 gate. `m5-check.mjs` proves the mapping offline against
 // captured bytes; this proves the same adapter still gets those bytes from the
@@ -27,7 +27,7 @@
 //
 // The 3 → 6 predicate round (2026-08-17) widened M5's backstory from three
 // fields to six and updated every sibling suite. It did not touch this one.
-// `git log 8238d02..81f8da4 -- poc/m5-check-live.mjs` was EMPTY. Every
+// `git log 8238d02..81f8da4 -- camara/v2/poc/m5-check-live.mjs` was EMPTY. Every
 // `setBackstory` call here still passed the old three-field story, so the first
 // live run died on M5's own closed-field validation
 // (`deviceSwappedDaysAgo must be whole non-negative days`) before it reached a
@@ -51,7 +51,7 @@ if (SUPPLIED === '') {
   console.error('  1. Free account at developer.orange.com → My Apps → create an app');
   console.error('  2. Add an API → "Network APIs Playground" → Credentials tab → Show');
   console.error('  3. Run with the Basic Auth string in the environment (never the tree):\n');
-  console.error('     ORANGE_BASIC_AUTH="$(pass camara/orange_network | head -1)" node poc/m5-check-live.mjs\n');
+  console.error('     ORANGE_BASIC_AUTH="$(pass camara/orange_network | head -1)" node camara/v2/poc/m5-check-live.mjs\n');
   console.error('  `| head -1` because the entry is multi-line; a leading "Basic " is fine.');
   console.error('exit 2: prerequisites missing (this is NOT a pass, and there is no mock fallback)');
   process.exit(2);

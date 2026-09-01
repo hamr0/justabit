@@ -1,4 +1,4 @@
-// PoC module M4 — standalone check. Run: node poc/m4-check.mjs
+// PoC module M4 — standalone check. Run: node camara/v1/poc/m4-check.mjs
 // Negatives first: every fail-open the spike OBSERVED in the naive adapter is
 // shown being refused before a single happy path runs. The spike's traps were
 // not hypotheses — each one ended in a confident, wrong, signable answer.

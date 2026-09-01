@@ -1,4 +1,4 @@
-// PoC module M1 — standalone check. Run: node poc/m1-check.mjs
+// PoC module M1 — standalone check. Run: node camara/v1/poc/m1-check.mjs
 // Negatives first: each attack and each malformed input is shown being rejected
 // before the happy path.
 import { generateKeyPairSync, randomBytes, sign } from 'node:crypto';
