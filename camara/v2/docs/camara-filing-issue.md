@@ -6,8 +6,8 @@
 > (`.github/ISSUE_TEMPLATE/issue_enhancement_template.md`, fetched
 > 2026-08-31; four fields: Problem description, Possible evolution,
 > Alternative solution, Additional context — the same template used by
-> precedent issue #276, "Evolution of Consent Info API to support
-> Controlled Delegation"). Title to use:
+> precedent APIBacklog issue #276, "Evolution of Consent Info API to
+> support Controlled Delegation"). Title to use:
 > `[Enhancement] Attested responses for CAMARA APIs — signed, nonce-bound, expiring answers; floor menu; range on open responses`.
 > Label: `enhancement`.
 >
@@ -16,7 +16,11 @@
 > `documentation/API proposals/` (path TBD) — that file is
 > `camara/v2/docs/camara-filing-template.md` in this repo, kept as the
 > secondary artifact for if Commonalities or the Backlog WG asks for it.
-> NOT FILED — drafting only, 2026-08-31.
+> FILED 2026-09-01 as
+> [camaraproject/Commonalities#705](https://github.com/camaraproject/Commonalities/issues/705).
+> Label `enhancement` is pending maintainer triage — the author's
+> permission on that repo is `pull` only (no triage, no push), so the
+> author cannot apply it themselves.
 
 <!-- ==== EVERYTHING BELOW THIS LINE IS THE ISSUE BODY — PASTE FROM HERE ==== -->
 
@@ -51,7 +55,11 @@ SD-JWT VC or W3C Verifiable Credentials were considered for the signing
 layer and not chosen: both solve selective disclosure across multiple
 claims, which this proposal does not need — there is exactly one claim,
 the bit itself. JWS is also already partially present in CAMARA's own
-tooling via ICM's DPoP extension claims (RFC 7515 §2 encoding).
+tooling: the CAMARA Security and Interoperability Profile binds the
+REQUEST side with DPoP proof JWTs (RFC 9449) carrying the `camara:bh`
+and `camara:qh` extension claims. This proposal is the response-side
+counterpart to that same mechanism, built on the same JOSE primitives
+(RFC 7515).
 
 **Additional context**
 

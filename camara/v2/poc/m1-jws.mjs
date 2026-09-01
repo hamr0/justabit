@@ -93,6 +93,17 @@ function jwsReject() {
 // seal/open split between "my own data" throwing and "wire data" refusing —
 // except here BOTH directions refuse, since a bad kid/payload is caught
 // before anything touches the network).
+/**
+ * @returns {string|{ok: false, reason: JwsRejected}} On success, the compact
+ *   JWS string `header.payload.signature` (base64url, dot-joined). On
+ *   failure, `{ok: false, reason}` where `reason` is always a `JwsRejected`
+ *   instance. The two shapes never overlap — a `string` is always success,
+ *   an object is always failure. FAILS CLOSED: discriminate with
+ *   `typeof result === 'string'` for success (as this function's own
+ *   callers below do) — never index into the result expecting a token
+ *   without that check, or a `{ok:false,...}` refusal object gets treated
+ *   as signed data.
+ */
 export function signJws(privateKey, kid, payload) {
   if (typeof kid !== 'string' || kid.length === 0) {
     return jwsReject();
@@ -359,6 +370,17 @@ export const REFUSAL_REASONS = Object.freeze([OFF_MENU_THRESHOLD, UNAVAILABLE]);
 // docs' worked example byte-for-byte in field order (not load-bearing for
 // verification, since object equality doesn't care about key order, but
 // worth keeping honest).
+/**
+ * @returns {string|{ok: false, reason: ClaimRejected|JwsRejected}} Returns
+ *   exactly what `signJws` returns — this function has no success shape of
+ *   its own. On success, the compact JWS string. On failure, `{ok: false,
+ *   reason}` where `reason` is a `ClaimRejected` (schema/self-collision/
+ *   empty-answer/closed-payload check failing before signing is ever
+ *   attempted) or a `JwsRejected` (propagated unchanged from `signJws`,
+ *   e.g. a malformed kid). FAILS CLOSED: discriminate with
+ *   `typeof result === 'string'` for success, exactly as `signJws` callers
+ *   must — never read the result as a token without that check.
+ */
 export function attestAnswer(privateKey, kid, base, schema, params, answer) {
   // D2 FIX backstop: base/schema.params/schema.answer/params/answer are
   // caller-supplied objects that may carry a throwing getter or a Proxy
@@ -390,6 +412,20 @@ export function attestAnswer(privateKey, kid, base, schema, params, answer) {
   }
 }
 
+/**
+ * @returns {{ok: true, claims: object}|{ok: false, reason: JwsRejected|ClaimRejected}}
+ *   On success, `{ok: true, claims}` where `claims` is the schema-projected
+ *   claim set only (base ∪ schema.params ∪ schema.answer — never the raw
+ *   decoded payload; see `projectClaims`). On failure, `{ok: false, reason}`
+ *   where `reason` is a `JwsRejected` (propagated from `verifyJws` —
+ *   malformed token, bad signature, unknown kid) or a `ClaimRejected`
+ *   (schema/closed-set/type/requester check failing, carrying a
+ *   machine-readable `.code`). FAILS CLOSED: both branches are plain
+ *   objects, so `typeof` cannot distinguish them — discriminate with
+ *   `.ok === true` / `.ok === false` only; never read `.claims` without
+ *   checking `.ok` first, since a failure object simply has no `claims`
+ *   key and would read back as `undefined` rather than throw.
+ */
 export function verifyAnswer(token, resolveKey, schema, { expectedIss, expectedAud, nonceStore, now }) {
   const r = verifyJws(token, resolveKey);
   if (!r.ok) return r;
@@ -427,6 +463,17 @@ export function verifyAnswer(token, resolveKey, schema, { expectedIss, expectedA
   }
 }
 
+/**
+ * @returns {string|{ok: false, reason: ClaimRejected|JwsRejected}} Returns
+ *   exactly what `signJws` returns — this function has no success shape of
+ *   its own. On success, the compact JWS string. On failure, `{ok: false,
+ *   reason}` where `reason` is a `ClaimRejected` (invalid/off-menu `error`,
+ *   reserved-claim collision, or closed-payload check failing before
+ *   signing is ever attempted) or a `JwsRejected` (propagated unchanged
+ *   from `signJws`). FAILS CLOSED: discriminate with
+ *   `typeof result === 'string'` for success, exactly as `signJws` callers
+ *   must — never read the result as a token without that check.
+ */
 export function attestRefusal(privateKey, kid, base, error) {
   // D2 FIX backstop: `base` is caller-supplied and may carry a throwing
   // getter or Proxy trap. Every branch below still returns its own specific
@@ -449,6 +496,20 @@ export function attestRefusal(privateKey, kid, base, error) {
   }
 }
 
+/**
+ * @returns {{ok: true, claims: object}|{ok: false, reason: JwsRejected|ClaimRejected}}
+ *   On success, `{ok: true, claims}` where `claims` is the schema-projected
+ *   claim set only (base ∪ REFUSAL_FIELDS — never the raw decoded payload;
+ *   see `projectClaims`). On failure, `{ok: false, reason}` where `reason`
+ *   is a `JwsRejected` (propagated from `verifyJws` — malformed token, bad
+ *   signature, unknown kid) or a `ClaimRejected` (closed-set/type/off-menu
+ *   `error`/requester check failing, carrying a machine-readable `.code`).
+ *   FAILS CLOSED: both branches are plain objects, so `typeof` cannot
+ *   distinguish them — discriminate with `.ok === true` / `.ok === false`
+ *   only; never read `.claims` without checking `.ok` first, since a
+ *   failure object simply has no `claims` key and would read back as
+ *   `undefined` rather than throw.
+ */
 export function verifyRefusal(token, resolveKey, { expectedIss, expectedAud, nonceStore, now }) {
   const r = verifyJws(token, resolveKey);
   if (!r.ok) return r;

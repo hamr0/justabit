@@ -14,7 +14,250 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
-## 2026-09-01 (latest) — User validation run at `0a261e4`: all seven v2 suites green at `m1-jws-check` 94, first user run covering the equivalent-mutant and empty-answer-schema fixes
+## 2026-09-01 (latest) — CAMARA v2 filed: Commonalities#705 open (author `pull`-only, cannot label), PR #331 link-back posted; two of the main session's own earlier retractions were themselves wrong and are retracted
+
+**EVIDENCE**
+
+1. **Filed.** `camaraproject/Commonalities#705`
+   (https://github.com/camaraproject/Commonalities/issues/705), OPEN,
+   created 2026-09-01T11:15:19Z. Title: "[Enhancement] Attested
+   responses for CAMARA APIs — signed, nonce-bound, expiring answers;
+   floor menu; range on open responses." This is step 1 of the
+   four-step sequence agreed on APIBacklog PR #331 (see the entry
+   directly below).
+
+2. **Body integrity verified.** 460 words posted vs 460 intended, zero
+   word-level differences — only line rewrapping differs. Verified by
+   diffing the live body (`gh api
+   repos/camaraproject/Commonalities/issues/705 --jq '.body'`) against
+   the source file. This check exists BECAUSE a heredoc paste silently
+   corrupted an earlier post the same day (see the entry below).
+
+3. **The `enhancement` label is NOT applied, and the author cannot apply
+   it.** The user's permission on `camaraproject/Commonalities`, checked
+   via `gh api repos/camaraproject/Commonalities --jq '.permissions'`,
+   is `{"admin":false,"maintain":false,"pull":true,"push":false,
+   "triage":false}` — `pull` only. Labeling at triage requires
+   `triage`/`push`/`maintain`/`admin`, none of which the author holds.
+   This is recorded as an observed permission fact, not a defect in the
+   filing — only a Commonalities maintainer can label it.
+
+4. **Link-back posted** on APIBacklog PR #331, comment id
+   `5493181312`, verified intact at 179 words both sides (source vs
+   live `gh api` body). This discharges the public promise made in
+   comment `5492957947` (the entry below) to link back once #705 was
+   filed.
+
+5. **A RETRACTION, stated visibly.** Earlier this session the main
+   session claimed the draft's "precedent issue #276" citation was
+   factually wrong. THAT CLAIM WAS ITSELF WRONG and is retracted.
+   `APIBacklog#276` really is "Evolution of Consent Info API to support
+   Controlled Delegation" (closed) and `APIBacklog#277` is "Add Scope
+   Enhancement for Consent Info API (Consent Management API) —
+   Controlled Delegation" (closed). The error's cause: a bare `#276`
+   was resolved against `Commonalities` (whose own #276 is an unrelated
+   `sinkCredentials` issue) because the surrounding sentence was about
+   the Commonalities template. Lesson: a bare `#NNN` is only
+   unambiguous inside its own repo — cross-repo prose must name the
+   repo.
+
+6. **A second, smaller retraction.** The main session also called the
+   draft's "(RFC 7515 §2 encoding)" citation wrong. That was ALSO
+   wrong: RFC 7515 §2 Terminology does define "Base64url Encoding",
+   and CAMARA's own ICM profile (`CAMARA-Security-Interoperability.md:
+   120-121`) cites it exactly that way. The paragraph was still
+   rewritten — to name RFC 9449 for DPoP and to add the response-side
+   framing promised to reviewers — but that was a clarity change, NOT a
+   correction of an error. Both facts are recorded plainly: the
+   citation was correct, and the rewrite happened anyway for a
+   different reason.
+
+7. **Verified live before writing the new paragraph:** RFC 9449 is
+   titled "OAuth 2.0 Demonstrating Proof of Possession (DPoP)";
+   `camara:bh` and `camara:qh` are real, defined at
+   `CAMARA-Security-Interoperability.md:120-121` in
+   `camaraproject/IdentityAndConsentManagement`.
+
+8. **Step 2 complete.** Supporting material posted on APIBacklog issue
+   #330, comment id `5493292509`
+   (https://github.com/camaraproject/APIBacklog/issues/330#issuecomment-5493292509),
+   created 2026-09-01T11:33:54Z, edited 11:36:03Z. This is step 2 of
+   the four-step sequence agreed on PR #331 (see the entry below).
+
+9. **Two files attached, both verified to return HTTP 200.**
+   `camara-attested-windowed-disclosure.md` (the revised v2 proposal)
+   at
+   https://github.com/user-attachments/files/31688670/camara-attested-windowed-disclosure.md,
+   and `carrier-attestation.yaml.txt` (the OpenAPI sketch) at
+   https://github.com/user-attachments/files/31688841/carrier-attestation.yaml.txt.
+
+10. **An observed GitHub upload behaviour, not a theory about its
+    cause.** GitHub's own documentation (docs.github.com "Attaching
+    files") lists `YAML` and `YML` among allowed attachment types,
+    with a 25 MB cap for non-image files. The 13 KB
+    `carrier-attestation.yaml` was nonetheless REJECTED by the
+    uploader ("Failed to upload"). Renaming the identical bytes to
+    `.txt` succeeded. The documented type list is not sufficient to
+    predict what the uploader actually accepts.
+
+11. **A main-session error, recorded plainly.** Before checking, the
+    main session asserted from memory that `.yaml` was not an allowed
+    attachment type. That assertion was wrong — the documentation
+    lists it — and it led to an initial recommendation to skip
+    attachments entirely in favour of permalinks. The correct
+    sequence is: check the documentation, then test the actual
+    behaviour, because here the two disagreed. This is the same
+    failure mode the repo's standing rule already guards against:
+    never write a citation from memory.
+
+12. **The comment first posted nearly empty.** The body was just
+    "attached below" plus the two attachment links; the prepared
+    descriptive text did not make it into the box. It was repaired in
+    place with `gh api ... --method PATCH -F body=@<file>`, preserving
+    both `user-attachments` URLs verbatim. Body verified afterwards:
+    identical to source apart from a trailing newline GitHub appends.
+
+13. **Pattern, now three for three today.** Every one of the three
+    GitHub posts this session needed a read-back to confirm what
+    actually landed: #331 reply (silently truncated by a heredoc
+    paste), #705 (intact), #330 (posted without its text). Two of the
+    three were wrong on the first attempt, and neither failure
+    produced an error. A success message and an exit code of 0 prove
+    only that the request was accepted — after any post, read the
+    body back and diff it against the source.
+
+**DECISION**
+
+Rewrite the Alternative solution paragraph to name RFC 9449 (DPoP) and
+add explicit response-side framing, even though the RFC 7515 §2
+citation it replaced was not actually wrong (see 6 above). The filed
+text needed to match what reviewers on PR #331 had just been publicly
+told — a JWS response envelope as the counterpart to ICM's DPoP
+request-side binding — rather than diverge from the framing they'd
+already agreed to. Filing text that contradicted the just-confirmed
+sequence would have cost more credibility than a citation that was
+technically fine but incomplete for the point being made.
+
+---
+
+## 2026-09-01 — docs-builder off-by-one CONFIRMED and fixed upstream; independently reproduced on this repo's own data at `9f7a49f`; three of the tests that hid it measured with the same broken primitive as the code
+
+**EVIDENCE**
+
+1. The standing open item "docs-builder.cjs counts one line too many"
+   is CONFIRMED and fixed upstream. It was handed to a peer session as
+   a hypothesis for VALIDATION, not as a fix request.
+
+2. **Independent confirmation on this repo's own data.** `docs/index.md`
+   was generated at `9f7a49f`. At that exact commit: `docs/product/
+   prd.md` was 998 real lines (`git show 9f7a49f:docs/product/prd.md |
+   wc -l`) and the index claimed 999; `docs/logs/findings.md` was 6340
+   real lines and the index claimed 6341. Both +1.
+
+3. **Root cause:** `text.split('\n')` yields a trailing empty element
+   for any file ending in a newline. The peer session reported the
+   symptom comes from `indexRow` (`:743` the per-row count, `:754` the
+   last H2's `end = lines.length`), not only the `scan` sites, and that
+   a `PARTIAL` guard at `:525` let a page one line short pass as
+   complete.
+
+4. **The peer's negative control:** two fixtures identical except the
+   final byte — with a trailing newline the last section reported one
+   past EOF; without one, no offset. This is what makes the
+   confirmation load-bearing rather than a restated hypothesis.
+
+5. **Fix location:** a `splitLines()` helper applied at the 7
+   counting/bounding sites, and deliberately NOT at the 3 sites that
+   map-and-rejoin file text, where dropping the trailing element would
+   strip the file's final newline on rewrite.
+
+6. **The most transferable finding.** Three existing upstream tests had
+   the +1 baked into their expected values, and two more computed
+   their expected count with `split('\n').length` — the same broken
+   primitive the code under test was suspected of getting wrong. One
+   test comment said the numbers were "verified against a plain node
+   split('\n') of the fixture string." That is how the bug was
+   asserted as correct and survived four rounds of fixes. Lesson,
+   stated plainly: a test must never measure with the same primitive
+   the code under test is suspected of getting wrong.
+
+7. **Observed state on this machine:** the installed generator at
+   `~/.claude/commands/docs-builder/docs-builder.cjs` ALREADY contains
+   the fix (it defines `splitLines`, md5 `272e365d...`, byte-identical
+   to liteagents' working copy) — but liteagents has NOT committed or
+   released it. justabit is therefore running an unreleased upstream
+   fix.
+
+8. **Consequence still outstanding.** The fix does not retroactively
+   correct already-generated files. `docs/index.md` still carries the
+   old +1 numbers (999, 6341 — see 2 above) until it is regenerated.
+   Not regenerated by this entry: `docs/index.md` is owned by another
+   task this session.
+
+**DECISION: none**
+
+---
+
+## 2026-09-01 — Reply posted on PR #331 confirming the four-step sequence; first post silently truncated by a heredoc paste, repaired in place by PATCH
+
+**EVIDENCE**
+
+1. The user posted a reply on `camaraproject/APIBacklog` PR #331, comment
+   id `5492957947`
+   (https://github.com/camaraproject/APIBacklog/pull/331#issuecomment-5492957947),
+   created 2026-09-01T11:03:55Z. It answers albertoramosmonagas' question
+   of 2026-09-01T10:01:59Z, comment id `5492274067`, "Are you agree with
+   this?" — confirming agreement and recording the sequence agreed with
+   both reviewers:
+   1. Open the Scope Enhancement issue in `camaraproject/Commonalities`
+      first (response envelope only: JWS attestation bound to a
+      requester nonce with an expiry, plus an operator-published
+      threshold menu; SimSwap `/check` as first adoption example).
+   2. Upload supporting material (OpenAPI sketch, revised proposal doc)
+      on issue #330, linked from the Commonalities issue rather than
+      duplicated.
+   3. Request a WG slot only once the Commonalities issue has had
+      discussion — conceding this moves the ask past the 10 September
+      session.
+   4. File the aggregator end-to-end-encryption item as a separate
+      follow-on Commonalities issue, only once the signing envelope
+      baseline is accepted.
+
+2. **The first post was corrupted, silently.** A long body was pasted into
+   the terminal as a heredoc; the paste dropped characters mid-word on
+   three separate lines:
+   - `(hub meters and bills without rea will be a` — lost
+     `ding identifiers or answers)`
+   - `envelope baseline is accepted, an` — lost `d referencing it.`
+   - `Use case 2 (AI-agent holder presentm withdrawn` — lost
+     `ent / trust directory) stays`
+
+   `gh` exited 0 and returned a valid comment URL — nothing in the tool's
+   own output signaled the corruption. The main session caught it only by
+   reading the posted body back via
+   `gh api repos/camaraproject/APIBacklog/issues/comments/5492957947 --jq '.body'`
+   and comparing it against the intended text.
+
+3. **The repair.** The corrected body was written to a file and posted
+   with `gh api repos/camaraproject/APIBacklog/issues/comments/5492957947
+   --method PATCH -F body=@<file>`, at 2026-09-01T11:04:39Z. Reading the
+   body back a second time confirmed all three lines are now intact and
+   the trailing `<sub>` footnote renders as real HTML, not escaped text.
+   GitHub now shows the comment as edited. Full verbatim text recorded at
+   `camara/v2/docs/pr331-reply-posted-2026-09-01.md`.
+
+4. **Lesson.** A long comment body must be written to a file and posted
+   with `--body-file` / `-F body=@file`, never pasted into a heredoc — a
+   terminal paste can silently drop characters mid-word with no error
+   signal. Separately: a `gh` exit code of 0 proves the HTTP request
+   succeeded, not that the body arrived intact — read the body back from
+   the API before trusting a post, especially a long one.
+
+**DECISION: none**
+
+---
+
+## 2026-09-01 — User validation run at `0a261e4`: all seven v2 suites green at `m1-jws-check` 94, first user run covering the equivalent-mutant and empty-answer-schema fixes
 
 **EVIDENCE**
 
