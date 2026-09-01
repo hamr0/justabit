@@ -14,7 +14,220 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
-## 2026-09-01 (latest) — CAMARA v2 filed: Commonalities#705 open (author `pull`-only, cannot label), PR #331 link-back posted; two of the main session's own earlier retractions were themselves wrong and are retracted
+## 2026-09-01 (latest) — Spike B built at `ietf/v1/poc/` (actionClass / classSource / writeBudget gate), 24/24, USER-VALIDATED at the working tree on tip `ac18310`; three assumptions pinned as cases 22-24; Rafael (asor) reply aligns on registry shape and the three layers
+
+**EVIDENCE** — all observed; do not soften:
+
+1. Spike B built per the user-approved five-line spec: `ietf/v1/poc/` now
+   holds byte-identical copies of
+   `camara/v2/poc/{m3-floor,m3-check,check-harness,m1-jws,m1-attestation}.mjs`
+   (the fifth, `m1-attestation.mjs`, was NOT in the spec's copy list; the
+   build agent found it is a hard import of `m1-jws.mjs`, escalated, and
+   copied it unchanged — the main session accepted that) plus the new
+   `m7-actionclass.mjs` (~340 lines), `m7-check.mjs`, `README.md`. Zero
+   dependencies beyond `node:crypto`. The build agent chose a clean parallel
+   implementation rather than extending M3's `checkFloor`, because M3
+   compares a published floor to a wire request while M7 compares parent
+   link to child link, and M3's axis kinds are equality-enum and duration
+   only; M7 needs two ORDERED enums (rank tables, never string comparison)
+   and an integer.
+
+2. Behaviour proven by the suite: actionClass/classSource/writeBudget each
+   tighten monotonically down a chain (child may lower actionClass, may
+   move classSource declared->method, may lower writeBudget; the reverse of
+   each is refused); `classSource: method` ignores a valid menu (case 1); a
+   forged menu signature falls back to the method default (case 2); a
+   declared menu may tighten a GET to x (case 3); unknown enum values,
+   negative and non-integer budgets are hard rejections (cases 4-7); `r`
+   never spends the budget (case 14); the budget refuses at 0 (case 11);
+   omitted writeBudget is effective 0 and omitted classSource is effective
+   `method`, both VISIBLE in `effective` (cases 16-17); unknown HTTP method
+   classifies as x (18); a menu lacking the key falls back to method (19); a
+   Proxy request with a throwing getter yields a typed `MALFORMED_INPUT`,
+   never a throw (12).
+
+3. Mutation proofs. Build agent: five guards disabled one at a time — the
+   `classSource === 'method'` short-circuit, the JWS verification of the
+   menu, the budget decrement, the r-never-spends rule, the monotone
+   writeBudget check — each gave exit 1 with named failing cases (1+17; 2;
+   11; 13+14+17; 8). Main session independently re-ran one: removing the
+   decrement gave exit 1, case 11 failed; restored, exit 0; copies
+   re-verified byte-identical against HEAD.
+
+4. Main-session review of the code found THREE ASSUMPTIONS the spike
+   silently makes; each was PINNED as a case that passes on the current
+   behaviour so a later fix flips it: case 22 — `chainId` is
+   caller-supplied, so a fresh chainId refills the budget (the verifier
+   MUST derive chainId from the signed chain, never take it from the
+   request); case 23 — menu keys are exact strings, so
+   `POST /calls/{callId}` never matches `/calls/123` and falls back to
+   method (fails CLOSED; real menus need path-template matching); case 24 —
+   the menu's `iss` is type-checked only, never bound to the target
+   resource (a multi-API gate could accept the wrong owner's menu; -01 must
+   bind menu to origin). All three are stated in `ietf/v1/poc/README.md` as
+   -01 requirements.
+
+5. **USER VALIDATION RUN**, 2026-09-01, on the user's own machine, at the
+   UNCOMMITTED working tree on tip `ac18310`: `node ietf/v1/poc/m7-check.mjs`
+   printed all 24 PASS lines and `RESULT: 24/24`, `m7 exit=0`;
+   `node ietf/v1/poc/m3-check.mjs` (the copied M3) `exit=0`. The seven
+   `camara/v2/poc` suites were NOT captured in the user's paste — their loop
+   output did not print — so they are recorded as MAIN-SESSION runs only:
+   all seven exit 0 (m1 20/20, m1-jws 94/94, m2 10/10, m3 26/26, m4 42/42,
+   m5 67/67, m6 47/47), run twice by the main session during this round. No
+   `camara/` file was changed by this work. This validates m7 at count 24
+   and the working tree only; any later change to `ietf/v1/poc/` voids it.
+
+6. Rafael Asor replied on the EMILIA pre-flight thread (2026-09-01): asor
+   already carries floors via a constraint-type registry with
+   must-understand semantics — the shape HAMR's point 3 described — and
+   describes asor with the same three layers, (c) deliberately out. The
+   main session verified live: asor **-01 is NOT posted** (datatracker
+   latest is -00; the -01 .txt returns 404), but the registry is ALREADY in
+   asor -00: §10 "IANA Considerations" defines a "Constraint Types"
+   registry, Specification Required, and §4.1 "Constraint Vocabulary" says
+   unknown types fail closed at every verifier. A reply was drafted
+   (scratchpad `rafael-reply.md`, not yet sent) that corrects the citation
+   to -00, names the carrier (token chain vs RFC 9421 message signature) as
+   the only real difference, and proposes shared axis naming across the two
+   registries. The draft deliberately does NOT mention
+   actionClass/classSource/the spike — unvalidated at drafting time, and
+   not a position of the draft.
+
+7. Design clarifications the user asked for and that shaped this round,
+   recorded so they are not re-argued: the menu the AGENT fetches is
+   advisory and may be discarded; the copy the VERIFIER holds is
+   authoritative; the agent's choices never reach enforcement — the
+   verifier classifies, compares to the floor, and its ledger counts
+   admitted w/x calls (the "mechanical counter"). Deciding classes is a
+   human design-time act; signing the menu is code at publish time
+   (deployment key, like a JWKS); the delegation link is likewise signed by
+   a key, human-backed or policy-backed — HAMR sees a signature only, and
+   whether a human was behind it is EMILIA's `required_evidence` layer.
+
+**DECISION: none** — the spike is evidence for -01 drafting; the -01 scope
+(four items) stands as recorded in the entry below.
+
+---
+
+## 2026-09-01 — IETF track resumed: EMILIA source-check reply sent; spike A on the actionClass method default run across the CAMARA catalogue (readout R2, cost side unaudited); classSource chosen for -01
+
+**EVIDENCE**
+
+1. EMILIA Protocol (Iman Schrock) sent a private pre-flight email to
+   the authors of asor-00, reece-02, mcphillips-01 and hamr-00, asking
+   each to source-check its reading of their draft in
+   `conformance/composition/wimse-r10-aeb-v0.1/matrix.json` at commit
+   `18fde1a` of github.com/emiliaprotocol/emilia-protocol. The user
+   replied 2026-09-01T17:23+02:00; record at
+   `ietf/v1/docs/emilia-preflight-reply-sent-2026-09-01.md` (quoted
+   third-party original omitted on the user's decision). The reply
+   confirmed the HAMR row as accurate; framed the two NOT_SUPPORTED
+   grades as deliberate fail-closed behaviour (draft §8: unknown axis
+   MUST be rejected, MUST NOT be dropped); noted §8 and §17 already
+   name an axis registry as future work; observed that EMILIA's
+   `required_evidence` carrier contract is §8.2 monotone tightening
+   applied to one more axis; and set out a three-layer reading (who
+   may act / what exactly / what happened once) with HAMR as layer
+   (a)+floors. Every section number was verified against the live -00
+   text at
+   https://www.ietf.org/archive/id/draft-hamr-oauth-agent-delegation-00.txt
+   (§6 Scope, §8 Floor Axes, §8.2, §9.2, §17). Also verified live:
+   `draft-hassan-oauth-agent-delegation-00` is marked Replaced;
+   EMILIA's cited revisions (reece-02, asor-00, mcphillips-01) match
+   the datatracker; draft-das-agentic-tool-binding is at -02.
+
+2. Spike A — "does the RFC 9110 method default for an `actionClass`
+   axis hide consequential operations behind safe methods?" — run on
+   real, uncrafted data: every `code/API_definitions/*.yaml` in the
+   `camaraproject` org, default branch, SHA-pinned. Totals: 95 repos
+   -> 60 with published YAML; 92 files; 292 operations (GET 96, PUT 8,
+   DELETE 41, POST 138, PATCH 9); 0 parse errors, 0 fetch errors, 0
+   rate-limit hits. Outputs in the session scratchpad
+   (`spike-actionclass/operations.csv`, `disagreements.md`,
+   `README.md`) — NOT in the repo. Pre-registered readouts R1/R2/R3
+   were written before the run.
+
+3. **Readout: R2.** Zero operations judged `x` behind GET/HEAD/OPTIONS
+   (R3 did not fire). Exactly two judged stricter than default, both
+   on the designed path: ClickToDial `DELETE /calls/{callId}` (w->x,
+   terminates a live call) and WebRTC `PUT /sessions/{id}/status`
+   (w->x, live call control).
+
+4. **Two things the main session found on independent verification of
+   the CSV that the agent's report understated.** (a) The GET
+   judgements were templated — every sampled GET carries the same
+   boilerplate reason — so "no GET is x" rests on CAMARA's design
+   rule, not per-operation reading. That rule is real: Design Guide
+   §6.5 moves sensitive reads to POST. (b) The cost side was never
+   audited: 57 of 138 POSTs are named
+   `retrieve-*`/`check`/`verify`/`status` and ALL 57 were judged `x`
+   — i.e. defaulted, never judged downward. Under a method default
+   those are `x`. That set is SimSwap `/check`, NumberVerification
+   `/verify`, `retrieve-location`, KYC match — the predicate
+   catalogue this project exists for.
+
+5. CAMARA Design Guide §6.5 (fetched live from Commonalities `main`)
+   RECOMMENDS POST instead of GET for sensitive data and REQUIRES the
+   path to be a verb (`retrieve-location`, not `location`) "to
+   differentiate from an actual resource creation"; §7 mandates
+   `retrieve` as the one verb for POST-based reads. So POST-as-read is
+   the norm in CAMARA by rule, not an accident. Separately: RFC 9110
+   "safe" describes the CLIENT's intent, not the server's behaviour —
+   the method is a reliable floor in one direction and a lossy signal
+   in the other.
+
+6. Two facts already in this log that bear directly: a 200 is not
+   evidence of effect (Orange Playground Admin writes echoed 200
+   while ignoring the write; read-after-write is mandatory) — so an
+   operation's class cannot be discovered by probing; and §9.2 hands
+   consumed state to the verifier — so any budget COUNT must live at
+   the gate, while the budget LIMIT can live in the chain.
+
+7. docs-builder off-by-one shipped upstream as liteagents 2.22.1; the
+   installed copy verified byte-identical (md5 `86b36a96`) to the
+   published tarball; regenerating `docs/index.md` with 2.22.1
+   produced identical bytes, so no regeneration was needed;
+   `docs/.docs-builder/outline.json` is stale but gitignored.
+
+**DECISION** (the user's, 2026-09-01, after two rounds of
+explanation):
+
+- Option A (method default, declaration tightens only) was considered
+  and REJECTED as too strict: it makes every CAMARA POST-read
+  permanently `x`, and a POST-read would then spend an agent's write
+  budget.
+- Option B chosen for -01: a `classSource` floor axis, ordered
+  `declared < method`, default `method`, monotone (child may tighten
+  `declared -> method`, never the reverse). The resource OWNER
+  publishes a signed class table ("menu"); the DELEGATOR decides in
+  the signed link whether to trust it; the AGENT can only tighten and
+  can never author the table. Unknown/invalid/missing menu signature
+  falls back to `method`. The user's stated concern — that B "gives
+  agents the ability to author their arbiter" — was answered: the
+  trust knob is in the delegator's link, not the agent's; the honest
+  cost of B is that a human can set the knob permissively, and a
+  lying owner can misclassify its own operation for a trusting
+  delegator.
+- A `writeBudget` axis added to -01 scope: integer, monotone down,
+  omitted = 0 (read-only by default). The LIMIT is a floor axis in
+  the chain; the COUNT is the verifier's, per §9.2.
+- -01 scope is now four items: (1) registered-axis mechanism with
+  must-understand semantics; (2) three-layer boundary statement; (3)
+  `actionClass` + `classSource`; (4) `writeBudget`. Bareloop/harness
+  experience goes to Appendix A, non-normative only.
+- The menu has no home in OpenAPI today (no r/w/x field; files
+  unsigned). Candidate: an `x-` vendor extension per operation plus a
+  detached JWS at a well-known URL — a Commonalities Design Guide ask
+  on the same trajectory as #705. Recorded as an open item, not
+  filed.
+- Spike B (the gate, `ietf/v1/poc/`) approved on a five-line spec;
+  build in progress at time of writing, NOT validated, NOT part of
+  this entry's evidence.
+
+---
+
+## 2026-09-01 — CAMARA v2 filed: Commonalities#705 open (author `pull`-only, cannot label), PR #331 link-back posted; two of the main session's own earlier retractions were themselves wrong and are retracted
 
 **EVIDENCE**
 
