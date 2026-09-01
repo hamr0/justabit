@@ -14,7 +14,95 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
-## 2026-09-01 (latest) — -01 item 3 drafted: Action Class Floors (actionClass, classSource, declared menu), user-validated at the uncommitted tree
+## 2026-09-01 (latest) — -01 item 4 drafted: Write Budget; all four -01 items and Appendix A direction 4 now in the text; user-validated at the uncommitted tree
+
+**EVIDENCE**
+
+1. New normative section after Action Class Floors, anchor `write-budget`,
+   specifying the `writeBudget` axis: max, lower only, omitted inherits the
+   published floor (zero by default).
+2. Limit and Count: `r` never spends against the budget; `w`/`x` requests
+   reserve-then-decrement as one admission outcome; exhaustion produces a
+   uniform rejection per the verification section, with the remaining count
+   never disclosed to the caller.
+   - The orchestrator's original brief pointed this exhaustion refusal at
+     the Attestation Issuer's signed-refusal section. The agent escalated
+     rather than building against it; the orchestrator corrected the target
+     to the verifier's uniform rejection outcome, which is where admission
+     and refusal for this axis actually happen.
+3. Chain Identifier: SHA-256 (RFC 6234, adopted here as this document's
+   first use of any hash function, cited normatively via bibxml) over
+   L(0)'s signature bytes, verifier-derived and never caller-supplied. The
+   user chose this option (a digest of the root link's signature, shared by
+   every hop) over the alternative of a whole-chain digest, because the
+   budget is a property of the delegation as a whole, not of any one hop —
+   a whole-chain digest changes at every re-delegation and would let a
+   re-delegated chain mint a fresh budget against the same underlying
+   grant.
+4. Limits: per-verifier count (N verifiers imply N independent budgets),
+   cumulative per chain rather than per individual action, and no
+   writeBudget size is described as practically sufficient by this text.
+5. Registry `writeBudget` row's deferred-semantics TODO cross-referenced to
+   `write-budget`; the standalone `<!-- TODO -01 item 4 -->` marker comment
+   removed — it was the last such marker in the document.
+6. Vectors V10 (positive) and V11 (negative control) added to the appendix,
+   using a step table rather than the V1-V9 chain-shape table because V10/
+   V11 test sequential admission across one chain rather than one-shot
+   chain validity: a single-link chain, `actionClass` x, `writeBudget` 2;
+   step 1 (x-class request 1) admitted, remaining 1; step 2 (x-class
+   request 2) admitted, remaining 0; step 3 (x-class request 3) refused,
+   budget exhausted; step 4 (V11, x-class request 4, re-presented with a
+   different caller-supplied chain identifier value against the same
+   already-exhausted chain) refused, budget exhausted. V11 exists to catch
+   a verifier that treats a fresh caller-supplied identifier as a fresh
+   budget — the exact PoC case 22 gap.
+7. Implementation Status bullet added: the writeBudget ledger (reserve-
+   then-decrement admission against a stateful, per-chain count, `r` never
+   spending) shares the same PoC as the actionClass/classSource work, with
+   one named gap — the code takes the chain identifier from a caller-
+   supplied request field rather than deriving it from L(0)'s signature per
+   `write-budget-chain-identifier`, so a fresh identifier presented with
+   the same chain refills the budget (its own case 22 pins this exact gap).
+   Text is authoritative; the code has not been changed to close it.
+8. Security Considerations paragraph added describing the exhaustion
+   behaviour (uniform rejection, count undisclosed) and the chain-
+   identifier derivation as closing the re-delegation budget-refill attack
+   surface a caller-supplied identifier would otherwise open.
+9. "Changes since -00" bullet appended naming the `write-budget` section,
+   the registry row it resolves plus the marker comment it removes, the
+   Security Considerations paragraph, and V10/V11 including which is the
+   negative control.
+10. Fix round ordered by the orchestrator: (a) the exhaustion refusal
+    cross-reference corrected from the Attestation Issuer's signed-refusal
+    section to the verifier's uniform rejection outcome, per item 2 above;
+    (b) one redundant clause trimmed.
+11. Checks run by exit code at this tree: non-ASCII scan 0, `xmllint`
+    well-formedness 0, forbidden-RFCXML-tag scan 0, BCP14 capitalization-
+    after-`<back>` scan 0, `m7-check.mjs` 24/24 exit 0, `m3-check.mjs`
+    26/26 exit 0. The XML is now 2315 lines; `git diff --stat` for the one
+    changed file: +262/-18.
+12. USER VALIDATION 2026-09-01: the user reported both PoC check suites
+    exit 0 and `idnits` clean. The author-tools RFCXML validator run was
+    NOT separately reported for this tree — do not claim it. This
+    validation holds only at this tree.
+
+**DECISION**
+
+-01 text is now complete for all four scope items (Floor Axis Registry,
+Position Among Delegation Layers, Action Class Floors, Write Budget) plus
+Appendix A direction 4 (harness-side experience). The draft is NOT
+submitted. Remaining before submission, in order: (1) a full read-through
+review of the whole -01 document (a review round, not a drafting round);
+(2) code catch-up in `ietf/v2/poc` for cases 22-24 so the PoC matches the
+text, with the user re-validating the suite at the new count; (3) re-verify
+every cited draft revision live on submission day; (4) the user's own
+author-tools and `idnits` run on the final XML; (5) the user submits. Open:
+asor -01 has not yet posted; when it posts, the min-pending wording in the
+axis-registry alignment paragraph must be revisited.
+
+---
+
+## 2026-09-01 — -01 item 3 drafted: Action Class Floors (actionClass, classSource, declared menu), user-validated at the uncommitted tree
 
 **EVIDENCE**
 

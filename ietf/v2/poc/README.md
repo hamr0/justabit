@@ -59,7 +59,8 @@ attempt a broader mutation sweep.
 -01 item 3 (`action-class` in the draft) has since drafted the text that
 resolves cases 23 and 24: a deterministic path-template matching rule for
 menu keys, and a required `iss`-equals-target-origin check with fail-closed
-behaviour on any mismatch. Item 4 (`writeBudget`) is expected to resolve
-case 22. This code still pins the old behaviour in all three cases — exact-
+behaviour on any mismatch. Item 4 (Write Budget, chain identifier derived
+from L(0)'s signature) now resolves case 22 in the text; the code is behind
+on all three. This code still pins the old behaviour in all three cases — exact-
 string menu keys, no origin check, caller-supplied `chainId` — and is
 behind the text; it has not been updated to match.
