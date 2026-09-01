@@ -14,7 +14,62 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
-## 2026-09-01 (latest) — Second `/branch-review` at `7bfe111` found a CRITICAL prototype-chain bypass in `checkClosedPayload`: raw values rode through a signed profile-mode response; fixed with `hasOwn` + a projection layer, `m1-jws-check` 39 -> 82
+## 2026-09-01 (latest) — User validation run at `4ba6f5e`: all seven v2 suites green at `m1-jws-check` 82, first user run covering the prototype-chain fix
+
+**EVIDENCE**
+
+1. Command run by the user, in their own terminal, verbatim:
+   ```
+   for f in m1-check m1-jws-check m2-check m3-check m4-check m5-check m6-check; do node camara/v2/poc/$f.mjs; echo "$f exit=$?"; done
+   ```
+
+2. Per-suite declared RESULT line and shell exit code:
+
+   | suite        | RESULT | exit |
+   |--------------|--------|------|
+   | m1-check     | 20/20  | 0    |
+   | m1-jws-check | 82/82  | 0    |
+   | m2-check     | 10/10  | 0    |
+   | m3-check     | 26/26  | 0    |
+   | m4-check     | 42/42  | 0    |
+   | m5-check     | 67/67  | 0    |
+   | m6-check     | 47/47  | 0    |
+
+3. Zero `FAIL` lines across the combined 52.8KB output of all seven runs,
+   counted with `grep -c "^FAIL"` = 0.
+
+4. Capture location: session scratch path
+   `/home/hamr/.claude/projects/-home-hamr-PycharmProjects-justabit/8376fcaa-6159-4387-a8b7-fcde1f4cea16/tool-results/ba6f3kw5q.txt`
+   — session-local, not part of the repo; cited here only as where the
+   output was captured, not as a repo artifact.
+
+5. Tree state at run time: branch `camara/v2-rescope`, tip commit
+   `4ba6f5e`, working tree CLEAN.
+
+6. Scope: this run covers the seven v2 check runners only.
+   `camara/v2/poc/m6-check.mjs:24` imports from `demo.mjs` and m6 asserts
+   the demo at 35/35, so `demo.mjs` is covered indirectly. `camara/v1/**`
+   is frozen and untouched by this branch, and is out of scope.
+
+7. **SUPERSESSION.** This run supersedes the earlier clean-tree record at
+   `2c71a20` (seven suites at `m1-jws-check` 39/39 — see the entry below
+   the prototype-chain-bypass entry), which was voided when the D1/D2 fix
+   round moved the count 39 -> 82. Per the repo rule, a user run
+   validates only at the count and tree it was run at. That earlier
+   entry is NOT rewritten — it is correct as dated history.
+
+8. **First user run covering the prototype-chain fix.** The 43 cases
+   added by the D1/D2 fix round (the entry directly below this one) had
+   only ever been agent-run before this: the 12 wire-smuggle cases, the
+   12 legitimate-prototype-name mirror cases, the projection-exactness
+   cases including the `__proto__` round trip, the four D2
+   throwing-schema cases, and the backstop-not-a-swallower case.
+
+**DECISION:** none — this entry is a validation record only.
+
+---
+
+## 2026-09-01 — Second `/branch-review` at `7bfe111` found a CRITICAL prototype-chain bypass in `checkClosedPayload`: raw values rode through a signed profile-mode response; fixed with `hasOwn` + a projection layer, `m1-jws-check` 39 -> 82
 
 **EVIDENCE**
 
