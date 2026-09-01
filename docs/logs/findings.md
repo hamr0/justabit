@@ -14,11 +14,104 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
-## 2026-09-01 (latest) — -01 item 4 drafted: Write Budget; all four -01 items and Appendix A direction 4 now in the text; user-validated at the uncommitted tree
+## 2026-09-01 (latest) — -01 review round: PoC catch-up (24 -> 27 cases), one blocker and five other review findings fixed, citation and stale-claim sweeps; NOT submitted
+
+**EVIDENCE**
+
+1. PoC catch-up committed as `47ebce6`: `ietf/v2/poc` cases 22-24 brought up
+   to the -01 text; the suite grew 24 -> 27 cases. Case 22 now derives the
+   chain identifier via `deriveChainId(rootSignature)`, the SHA-256 digest
+   of L(0)'s wire signature bytes, and reads no caller-supplied `chainId`
+   field. Case 23 does deterministic path-template matching. Case 24 binds
+   the menu's `iss` to the request target origin. Case 25 is vector V10's
+   step sequence. Case 26 pins the equal-literal fail-closed tie. Case 27
+   pins a literal `__proto__` menu key built as a real own property. The
+   agent ran five mutation proofs; the orchestrator independently ran a
+   sixth on the derived chain identifier (mutant exit 1, restore exit 0,
+   restore byte-identical via `cp` backup).
+2. A read-through review of the whole -01 by a separate read-only agent
+   found 1 blocker, 4 should-fix, 1 nit. The blocker was verified
+   independently by the orchestrator before any fix: the omitted-axis rule
+   was stated three incompatible ways — attenuation rule 2 and vector V4
+   reject a child that omits an axis its parent constrained; the
+   registry's Omitted-axis rule field said an absent axis inherits and
+   falsely claimed to restate rule 2; the `classSource` and `writeBudget`
+   passages said omission is only ever inheritance. Two conforming
+   verifiers would have disagreed on the same wire input.
+3. USER DECISION taken by the orchestrator under a "continue" instruction,
+   stated as an assumption and flagged to the user as reversible: option 1
+   of two — state the rule as two distinct cases (link-to-link omission of
+   a parent-constrained axis is a rejection per rule 2, unchanged, which is
+   what V4 tests; link-to-published-floor inheritance where no link in the
+   chain constrains the axis, which is what the `classSource` method
+   default and the `writeBudget` zero default are instances of) rather
+   than option 2 (make omission always mean inheritance, which would have
+   loosened posted -00 rule 2 and deleted V4). Attenuation rule 2, vector
+   V4 and the vectors table were not changed.
+4. The false "restates rule 2" claim and its dangling cross-reference to
+   the monotone section were deleted; the monotone section covers only
+   widening a value already present on an ordered axis and says nothing
+   about omission.
+5. Four other fixes: `effective` defined as the verifier's evaluated
+   per-axis outcome with the response encoding explicitly out of scope
+   (the document defines no response encoding); "Resource Owner" added as
+   a defined term in Conventions and Terminology, distinct from the
+   already-defined Relying Service, and capitalized at all eleven prose
+   sites; a step added to the ordered Verification Procedure placing
+   actionClass classification, declared-menu consultation and writeBudget
+   admission after chain and attenuation validation and before the
+   authorization-policy step; the Floor definition now states that a
+   floor is the aggregate of its per-axis constraints, at most one per
+   axis.
+6. Live citation re-verification on the IETF Datatracker API found
+   `draft-reece-wimse-cross-org-delegation` had moved to rev 02 while the
+   draft cited -01. After the bump, the orchestrator found the
+   reference's `<date>` still carried the -01 date (July 30 2026).
+   Corrected to August 31 2026 from canonical bibxml. The orchestrator
+   then re-checked ALL SEVEN I-D references against
+   `https://bib.ietf.org` canonical bibxml on both revision and date; all
+   seven now match. This is an instance of the standing lesson that a
+   sweep bounded to the row you were told about is not a sweep.
+7. A stale-claim sweep caused by the orchestrator's OWN PoC commit: after
+   `47ebce6`, the draft still described the code as having 24 cases and
+   falling short in three places, in three separate locations (the two
+   Implementation Status bullets, the write-budget chain-identifier
+   paragraph, and two Changes-since-00 bullets). All corrected. This is an
+   instance of the standing no-orphaned-references rule; the orphan was
+   created by this session's own change, not inherited.
+8. Three -01 changes to sections that already existed in -00 were missing
+   from "Changes since -00" entirely (the terminology additions, the new
+   verification step, the two-case omitted-axis restatement). A bullet
+   was added.
+9. Checks by exit code at the final tree: non-ASCII 0, `xmllint` 0,
+   forbidden RFCXML tags 0, BCP 14 capitals after `<back>` 0, `m7-check`
+   27/27 exit 0, `m3-check` 26/26 exit 0. XML 2315 -> 2364 lines. Commits:
+   `47ebce6` (PoC catch-up), `49e3fab` (review fixes and sweep).
+10. USER VALIDATION 2026-09-01, at the tree of `49e3fab`: the user
+    reported both PoC check suites exit 0 and `idnits` clean. The
+    author-tools RFCXML schema validator run was NOT separately reported
+    for this tree — do not claim one. Local `xmllint` well-formedness is
+    not schema validity.
+
+**DECISION**
+
+-01 is text-complete for its four scope items plus Appendix A direction 4,
+and the PoC now matches the text. It is NOT submitted. Remaining before
+submission: push the branch and merge; re-verify every cited draft
+revision live again on submission day (asor -01 has not posted; when it
+does, the min-pending wording in the axis-registry alignment paragraph
+must be revisited); an author-tools run on the final XML; then the user
+submits. The -01 draft must be posted before the -00 expiry of
+2027-03-04.
+
+---
+
+## 2026-09-01 — -01 item 4 drafted: Write Budget; all four -01 items and Appendix A direction 4 now in the text; user-validated at the uncommitted tree
 
 **EVIDENCE**
 
 1. New normative section after Action Class Floors, anchor `write-budget`,
+
    specifying the `writeBudget` axis: max, lower only, omitted inherits the
    published floor (zero by default).
 2. Limit and Count: `r` never spends against the budget; `w`/`x` requests
