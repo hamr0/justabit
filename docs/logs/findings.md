@@ -14,7 +14,153 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
-## 2026-09-01 (latest) — -01 Appendix A direction 4 (harness-side experience) drafted, user-validated at the uncommitted tree
+## 2026-09-01 (latest) — -01 item 3 drafted: Action Class Floors (actionClass, classSource, declared menu), user-validated at the uncommitted tree
+
+**EVIDENCE**
+
+1. A new normative section, anchor `action-class`, added after the Floor
+   Axis Registry addition in
+   `ietf/v2/docs/draft-hamr-oauth-agent-delegation-01.xml`, with five
+   subsections:
+   - **actionClass values** (anchor `action-class-values`): an ordered
+     enumeration r &lt; w &lt; x per the rank comparator; a child link's
+     actionClass rank MUST be less than or equal to its parent's, so
+     tightening means lowering the value (x to w, w to r, or x to r).
+   - **classSource** (anchor `class-source`): an ordered enumeration
+     ranked method &lt; declared; the default is method, which is also
+     the tighter of the two, so default and tightest coincide; a child
+     link's classSource rank MUST be less than or equal to its parent's,
+     so the only permitted change is declared to method — the same
+     lower-only direction as actionClass, stated explicitly as no
+     per-axis exception. A note records that the proof-of-concept names
+     the two values in the opposite written order internally (declared
+     before method in a source table) with identical admission
+     semantics, so the code's ordering is not a disagreement with this
+     text.
+   - **Classification** (anchor `classification`): where classSource is
+     method, actionClass follows the RFC 9110 method default (GET/HEAD/
+     OPTIONS -> r, PUT/DELETE -> w, POST/PATCH -> x); where classSource
+     is declared, the resource owner's menu value governs only when the
+     menu verifies and names the operation, replacing the method default
+     rather than being combined with it (a verifier MUST NOT compute the
+     greater of the two). Any menu failure — absent, unsigned, unknown
+     key, mismatched issuer — falls back to the method default; the
+     absence of any menu at all is a defined state, not a distinct fault
+     condition; a verifier MUST NOT synthesize a menu on the owner's
+     behalf.
+   - **The Declared Menu** (anchor `declared-menu`): a JWS (RFC 7515)
+     whose payload has `iss` (an RFC 6454 origin) and `menu` (a map from
+     `"METHOD path-template"` to an actionClass value). Matching is
+     deterministic: same method, same segment count, literal segments
+     must match exactly, brace-delimited segments match any one
+     non-empty segment; where more than one key matches, the one with
+     more literal segments governs; an equal-literal tie is treated as a
+     miss (fail closed), never resolved by JSON key order. `iss` MUST
+     equal the request target's origin octet-for-octet or the menu fails
+     exactly as an invalid signature would. The key comes from a
+     configured trust source, never the menu itself, mirroring the root
+     attestation's key rule. Algorithm is EdDSA/Ed25519 only, no
+     negotiation.
+   - **Publication** (anchor `menu-publication`, non-normative): an
+     OpenAPI extension plus a detached JWS is named as one option; the
+     publication format itself is out of scope.
+   - **Verifier Placement** (anchor `action-class-verifier-placement`):
+     classification and admission happen at the resource/credential
+     boundary of `layers`, never in a harness or orchestration layer; an
+     agent declining an action it expects to be refused does not satisfy
+     this section.
+   - **Limits** (anchor `action-class-limits`, honest-limits paragraph):
+     the method default is a reliable floor in one direction only — a
+     GET is never admitted as w/x, but a POST is not always x. The
+     2026-09-01 survey (292 operations, 60 repositories, committed to
+     this repo) found 57 of 138 POST operations named as reads (`retrieve-`
+     /`check`/`verify`/`status`-prefixed) still classed x under method.
+     The survey's GET judgement was templated, not read per-operation, so
+     "no GET classed x" rests on CAMARA Design Guide convention, not an
+     audited reading; the cost of the 57 read-named POSTs defaulting to x
+     was never audited either. Both limitations are stated, not fixed, by
+     this document.
+
+2. Floor Axis Registry table: the `actionClass` and `classSource` rows'
+   "semantics specified in ... TODO" cells now cross-reference
+   `action-class`; a labelling slip in the `classSource` cell (it had
+   read "item 4" rather than pointing at this item's own section) was
+   corrected in the same pass. The `writeBudget` row's TODO ("item 4, not
+   yet written") remains, unchanged, and its standalone marker comment
+   (`<!-- TODO -01 item 4 -->`) stays for that item.
+
+3. Vectors V7 through V9 added to the appendix's vector table: V7 (a
+   two-link chain, actionClass x -> w, classSource method throughout;
+   accept — the direction the rank comparator permits); V8 (a single
+   link, actionClass r/classSource declared; request `POST /check`
+   against a menu declaring it r, issuer matching the request's origin
+   exactly; accept, declared value r governs); V9, the negative control
+   (identical menu and declared entry to V8, but the menu's `iss` is
+   `https://attacker.example.com` against a request target of
+   `https://api.example.com` — mismatched issuer, so the menu fails and
+   the method default for POST, x, applies; refused). The vector text
+   states explicitly that a verifier which checks the menu's signature
+   but skips the iss/origin comparison would wrongly reach V8's outcome
+   on V9's input, and that V7-V9 together cover the actionClass
+   tightening rule, the declared-value substitution rule, and the menu
+   origin-binding rule — not signature verification, nonce binding,
+   expiry, header encoding, or writeBudget, none of which this revision's
+   vectors exercise. The vectors have not been executed against any
+   implementation by anyone, including the author.
+
+4. Implementation Status bullet added: the actionClass/classSource
+   classification and admission rules are exercised by 24 automated
+   proof-of-concept cases; the bullet names this text as authoritative
+   where code and text differ, and names three specific gaps: the
+   proof-of-concept takes a caller-supplied chain identifier instead of
+   deriving one from the signed chain; it matches menu keys as exact
+   strings rather than by the path-template rule; and it does not
+   compare the menu's issuer against the request's target origin. A
+   further sentence points to the committed catalogue survey behind the
+   Limits paragraph.
+
+5. A "Changes since -00" bullet was appended describing the
+   `action-class` addition: the new section, the registry table cells it
+   resolves plus the marker comment it replaces, the Security
+   Considerations paragraph (menu as an owner-signed downgrade surface),
+   and the three vectors including which is the negative control.
+
+6. Two orchestrator-ordered fix rounds before this entry: (1) the rank
+   direction for classSource was made uniform with actionClass — both
+   lower-only, stated as "no per-axis exception" rather than left
+   implicit; a fail-closed tie-break was added for the equal-literal-
+   segment menu-matching case (the "executable one way" rule — two
+   conforming verifiers must not be able to disagree). (2) two em dashes
+   were found and removed after the agent's own non-ASCII scan was
+   discovered to be structurally unable to fail (a `grep -x` line-anchor
+   match paired with a zero-width lookahead, which cannot flag a
+   mid-line character) — caught by the orchestrator's own independent
+   character count, not by the scan itself.
+
+7. Checks run by exit code at this tree: non-ASCII scan exit 0, `xmllint`
+   well-formedness exit 0, forbidden-RFCXML-tag scan exit 0, BCP14
+   capitalization-after-`<back>` scan exit 0, `m7-check.mjs` 24/24 exit 0,
+   `m3-check.mjs` 26/26 exit 0. `git diff --stat` for the one changed
+   file: +393/-19. The XML is now 2071 lines.
+
+8. USER VALIDATION 2026-09-01: the user reported both PoC check suites
+   exit 0, `idnits` clean, and read section 9 (`action-class`) and the
+   V7-V9 vector rows. The author-tools RFCXML validator run was NOT
+   separately reported for this tree — do not claim it. This validation
+   holds only at this tree.
+
+**DECISION**
+
+Item 3 is done. The proof-of-concept's code is behind the text on the
+three points named in the Implementation Status bullet (caller-supplied
+chain identifier, exact-string menu keys, no origin check); bringing the
+spike up to match the text is a separate, later step, not part of -01
+drafting. Next is item 4 (`writeBudget`), option one under consideration:
+a chain identifier defined as a digest of the root link's signature.
+
+---
+
+## 2026-09-01 — -01 Appendix A direction 4 (harness-side experience) drafted, user-validated at the uncommitted tree
 
 **EVIDENCE**
 

@@ -55,3 +55,11 @@ attempt a broader mutation sweep.
   checked for type only, never compared to the request's target origin.
   -01 must bind the menu to the resource origin (`iss` == the authority of
   the request target, or a per-origin key resolver).
+
+-01 item 3 (`action-class` in the draft) has since drafted the text that
+resolves cases 23 and 24: a deterministic path-template matching rule for
+menu keys, and a required `iss`-equals-target-origin check with fail-closed
+behaviour on any mismatch. Item 4 (`writeBudget`) is expected to resolve
+case 22. This code still pins the old behaviour in all three cases — exact-
+string menu keys, no origin check, caller-supplied `chainId` — and is
+behind the text; it has not been updated to match.
