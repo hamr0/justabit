@@ -14,7 +14,48 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
-## 2026-09-01 (latest) — Fourth `/branch-review` cycle at `f07bf75` came back clean but found an EQUIVALENT MUTANT: the projection layer had no test that could fail; `m1-jws-check` 82 -> 94
+## 2026-09-01 (latest) — User validation run at `0a261e4`: all seven v2 suites green at `m1-jws-check` 94, first user run covering the equivalent-mutant and empty-answer-schema fixes
+
+**EVIDENCE**
+
+1. User re-ran the seven v2 PoC check suites on their own machine, on the
+   CLEAN tree at `0a261e4`, branch `camara/v2-rescope`, after the S1/S2
+   fix round moved `m1-jws-check` from 82 to 94:
+
+   ```
+   for f in m1-check m1-jws-check m2-check m3-check m4-check m5-check m6-check; do
+     node camara/v2/poc/$f.mjs; echo "$f exit=$?"
+   done
+   ```
+
+2. All seven exit 0: m1-check 20/20, m1-jws-check 94/94, m2-check
+   10/10, m3-check 26/26, m4-check 42/42, m5-check 67/67, m6-check
+   47/47. Zero `FAIL` lines across the combined 54KB output
+   (`grep -c "^FAIL"` = 0).
+
+3. **This supersedes the record at `4ba6f5e`** (seven suites at
+   `m1-jws-check` 82/82), voided when the S1/S2 fix round moved the
+   count 82 -> 94. A user run validates only at the count and tree it
+   was run at; the `4ba6f5e` entry is correct as dated history and is
+   not rewritten.
+
+4. **This is the first user run covering the 12 cases added by the
+   S1/S2 round**: the four key-order cases proving both
+   `projectClaims` call sites are live (48/48b, 50/50b) with their two
+   negative controls (49/49b, 51/51b), and the four
+   `EMPTY_ANSWER_SCHEMA` cases (52, 53) with their controls (54 — empty
+   `params` stays legal, 55 — computed-key `__proto__` field stays
+   legal). Those had only ever been agent-run before.
+
+5. `demo.mjs` is covered indirectly: `camara/v2/poc/m6-check.mjs:24`
+   imports from it and m6 asserts the demo at 35/35. `camara/v1/**` is
+   frozen and untouched by this branch.
+
+**DECISION: none**
+
+---
+
+## 2026-09-01 — Fourth `/branch-review` cycle at `f07bf75` came back clean but found an EQUIVALENT MUTANT: the projection layer had no test that could fail; `m1-jws-check` 82 -> 94
 
 **EVIDENCE**
 
