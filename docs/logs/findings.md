@@ -14,7 +14,66 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
-## 2026-09-01 (latest) — -01 item 2 drafted: "Position Among Delegation Layers" section, user-validated at the uncommitted tree
+## 2026-09-01 (latest) — -01 Appendix A direction 4 (harness-side experience) drafted, user-validated at the uncommitted tree
+
+**EVIDENCE**
+
+1. A fourth non-normative direction added to Appendix A of
+   `ietf/v2/docs/draft-hamr-oauth-agent-delegation-01.xml`, placed after
+   the summary paragraph closing directions 1-3 (placement chosen because
+   directions 1-3 share a scarcity theme and direction 4 does not).
+
+2. Names three single-author experiments at `github.com/hamr0/bareguard`,
+   `github.com/hamr0/bareloop`, and `github.com/hamr0/bareagent`, one
+   introductory line each plus exactly three bullets each, closing with
+   the sentence: in each case the point of control sat at the credential
+   boundary or the resource, never in the harness. States plainly that
+   they are NOT implementations of this profile and are therefore not
+   listed in Implementation Status (RFC 7942).
+
+3. Every bullet traces to `.claude/research/harness-learnings-2026-09-01.md`
+   (local, gitignored, not committed — user decision) and through it to a
+   file:line in the three sibling repos.
+
+4. The `<!-- TODO -01: Appendix A direction 4, harness-side experience -->`
+   comment in the `layers` section was removed; a "Changes since -00" bullet
+   describing the Direction 4 addition was appended. `git diff --stat` for
+   the one changed file: +56/-1.
+
+5. Checks run by exit code at the uncommitted tree: BCP14
+   capitalization-after-`<back>` scan exit 0, non-ASCII scan exit 0,
+   `xmllint` well-formedness exit 0, forbidden-RFCXML-tag (`b`/`i`/`code`/
+   `pre`/`span`) scan exit 0, `m7-check.mjs` (`ietf/v2/poc/`) 24/24 exit 0,
+   `m3-check.mjs` (`ietf/v2/poc/`) 26/26 exit 0.
+
+6. USER VALIDATION 2026-09-01: the user reported both PoC check suites
+   exit 0, `idnits` clean, and skimmed the rendered direction 4 text as
+   clean. The author-tools RFCXML validator run was NOT reported for this
+   tree — do not claim it. This validation holds only at this uncommitted
+   tree.
+
+7. Spike A's dataset (the actionClass method-default catalogue survey,
+   run 2026-09-01 in a session scratchpad) was committed to the repo at
+   `ietf/v2/poc/spike-a/` by user decision, `specs/` (65 fetched CAMARA
+   YAML copies, ~4 MB) omitted — reproducible from the SHA column in
+   `operations.csv`/`repos.json`. Its README carries the same caveat: the
+   GET judgements behind readout R3 were templated (one boilerplate
+   reason for every GET), so "no `x` behind GET" rests on CAMARA Design
+   Guide §6.5 rather than a per-operation reading, and the cost side (57
+   of 138 POSTs named `retrieve-*`/`check`/`verify`/`status`, all judged
+   `x` by default) was never audited. Any number item 3 states now traces
+   to this repo data, not a scratchpad no longer reachable.
+
+**DECISION**
+
+Appendix A direction 4 is done. Next is item 3 (`actionClass` and
+`classSource` semantics, with the menu JWS shape defined in this document
+itself — the user chose this over deferring the format to Commonalities),
+then item 4 (`writeBudget`).
+
+---
+
+## 2026-09-01 — -01 item 2 drafted: "Position Among Delegation Layers" section, user-validated at the uncommitted tree
 
 **EVIDENCE**
 

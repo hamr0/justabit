@@ -158,11 +158,14 @@ ietf/v1/docs/       frozen record of draft-hamr-oauth-agent-delegation-00
                     prose proposal
 ietf/v1/poc/        the actionClass floor axis spike (M7) this -00 record
                     was validated against; copied unchanged into v2
-ietf/v2/docs/       working copy for -01 (not yet submitted): items 1-2 done
-                    (Floor Axis Registry; Position Among Delegation Layers);
-                    Appendix A direction 4 and items 3-4 pending
+ietf/v2/docs/       working copy for -01 (not yet submitted): items 1-2 and
+                    Appendix A direction 4 done (Floor Axis Registry; Position
+                    Among Delegation Layers; harness-side experience);
+                    items 3-4 pending
 ietf/v2/poc/        copy of ietf/v1/poc/; only the run-path comment in
-                    m7-check.mjs differs (2026-09-01)
+                    m7-check.mjs differs (2026-09-01); spike-a/ holds the
+                    catalogue-survey dataset (specs/ omitted, reproducible
+                    from its SHA column), moved in 2026-09-01
 ```
 
 ## The two tracks

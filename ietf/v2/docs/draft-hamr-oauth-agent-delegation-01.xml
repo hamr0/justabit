@@ -264,7 +264,6 @@
         its boundary is summarized, non-normatively, in
         <xref target="appendix-a"/>.
       </t>
-      <!-- TODO -01: Appendix A direction 4, harness-side experience -->
     </section>
 
     <section anchor="header" numbered="true" toc="default">
@@ -1423,6 +1422,52 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         another mechanism entirely. This profile does not require,
         prefer, or depend on any of them.
       </t>
+      <t>
+        <strong>Direction 4: harness-side experience.</strong> These are
+        three open-source, single-author experiments, available at
+        <eref target="https://github.com/hamr0/bareguard"/>,
+        <eref target="https://github.com/hamr0/bareloop"/>, and
+        <eref target="https://github.com/hamr0/bareagent"/>, that exercise
+        the boundary drawn in <xref target="layers"/>; they are not
+        implementations of this profile, which is why they are not listed
+        in <xref target="implementation-status"/>. Non-normative, like the
+        rest of this appendix.
+      </t>
+      <t>
+        <strong>bareguard</strong> is one chokepoint between an agent and
+        the world: every action passes through a single gate and comes
+        back allow, deny, or ask a human.
+      </t>
+      <ul spacing="normal">
+        <li>a floor gate decides before the action runs, plus a separate detector after the result that annotates and never blocks alone; the split maps onto layers (a) and (c) of <xref target="layers"/>;</li>
+        <li>capability presets may only narrow the floor, never widen it, so a wrong preset is not a safety hole;</li>
+        <li>quantitative limits are enforced as a running cumulative total, because a per-action cap is defeated by splitting one action into many; only two comparator kinds were needed in practice, set membership and an ordered-enum threshold.</li>
+      </ul>
+      <t>
+        <strong>bareloop</strong> has an agent author its own workflow
+        scaffolding as a constrained, validated config, with every run
+        executing under an outer gate the agent cannot reach or argue
+        with.
+      </t>
+      <ul spacing="normal">
+        <li>the agent authors its workflow and never its arbiter; closes, budgets, and caps live outside the authored part;</li>
+        <li>a predicate decides a pass, a judge never renders the verdict, and a judged verdict class needs a pre-scored calibration set before it may gate anything;</li>
+        <li>an omitted cap reads as an explicit choice, never a silent default, because a defaulted cap is an unadvertised second ceiling.</li>
+      </ul>
+      <t>
+        <strong>bareagent</strong> is the think, act, observe loop: a goal
+        goes in and coordinated actions come out.
+      </t>
+      <ul spacing="normal">
+        <li>a policy chokepoint inside the loop forwards every action to an external gate that decides and never runs it;</li>
+        <li>a lock on a check's code does not protect the check's semantics; a stateful function defeated an unsatisfiable check across repeated invocations;</li>
+        <li>an incomplete result is returned honestly rather than as a faked pass.</li>
+      </ul>
+      <t>
+        In each case the point of control sat at the credential boundary
+        or the resource, never in the harness, which is the placement
+        <xref target="layers"/> assumes.
+      </t>
     </section>
 
     <section anchor="appendix-b" numbered="true" toc="default">
@@ -1634,6 +1679,16 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
             <xref target="I-D.asor-wimse-agent-delegation-chain"/>
             Section 9.1 for mitigations this document does not itself
             supply.
+          </t>
+        </li>
+        <li>
+          <t>
+            Added Direction 4 to <xref target="appendix-a"/>: three
+            single-author, open-source harness experiments (bareguard,
+            bareloop, bareagent) that exercise the boundary drawn in
+            <xref target="layers"/> without implementing this profile,
+            and are therefore not listed in
+            <xref target="implementation-status"/>.
           </t>
         </li>
       </ul>

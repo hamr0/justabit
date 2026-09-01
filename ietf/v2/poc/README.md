@@ -9,6 +9,14 @@ Copied from `ietf/v1/poc/` on 2026-09-01 when the -01 round opened
 edited); only the run-path comment in `m7-check.mjs` and this README's
 own text differ from that copy (2026-09-01).
 
+`spike-a/` is the catalogue survey (spike A): a read-only measurement of
+whether an `actionClass` method-default hides consequential operations
+across the CAMARA API catalogue, run 2026-09-01 and moved into the repo by
+user decision (its `specs/` directory of fetched YAML copies was left out,
+being reproducible from the SHA column in `spike-a/operations.csv`). It is
+data, not code, and is distinct from the code spike (B) below, which is
+the `admit`/`classify` gate itself.
+
 ## Run
 
     node ietf/v2/poc/m7-check.mjs
