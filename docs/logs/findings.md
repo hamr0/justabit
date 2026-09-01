@@ -14,7 +14,58 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
-## 2026-09-01 (latest) — `/branch-review` gate at `f1c73a1`: two findings, a regression caught in the fix round itself, `m1-jws-check` 33 -> 39
+## 2026-09-01 (latest) — User validation run at `2c71a20`, first CLEAN-tree run this session: all seven v2 suites green at `m1-jws-check` 39
+
+**EVIDENCE**
+
+1. Command run by the user, in their own terminal, verbatim:
+   ```
+   for f in m1-check m1-jws-check m2-check m3-check m4-check m5-check m6-check; do node camara/v2/poc/$f.mjs; echo "$f exit=$?"; done
+   ```
+
+2. Per-suite declared RESULT line and shell exit code:
+
+   | suite        | RESULT | exit |
+   |--------------|--------|------|
+   | m1-check     | 20/20  | 0    |
+   | m1-jws-check | 39/39  | 0    |
+   | m2-check     | 10/10  | 0    |
+   | m3-check     | 26/26  | 0    |
+   | m4-check     | 42/42  | 0    |
+   | m5-check     | 67/67  | 0    |
+   | m6-check     | 47/47  | 0    |
+
+3. Zero `FAIL` lines across the combined 48.5KB output of all seven runs,
+   counted with `grep -c "^FAIL"` = 0.
+
+4. Capture location: session scratch path
+   `/home/hamr/.claude/projects/-home-hamr-PycharmProjects-justabit/8376fcaa-6159-4387-a8b7-fcde1f4cea16/tool-results/b24f9uw0x.txt`
+   — session-local, not part of the repo; cited here only as where the
+   output was captured, not as a repo artifact.
+
+5. Tree state at run time: branch `camara/v2-rescope`, tip commit
+   `2c71a20`, working tree CLEAN. This is the first user validation run
+   this session against a clean, committed tree — every prior record was
+   run against an uncommitted tree.
+
+6. Scope: this run covers the seven v2 check runners only.
+   `camara/v2/poc/m6-check.mjs:24` imports from `demo.mjs` and m6 asserts
+   the demo at 35/35, so `demo.mjs` is covered indirectly. `camara/v1/**`
+   is frozen and untouched by this branch, and is out of scope.
+
+7. **SUPERSESSION.** This run supersedes the earlier 2026-09-01 record
+   (seven suites at `m1-jws-check` 33/33, uncommitted tree at tip
+   `64f8c26` — see the entry directly below this one), which was voided
+   when the `/branch-review` fix round moved the count 33 -> 39. Per the
+   repo rule, a user run validates only at the count and tree it was run
+   at. That earlier entry is NOT rewritten — it is correct as dated
+   history.
+
+**DECISION:** none — this entry is a validation record only.
+
+---
+
+## 2026-09-01 — `/branch-review` gate at `f1c73a1`: two findings, a regression caught in the fix round itself, `m1-jws-check` 33 -> 39
 
 **EVIDENCE**
 
