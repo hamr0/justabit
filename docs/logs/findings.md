@@ -14,7 +14,66 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
-## 2026-09-01 (latest) — User validation run at `0a261e4`: all seven v2 suites green at `m1-jws-check` 94, first user run covering the equivalent-mutant and empty-answer-schema fixes
+## 2026-09-01 (latest) — Reply posted on PR #331 confirming the four-step sequence; first post silently truncated by a heredoc paste, repaired in place by PATCH
+
+**EVIDENCE**
+
+1. The user posted a reply on `camaraproject/APIBacklog` PR #331, comment
+   id `5492957947`
+   (https://github.com/camaraproject/APIBacklog/pull/331#issuecomment-5492957947),
+   created 2026-09-01T11:03:55Z. It answers albertoramosmonagas' question
+   of 2026-09-01T10:01:59Z, comment id `5492274067`, "Are you agree with
+   this?" — confirming agreement and recording the sequence agreed with
+   both reviewers:
+   1. Open the Scope Enhancement issue in `camaraproject/Commonalities`
+      first (response envelope only: JWS attestation bound to a
+      requester nonce with an expiry, plus an operator-published
+      threshold menu; SimSwap `/check` as first adoption example).
+   2. Upload supporting material (OpenAPI sketch, revised proposal doc)
+      on issue #330, linked from the Commonalities issue rather than
+      duplicated.
+   3. Request a WG slot only once the Commonalities issue has had
+      discussion — conceding this moves the ask past the 10 September
+      session.
+   4. File the aggregator end-to-end-encryption item as a separate
+      follow-on Commonalities issue, only once the signing envelope
+      baseline is accepted.
+
+2. **The first post was corrupted, silently.** A long body was pasted into
+   the terminal as a heredoc; the paste dropped characters mid-word on
+   three separate lines:
+   - `(hub meters and bills without rea will be a` — lost
+     `ding identifiers or answers)`
+   - `envelope baseline is accepted, an` — lost `d referencing it.`
+   - `Use case 2 (AI-agent holder presentm withdrawn` — lost
+     `ent / trust directory) stays`
+
+   `gh` exited 0 and returned a valid comment URL — nothing in the tool's
+   own output signaled the corruption. The main session caught it only by
+   reading the posted body back via
+   `gh api repos/camaraproject/APIBacklog/issues/comments/5492957947 --jq '.body'`
+   and comparing it against the intended text.
+
+3. **The repair.** The corrected body was written to a file and posted
+   with `gh api repos/camaraproject/APIBacklog/issues/comments/5492957947
+   --method PATCH -F body=@<file>`, at 2026-09-01T11:04:39Z. Reading the
+   body back a second time confirmed all three lines are now intact and
+   the trailing `<sub>` footnote renders as real HTML, not escaped text.
+   GitHub now shows the comment as edited. Full verbatim text recorded at
+   `camara/v2/docs/pr331-reply-posted-2026-09-01.md`.
+
+4. **Lesson.** A long comment body must be written to a file and posted
+   with `--body-file` / `-F body=@file`, never pasted into a heredoc — a
+   terminal paste can silently drop characters mid-word with no error
+   signal. Separately: a `gh` exit code of 0 proves the HTTP request
+   succeeded, not that the body arrived intact — read the body back from
+   the API before trusting a post, especially a long one.
+
+**DECISION: none**
+
+---
+
+## 2026-09-01 — User validation run at `0a261e4`: all seven v2 suites green at `m1-jws-check` 94, first user run covering the equivalent-mutant and empty-answer-schema fixes
 
 **EVIDENCE**
 
