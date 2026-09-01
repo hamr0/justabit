@@ -621,12 +621,11 @@
             <tr><td>credentialAgeMin</td><td>min</td><td>duration, <xref target="duration-grammar"/></td><td>larger is tighter</td></tr>
             <tr><td>accountClass</td><td>one_of</td><td>same singleton rule as subjectClass</td><td>same note</td></tr>
             <tr><td>partialPolicy</td><td>one_of</td><td>same singleton rule as subjectClass</td><td>same note</td></tr>
-            <tr><td>actionClass</td><td>rank</td><td>ordered set r &lt; w &lt; x</td><td>semantics specified in the actionClass section (-01 item 3, not yet written)</td></tr>
-            <tr><td>classSource</td><td>rank</td><td>ordered set declared &lt; method</td><td>semantics specified in the classSource section (-01 item 4, not yet written)</td></tr>
+            <tr><td>actionClass</td><td>rank</td><td>ordered set r &lt; w &lt; x</td><td>semantics specified in <xref target="action-class"/></td></tr>
+            <tr><td>classSource</td><td>rank</td><td>ordered set method &lt; declared</td><td>semantics specified in <xref target="action-class"/></td></tr>
             <tr><td>writeBudget</td><td>max</td><td>non-negative integer, cumulative per chain</td><td>the LIMIT rides in the chain as a max constraint; the COUNT spent against it is state the verifier holds, not a value carried by any link; semantics specified in the writeBudget section (-01 item 4, not yet written)</td></tr>
           </tbody>
         </table>
-        <!-- TODO -01 item 3 -->
         <!-- TODO -01 item 4 -->
         <t>
           For the three enum-typed axes (subjectClass, accountClass,
@@ -636,12 +635,13 @@
           nothing on the wire.
         </t>
         <t>
-          This document does not specify the semantics of actionClass,
-          classSource, or writeBudget beyond registering their names,
-          comparators, and value domains above; a subject's actual
-          write budget accounting, and the method by which actionClass
-          and classSource values are assigned to a request, are left to
-          the sections of this document that define them.
+          This document does not yet specify the semantics of writeBudget
+          beyond registering its name, comparator, and value domain above;
+          a subject's actual write budget accounting is left to the
+          section of this document that defines it. The semantics of
+          actionClass and classSource, and the method by which each is
+          assigned to a request, are specified in
+          <xref target="action-class"/>.
         </t>
       </section>
       <section anchor="duration-grammar" numbered="true" toc="default">
@@ -672,6 +672,262 @@
           profile. As stated in <xref target="attenuation"/>, any
           widening is a distinct, explicit, consent-visible operation
           outside this profile's scope.
+        </t>
+      </section>
+    </section>
+
+    <section anchor="action-class" numbered="true" toc="default">
+      <name>Action Class Floors</name>
+      <t>
+        This section specifies the semantics of the actionClass and
+        classSource axes registered in <xref target="axis-registry"/>. It
+        answers two separate questions: what is the maximum class of
+        operation a delegation link permits (actionClass), and where a
+        verifier is permitted to obtain a given request's class from
+        (classSource).
+      </t>
+      <section anchor="action-class-values" numbered="true" toc="default">
+        <name>actionClass</name>
+        <t>
+          actionClass is an ordered enumeration with three values, r, w,
+          and x, ranked r &lt; w &lt; x per the rank comparator of
+          <xref target="axis-registry"/>. A link's actionClass value
+          states the maximum class of operation the agent presenting that
+          link MAY perform; it is not a statement about any single
+          operation, but a ceiling on the whole link. The three values
+          are:
+        </t>
+        <dl newline="false" spacing="normal">
+          <dt>r:</dt>
+          <dd>a read-only operation: one that does not modify state.</dd>
+          <dt>w:</dt>
+          <dd>
+            an idempotent write: an operation that modifies state but
+            whose repetition has the same effect as performing it once.
+          </dd>
+          <dt>x:</dt>
+          <dd>
+            a consequential, non-idempotent action: an operation whose
+            repetition is not guaranteed to have the same effect as
+            performing it once.
+          </dd>
+        </dl>
+        <t>
+          Per the rank comparator, a child link's actionClass rank MUST
+          be less than or equal to its parent's: a child link MUST NOT
+          carry a higher actionClass value than its parent, and
+          tightening on this axis means lowering the value (x to w, w to
+          r, or x to r).
+        </t>
+      </section>
+      <section anchor="class-source" numbered="true" toc="default">
+        <name>classSource</name>
+        <t>
+          classSource is an ordered enumeration with two values, ranked
+          method &lt; declared per the rank comparator of
+          <xref target="axis-registry"/>, naming where a verifier is
+          permitted to obtain a request's actionClass. When a link omits
+          classSource, the default value is method, per the omitted-axis
+          rule of <xref target="axis-registry"/>; method is also the
+          lower-ranked, tighter value of the two, so the default and the
+          tightest value coincide.
+        </t>
+        <dl newline="false" spacing="normal">
+          <dt>method:</dt>
+          <dd>
+            the verifier classifies a request from its HTTP method alone,
+            per <xref target="classification"/>, and does not consult a
+            menu.
+          </dd>
+          <dt>declared:</dt>
+          <dd>
+            the verifier additionally consults the resource owner's
+            signed menu (<xref target="declared-menu"/>) and, where that
+            menu verifies and names the operation, uses the menu's
+            declared value in place of the method default.
+          </dd>
+        </dl>
+        <t>
+          method never extends trust to a value asserted by a party other
+          than the verifier itself, while declared extends that trust to
+          whatever the resource owner's menu asserts; method is
+          therefore the tighter of the two values, and is ranked lower
+          per <xref target="axis-registry"/>'s ordered set method &lt;
+          declared. Per the rank comparator, a child link's classSource
+          rank MUST be less than or equal to its parent's: a parent that
+          carries method MUST NOT be followed by a child that carries
+          declared, and the only permitted change on this axis is from
+          declared down to method. This is the same comparator, applied
+          in the same direction, as the actionClass axis of
+          <xref target="action-class-values"/>: on both rank axes,
+          tightening lowers the value, with no per-axis exception.
+        </t>
+        <t>
+          The proof-of-concept accompanying this document names these
+          same two values in the opposite written order internally
+          (declared before method in a source-code table), with
+          identical admission semantics to this section; a reader
+          comparing the code against this text should not read that
+          ordering as a disagreement about which value is tighter.
+        </t>
+      </section>
+      <section anchor="classification" numbered="true" toc="default">
+        <name>Classification</name>
+        <t>
+          Where a request's classSource is method, its actionClass is the
+          default associated with its HTTP method: GET, HEAD, and OPTIONS
+          default to r; PUT and DELETE default to w; POST and PATCH
+          default to x. This default tracks the safe and idempotent
+          method properties defined by <xref target="RFC9110"/>: GET,
+          HEAD, and OPTIONS are safe methods, and PUT and DELETE are
+          idempotent methods, in the terms <xref target="RFC9110"/> uses;
+          POST and PATCH are neither.
+        </t>
+        <t>
+          Where a request's classSource is declared, its actionClass is
+          the value the resource owner's menu declares for that
+          operation, provided the menu verifies per
+          <xref target="declared-menu"/> and names the operation. On any
+          failure of the menu: the menu is absent, its signature does
+          not verify, the verifier has no key for the claimed owner, or
+          the menu's issuer does not match the request's target as
+          required by <xref target="declared-menu"/>; the verifier MUST
+          fall back to the method default given above. A verifier MUST
+          NOT compute the greater of, or otherwise combine, the method
+          default and a declared value; where a valid, matching menu
+          entry exists, the declared value alone governs, replacing the
+          method default rather than being compared against it.
+        </t>
+        <t>
+          The absence of any menu at all is a defined state, not a fault
+          condition distinct from the failures listed above: it is
+          handled identically to a menu that fails to verify, and the
+          method default applies. A verifier MUST NOT construct or
+          synthesize a menu entry, or a menu, on behalf of a resource
+          owner that has not published one.
+        </t>
+      </section>
+      <section anchor="declared-menu" numbered="true" toc="default">
+        <name>The Declared Menu</name>
+        <t>
+          A declared menu is a JSON Web Signature (JWS)
+          <xref target="RFC7515"/> whose payload is a JSON object with
+          two members:
+        </t>
+        <dl newline="false" spacing="normal">
+          <dt>iss:</dt>
+          <dd>
+            a string carrying the origin of the resource the menu
+            applies to, serialized per <xref target="RFC6454"/>.
+          </dd>
+          <dt>menu:</dt>
+          <dd>
+            a JSON object mapping an operation key to an actionClass
+            value (r, w, or x). An operation key has the form "METHOD
+            path-template", an HTTP method in upper case, one space, and
+            a path using OpenAPI path-template syntax, in which a
+            brace-delimited segment such as {callId} stands for exactly
+            one path segment supplied at request time.
+          </dd>
+        </dl>
+        <t>
+          A verifier matches a concrete request against the operation
+          keys of a menu by the following rule, applied deterministically
+          and without exception: the request's method matches the key's
+          method exactly; the request's path and the key's path-template
+          are split into slash-separated segments and are considered a
+          match only where both have the same number of segments and,
+          for every segment position, either the template segment is a
+          literal that equals the request's segment exactly, or the
+          template segment is a brace-delimited parameter that matches
+          any single non-empty request segment. Where more than one
+          operation key matches the same request under this rule, the key
+          with the greater number of literal (non-parameter) segments
+          governs. A menu MUST NOT contain two operation keys under the
+          same method whose templates both match the same concrete
+          request path with an equal number of literal segments; a
+          verifier that encounters such a tie MUST treat the lookup as a
+          miss rather than choosing between the tied keys by any other
+          means, such as the order the keys happen to appear in the
+          menu's JSON serialization. Where no operation key matches,
+          including where the only matches available are tied in this
+          way, the menu is treated, for that request, the same as a menu
+          that does not name the operation, per
+          <xref target="classification"/>, and the method default
+          applies.
+        </t>
+        <t>
+          A menu applies only to the resource that issued it. The menu's
+          iss value is compared, octet-for-octet after serialization per
+          <xref target="RFC6454"/>, against the origin of the request
+          target; where the two do not match, the menu fails, exactly as
+          if its signature had not verified, and the verifier MUST fall
+          back to the method default. A verifier MUST NOT accept a menu
+          whose iss value does not match the request target's origin,
+          regardless of whether the menu's signature is otherwise valid.
+        </t>
+        <t>
+          A menu MUST be verified against the resource owner's public
+          key, obtained out of band or from a configured trust source; a
+          verifier MUST NOT obtain that key from the menu itself,
+          following the same rule <xref target="verification"/> already
+          states for the root attestation's key. The menu's signature
+          algorithm is EdDSA, using the Ed25519 curve; this document
+          defines no algorithm negotiation or agility for the menu, and a
+          menu using any other algorithm does not verify.
+        </t>
+      </section>
+      <section anchor="menu-publication" numbered="true" toc="default">
+        <name>Publication</name>
+        <t>
+          This section is non-normative. A resource owner may publish its
+          menu through its API description; one way to do so is a
+          per-operation extension in an OpenAPI document, accompanied by
+          a detached JWS at a well-known location. The format of such a
+          publication mechanism is out of scope for this document.
+        </t>
+      </section>
+      <section anchor="action-class-verifier-placement" numbered="true" toc="default">
+        <name>Verifier Placement</name>
+        <t>
+          Classification and admission under this section are performed
+          by the verifier at the resource or credential boundary
+          described in <xref target="layers"/>, not by any harness or
+          orchestration layer upstream of that boundary. A harness that
+          coordinates an agent's actions does not itself classify a
+          request or admit it against an actionClass floor; an agent that
+          declines to attempt an action it believes will be refused does
+          not, by that restraint, satisfy this section. Admission is an
+          act of the verifier refusing or permitting a request at the
+          boundary, not an act of the harness or the agent abiding by a
+          floor it was merely told about.
+        </t>
+      </section>
+      <section anchor="action-class-limits" numbered="true" toc="default">
+        <name>Limits</name>
+        <t>
+          The method default of <xref target="classification"/> is a
+          reliable floor in one direction and a lossy signal in the
+          other: a GET is never admitted as a write or a consequential
+          action, but a POST is not always a consequential action either.
+          In a survey of the CAMARA API catalogue conducted 2026-09-01
+          (292 operations across 60 repositories, recorded in this
+          repository's own proof-of-concept data), 57 of 138 POST
+          operations are named as reads (retrieve-, check-, verify-, or
+          status-prefixed operation identifiers) and are classed x under
+          classSource method, notwithstanding their read-shaped names.
+        </t>
+        <t>
+          The same survey's judgement of GET operations, by contrast, was
+          templated rather than read per operation, so the absence of any
+          GET classed x in that survey rests on a general design
+          convention rather than on an individual reading of each GET
+          operation; and the cost of the 57 read-named POST operations
+          above defaulting to x was not itself reviewed for whether a
+          resource owner would actually want to declare them down to r.
+          Neither limitation is corrected by this document; a deployment
+          relying on the survey's numbers should treat them as directional,
+          not as an audited count.
         </t>
       </section>
     </section>
@@ -1091,7 +1347,8 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         <li>nonce binding, as distinct from replay protection;</li>
         <li>expiry enforcement, including the missing/non-numeric-expiry-is-expired rule;</li>
         <li>the signed-refusal shape of <xref target="refusal"/> and its independent verification path;</li>
-        <li>the closed floor axis set of <xref target="floors"/>, the duration grammar of <xref target="duration-grammar"/>, and the monotone tightening comparison of <xref target="monotone"/>.</li>
+        <li>the closed floor axis set of <xref target="floors"/>, the duration grammar of <xref target="duration-grammar"/>, and the monotone tightening comparison of <xref target="monotone"/>;</li>
+        <li>the actionClass and classSource classification and admission rules of <xref target="action-class"/>, exercised by 24 automated cases in the proof-of-concept. That code predates this text and this text is authoritative where the two differ: the proof-of-concept takes a caller-supplied chain identifier rather than deriving one from the signed chain; matches menu operation keys as exact strings rather than by the path-template rule of <xref target="declared-menu"/>; and does not compare a menu's issuer against the request's target origin, the binding <xref target="declared-menu"/> requires.</li>
       </ul>
       <t>
         The following elements of this profile are NOT implemented in the
@@ -1102,6 +1359,11 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         <li>the multi-hop delegation chain of <xref target="attenuation"/> is not implemented; the proof-of-concept exercises only a two-party exchange between one Delegator and one Attestation Issuer;</li>
         <li>the per-Relying-Service unlinkable agent identifier of <xref target="agent-identifier"/> is not implemented.</li>
       </ul>
+      <t>
+        The catalogue survey behind the honest-limit paragraph of
+        <xref target="action-class-limits"/> is included in this same
+        repository, alongside its underlying data.
+      </t>
     </section>
 
     <section anchor="security" numbered="true" toc="default">
@@ -1171,6 +1433,21 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         query log gains information the wire protocol itself was designed
         to withhold.
       </t>
+      <t>
+        <strong>A declared menu is an owner-signed downgrade surface.</strong>
+        classSource declared lets the resource owner's menu lower a
+        request's actionClass below its method default, for example
+        declaring a POST as r. The origin-binding rule and the
+        out-of-band key requirement of <xref target="declared-menu"/> are
+        what keep a third party from supplying that downgrade for a
+        resource it does not own: without both checks, a verifier that
+        resolves one key for more than one resource owner could be
+        handed a validly-signed menu for the wrong resource and apply its
+        declared classes to a request it was never meant to cover. A
+        verifier that accepts a menu without checking both the
+        signature and the origin match does not conform to this
+        document.
+      </t>
     </section>
 
     <section anchor="iana" numbered="true" toc="default">
@@ -1219,6 +1496,8 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
       <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.9421.xml"/>
       <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.9110.xml"/>
       <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.8126.xml"/>
+      <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.7515.xml"/>
+      <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.6454.xml"/>
     </references>
     <references>
       <name>Informative References</name>
@@ -1604,6 +1883,62 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         detect that failure.
       </t>
       <t>
+        Vectors V7 through V9 below extend this appendix to the
+        actionClass and classSource axes of <xref target="action-class"/>.
+        In all three, subjectClass is interactive, and scope, tenureMin,
+        and credentialAgeMin are omitted and not exercised, following the
+        same convention stated above for V1 through V6. V7 is a
+        two-link delegation chain, checked the same way as V1 through V6.
+        V8 and V9 each involve a single link and one incoming request,
+        together with, where noted, one menu; they exercise
+        <xref target="classification"/> and
+        <xref target="declared-menu"/> rather than the three attenuation
+        rules, so no parent link is shown for them.
+      </t>
+      <table>
+        <thead>
+          <tr><th>Link</th><th>actionClass</th><th>classSource</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>V7 L(0)</td><td>x</td><td>method</td></tr>
+          <tr><td>V7 L(1)</td><td>w</td><td>method</td></tr>
+          <tr><td>V8 L(0)</td><td>r</td><td>declared</td></tr>
+          <tr><td>V9 L(0)</td><td>r</td><td>declared</td></tr>
+        </tbody>
+      </table>
+      <t>
+        V8 and V9 each present a request "POST /check" against a link
+        whose actionClass is r. Both are accompanied by a menu, signed by
+        the resource owner's key, declaring "POST /check" as r. In V8 the
+        menu's iss value is the origin of the request target,
+        https://api.example.com, matching it exactly. In V9 the menu
+        carries the same declared entry and the same valid signature, but
+        its iss value is https://attacker.example.com, an origin
+        different from the request target.
+      </t>
+      <table>
+        <thead>
+          <tr><th>Vector</th><th>Expected outcome</th><th>Basis</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>V7</td><td>accept; effective actionClass is w</td><td>n/a - actionClass lowered from x to w, the direction <xref target="action-class-values"/> permits</td></tr>
+          <tr><td>V8</td><td>the request classifies as r; admitted against the actionClass r floor</td><td><xref target="declared-menu"/>: the menu verifies and its iss matches the request target, so the declared value governs</td></tr>
+          <tr><td>V9</td><td>the request classifies as x, exceeding the actionClass r floor; refused</td><td><xref target="declared-menu"/>: the menu's iss does not match the request target, so the menu fails and the method default for POST, x, applies instead of the menu's declared r</td></tr>
+        </tbody>
+      </table>
+      <t>
+        V9 is the negative control for the origin-binding rule of
+        <xref target="declared-menu"/>. A verifier that checks the menu's
+        signature but skips the comparison between iss and the request
+        target's origin reaches the same outcome as V8 - it accepts the
+        declared value r - and so admits a request that a verifier
+        applying the origin-binding rule correctly refuses. The two
+        vectors present an identical menu and an identical requested
+        actionClass floor and differ only in the menu's iss value, so any
+        difference in outcome between an implementation and this table is
+        attributable to that one comparison.
+      </t>
+      <t>
         More generally, a suite composed only of chains expected to be
         accepted cannot distinguish a verifier that correctly implements
         the rules of <xref target="attenuation"/> from one that accepts
@@ -1615,15 +1950,20 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
       </t>
       <t>
         These vectors are illustrative and not exhaustive. Passing them
-        does not establish conformance to this document as a whole: they
-        cover the three attenuation rules of <xref target="attenuation"/>
-        only, and do not exercise signature verification, nonce binding,
-        expiry evaluation against wall-clock time, or the header field
-        encoding described in <xref target="header"/> and
-        <xref target="rfc9421-profile"/>. These vectors have not been
-        executed against any implementation by anyone, including the
-        author; they were derived by hand from the rules in
-        <xref target="attenuation"/>.
+        does not establish conformance to this document as a whole: V1
+        through V6 cover the three attenuation rules of
+        <xref target="attenuation"/>, and V7 through V9 cover the
+        actionClass tightening rule, the declared-value substitution
+        rule, and the menu origin-binding rule of
+        <xref target="action-class"/>; together they do not exercise
+        signature verification of a delegation link itself, nonce
+        binding, expiry evaluation against wall-clock time, the header
+        field encoding described in <xref target="header"/> and
+        <xref target="rfc9421-profile"/>, or the writeBudget axis, which
+        this revision registers but does not yet specify. These vectors
+        have not been executed against any implementation by anyone,
+        including the author; they were derived by hand from the rules in
+        <xref target="attenuation"/> and <xref target="action-class"/>.
       </t>
     </section>
 
@@ -1689,6 +2029,40 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
             <xref target="layers"/> without implementing this profile,
             and are therefore not listed in
             <xref target="implementation-status"/>.
+          </t>
+        </li>
+        <li>
+          <t>
+            Added <xref target="action-class"/>, a new normative section
+            placed after <xref target="floors"/>, specifying the
+            actionClass and classSource axes reserved but not yet
+            specified by the Floor Axis Registry addition above: the
+            actionClass values r, w, and x and their rank tightening
+            rule; the classSource values method and declared, ranked
+            method &lt; declared with method the tighter, default value,
+            and the rule that a child link moves only from declared to
+            method; the classification procedure
+            (HTTP-method default per <xref target="RFC9110"/>, or a
+            verified, resource-bound menu when classSource is declared,
+            falling back to the method default on any menu failure and
+            never combining the two); the declared menu itself, a JWS
+            (<xref target="RFC7515"/>) whose payload names the resource's
+            origin (<xref target="RFC6454"/>) and a map from
+            operation key to actionClass value, including a deterministic
+            path-template matching rule and an origin-binding requirement
+            on the menu's issuer; verifier placement at the resource or
+            credential boundary; and an honest-limits paragraph, backed
+            by a committed catalogue survey, that a POST is not always
+            classed correctly by method alone. Added a corresponding
+            paragraph to <xref target="security"/>, three test vectors
+            (V7 through V9, the last a negative control for the
+            origin-binding rule) to <xref target="vectors"/>, and a bullet
+            to <xref target="implementation-status"/> naming the three
+            places the proof-of-concept's existing code falls short of
+            this section's requirements. Replaced the two Floor Axis
+            Registry table cells that deferred actionClass's and
+            classSource's semantics, and the standalone marker comment
+            for this item, with a cross-reference to the new section.
           </t>
         </li>
       </ul>
