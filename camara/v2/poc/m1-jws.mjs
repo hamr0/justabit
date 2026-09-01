@@ -301,6 +301,26 @@ function checkNoSelfCollision(paramsFields, answerFields) {
   return null;
 }
 
+// Fails closed on an answer schema whose `answer` half declares ZERO own
+// keys. The trap: a literal `__proto__:` key in an object initializer sets
+// the object's PROTOTYPE rather than creating a property — a developer
+// writing `answer: { __proto__: 'boolean' }` where they meant a computed
+// key (`{ [name]: 'boolean' }`) gets a schema.answer that silently has no
+// own fields at all, with no error at schema-definition time. The mistake
+// then surfaces later, if at all, as a confusing MISSING_CLAIM far from the
+// actual cause. `schema.params` MAY legitimately be empty (roaming/
+// reachability predicates have no query value), so this checks only the
+// answer half, never params. Checked from this one definition at BOTH
+// construction (attestAnswer, before the payload is built) and
+// verification (verifyAnswer), so the two sides cannot drift apart, exactly
+// as checkNoReservedCollision/checkNoSelfCollision already are.
+function checkAnswerNotEmpty(answerFields) {
+  if (Object.keys(answerFields).length === 0) {
+    return new ClaimRejected('EMPTY_ANSWER_SCHEMA', 'schema.answer must declare at least one field');
+  }
+  return null;
+}
+
 function verifyRequesterChecks(payload, { expectedIss, expectedAud, nonceStore, now }) {
   if (payload.iss !== expectedIss) return new ClaimRejected('ISS_MISMATCH', 'iss mismatch');
   if (payload.aud !== expectedAud) return new ClaimRejected('AUD_MISMATCH', 'aud mismatch');
@@ -354,6 +374,8 @@ export function attestAnswer(privateKey, kid, base, schema, params, answer) {
         !isPlainObject(params) || !isPlainObject(answer)) {
       return { ok: false, reason: new ClaimRejected('MALFORMED_INPUT', 'base/schema/params/answer must be plain objects') };
     }
+    const answerEmptyErr = checkAnswerNotEmpty(schema.answer);
+    if (answerEmptyErr) return { ok: false, reason: answerEmptyErr };
     const extraFields = { ...schema.params, ...schema.answer };
     const collisionErr = checkNoReservedCollision(extraFields);
     if (collisionErr) return { ok: false, reason: collisionErr };
@@ -386,6 +408,8 @@ export function verifyAnswer(token, resolveKey, schema, { expectedIss, expectedA
     if (!isPlainObject(schema) || !isPlainObject(schema.params) || !isPlainObject(schema.answer)) {
       return { ok: false, reason: new ClaimRejected('MALFORMED_INPUT', 'schema must be a plain object with params/answer') };
     }
+    const answerEmptyErr = checkAnswerNotEmpty(schema.answer);
+    if (answerEmptyErr) return { ok: false, reason: answerEmptyErr };
     const extraFields = { ...schema.params, ...schema.answer };
     const collisionErr = checkNoReservedCollision(extraFields);
     if (collisionErr) return { ok: false, reason: collisionErr };

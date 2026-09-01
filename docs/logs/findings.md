@@ -14,7 +14,150 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
-## 2026-09-01 (latest) — User validation run at `4ba6f5e`: all seven v2 suites green at `m1-jws-check` 82, first user run covering the prototype-chain fix
+## 2026-09-01 (latest) — Fourth `/branch-review` cycle at `f07bf75` came back clean but found an EQUIVALENT MUTANT: the projection layer had no test that could fail; `m1-jws-check` 82 -> 94
+
+**EVIDENCE**
+
+1. **The gate.** Fourth `/branch-review` cycle, HEAD `f07bf75`, target
+   `df5e4856..HEAD`. Stage 1 general review medium, stage 2 security
+   full, separate agents in parallel, every finding re-verified by the
+   main session. No Critical, no Warning from either stage — the first
+   cycle on this branch to come back with neither.
+
+2. Stage 1 independently reproduced all three mutation proofs claimed by
+   commit `4ba6f5e` — 70/82, 80/82, 78/82 — each failing exactly the
+   claimed cases. It also confirmed the 43 new cases avoid the
+   `__proto__` trap: group 40 splices JSON text and groups 41/42 use
+   computed keys, so none is vacuous.
+
+3. Stage 2 attacked the wire boundary with hand-signed tokens, all 12
+   prototype names, falsy declared values, nonce replay, the
+   `exp === now` boundary, audience confusion, throwing getters and
+   Proxy traps. Everything held. It re-derived the header `in` decision
+   independently rather than accepting it: the exact-two-keys check
+   forecloses smuggling regardless of `in` versus `hasOwn`. Secrets scan
+   across 124 commits: clean, every hit synthetic or the documented
+   `pass camara/orange_network` pattern.
+
+4. **S1 — the equivalent mutant, the real finding.** Stage 1 observed,
+   and the main session then reproduced directly, that replacing BOTH
+   `projectClaims(...)` calls in `verifyAnswer`/`verifyRefusal` with
+   `claims: r.payload` — deleting the projection layer entirely — still
+   passed 82/82, exit 0. With the primary `checkClosedPayload` guard
+   intact the projection is a no-op, so nothing in the suite observed
+   its removal. By the repo's own mutation-prove doctrine, a
+   load-bearing control with no test that can fail is not proven.
+
+5. **The constraint that determined the fix.** A unit test of
+   `projectClaims` alone would NOT have solved this: it proves the
+   function works while the mutant that deletes the CALL SITES still
+   passes. The observable difference is KEY ORDER — `projectClaims`
+   copies in `Object.keys(allowedFields)` order (BASE_FIELDS, then the
+   schema's declared fields), while the raw payload carries whatever
+   order the token's JSON had. Tokens built by `attestAnswer` already
+   come out canonical, which is why the pre-existing key-order assertion
+   caught nothing.
+
+   The fix hand-signs a token with `signJws` carrying the same key set
+   in a SHUFFLED order, then asserts the claims come back canonical.
+   Cases 48/48b and 49/49b cover `verifyAnswer` with its negative
+   control; 50/50b and 51/51b cover `verifyRefusal` with its own. Key
+   order is deterministic here: every claim name is a non-integer
+   string, so JS preserves insertion order and `JSON.parse` preserves
+   document order.
+
+6. **Three mutation proofs for S1**, each isolating one call site:
+   1. Both calls reverted -> `RESULT: 92/94`, exit 1 — 48b and 50b red,
+      49b/51b green.
+   2. Only `verifyAnswer`'s call -> `RESULT: 93/94`, exit 1 — only 48b
+      red.
+   3. Only `verifyRefusal`'s call -> `RESULT: 93/94`, exit 1 — only 50b
+      red.
+
+   Main session's own re-run of the mutant that previously survived:
+   exit 1, `RESULT: 92/94`, cases 48b and 50b red. The gap is closed.
+
+7. **S2 — a developer footgun, found by stage 2.** A literal
+   `__proto__:` key in an object initializer sets the object's
+   PROTOTYPE rather than creating a property. A developer writing
+   `answer: { __proto__: 'boolean' }` where they meant a computed key
+   gets a `schema.answer` with ZERO own fields, silently, surfacing
+   later as a confusing `MISSING_CLAIM` far from the cause. Not
+   attacker-reachable — schemas are developer-supplied.
+
+   Fixed with `checkAnswerNotEmpty()`, returning a new
+   `ClaimRejected('EMPTY_ANSWER_SCHEMA', ...)`, called at BOTH
+   `attestAnswer` and `verifyAnswer`, so the two sides cannot drift. Two
+   scoping constraints held deliberately: `schema.params` MAY be empty,
+   because roaming and reachability predicates have no query value, so
+   only the answer half is checked; and a field named `__proto__` or
+   `constructor` written with a COMPUTED key must keep working, since
+   cases 41 and 42 depend on it. Cases 52 and 53 assert the rejection at
+   construction and verification; 54 and 55 are the negative controls
+   (empty `params` stays legal, a computed-key `__proto__` answer field
+   stays legal). Mutation proof: guard removed -> `RESULT: 92/94`,
+   exit 1, cases 52 and 53 red, 54/55 green.
+
+8. **A naming decision, escalated by the agent and settled by the main
+   session:** `EMPTY_ANSWER_SCHEMA` as its own code rather than folding
+   into `MALFORMED_INPUT`. The file reserves `MALFORMED_INPUT` for shape
+   faults and gives every semantic schema defect its own code
+   (`RESERVED_CLAIM`, `SCHEMA_SELF_COLLISION`), so a distinct code
+   follows the existing convention.
+
+9. **Main session's own verification of S2, with controls**, verbatim:
+
+   ```
+   S2: literal __proto__ (empty answer)       refused EMPTY_ANSWER_SCHEMA
+   S2: explicitly empty answer                refused EMPTY_ANSWER_SCHEMA
+   CONTROL: empty params is legal             SIGNED
+   CONTROL: computed __proto__ answer field   SIGNED
+   CONTROL: normal schema                     SIGNED
+   ```
+
+10. **Seven suites, main session's own run on the final tree**, all
+    exit 0: m1-check 20/20, m1-jws-check 94/94, m2-check 10/10,
+    m3-check 26/26, m4-check 42/42, m5-check 67/67, m6-check 47/47.
+
+11. **USER VALIDATION IS VOID AGAIN.** The count moved 82 -> 94. The
+    user's run at `4ba6f5e` covered 82. A user run validates only at the
+    count and tree it was run at. The `4ba6f5e` entry must NOT be
+    rewritten — it is correct as dated history. A fresh user run at 94
+    is required before release.
+
+12. **Still open, reported and not fixed:** `signJws`/`attestAnswer`
+    return a bare string on success but `{ok:false, reason}` on
+    failure — an undocumented union that fails closed; `makeNonceStore`
+    grows unbounded with no expiry pruning, acceptable for a PoC; and
+    `docs/index.md`'s generated line counts are each one too high,
+    because the generator counts `split('\n')` on files ending in a
+    newline — a bug in `docs-builder.cjs`, which lives OUTSIDE this
+    repo.
+
+**DECISION**
+
+1. The user's call: fix both S1 and S2 rather than shipping with S1
+   logged as a documented open item — the projection layer exists
+   precisely to survive a future regression in the primary guard, and
+   nothing would have noticed if it vanished.
+2. `EMPTY_ANSWER_SCHEMA` gets its own error code, per the file's
+   existing convention.
+
+Lessons worth stating:
+- An equivalent mutant is the failure mode a green suite cannot show
+  you. A control that is a no-op while the control above it works has
+  no test until you can name the observable difference — here, key
+  order.
+- A unit test of the helper would have been the obvious move and would
+  have left the real gap open. The mutant to kill was the deletion of
+  the CALL SITE, not a fault in the function.
+- Four gate cycles were needed on this branch, and each of the first
+  three found something the one before missed. The fourth came back
+  clean on findings and still surfaced an untested control.
+
+---
+
+## 2026-09-01 — User validation run at `4ba6f5e`: all seven v2 suites green at `m1-jws-check` 82, first user run covering the prototype-chain fix
 
 **EVIDENCE**
 

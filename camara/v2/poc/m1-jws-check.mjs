@@ -8,7 +8,7 @@ import {
   signJws, verifyJws, compactSize,
   attestAnswer, verifyAnswer, attestRefusal, verifyRefusal,
   makeNonceStore, JwsRejected, ClaimRejected,
-  SIM_SWAP_CHECK, OFF_MENU_THRESHOLD,
+  SIM_SWAP_CHECK, OFF_MENU_THRESHOLD, UNAVAILABLE,
 } from './m1-jws.mjs';
 
 // Test-only fixture (moved out of m1-jws.mjs — it had no real caller
@@ -715,4 +715,137 @@ for (const name of PROTO_NAMES) {
     v.ok === false && v.reason.code === 'RESERVED_CLAIM' && v.reason.code !== 'MALFORMED_INPUT');
 }
 
-conclude(82);
+// =====================================================================
+// S1 FIX — the projection call sites in verifyAnswer/verifyRefusal had no
+// test that could observe their removal: with checkClosedPayload's closed-
+// set guard intact, `claims: r.payload` and `claims: projectClaims(...)`
+// return the SAME set of keys, so a mutant deleting either call site still
+// passed 82/82. A unit test of projectClaims alone does not solve this — it
+// would prove the function works while a mutant deleting the CALL SITE
+// still passes. The observable that survives is KEY ORDER: projectClaims
+// copies out in Object.keys(allowedFields) order (BASE_FIELDS, then the
+// schema's declared fields) — canonical, regardless of the payload's own
+// order — while the raw payload carries whatever order its JSON text had.
+// Hand-sign (via signJws, bypassing attestAnswer/attestRefusal, which
+// always build canonical order) a payload with the SAME key set inserted
+// in a SHUFFLED order. JS preserves object-literal insertion order for
+// string keys and JSON.parse preserves document order, so this is a fair,
+// unconfounded probe of whether the call site actually ran.
+// =====================================================================
+
+// 48 S1 ANSWER PROJECTION LIVE (KEY ORDER) — verifyAnswer's own call site.
+{
+  const base = freshBase();
+  const shuffledPayload = {
+    swapped: false, maxAge: 2160,
+    exp: base.exp, iat: base.iat, nonce: base.nonce, aud: base.aud, iss: base.iss,
+  };
+  const token = signJws(operator.privateKey, OP_KID, shuffledPayload);
+  const v = verifyAnswer(token, resolveKey, SIM_SWAP_CHECK, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW });
+  check('48 S1 ANSWER PROJECTION LIVE (KEY ORDER)', true, v);
+  checkTrue('48b S1 ANSWER PROJECTION LIVE claims come back in canonical order despite shuffled wire order',
+    v.ok === true && Object.keys(v.claims).join(',') === 'iss,aud,nonce,iat,exp,maxAge,swapped');
+}
+
+// 49 S1 ANSWER NEGATIVE CONTROL — a normally (already-canonically) ordered
+// hand-signed token must still verify and still come back canonical; proves
+// 48's assertion is not merely "any hand-signed token reads as canonical".
+{
+  const base = freshBase();
+  const canonicalPayload = { ...base, maxAge: 2160, swapped: false };
+  const token = signJws(operator.privateKey, OP_KID, canonicalPayload);
+  const v = verifyAnswer(token, resolveKey, SIM_SWAP_CHECK, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW });
+  check('49 S1 ANSWER NEGATIVE CONTROL (already-canonical wire order stays canonical)', true, v);
+  checkTrue('49b S1 ANSWER NEGATIVE CONTROL claims order',
+    v.ok === true && Object.keys(v.claims).join(',') === 'iss,aud,nonce,iat,exp,maxAge,swapped');
+}
+
+// 50 S1 REFUSAL PROJECTION LIVE (KEY ORDER) — verifyRefusal's OWN, separate
+// call site; a mutant could delete either call site alone, so each needs
+// its own live proof (mirrors 48).
+{
+  const base = freshBase();
+  const shuffledPayload = {
+    error: OFF_MENU_THRESHOLD,
+    exp: base.exp, iat: base.iat, nonce: base.nonce, aud: base.aud, iss: base.iss,
+  };
+  const token = signJws(operator.privateKey, OP_KID, shuffledPayload);
+  const v = verifyRefusal(token, resolveKey, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW });
+  check('50 S1 REFUSAL PROJECTION LIVE (KEY ORDER)', true, v);
+  checkTrue('50b S1 REFUSAL PROJECTION LIVE claims come back in canonical order despite shuffled wire order',
+    v.ok === true && Object.keys(v.claims).join(',') === 'iss,aud,nonce,iat,exp,error');
+}
+
+// 51 S1 REFUSAL NEGATIVE CONTROL — mirrors 49 for the refusal side.
+{
+  const base = freshBase();
+  const canonicalPayload = { ...base, error: UNAVAILABLE };
+  const token = signJws(operator.privateKey, OP_KID, canonicalPayload);
+  const v = verifyRefusal(token, resolveKey, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW });
+  check('51 S1 REFUSAL NEGATIVE CONTROL (already-canonical wire order stays canonical)', true, v);
+  checkTrue('51b S1 REFUSAL NEGATIVE CONTROL claims order',
+    v.ok === true && Object.keys(v.claims).join(',') === 'iss,aud,nonce,iat,exp,error');
+}
+
+// =====================================================================
+// S2 FIX — a literal `__proto__:` key in an object initializer sets the
+// PROTOTYPE, not a property, so `answer: { __proto__: 'boolean' }` has ZERO
+// own keys — silently, no error at schema-definition time. checkAnswerNotEmpty
+// rejects an answer schema with no own fields at both attestAnswer and
+// verifyAnswer. schema.params MAY legitimately be empty (roaming/
+// reachability predicates have no query value) — the guard must not reach
+// params, and a legitimate prototype-named field written with a COMPUTED
+// key must keep working (groups 41/42 already depend on this).
+// =====================================================================
+
+// 52 S2 EMPTY ANSWER SCHEMA AT ATTEST (literal __proto__ trap).
+{
+  const base = freshBase();
+  const emptyAnswerSchema = { params: { maxAge: 'integer' }, answer: { __proto__: 'boolean' } };
+  check('52 S2 EMPTY ANSWER SCHEMA AT ATTEST (literal __proto__ trap)', false,
+    attestAnswer(operator.privateKey, OP_KID, base, emptyAnswerSchema, { maxAge: 2160 }, {}),
+    ClaimRejected, 'EMPTY_ANSWER_SCHEMA');
+}
+
+// 53 S2 EMPTY ANSWER SCHEMA AT VERIFY — attestAnswer would refuse to build
+// this (case 52), so bypass it via signJws directly to prove verifyAnswer
+// holds the same line independently.
+{
+  const base = freshBase();
+  const token = signJws(operator.privateKey, OP_KID, { ...base, maxAge: 2160 });
+  const emptyAnswerSchema = { params: { maxAge: 'integer' }, answer: { __proto__: 'boolean' } };
+  check('53 S2 EMPTY ANSWER SCHEMA AT VERIFY (literal __proto__ trap)', false,
+    verifyAnswer(token, resolveKey, emptyAnswerSchema, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW }),
+    ClaimRejected, 'EMPTY_ANSWER_SCHEMA');
+}
+
+// 54 S2 NEGATIVE CONTROL — EMPTY params MUST STAY LEGAL — the guard targets
+// only the answer half's emptiness; a predicate with no query value
+// (roaming, reachability) legitimately has schema.params = {}.
+{
+  const base = freshBase();
+  const noParamsSchema = { params: {}, answer: { swapped: 'boolean' } };
+  const token = attestAnswer(operator.privateKey, OP_KID, base, noParamsSchema, {}, { swapped: true });
+  const v = typeof token === 'string'
+    ? verifyAnswer(token, resolveKey, noParamsSchema, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW })
+    : token;
+  check('54 S2 NEGATIVE CONTROL (empty params stays legal)', true, v);
+}
+
+// 55 S2 NEGATIVE CONTROL — COMPUTED-KEY PROTOTYPE-NAMED ANSWER FIELD STAYS
+// LEGAL — `{ [name]: 'boolean' }` with name === '__proto__' is a COMPUTED
+// key, which always creates a real own property, so Object.keys(schema.answer)
+// has length 1, not 0 — the new guard must not reject it. Already exercised
+// per-name in groups 41/42; restated here as a direct check against the
+// EMPTY_ANSWER_SCHEMA guard specifically.
+{
+  const base = freshBase();
+  const schema = { params: { maxAge: 'integer' }, answer: { ['__proto__']: 'boolean' } };
+  const token = attestAnswer(operator.privateKey, OP_KID, base, schema, { maxAge: 2160 }, { ['__proto__']: true });
+  const v = typeof token === 'string'
+    ? verifyAnswer(token, resolveKey, schema, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW })
+    : token;
+  check('55 S2 NEGATIVE CONTROL (computed-key __proto__ answer field stays legal, not empty)', true, v);
+}
+
+conclude(94);
