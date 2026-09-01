@@ -31,36 +31,48 @@ dependency of `m1-jws.mjs` (`hasDuplicateTopLevelKey`); flagged for review.
 
 1. Copy the four (in practice five) named files unchanged; build new code beside them.
 2. Two ordered enum axes (`actionClass`: r<w<x; `classSource`: declared<method) plus one monotone-down integer axis (`writeBudget`).
-3. `classify(method, path, menu, classSource)`: RFC 9110 method default, or the owner's signed menu when `classSource: declared` and the signature verifies — never `max(method, declared)`.
-4. `admit(link, request, state)`: stateless actionClass gate, stateful writeBudget ledger keyed by chain id; `r` never spends.
-5. Menu = a JWS over `{ iss, menu: { "METHOD path": class } }`, verified against the owner's key only.
+3. `classify(method, path, menu, classSource, targetOrigin)`: RFC 9110 method default, or the owner's signed menu when `classSource: declared`, the signature verifies, and (2026-09-01 addition) the menu's `iss` matches `targetOrigin` octet-for-octet — never `max(method, declared)`.
+4. `admit(link, request, state)`: stateless actionClass gate, stateful writeBudget ledger keyed by a chain id the verifier itself derives (2026-09-01 addition: `deriveChainId`, the SHA-256 digest of `request.rootSignature` — L(0)'s wire signature bytes — never a caller-supplied field); `r` never spends.
+5. Menu = a JWS over `{ iss, menu: { "METHOD path-template": class } }`, verified against the owner's key only; path-template keys (2026-09-01 addition) match per the draft's deterministic segment rule, not exact string equality.
 
 ## What this does NOT prove
 
 Not adversarially reviewed by a second round. No live network calls, no real
 delegation-chain wire format, no interop with any other implementation. The
-mutation table (see the build report) killed 5 targeted guards; it did not
-attempt a broader mutation sweep.
+original mutation table (see the build report) killed 5 targeted guards; it
+did not attempt a broader mutation sweep. The 2026-09-01 round below adds 5
+more targeted mutations (one per changed/added case, cases 23 and 27 sharing
+one), each confirmed red under the mutation and green on restore; it is
+still not a broader sweep.
 
-### Three assumptions pinned by cases 22-24
+### 2026-09-01 — cases 22-24 brought up to -01 text; two cases added
 
-- **Case 22 — chainId is caller-supplied.** A fresh `chainId` refills the
-  writeBudget ledger. -01 must derive `chainId` from the signed chain (e.g. a
-  digest of the root link's signature), never take it from the request.
-- **Case 23 — menu keys are exact strings.** A path template
-  (`POST /calls/{callId}`) does not match a concrete request path
-  (`/calls/123`); the lookup misses and falls back to the method default.
-  -01 needs OpenAPI-style path-template matching in the menu lookup.
-- **Case 24 — the menu is not bound to the resource being called.** `iss` is
-  checked for type only, never compared to the request's target origin.
-  -01 must bind the menu to the resource origin (`iss` == the authority of
-  the request target, or a per-origin key resolver).
+The three assumptions cases 22-24 used to pin (chainId taken from the
+request, exact-string menu keys, no menu-to-resource origin binding) are
+now resolved in both the -01 draft text (`action-class` and `write-budget`
+in `ietf/v2/docs/draft-hamr-oauth-agent-delegation-01.xml`) and this code,
+which the draft text governs:
 
--01 item 3 (`action-class` in the draft) has since drafted the text that
-resolves cases 23 and 24: a deterministic path-template matching rule for
-menu keys, and a required `iss`-equals-target-origin check with fail-closed
-behaviour on any mismatch. Item 4 (Write Budget, chain identifier derived
-from L(0)'s signature) now resolves case 22 in the text; the code is behind
-on all three. This code still pins the old behaviour in all three cases — exact-
-string menu keys, no origin check, caller-supplied `chainId` — and is
-behind the text; it has not been updated to match.
+- **Case 22 — chain identifier is verifier-derived.** `admit()` no longer
+  reads any `chainId`-shaped field from `request`; the writeBudget ledger is
+  keyed by `deriveChainId(request.rootSignature)`, the SHA-256 digest of
+  L(0)'s wire signature bytes. A request that also carries an arbitrary
+  caller-supplied `chainId` field is admitted or refused exactly as if that
+  field were absent — proven by pinning it present in case 22 and observing
+  no effect.
+- **Case 23 — menu keys are path templates.** `POST /calls/{callId}` now
+  matches a concrete request path `/calls/123` per the draft's
+  deterministic segment rule (same segment count; `{param}` matches one
+  non-empty segment; more literal segments wins; an equal-literal tie is a
+  miss, fail-closed to the method default — case 26 pins the tie
+  behaviour, case 27 pins that a literal `__proto__` menu key cannot crash
+  or bypass the matcher).
+- **Case 24 — the menu is bound to the resource origin.** A menu's `iss`
+  must equal the request target's RFC 6454 origin octet-for-octet; on any
+  mismatch the menu fails exactly as an invalid signature would, and the
+  method default applies (the same shape as the draft's appendix vector V9).
+
+Case 25 adds the appendix's V10 step sequence (writeBudget 2: admit, admit,
+refuse) as its own case, distinct from case 11's writeBudget-1 sequence.
+The suite grew from 24 to 27 cases; all 27 pass, `node
+ietf/v2/poc/m3-check.mjs` (untouched) still passes its 26.

@@ -29,6 +29,7 @@
 //
 // Zero dependencies beyond the copied m1-jws.mjs (node:crypto transitively).
 
+import { createHash } from 'node:crypto';
 import { verifyJws } from './m1-jws.mjs';
 
 // ---------------------------------------------------------------------------
@@ -207,19 +208,135 @@ function methodDefault(method) {
   return Object.prototype.hasOwnProperty.call(METHOD_DEFAULT, upper) ? METHOD_DEFAULT[upper] : 'x';
 }
 
-// Resolves a menu JWS against the OWNER's public key only. Returns the
-// decoded { iss, menu } payload on success, or null on ANY failure
-// (malformed token, bad signature, wrong shape) — classify() below treats
-// null as "no usable menu", which is exactly the fail-closed-to-method
-// behavior the spec calls for.
-function resolveMenu(menu, ownerPublicKey) {
+// Resolves a menu JWS against the OWNER's public key only, and binds it to
+// the resource being called. Returns the decoded { iss, menu } payload on
+// success, or null on ANY failure (malformed token, bad signature, wrong
+// shape, OR an iss that does not match the request target's origin) —
+// classify() below treats null as "no usable menu", which is exactly the
+// fail-closed-to-method behavior the spec calls for. Per -01's declared-menu
+// origin-binding rule: "A menu applies only to the resource that issued
+// it. [...] where the two do not match, the menu fails, exactly as if its
+// signature had not verified." `targetOrigin` is the RFC 6454 origin of the
+// request target, supplied by the caller (the verifier already knows what
+// resource it is verifying against — this is not wire input from the menu
+// itself).
+function resolveMenu(menu, ownerPublicKey, targetOrigin) {
   if (typeof menu !== 'string' || !ownerPublicKey) return null;
   const r = verifyJws(menu, () => ownerPublicKey);
   if (!r.ok) return null;
   if (!isPlainObject(r.payload) || typeof r.payload.iss !== 'string' || !isPlainObject(r.payload.menu)) {
     return null;
   }
+  if (r.payload.iss !== targetOrigin) return null;
   return r.payload;
+}
+
+// ---------------------------------------------------------------------------
+// Path-template matching (draft -01 "The Declared Menu"): a menu operation
+// key has the form "METHOD path-template", where a brace-delimited template
+// segment ({callId}) matches exactly one non-empty request path segment. A
+// request matches a key only where both have the same method and the same
+// number of path segments, and every segment position is either a literal
+// equal to the request's segment or a parameter matching a non-empty
+// segment. Where more than one key matches, the key with the greater number
+// of LITERAL segments governs; an equal-literal tie across distinct keys is
+// a miss, never resolved by JSON key order or any other means.
+// ---------------------------------------------------------------------------
+
+function pathSegments(path) {
+  return typeof path === 'string' ? path.split('/') : null;
+}
+
+function isParamSegment(seg) {
+  return typeof seg === 'string' && seg.length >= 2 && seg[0] === '{' && seg[seg.length - 1] === '}';
+}
+
+// Matches one template's segments against one request's segments. Returns
+// the literal-segment count on a match, or null on no match (segment count
+// differs, a literal segment doesn't equal, or a parameter segment meets an
+// empty request segment).
+function matchTemplateSegments(templateSegs, requestSegs) {
+  if (templateSegs.length !== requestSegs.length) return null;
+  let literalCount = 0;
+  for (let i = 0; i < templateSegs.length; i += 1) {
+    const t = templateSegs[i];
+    const req = requestSegs[i];
+    if (isParamSegment(t)) {
+      if (typeof req !== 'string' || req.length === 0) return null;
+    } else {
+      if (t !== req) return null;
+      literalCount += 1;
+    }
+  }
+  return literalCount;
+}
+
+// Looks up `method path` against every key of `menu` (own enumerable keys
+// only, via Object.keys — never a prototype-walking `in`/bare-access
+// lookup, so a menu key literally named "__proto__" — a real own property
+// when the menu arrives via JSON.parse, as every menu here does via
+// verifyJws — is matched exactly like any other string key). Returns the
+// declared value on an unambiguous match, or undefined on no match OR an
+// equal-literal-segment tie (a tie is deliberately indistinguishable from a
+// miss to every caller of this function).
+function matchOperationKey(menu, method, path) {
+  const upperMethod = typeof method === 'string' ? method.toUpperCase() : method;
+  const requestSegs = pathSegments(path);
+  if (requestSegs === null) return undefined;
+  let bestLiteralCount = -1;
+  let bestValue;
+  let tie = false;
+  for (const key of Object.keys(menu)) {
+    const spaceIdx = key.indexOf(' ');
+    if (spaceIdx === -1) continue;
+    const keyMethod = key.slice(0, spaceIdx);
+    if (keyMethod !== upperMethod) continue;
+    const templateSegs = pathSegments(key.slice(spaceIdx + 1));
+    if (templateSegs === null) continue;
+    const literalCount = matchTemplateSegments(templateSegs, requestSegs);
+    if (literalCount === null) continue;
+    if (literalCount > bestLiteralCount) {
+      bestLiteralCount = literalCount;
+      bestValue = menu[key];
+      tie = false;
+    } else if (literalCount === bestLiteralCount) {
+      tie = true;
+    }
+  }
+  if (bestLiteralCount === -1 || tie) return undefined;
+  return bestValue;
+}
+
+// ---------------------------------------------------------------------------
+// deriveChainId(rootSignature) — draft -01 "Chain Identifier": the chain
+// identifier that keys the writeBudget count MUST be derived by the
+// verifier itself, as the SHA-256 digest of the octet string that is L(0)'s
+// signature value, in whatever encoding that signature is carried on the
+// wire — never taken from a value the request supplies. `rootSignature` is
+// the wire form of L(0)'s signature as the verifier itself already
+// extracted and verified it (this is verifier-held input, not a
+// caller-supplied request field): a base64url string (matching the JWS
+// signature-segment encoding this repo's own credential format uses), or
+// already-decoded bytes (Buffer/Uint8Array). Returns a lowercase hex digest,
+// or null if `rootSignature` is not a usable byte source.
+// ---------------------------------------------------------------------------
+
+export function deriveChainId(rootSignature) {
+  let bytes;
+  if (typeof rootSignature === 'string') {
+    if (rootSignature.length === 0) return null;
+    try {
+      bytes = Buffer.from(rootSignature, 'base64url');
+    } catch {
+      return null;
+    }
+  } else if (Buffer.isBuffer(rootSignature) || rootSignature instanceof Uint8Array) {
+    bytes = Buffer.from(rootSignature);
+  } else {
+    return null;
+  }
+  if (bytes.length === 0) return null;
+  return createHash('sha256').update(bytes).digest('hex');
 }
 
 /**
@@ -230,10 +347,16 @@ function resolveMenu(menu, ownerPublicKey) {
  *   -> treated exactly like a verification failure (fail closed to method).
  * @param classSource 'method' | 'declared' | undefined (defaults to 'method'
  *   per spec line 2's stated default when omitted).
+ * @param targetOrigin  the RFC 6454 origin of the request target, as the
+ *   verifier itself knows it (not wire input from the menu). Required for
+ *   the menu's iss to be usable at all — draft -01's declared-menu rule
+ *   binds the menu octet-for-octet to this value; any mismatch, including
+ *   an omitted targetOrigin, fails the menu exactly like an invalid
+ *   signature would.
  * @returns the actionClass string 'r' | 'w' | 'x'. NEVER throws, NEVER
  *   returns anything outside the closed enum.
  */
-export function classify(method, path, menuInput, classSource) {
+export function classify(method, path, menuInput, classSource, targetOrigin) {
   const def = methodDefault(method);
   const source = classSource === undefined ? 'method' : classSource;
   if (source !== 'declared') {
@@ -244,11 +367,14 @@ export function classify(method, path, menuInput, classSource) {
     return def;
   }
   const menu = menuInput && typeof menuInput === 'object'
-    ? resolveMenu(menuInput.token, menuInput.ownerPublicKey)
+    ? resolveMenu(menuInput.token, menuInput.ownerPublicKey, targetOrigin)
     : null;
   if (menu === null) return def; // fail closed to method on any menu failure
-  const key = `${typeof method === 'string' ? method.toUpperCase() : method} ${path}`;
-  const declared = Object.prototype.hasOwnProperty.call(menu.menu, key) ? menu.menu[key] : undefined;
+  // Path-template matching (draft -01 "The Declared Menu"), never an
+  // exact-string lookup: an undefined return covers both "no key matches"
+  // and "an equal-literal-segment tie between distinct keys", per
+  // matchOperationKey's own contract.
+  const declared = matchOperationKey(menu.menu, method, path);
   if (declared === undefined) return def;
   // Per spec line 3, authoritative paragraph: classSource=declared with a
   // valid menu returns the DECLARED value when present (not max(method,
@@ -267,19 +393,30 @@ export function classify(method, path, menuInput, classSource) {
  * @param link  the admitting hop's OWN floor link: { actionClass,
  *   classSource?, writeBudget? } (already the EFFECTIVE link — e.g. the
  *   output of a checkActionFloor chain walk, or a root link).
- * @param request  { method, path, menu?, chainId } — `menu` (optional) is
- *   { token, ownerPublicKey } as classify() expects. Accessed defensively:
- *   a Proxy with a throwing getter must reject typed, never throw.
- * @param state  a Map<chainId, remainingBudget>. Reserve-then-decrement:
- *   the map is seeded lazily from the link's effective writeBudget on first
- *   use for that chainId, then decremented on every admitted w/x request.
+ * @param request  { method, path, menu?, targetOrigin?, rootSignature } —
+ *   `menu` (optional) is { token, ownerPublicKey } as classify() expects;
+ *   `targetOrigin` (optional, but required for a declared menu to be
+ *   usable) is the RFC 6454 origin of the request target; `rootSignature`
+ *   is L(0)'s wire signature value, from which the chain identifier that
+ *   keys the writeBudget count is derived per draft -01's Chain Identifier
+ *   rule (deriveChainId above) — the verifier's own extracted, already-
+ *   verified value, never a caller-supplied identifier field. A request
+ *   object MAY carry other fields (e.g. a caller-supplied "chainId"-shaped
+ *   field); admit() never reads any field but the ones named here, so such
+ *   a field has no effect. Accessed defensively: a Proxy with a throwing
+ *   getter must reject typed, never throw.
+ * @param state  a Map<derivedChainId, remainingBudget>. Reserve-then-
+ *   decrement: the map is seeded lazily from the link's effective
+ *   writeBudget on first use for a derived chain id, then decremented on
+ *   every admitted w/x request.
  * @returns { ok: true, actionClass, effective } | { ok: false, reason: ActionRejected }
  */
 export function admit(link, request, state) {
   let m; // method
   let path;
   let menu;
-  let chainId;
+  let targetOrigin;
+  let rootSignature;
   try {
     if (!(state instanceof Map)) {
       return reject('MALFORMED_INPUT', 'state must be a Map');
@@ -291,16 +428,21 @@ export function admit(link, request, state) {
     }
     // Reads are wrapped: a Proxy with a throwing getter on any of these
     // properties must produce a typed refusal, never an escaping TypeError.
+    // request.chainId (or any other field) is deliberately never read here:
+    // the chain identifier is derived below from rootSignature alone, never
+    // taken from a value the request supplies.
     m = request.method;
     path = request.path;
     menu = request.menu;
-    chainId = request.chainId;
-    if (typeof chainId !== 'string' || chainId.length === 0) {
-      return reject('MALFORMED_INPUT', 'request.chainId must be a non-empty string');
+    targetOrigin = request.targetOrigin;
+    rootSignature = request.rootSignature;
+    const chainId = deriveChainId(rootSignature);
+    if (chainId === null) {
+      return reject('MALFORMED_INPUT', 'request.rootSignature must be L(0)\'s wire signature bytes');
     }
 
     const { normalized } = v;
-    const cls = classify(m, path, menu, normalized.classSource);
+    const cls = classify(m, path, menu, normalized.classSource, targetOrigin);
     const clsRank = ACTION_CLASS_RANK[cls];
 
     if (clsRank > normalized.actionClassRank) {
@@ -314,9 +456,12 @@ export function admit(link, request, state) {
 
     // w or x: reserve-then-decrement against this chain's remaining budget.
     // Lazily seeded from the link's effective writeBudget on first sight of
-    // this chainId — later admit() calls for the same chainId reuse the
-    // Map's own running total, never re-reading the link's writeBudget
-    // (that would let a link presented fresh each call refill the budget).
+    // this derived chainId — later admit() calls for the same chain (same
+    // rootSignature -> same derived chainId) reuse the Map's own running
+    // total, never re-reading the link's writeBudget (that would let a link
+    // presented fresh each call refill the budget). Because chainId is
+    // derived from rootSignature and never from a caller-supplied field, no
+    // request field the caller controls can mint a fresh key into this Map.
     if (!state.has(chainId)) {
       state.set(chainId, normalized.writeBudget);
     }

@@ -6,7 +6,7 @@
 // green (check-harness.mjs's own defence, reused unchanged here).
 import { generateKeyPairSync } from 'node:crypto';
 import { signJws } from './m1-jws.mjs';
-import { checkActionFloor, admit, classify } from './m7-actionclass.mjs';
+import { checkActionFloor, admit, classify, deriveChainId } from './m7-actionclass.mjs';
 import { makeHarness } from './check-harness.mjs';
 
 // One shared harness, field 'ok'/'ADMIT'. checkActionFloor's {allowed,
@@ -40,8 +40,13 @@ function adaptClassify(actual) {
 const owner = generateKeyPairSync('ed25519');
 const impostor = generateKeyPairSync('ed25519');
 
+// The origin the menu below is bound to, and that every declared-classSource
+// test presents as the request's targetOrigin unless it is deliberately
+// testing the origin-binding mismatch (case 24). RFC 6454 origin, no path.
+const TARGET_ORIGIN = 'https://api.example.com';
+
 const menuPayload = {
-  iss: 'owner-1',
+  iss: TARGET_ORIGIN,
   menu: {
     'POST /check': 'r',   // a POST the owner is willing to CLASSIFY as read-only
     'GET /danger': 'x',   // a GET the owner wants CLASSIFIED as a write/execute
@@ -80,7 +85,7 @@ void impostor;
 // -> x. Link actionClass: r -> REFUSED.
 {
   const link = { actionClass: 'r', classSource: 'method' };
-  const req = { method: 'POST', path: '/check', menu: validMenu, chainId: 'c1' };
+  const req = { method: 'POST', path: '/check', menu: validMenu, rootSignature: 'c1sig' };
   const r = admit(link, req, new Map());
   check('1 N1 classSource=method ignores menu, classified x, refused', false, adaptAdmit(r),
     'classified x exceeds actionClass floor r');
@@ -91,7 +96,7 @@ void impostor;
 // (x for POST) -> REFUSED under actionClass: r.
 {
   const link = { actionClass: 'r', classSource: 'declared' };
-  const req = { method: 'POST', path: '/check', menu: forgedMenu, chainId: 'c2' };
+  const req = { method: 'POST', path: '/check', menu: forgedMenu, targetOrigin: TARGET_ORIGIN, rootSignature: 'c2sig' };
   const r = admit(link, req, new Map());
   check('2 N3 forged menu signature falls back to method, refused', false, adaptAdmit(r),
     'classified x exceeds actionClass floor r');
@@ -102,7 +107,7 @@ void impostor;
 // method default (r), which is exactly what classSource=declared opts into.
 {
   const link = { actionClass: 'r', classSource: 'declared' };
-  const req = { method: 'GET', path: '/danger', menu: validMenu, chainId: 'c3' };
+  const req = { method: 'GET', path: '/danger', menu: validMenu, targetOrigin: TARGET_ORIGIN, rootSignature: 'c3sig' };
   const r = admit(link, req, new Map());
   check('3 N4 declared menu tightens GET to x, refused', false, adaptAdmit(r),
     'classified x exceeds actionClass floor r');
@@ -149,11 +154,11 @@ check('10 N9a child raises actionClass w->x, refused', false,
 {
   const link = { actionClass: 'x', classSource: 'method', writeBudget: 1 };
   const state = new Map();
-  const req = { method: 'POST', path: '/bookings', chainId: 'c5' };
+  const req = { method: 'POST', path: '/bookings', rootSignature: 'c5sig' };
   const first = admit(link, req, state);
   const second = admit(link, req, state);
   check('11 N5 second write after budget exhausted, refused', false, adaptAdmit(second),
-    'writeBudget exhausted for chain c5',
+    `writeBudget exhausted for chain ${deriveChainId('c5sig')}`,
     { label: 'first request was admitted', ok: first.ok === true && first.effective.writeBudget === 0 });
 }
 
@@ -187,7 +192,7 @@ check('10 N9a child raises actionClass w->x, refused', false,
 // is actually wired into the classSource=declared path, not just ignored.
 {
   const link = { actionClass: 'r', classSource: 'declared' };
-  const req = { method: 'POST', path: '/check', menu: validMenu, chainId: 'c13' };
+  const req = { method: 'POST', path: '/check', menu: validMenu, targetOrigin: TARGET_ORIGIN, rootSignature: 'c13sig' };
   const r = admit(link, req, new Map());
   check('13 N2 declared classSource + valid menu, admitted as r', true, adaptAdmit(r),
     'ok', { label: `actionClass=${r.ok ? r.actionClass : 'n/a'}`, ok: r.ok === true && r.actionClass === 'r' });
@@ -200,12 +205,12 @@ check('10 N9a child raises actionClass w->x, refused', false,
 {
   const link = { actionClass: 'r', classSource: 'method', writeBudget: 1 };
   const state = new Map();
-  const req = { method: 'GET', path: '/bookings/1', chainId: 'c14' };
+  const req = { method: 'GET', path: '/bookings/1', rootSignature: 'c14sig' };
   const r1 = admit(link, req, state);
   const r2 = admit(link, req, state);
   const r3 = admit(link, req, state);
   const wLink = { actionClass: 'x', classSource: 'method', writeBudget: 1 };
-  const wReq = { method: 'POST', path: '/bookings', chainId: 'c14' };
+  const wReq = { method: 'POST', path: '/bookings', rootSignature: 'c14sig' };
   const rw = admit(wLink, wReq, state); // proves the r's above never spent
   check('14 N6 three r requests admitted, budget untouched', true, adaptAdmit(r3),
     'ok', {
@@ -229,9 +234,9 @@ check('10 N9a child raises actionClass w->x, refused', false,
 {
   const gate = checkActionFloor({ actionClass: 'x' }, { actionClass: 'x' }); // both omit writeBudget
   const link = { actionClass: 'x', classSource: 'method' }; // writeBudget omitted
-  const r = admit(link, { method: 'POST', path: '/bookings', chainId: 'c16' }, new Map());
+  const r = admit(link, { method: 'POST', path: '/bookings', rootSignature: 'c16sig' }, new Map());
   check('16 N11a omitted writeBudget -> effective 0, w/x refused', false, adaptAdmit(r),
-    'writeBudget exhausted for chain c16',
+    `writeBudget exhausted for chain ${deriveChainId('c16sig')}`,
     { label: `checkActionFloor effective.writeBudget=${gate.effective?.writeBudget}`, ok: gate.allowed === true && gate.effective.writeBudget === 0 });
 }
 
@@ -240,7 +245,7 @@ check('10 N9a child raises actionClass w->x, refused', false,
 {
   const gate = checkActionFloor({ actionClass: 'x' }, { actionClass: 'x' }); // both omit classSource
   const link = { actionClass: 'r' }; // classSource omitted -> 'method'
-  const req = { method: 'GET', path: '/danger', menu: validMenu, chainId: 'c17' }; // menu would say x if consulted
+  const req = { method: 'GET', path: '/danger', menu: validMenu, targetOrigin: TARGET_ORIGIN, rootSignature: 'c17sig' }; // menu would say x if consulted
   const r = admit(link, req, new Map());
   check('17 N11b omitted classSource -> effective method, menu ignored', true, adaptAdmit(r),
     'ok', {
@@ -255,10 +260,11 @@ check('10 N9a child raises actionClass w->x, refused', false,
 check('18 N12 unknown method BREW classifies as x', true,
   adaptClassify(classify('BREW', '/pot', undefined, 'method')), 'x');
 
-// 19 — N13: menu present and signature-valid, but lacks the requested
-// METHOD path -> falls back to the method default.
+// 19 — N13: menu present, signature-valid, and its iss matches the request
+// target's origin, but it lacks the requested METHOD path -> falls back to
+// the method default.
 check('19 N13 menu present but missing entry, falls back to method default', true,
-  adaptClassify(classify('GET', '/unlisted', validMenu, 'declared')), 'r');
+  adaptClassify(classify('GET', '/unlisted', validMenu, 'declared', TARGET_ORIGIN)), 'r');
 
 // 20 — EQUAL: restating the parent link exactly is allowed; effective
 // mirrors the child (which here equals the parent).
@@ -279,38 +285,46 @@ check('19 N13 menu present but missing entry, falls back to method default', tru
 }
 
 // ---------------------------------------------------------------------------
-// ASSUMPTION cases — each pins a spike-scope limit the review flagged. These
-// document the behaviour as it stands, not a bug: a later -01 change that
-// closes the gap will flip the case's expected value and force this file's
-// (and the README's) description to be updated, rather than letting the gap
-// go unnoticed.
+// Cases 22-24: the three assumptions the -01 draft text has since resolved
+// (write-budget-chain-identifier, action-class's declared-menu path-template
+// matching, and its origin-binding rule). The code below now implements
+// each rule; these cases pin the RESOLVED behaviour, replacing the
+// ASSUMPTION cases that used to pin the gap. See README.md's dated note.
 // ---------------------------------------------------------------------------
 
-// 22 — ASSUMPTION: chainId is caller-supplied; a fresh chainId refills the
-// budget. The verifier MUST derive chainId from the signed chain (e.g. a
-// digest of the root link's signature), never take it from the request —
-// the spike takes chainId as plain input and does not model that
-// derivation. A -01 requirement, not spike scope.
+// 22 — write-budget-chain-identifier: the chain identifier is derived by
+// the verifier itself, as the SHA-256 digest of L(0)'s wire signature
+// bytes, and MUST NOT be taken from a value the request supplies. Same
+// rootSignature (the same chain), writeBudget 1: the first x-class request
+// spends the budget; a second request against the SAME chain, which also
+// carries an arbitrary caller-supplied "chainId"-shaped field, is refused
+// on the exhausted budget rather than being treated as a fresh chain —
+// proving admit() never reads that field at all.
 {
   const link = { actionClass: 'x', writeBudget: 1 };
   const state = new Map();
-  const req1 = { method: 'POST', path: '/bookings', chainId: 'c22a' };
+  const rootSig = 'c22root';
+  const req1 = { method: 'POST', path: '/bookings', rootSignature: rootSig };
   const r1 = admit(link, req1, state);
-  const req2 = { method: 'POST', path: '/bookings', chainId: 'c22b' };
+  const req2 = {
+    method: 'POST', path: '/bookings', rootSignature: rootSig,
+    chainId: 'attacker-supplied-fresh-id', // MUST be ignored; not a fresh chain
+  };
   const r2 = admit(link, req2, state);
-  check('22 ASSUMPTION fresh chainId refills budget, both admitted', true, adaptAdmit(r2),
-    'ok', { label: 'first chainId c22a was also admitted', ok: r1.ok === true });
+  check('22 chain identifier is verifier-derived; caller-supplied chainId does not refill budget', false, adaptAdmit(r2),
+    `writeBudget exhausted for chain ${deriveChainId(rootSig)}`,
+    { label: 'first request (same chain) was admitted', ok: r1.ok === true });
 }
 
-// 23 — ASSUMPTION: menu keys are exact strings; path templates do not match.
-// The menu declares "POST /calls/{callId}": "r" verbatim, but a real request
-// path like /calls/123 is looked up as-is and misses, so classification
-// falls back to the method default (x for POST) -> REFUSED under
-// actionClass: r. A real menu needs OpenAPI-style path-template matching;
-// out of spike scope. Note this fails CLOSED (refuse), the safe direction.
+// 23 — declared-menu path-template matching: the menu declares
+// "POST /calls/{callId}": "r" as a template; a concrete request path
+// "/calls/123" MUST match it per the deterministic segment rule (same
+// segment count, {callId} matches the single non-empty segment "123") and
+// classification uses the menu's declared value, r -> ADMITTED under
+// actionClass: r.
 {
   const templateMenuPayload = {
-    iss: 'owner-1',
+    iss: TARGET_ORIGIN,
     menu: { 'POST /calls/{callId}': 'r' },
   };
   const templateMenuToken = signJws(owner.privateKey, 'owner-1', templateMenuPayload);
@@ -319,39 +333,104 @@ check('19 N13 menu present but missing entry, falls back to method default', tru
   }
   const templateMenu = { token: templateMenuToken, ownerPublicKey: owner.publicKey };
   const link = { actionClass: 'r', classSource: 'declared' };
-  const req = { method: 'POST', path: '/calls/123', menu: templateMenu, chainId: 'c23' };
+  const req = { method: 'POST', path: '/calls/123', menu: templateMenu, targetOrigin: TARGET_ORIGIN, rootSignature: 'c23sig' };
   const r = admit(link, req, new Map());
-  check('23 ASSUMPTION menu keys exact-string only, path template misses, refused', false, adaptAdmit(r),
-    'classified x exceeds actionClass floor r');
-}
-
-// 24 — ASSUMPTION: the menu is not bound to the resource being called.
-// The menu is signed by the owner key but carries iss: 'owner-OTHER' — a
-// different issuer than the request's notional target — and the request
-// itself has no host field at all (that absence is the point: nothing in
-// admit()/classify() ever checks the menu's origin against the target).
-// classSource: declared still ADMITS as the menu's declared class. -01 must
-// bind the menu to the resource origin (iss == the authority of the request
-// target, or the key resolver must be per-origin); a multi-API gate that
-// resolves one key for many owners would otherwise accept the wrong menu.
-// Out of spike scope.
-{
-  const otherOwnerMenuPayload = {
-    iss: 'owner-OTHER',
-    menu: { 'POST /pay': 'r' },
-  };
-  const otherOwnerMenuToken = signJws(owner.privateKey, 'owner-1', otherOwnerMenuPayload);
-  if (typeof otherOwnerMenuToken !== 'string') {
-    throw new Error('fixture setup failed: could not sign other-owner menu');
-  }
-  const otherOwnerMenu = { token: otherOwnerMenuToken, ownerPublicKey: owner.publicKey };
-  const link = { actionClass: 'r', classSource: 'declared' };
-  // No host field on the request at all — the point being pinned is that
-  // nothing in admit()/classify() consults one.
-  const req = { method: 'POST', path: '/pay', menu: otherOwnerMenu, chainId: 'c24' };
-  const r = admit(link, req, new Map());
-  check('24 ASSUMPTION menu iss not bound to target resource, admitted as r', true, adaptAdmit(r),
+  check('23 path-template menu key /calls/{callId} matches /calls/123, admitted as r', true, adaptAdmit(r),
     'ok', { label: `actionClass=${r.ok ? r.actionClass : 'n/a'}`, ok: r.ok === true && r.actionClass === 'r' });
 }
 
-conclude(24);
+// 24 — declared-menu origin binding: the menu is signed by the resource
+// owner's own key and declares "POST /check": "r" with a VALID signature,
+// but its iss is a different origin (https://attacker.example.com) than
+// the request target's origin (TARGET_ORIGIN). Per -01's rule the menu
+// fails exactly as if its signature had not verified — this is V9's shape
+// from the appendix — so classification falls back to the method default
+// for POST, x, which exceeds the actionClass: r floor -> REFUSED.
+{
+  const mismatchMenuPayload = {
+    iss: 'https://attacker.example.com',
+    menu: { 'POST /check': 'r' },
+  };
+  const mismatchMenuToken = signJws(owner.privateKey, 'owner-1', mismatchMenuPayload);
+  if (typeof mismatchMenuToken !== 'string') {
+    throw new Error('fixture setup failed: could not sign mismatched-origin menu');
+  }
+  const mismatchMenu = { token: mismatchMenuToken, ownerPublicKey: owner.publicKey };
+  const link = { actionClass: 'r', classSource: 'declared' };
+  const req = { method: 'POST', path: '/check', menu: mismatchMenu, targetOrigin: TARGET_ORIGIN, rootSignature: 'c24sig' };
+  const r = admit(link, req, new Map());
+  check('24 declared menu iss does not match request target origin, method default applies, refused', false, adaptAdmit(r),
+    'classified x exceeds actionClass floor r');
+}
+
+// 25 — V10 from the appendix: a single chain, actionClass x, writeBudget 2,
+// against a sequence of x-class requests. Two successive requests are
+// admitted (remaining count 2 -> 1 -> 0); a third is refused, budget
+// exhausted.
+{
+  const link = { actionClass: 'x', writeBudget: 2 };
+  const state = new Map();
+  const rootSig = 'c25root';
+  const req = { method: 'POST', path: '/bookings', rootSignature: rootSig };
+  const step1 = admit(link, req, state);
+  const step2 = admit(link, req, state);
+  const step3 = admit(link, req, state);
+  check('25 V10 budget 2: admit, admit, refuse', false, adaptAdmit(step3),
+    `writeBudget exhausted for chain ${deriveChainId(rootSig)}`,
+    {
+      label: 'step1 admitted remaining=1, step2 admitted remaining=0',
+      ok: step1.ok === true && step1.effective.writeBudget === 1
+        && step2.ok === true && step2.effective.writeBudget === 0,
+    });
+}
+
+// 26 — declared-menu tie: two operation keys under the same method both
+// match the same concrete request path with an EQUAL number of literal
+// segments ("POST /a/{id}" and "POST /{id}/b" both match "/a/b" with
+// exactly one literal segment each). -01 requires a verifier to treat such
+// a tie as a miss, never resolving it by JSON key order or any other
+// means, so classification falls back to the method default for POST, x —
+// not either tied declared value (r or w) — proving the tie is not merely
+// ignored down to a single arbitrary winner.
+{
+  const tieMenuPayload = {
+    iss: TARGET_ORIGIN,
+    menu: { 'POST /a/{id}': 'r', 'POST /{id}/b': 'w' },
+  };
+  const tieMenuToken = signJws(owner.privateKey, 'owner-1', tieMenuPayload);
+  if (typeof tieMenuToken !== 'string') {
+    throw new Error('fixture setup failed: could not sign tie menu');
+  }
+  const tieMenu = { token: tieMenuToken, ownerPublicKey: owner.publicKey };
+  const link = { actionClass: 'x', classSource: 'declared', writeBudget: 1 };
+  const req = { method: 'POST', path: '/a/b', menu: tieMenu, targetOrigin: TARGET_ORIGIN, rootSignature: 'c26sig' };
+  const r = admit(link, req, new Map());
+  check('26 equal-literal-segment tie between distinct menu keys fails closed to method default', true, adaptAdmit(r),
+    'ok', { label: `actionClass=${r.ok ? r.actionClass : 'n/a'}`, ok: r.ok === true && r.actionClass === 'x' });
+}
+
+// 27 — prototype safety of the path-template lookup: a menu whose JSON
+// payload carries a literal "__proto__" key (a real OWN property once
+// decoded by JSON.parse inside verifyJws, not the Object.prototype
+// accessor) is matched like any other string key by matchOperationKey's
+// Object.keys-only enumeration — no crash, no bypass, and the unrelated
+// "__proto__ /x" key does not match a "/calls/123" request under a
+// different method/path.
+{
+  const protoMenuPayload = JSON.parse(JSON.stringify({
+    iss: TARGET_ORIGIN,
+    menu: { '__proto__ /x': 'x', 'POST /calls/{callId}': 'r' },
+  }));
+  const protoMenuToken = signJws(owner.privateKey, 'owner-1', protoMenuPayload);
+  if (typeof protoMenuToken !== 'string') {
+    throw new Error('fixture setup failed: could not sign proto-keyed menu');
+  }
+  const protoMenu = { token: protoMenuToken, ownerPublicKey: owner.publicKey };
+  const link = { actionClass: 'r', classSource: 'declared' };
+  const req = { method: 'POST', path: '/calls/123', menu: protoMenu, targetOrigin: TARGET_ORIGIN, rootSignature: 'c27sig' };
+  const r = admit(link, req, new Map());
+  check('27 a literal __proto__ menu key does not crash or bypass template matching', true, adaptAdmit(r),
+    'ok', { label: `actionClass=${r.ok ? r.actionClass : 'n/a'}`, ok: r.ok === true && r.actionClass === 'r' });
+}
+
+conclude(27);
