@@ -4,7 +4,7 @@
 **Date:** 2026-08-14 (consolidated from `carrier-attestation-proposal.md`,
 `camara-plan.md`, `aaif-plan.md` — all three deleted; outward content moved to
 `docs/product/`).
-**Last updated:** 2026-08-25.
+**Last updated:** 2026-09-01.
 **Doctrine:** `CLAUDE.md` (invariants, claims discipline). This PRD is the
 *what/when/how-good*; CLAUDE.md is the *never-break*.
 

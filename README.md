@@ -12,7 +12,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fhamr0%2Fjustabit%2Fmain%2Frelease.json&query=%24.version&label=version&color=2a4f8c" alt="version (from release.json)">
-  <img src="https://img.shields.io/badge/status-pre--submission%20draft-orange" alt="status: pre-submission draft">
+  <img src="https://img.shields.io/badge/status-filed%20%2F%20submitted%2C%20not%20adopted-yellow" alt="status: filed / submitted, not adopted">
   <img src="https://img.shields.io/badge/tracks-CAMARA%20%2B%20IETF-2a4f8c" alt="tracks: CAMARA + IETF">
   <img src="https://img.shields.io/badge/license-Apache%202.0-2a4f8c" alt="license: Apache 2.0">
 </p>
@@ -35,9 +35,12 @@ supplies a nonce, and receives a signed boolean bound to that nonce, valid for t
 of the query — end-to-end encrypted past the aggregator, which fulfills and bills but
 cannot read.
 
-> **Status: pre-submission draft.** Nothing here has been filed to any standards body yet.
-> This repo is the staging ground for two tracks: **CAMARA** (operator/attestation side)
-> and **IETF** (agent/delegation side).
+> **Status: filed and submitted, not approved or adopted.** CAMARA: issue #330 and PR #331
+> are filed and open, awaiting Working Group evaluation; a v2 rescope is being reshaped as a
+> Commonalities enhancement and has not yet been filed. IETF: `draft-hamr-oauth-agent-delegation-00`
+> is submitted and live on the Datatracker as an individual draft — not a working-group
+> document, not adopted. This repo is the staging ground for two tracks: **CAMARA**
+> (operator/attestation side) and **IETF** (agent/delegation side).
 
 ## Two modes
 
