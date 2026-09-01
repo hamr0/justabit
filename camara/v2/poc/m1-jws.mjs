@@ -46,6 +46,39 @@ function isPlainObject(v) {
     Object.getPrototypeOf(v) === Object.prototype;
 }
 
+// D1 FIX: own-key membership only, never the `in` operator. `in` walks the
+// prototype chain, so on a plain object literal a key named after any
+// Object.prototype member (`constructor`, `toString`, `__proto__`, ...)
+// reads as present even when never actually set — that bypassed the
+// EXTRA_CLAIM closed-set check below and let an operator-signed token carry
+// an unbounded raw claim under a prototype-member name straight through
+// verifyAnswer. Used at every membership test keyed by an external
+// (payload) or schema-controlled (extraFields/BASE_FIELDS) string.
+function hasOwn(obj, k) {
+  return Object.prototype.hasOwnProperty.call(obj, k);
+}
+
+// D1 FIX, defense in depth: copies out ONLY the claims named in
+// `allowedFields`, never the raw decoded payload object. Even if
+// checkClosedPayload's EXTRA_CLAIM guard were ever bypassed or weakened by
+// a future edit, a caller could never observe a claim outside the declared
+// set through the object verifyAnswer/verifyRefusal hand back.
+function projectClaims(payload, allowedFields) {
+  const out = {};
+  for (const k of Object.keys(allowedFields)) {
+    if (hasOwn(payload, k)) {
+      // `out[k] = payload[k]` would, for k === '__proto__', invoke the
+      // exotic Object.prototype.__proto__ SETTER instead of creating a data
+      // property — the claim would silently fail to round-trip. Same
+      // prototype-chain hazard this whole fix closes, one call deeper.
+      // defineProperty always creates an own data property regardless of
+      // key name.
+      Object.defineProperty(out, k, { value: payload[k], enumerable: true, writable: true, configurable: true });
+    }
+  }
+  return out;
+}
+
 function jwsReject() {
   return { ok: false, reason: new JwsRejected() };
 }
@@ -215,10 +248,10 @@ function checkClosedPayload(payload, extraFields) {
   const allowedKeys = Object.keys(allowed);
   const payloadKeys = Object.keys(payload);
   for (const k of allowedKeys) {
-    if (!(k in payload)) return new ClaimRejected('MISSING_CLAIM', `missing claim: ${k}`);
+    if (!hasOwn(payload, k)) return new ClaimRejected('MISSING_CLAIM', `missing claim: ${k}`);
   }
   for (const k of payloadKeys) {
-    if (!(k in allowed)) return new ClaimRejected('EXTRA_CLAIM', `unexpected claim: ${k}`);
+    if (!hasOwn(allowed, k)) return new ClaimRejected('EXTRA_CLAIM', `unexpected claim: ${k}`);
   }
   for (const k of allowedKeys) {
     if (!typeOk(allowed[k], payload[k])) return new ClaimRejected('WRONG_TYPE', `wrong type for claim: ${k}`);
@@ -240,7 +273,7 @@ function checkClosedPayload(payload, extraFields) {
 // sides cannot drift apart.
 function checkNoReservedCollision(extraFields) {
   for (const k of Object.keys(extraFields)) {
-    if (k in BASE_FIELDS) {
+    if (hasOwn(BASE_FIELDS, k)) {
       return new ClaimRejected('RESERVED_CLAIM', `schema claim collides with a reserved base claim: ${k}`);
     }
   }
@@ -261,7 +294,7 @@ function checkNoReservedCollision(extraFields) {
 // apart, exactly as `checkNoReservedCollision` is.
 function checkNoSelfCollision(paramsFields, answerFields) {
   for (const k of Object.keys(paramsFields)) {
-    if (k in answerFields) {
+    if (hasOwn(answerFields, k)) {
       return new ClaimRejected('SCHEMA_SELF_COLLISION', `schema params/answer both name claim: ${k}`);
     }
   }
@@ -307,20 +340,32 @@ export const REFUSAL_REASONS = Object.freeze([OFF_MENU_THRESHOLD, UNAVAILABLE]);
 // verification, since object equality doesn't care about key order, but
 // worth keeping honest).
 export function attestAnswer(privateKey, kid, base, schema, params, answer) {
-  if (!isPlainObject(base) || !isPlainObject(schema) ||
-      !isPlainObject(schema.params) || !isPlainObject(schema.answer) ||
-      !isPlainObject(params) || !isPlainObject(answer)) {
+  // D2 FIX backstop: base/schema.params/schema.answer/params/answer are
+  // caller-supplied objects that may carry a throwing getter or a Proxy
+  // trap; every check below this line reads their properties, so any such
+  // throw is caught here and collapsed to the same typed rejection the
+  // shape guard already returns, rather than escaping as an uncaught
+  // TypeError/Error. Must not swallow a MORE SPECIFIC typed rejection —
+  // every branch below still returns its own code before this catch could
+  // ever see it; only a genuine throw reaches here.
+  try {
+    if (!isPlainObject(base) || !isPlainObject(schema) ||
+        !isPlainObject(schema.params) || !isPlainObject(schema.answer) ||
+        !isPlainObject(params) || !isPlainObject(answer)) {
+      return { ok: false, reason: new ClaimRejected('MALFORMED_INPUT', 'base/schema/params/answer must be plain objects') };
+    }
+    const extraFields = { ...schema.params, ...schema.answer };
+    const collisionErr = checkNoReservedCollision(extraFields);
+    if (collisionErr) return { ok: false, reason: collisionErr };
+    const selfCollisionErr = checkNoSelfCollision(schema.params, schema.answer);
+    if (selfCollisionErr) return { ok: false, reason: selfCollisionErr };
+    const payload = { ...base, ...params, ...answer };
+    const err = checkClosedPayload(payload, extraFields);
+    if (err) return { ok: false, reason: err };
+    return signJws(privateKey, kid, payload);
+  } catch {
     return { ok: false, reason: new ClaimRejected('MALFORMED_INPUT', 'base/schema/params/answer must be plain objects') };
   }
-  const extraFields = { ...schema.params, ...schema.answer };
-  const collisionErr = checkNoReservedCollision(extraFields);
-  if (collisionErr) return { ok: false, reason: collisionErr };
-  const selfCollisionErr = checkNoSelfCollision(schema.params, schema.answer);
-  if (selfCollisionErr) return { ok: false, reason: selfCollisionErr };
-  const payload = { ...base, ...params, ...answer };
-  const err = checkClosedPayload(payload, extraFields);
-  if (err) return { ok: false, reason: err };
-  return signJws(privateKey, kid, payload);
 }
 
 export function verifyAnswer(token, resolveKey, schema, { expectedIss, expectedAud, nonceStore, now }) {
@@ -332,49 +377,74 @@ export function verifyAnswer(token, resolveKey, schema, { expectedIss, expectedA
   // rejecting cleanly (schema={} or schema missing `params`/`answer` ->
   // TypeError: Cannot convert undefined or null to object). Mirrors
   // attestAnswer's own guard so the two sides cannot drift apart.
-  if (!isPlainObject(schema) || !isPlainObject(schema.params) || !isPlainObject(schema.answer)) {
+  // D2 FIX backstop: `schema` is caller-supplied and may carry a throwing
+  // getter or Proxy trap on `params`/`answer` (or their own keys) — every
+  // check below reads it, so wrap in try/catch and collapse to the same
+  // typed rejection the shape guard already returns. Every branch below
+  // still returns its own specific code before this catch could see it.
+  try {
+    if (!isPlainObject(schema) || !isPlainObject(schema.params) || !isPlainObject(schema.answer)) {
+      return { ok: false, reason: new ClaimRejected('MALFORMED_INPUT', 'schema must be a plain object with params/answer') };
+    }
+    const extraFields = { ...schema.params, ...schema.answer };
+    const collisionErr = checkNoReservedCollision(extraFields);
+    if (collisionErr) return { ok: false, reason: collisionErr };
+    const selfCollisionErr = checkNoSelfCollision(schema.params, schema.answer);
+    if (selfCollisionErr) return { ok: false, reason: selfCollisionErr };
+    const closedErr = checkClosedPayload(r.payload, extraFields);
+    if (closedErr) return { ok: false, reason: closedErr };
+    const reqErr = verifyRequesterChecks(r.payload, { expectedIss, expectedAud, nonceStore, now });
+    if (reqErr) return { ok: false, reason: reqErr };
+    // D1 FIX: hand back only the schema-declared claims (base ∪ extraFields),
+    // never the raw decoded payload — see projectClaims above.
+    return { ok: true, claims: projectClaims(r.payload, { ...BASE_FIELDS, ...extraFields }) };
+  } catch {
     return { ok: false, reason: new ClaimRejected('MALFORMED_INPUT', 'schema must be a plain object with params/answer') };
   }
-  const extraFields = { ...schema.params, ...schema.answer };
-  const collisionErr = checkNoReservedCollision(extraFields);
-  if (collisionErr) return { ok: false, reason: collisionErr };
-  const selfCollisionErr = checkNoSelfCollision(schema.params, schema.answer);
-  if (selfCollisionErr) return { ok: false, reason: selfCollisionErr };
-  const closedErr = checkClosedPayload(r.payload, extraFields);
-  if (closedErr) return { ok: false, reason: closedErr };
-  const reqErr = verifyRequesterChecks(r.payload, { expectedIss, expectedAud, nonceStore, now });
-  if (reqErr) return { ok: false, reason: reqErr };
-  return { ok: true, claims: r.payload };
 }
 
 export function attestRefusal(privateKey, kid, base, error) {
-  if (!isPlainObject(base) || typeof error !== 'string') {
+  // D2 FIX backstop: `base` is caller-supplied and may carry a throwing
+  // getter or Proxy trap. Every branch below still returns its own specific
+  // code before this catch could see it.
+  try {
+    if (!isPlainObject(base) || typeof error !== 'string') {
+      return { ok: false, reason: new ClaimRejected('MALFORMED_INPUT', 'base must be a plain object, error must be a string') };
+    }
+    if (!REFUSAL_REASONS.includes(error)) {
+      return { ok: false, reason: new ClaimRejected('INVALID_ERROR', 'error not in the closed enum') };
+    }
+    const collisionErr = checkNoReservedCollision(REFUSAL_FIELDS);
+    if (collisionErr) return { ok: false, reason: collisionErr };
+    const payload = { ...base, error };
+    const err = checkClosedPayload(payload, REFUSAL_FIELDS);
+    if (err) return { ok: false, reason: err };
+    return signJws(privateKey, kid, payload);
+  } catch {
     return { ok: false, reason: new ClaimRejected('MALFORMED_INPUT', 'base must be a plain object, error must be a string') };
   }
-  if (!REFUSAL_REASONS.includes(error)) {
-    return { ok: false, reason: new ClaimRejected('INVALID_ERROR', 'error not in the closed enum') };
-  }
-  const collisionErr = checkNoReservedCollision(REFUSAL_FIELDS);
-  if (collisionErr) return { ok: false, reason: collisionErr };
-  const payload = { ...base, error };
-  const err = checkClosedPayload(payload, REFUSAL_FIELDS);
-  if (err) return { ok: false, reason: err };
-  return signJws(privateKey, kid, payload);
 }
 
 export function verifyRefusal(token, resolveKey, { expectedIss, expectedAud, nonceStore, now }) {
   const r = verifyJws(token, resolveKey);
   if (!r.ok) return r;
-  const collisionErr = checkNoReservedCollision(REFUSAL_FIELDS);
-  if (collisionErr) return { ok: false, reason: collisionErr };
-  const closedErr = checkClosedPayload(r.payload, REFUSAL_FIELDS);
-  if (closedErr) return { ok: false, reason: closedErr };
-  if (!REFUSAL_REASONS.includes(r.payload.error)) {
-    return { ok: false, reason: new ClaimRejected('INVALID_ERROR', 'error not in the closed enum') };
+  // D2 FIX backstop, symmetric with verifyAnswer's. Every branch below
+  // still returns its own specific code before this catch could see it.
+  try {
+    const collisionErr = checkNoReservedCollision(REFUSAL_FIELDS);
+    if (collisionErr) return { ok: false, reason: collisionErr };
+    const closedErr = checkClosedPayload(r.payload, REFUSAL_FIELDS);
+    if (closedErr) return { ok: false, reason: closedErr };
+    if (!REFUSAL_REASONS.includes(r.payload.error)) {
+      return { ok: false, reason: new ClaimRejected('INVALID_ERROR', 'error not in the closed enum') };
+    }
+    const reqErr = verifyRequesterChecks(r.payload, { expectedIss, expectedAud, nonceStore, now });
+    if (reqErr) return { ok: false, reason: reqErr };
+    // D1 FIX: hand back only the schema-declared claims (base ∪ REFUSAL_FIELDS).
+    return { ok: true, claims: projectClaims(r.payload, { ...BASE_FIELDS, ...REFUSAL_FIELDS }) };
+  } catch {
+    return { ok: false, reason: new ClaimRejected('MALFORMED_INPUT', 'malformed refusal payload') };
   }
-  const reqErr = verifyRequesterChecks(r.payload, { expectedIss, expectedAud, nonceStore, now });
-  if (reqErr) return { ok: false, reason: reqErr };
-  return { ok: true, claims: r.payload };
 }
 
 // In-memory nonce ledger for tests and later wiring: a nonce must be

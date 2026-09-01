@@ -12,13 +12,22 @@ primitive, and `attestAnswer`/`verifyAnswer` + `attestRefusal`/
 `camara/v2/docs/camara-attested-windowed-disclosure.md` §4 exactly
 (the exported `SIM_SWAP_CHECK` schema; `m1-jws-check.mjs` also carries a
 test-only `TENURE_CHECK` fixture proving the mechanism generalizes).
-AGENT-RUN 39/39, user validation PENDING:
+AGENT-RUN 82/82, user validation PENDING again: the 39/39 count was
+user-validated at `2c71a20` (2026-09-01), but a D1/D2 fix round then moved
+the count, so that record does not transfer forward per this repo's standing
+rule (a user record covers the tree it was run at, not a later change, even
+a comment-only one).
 
 ```
-node camara/v2/poc/m1-jws-check.mjs   # V2-M1 JWS attestation core — 39 cases (AGENT-RUN
-                        #   39/39, 2026-09-01 — verifyAnswer schema guard
-                        #   hardened to match attestAnswer, 36 -> 39; user
-                        #   validation PENDING)
+node camara/v2/poc/m1-jws-check.mjs   # V2-M1 JWS attestation core — 82 cases (AGENT-RUN
+                        #   82/82, 2026-09-01 — D1 fix: checkClosedPayload/
+                        #   checkNoReservedCollision/checkNoSelfCollision
+                        #   switched from `in` (walks the prototype chain) to
+                        #   own-key membership, plus a projectClaims
+                        #   allowlist on the returned claims; D2 fix: attest/
+                        #   verifyAnswer and attest/verifyRefusal wrapped in a
+                        #   try/catch backstop against a throwing schema
+                        #   getter/Proxy. 39 -> 82; user validation PENDING)
 ```
 
 **Requirements & no-gos:** [`docs/product/prd.md`](../../docs/product/prd.md) §4–§5.

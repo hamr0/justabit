@@ -536,4 +536,183 @@ check('1 WRONG SEGMENT COUNT', false, verifyJws('abc.def', resolveKey), JwsRejec
   checkTrue(`33 SIZE GUARD (${size}B < ${capacity}B derived RSA-4096 OAEP cap)`, typeof token === 'string' && size < capacity);
 }
 
-conclude(39);
+// =====================================================================
+// D1 FIX — prototype-pollution membership bypass (`in` walks the prototype
+// chain on a plain object literal). All groups below probe the SAME 12
+// Object.prototype member names that made `k in allowed`/`k in payload`
+// resolve true even when the key was never actually set.
+// =====================================================================
+const PROTO_NAMES = [
+  'constructor', 'toString', 'valueOf', 'hasOwnProperty', 'isPrototypeOf',
+  'propertyIsEnumerable', 'toLocaleString', '__defineGetter__', '__defineSetter__',
+  '__lookupGetter__', '__lookupSetter__', '__proto__',
+];
+
+// 40 D1 WIRE SMUGGLE PER PROTOTYPE NAME — a hand-signed token (bypassing
+// attestAnswer, mirroring the wire trust boundary) carries a prototype-
+// member name as an EXTRA claim. The JSON payload text is built directly by
+// string splice, not via bracket assignment on a JS object — for
+// `__proto__`, `obj['__proto__'] = x` invokes the exotic
+// Object.prototype.__proto__ SETTER instead of creating a data property, so
+// a bracket-assigned fixture could never even construct the attack this
+// case exists to prove closed. Splicing the JSON text guarantees every name
+// lands as a genuine OWN key exactly the way JSON.parse would create it on
+// the real wire. Each name gets its own assertion so a failure names the
+// culprit instead of hiding inside one aggregate boolean.
+for (const name of PROTO_NAMES) {
+  const base = freshBase();
+  const baseText = JSON.stringify({ ...base, maxAge: 2160, swapped: false });
+  const payloadText = baseText.slice(0, -1) + `,${JSON.stringify(name)}:${JSON.stringify('RAW LEAK ' + name)}}`;
+  const token = forge({ alg: 'EdDSA', kid: OP_KID }, payloadText, operator.privateKey);
+  check(`40 D1 WIRE SMUGGLE [${name}]`, false,
+    verifyAnswer(token, resolveKey, SIM_SWAP_CHECK, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW }),
+    ClaimRejected, 'EXTRA_CLAIM');
+}
+
+// 41 D1 NEGATIVE — the mirror direction: the SAME 12 names used as
+// LEGITIMATE, schema-DECLARED answer field names must still sign, verify,
+// and round-trip the value intact. `[name]:` is a COMPUTED property key —
+// unlike the literal `__proto__: value` syntax (which sets the object's
+// prototype instead of creating a data property), a computed key always
+// creates a real own property, so this is a fair, unconfounded test of the
+// membership checks themselves, not an artifact of how the fixture is
+// built. Without this group, group 40 alone could pass by simply rejecting
+// everything — the required negative control that proves the guard is
+// still selective, not a blanket denier.
+for (const name of PROTO_NAMES) {
+  const base = freshBase();
+  const schema = { params: { maxAge: 'integer' }, answer: { [name]: 'boolean' } };
+  const token = attestAnswer(operator.privateKey, OP_KID, base, schema, { maxAge: 2160 }, { [name]: true });
+  const v = typeof token === 'string'
+    ? verifyAnswer(token, resolveKey, schema, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW })
+    : token;
+  check(`41 D1 LEGIT DECLARED FIELD [${name}]`, true, v);
+  // Also the projection assertion for this name: claims must carry EXACTLY
+  // the declared set (base ∪ {maxAge, name}) — no more, no less.
+  const expectedKeys = ['iss', 'aud', 'nonce', 'iat', 'exp', 'maxAge', name].sort().join(',');
+  checkTrue(`41b D1 LEGIT DECLARED FIELD [${name}] round-trips intact and projection is exact`,
+    v.ok === true && v.claims[name] === true && Object.keys(v.claims).sort().join(',') === expectedKeys);
+}
+
+// 42 D1 PROJECTION — DEDICATED __proto__ CASE. Called out explicitly (not
+// just as one iteration of group 41) because this is the exact name that
+// broke the naive `out[k] = payload[k]` projection: assigning through a
+// bracket key literally named `__proto__` invokes the exotic
+// Object.prototype.__proto__ setter instead of creating a data property, so
+// the claim silently failed to round-trip. `projectClaims` uses
+// `Object.defineProperty` specifically to avoid this.
+{
+  const base = freshBase();
+  // Both the schema's answer-field name AND the actual answer value use a
+  // COMPUTED key (`['__proto__']`) — the literal, non-computed form
+  // (`{ __proto__: x }`) sets the object's PROTOTYPE instead of creating a
+  // property named "__proto__", which would silently defeat this exact
+  // test rather than exercise it.
+  const schema = { params: { maxAge: 'integer' }, answer: { ['__proto__']: 'boolean' } };
+  const token = attestAnswer(operator.privateKey, OP_KID, base, schema, { maxAge: 2160 }, { ['__proto__']: true });
+  const v = typeof token === 'string'
+    ? verifyAnswer(token, resolveKey, schema, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW })
+    : token;
+  check('42 D1 PROJECTION __proto__ FIELD ROUND-TRIPS', true, v);
+  checkTrue('42b D1 PROJECTION __proto__ FIELD is an own data property, value true',
+    v.ok === true && Object.prototype.hasOwnProperty.call(v.claims, '__proto__') && v.claims.__proto__ === true);
+}
+
+// =====================================================================
+// D2 FIX — attestAnswer/verifyAnswer must never THROW on a schema whose
+// params/answer access itself throws (a defineProperty getter, or a Proxy
+// get trap); the guard expression does the access, so the throw used to
+// happen inside the guard, before any typed rejection could be built.
+// Follows case 25's established pattern: assert BOTH "did not throw" AND
+// the resulting code.
+// =====================================================================
+
+// 43 D2 ATTESTANSWER, THROWING GETTER ON schema.params.
+{
+  const base = freshBase();
+  const throwingSchema = { get params() { throw new Error('boom-params'); }, answer: { swapped: 'boolean' } };
+  let threw = false;
+  let v;
+  try {
+    v = attestAnswer(operator.privateKey, OP_KID, base, throwingSchema, { maxAge: 2160 }, { swapped: false });
+  } catch {
+    threw = true;
+  }
+  checkTrue('43 D2 ATTESTANSWER THROWING GETTER ON schema.params REFUSES, NEVER THROWS',
+    !threw && v && v.ok === false && v.reason instanceof ClaimRejected && v.reason.code === 'MALFORMED_INPUT');
+}
+
+// 44 D2 ATTESTANSWER, PROXY schema WITH A THROWING get TRAP.
+{
+  const base = freshBase();
+  const proxySchema = new Proxy({ params: { maxAge: 'integer' }, answer: { swapped: 'boolean' } }, {
+    get(t, k) {
+      if (k === 'params') throw new Error('proxy-get-boom');
+      return t[k];
+    },
+  });
+  let threw = false;
+  let v;
+  try {
+    v = attestAnswer(operator.privateKey, OP_KID, base, proxySchema, { maxAge: 2160 }, { swapped: false });
+  } catch {
+    threw = true;
+  }
+  checkTrue('44 D2 ATTESTANSWER PROXY THROWING get TRAP ON schema REFUSES, NEVER THROWS',
+    !threw && v && v.ok === false && v.reason instanceof ClaimRejected && v.reason.code === 'MALFORMED_INPUT');
+}
+
+// 45 D2 VERIFYANSWER, THROWING GETTER ON schema.params — the token itself is
+// a genuinely valid, signed SIM_SWAP_CHECK answer; only the schema passed to
+// verifyAnswer is hostile.
+{
+  const base = freshBase();
+  const token = signJws(operator.privateKey, OP_KID, { ...base, maxAge: 2160, swapped: false });
+  const throwingSchema = { get params() { throw new Error('boom-params'); }, answer: { swapped: 'boolean' } };
+  let threw = false;
+  let v;
+  try {
+    v = verifyAnswer(token, resolveKey, throwingSchema, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW });
+  } catch {
+    threw = true;
+  }
+  checkTrue('45 D2 VERIFYANSWER THROWING GETTER ON schema.params REFUSES, NEVER THROWS',
+    !threw && v && v.ok === false && v.reason instanceof ClaimRejected && v.reason.code === 'MALFORMED_INPUT');
+}
+
+// 46 D2 VERIFYANSWER, PROXY schema WITH A THROWING get TRAP.
+{
+  const base = freshBase();
+  const token = signJws(operator.privateKey, OP_KID, { ...base, maxAge: 2160, swapped: false });
+  const proxySchema = new Proxy({ params: { maxAge: 'integer' }, answer: { swapped: 'boolean' } }, {
+    get(t, k) {
+      if (k === 'params') throw new Error('proxy-get-boom');
+      return t[k];
+    },
+  });
+  let threw = false;
+  let v;
+  try {
+    v = verifyAnswer(token, resolveKey, proxySchema, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW });
+  } catch {
+    threw = true;
+  }
+  checkTrue('46 D2 VERIFYANSWER PROXY THROWING get TRAP ON schema REFUSES, NEVER THROWS',
+    !threw && v && v.ok === false && v.reason instanceof ClaimRejected && v.reason.code === 'MALFORMED_INPUT');
+}
+
+// 47 BACKSTOP IS NOT A SWALLOWER — the try/catch backstop added for D2 must
+// never mask a genuine, more specific typed rejection under the generic
+// MALFORMED_INPUT code. Re-runs case 26's exact RESERVED_CLAIM scenario and
+// asserts the code explicitly (not merely "some ClaimRejected"), so a
+// regression that widens the backstop's catch to swallow specific codes
+// shows up here directly.
+{
+  const base = freshBase();
+  const collidingSchema = { params: { iat: 'boolean' }, answer: { swapped: 'boolean' } };
+  const v = attestAnswer(operator.privateKey, OP_KID, base, collidingSchema, { iat: true }, { swapped: false });
+  checkTrue('47 BACKSTOP NOT A SWALLOWER (RESERVED_CLAIM stays RESERVED_CLAIM, not MALFORMED_INPUT)',
+    v.ok === false && v.reason.code === 'RESERVED_CLAIM' && v.reason.code !== 'MALFORMED_INPUT');
+}
+
+conclude(82);

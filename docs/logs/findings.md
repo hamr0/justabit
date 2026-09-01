@@ -14,7 +14,193 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
-## 2026-09-01 (latest) — User validation run at `2c71a20`, first CLEAN-tree run this session: all seven v2 suites green at `m1-jws-check` 39
+## 2026-09-01 (latest) — Second `/branch-review` at `7bfe111` found a CRITICAL prototype-chain bypass in `checkClosedPayload`: raw values rode through a signed profile-mode response; fixed with `hasOwn` + a projection layer, `m1-jws-check` 39 -> 82
+
+**EVIDENCE**
+
+1. **The gate.** Second `/branch-review` run, at HEAD `7bfe111`, target
+   `df5e4856..HEAD`. Stage 1 general review at level medium, stage 2
+   security full, run by separate agents in parallel, every finding then
+   independently re-verified by the main session.
+
+2. **D1 — CRITICAL, `camara/v2/poc/m1-jws.mjs`.** `checkClosedPayload`
+   built `allowed = {...BASE_FIELDS, ...extraFields}` as a plain object
+   literal and tested membership with `k in allowed`. `in` walks the
+   prototype chain, so a payload claim named after any
+   `Object.prototype` member passed the `EXTRA_CLAIM` check; the type
+   loop only walked `Object.keys(allowed)`, so it was never type-checked
+   either; and `verifyAnswer` returned `{ok:true, claims: r.payload}` —
+   the FULL raw payload. Result: a raw value rode through a signed,
+   verified profile-mode response. That is this repo's ONE invariant
+   broken (CLAUDE.md: a profile-mode response is a signed boolean bound
+   to the requester's nonce with an expiry, NEVER the underlying raw
+   value).
+
+   Main session's reproduction at the construction side, with controls,
+   verbatim:
+
+   ```
+   constructor      SIGNED; verify ok= true claims={...,"maxAge":720,"swapped":true,"constructor":"+15551234567 RAW LEAK"}
+   toString         SIGNED; verify ok= true claims={...,"toString":"2026-08-01T00:00:00Z"}
+   valueOf          SIGNED; verify ok= true claims={...,"valueOf":"FR"}
+   CONTROL plain    REFUSED at attest: EXTRA_CLAIM
+   CONTROL none     SIGNED; verify ok= true
+   ```
+
+   A raw phone number, a raw timestamp and a raw country code each
+   reached the requester. The control proves the guard worked for
+   ordinary keys — the hole is specific to the prototype-name class.
+
+3. **A correction that mattered, recorded.** The main session first
+   reported that `__proto__` did NOT ride through, based on a test that
+   set the key by bracket assignment — which invokes the exotic
+   `Object.prototype.__proto__` setter, so the key never became an own
+   property. On the WIRE path it does ride through, because `JSON.parse`
+   creates a real own data property. Verified:
+
+   ```
+   own __proto__ before signing = true
+   verify ok = true
+   claims own __proto__ = "+15551234567 RAW LEAK"
+   ```
+
+   So it is all 12 prototype names, not three. The wire — a token
+   hand-signed with `signJws`, bypassing `attestAnswer` — is the real
+   trust boundary, and it was fully exposed. Standing lesson: a test
+   that sets `__proto__` by bracket assignment CANNOT FAIL; build the
+   key as a real own property via `JSON.parse` or
+   `Object.defineProperty`.
+
+4. **The bug ran in BOTH directions.** The same `in`-on-a-plain-object
+   pattern in `checkNoReservedCollision` and `checkNoSelfCollision`
+   wrongly REJECTED a legitimate schema field named after a prototype
+   member. A field honestly named `constructor` could not exist.
+
+5. **D2 — WARNING.** `attestAnswer`/`verifyAnswer` threw, rather than
+   returning a typed rejection, on a `schema` whose `params`/`answer`
+   access throws (a defineProperty getter, or a Proxy `get`/`ownKeys`
+   trap) — the guard expression itself does the access. Same
+   reject-never-throw contract broken as the round before, reached
+   through a different input shape.
+
+6. **The POC loop (user-ordered).** Rather than pick a fix, the user
+   ordered a POC investigation, iterating in the scratchpad with no
+   repo edits. It built a 71-case adversarial battery FIRST and proved
+   it could fail: **18/71 passed against unmodified HEAD** — 24
+   under-reject failures (all 12 names smuggling, both wire-forged and
+   via `attestAnswer`) and 24 over-reject failures (the same 12 names as
+   legitimate declared fields), plus 4 D2 throws. The existing 39-case
+   suite passed 39/39 against that same broken code: it never probed
+   this surface.
+
+   Two candidates both scored 71/71 battery and 39/39 suite: A
+   (`Object.prototype.hasOwnProperty.call`) and B (a `Set` of own
+   keys). The loop declared them a genuine tie and ESCALATED rather than
+   choosing — the correct call.
+
+   A third finding: the projection layer was tested as an INDEPENDENT
+   control. With the primary `EXTRA_CLAIM` guard deliberately disabled,
+   all 24 smuggle cases still failed to reach `v.claims`. It is
+   complementary, not redundant. The POC also caught its own trap: a
+   naive `out[k] = payload[k]` broke a legitimate field named
+   `__proto__`, because bracket assignment invokes the setter.
+   `Object.defineProperty` fixes it.
+
+7. **The fix as built.** A `hasOwn()` helper replaced `in` at four
+   sites: both loops in `checkClosedPayload` (MISSING_CLAIM and
+   EXTRA_CLAIM), `checkNoReservedCollision`, `checkNoSelfCollision`.
+   `verifyJws`'s header check was deliberately LEFT ALONE — the main
+   session verified it is safe, because the header must carry exactly
+   two keys and neither `alg` nor `kid` is a prototype member. A
+   try/catch backstop now wraps `attestAnswer`, `verifyAnswer`,
+   `attestRefusal` and `verifyRefusal`, collapsing any escape to
+   `ClaimRejected('MALFORMED_INPUT', ...)`, mirroring `verifyJws`'s
+   existing bottom-of-function backstop. `projectClaims(payload,
+   allowedFields)` makes `verifyAnswer`/`verifyRefusal` return only the
+   schema-declared claims, built with `Object.defineProperty`, never
+   bracket assignment.
+
+8. **Tests: 39 -> 82.** Added: 12 wire-smuggle cases, one per prototype
+   name, each hand-signed with `signJws` and each required to reject
+   `EXTRA_CLAIM`; 12 mirror cases proving the same names still work as
+   legitimate declared fields with the value round-tripping;
+   projection-exactness assertions including a dedicated `__proto__`
+   round-trip case; four D2 cases asserting both "did not throw" and
+   the returned code; and one case asserting the backstop does not
+   swallow a specific code — `RESERVED_CLAIM` must not come back as
+   `MALFORMED_INPUT`.
+
+9. **Three separate mutation proofs**, each reverting one guard:
+
+   1. `checkClosedPayload`'s EXTRA_CLAIM loop back to `in` ->
+      `RESULT: 70/82`, exit 1, all 12 wire-smuggle cases red.
+   2. `projectClaims` back to naive `out[k] = payload[k]` ->
+      `RESULT: 80/82`, exit 1, the two `__proto__` cases red.
+   3. Backstop removed -> `RESULT: 78/82`, exit 1, the four D2 cases
+      red.
+
+   Real tree: `RESULT: 82/82`, exit 0.
+
+10. **Main session's own re-verification** — every exploit built this
+    session, re-run against the fixed tree:
+
+    ```
+    constructor / toString / valueOf   -> REFUSED at attest: EXTRA_CLAIM
+    __proto__ (wire, own property)     -> verify ok = false EXTRA_CLAIM
+    throwing getter / throwing proxy   -> MALFORMED_INPUT at both attest and verify, no throw
+    params/answer collision            -> SCHEMA_SELF_COLLISION
+    base-claim collision               -> RESERVED_CLAIM
+    normal round trip                  -> signs and verifies
+    CONTROL plain extra claim          -> EXTRA_CLAIM
+    ```
+
+11. **Seven suites, main session's own run on the final tree**, all
+    exit 0: m1-check 20/20, m1-jws-check 82/82, m2-check 10/10,
+    m3-check 26/26, m4-check 42/42, m5-check 67/67, m6-check 47/47.
+
+12. **USER VALIDATION IS VOID AGAIN.** The count moved 39 -> 82. The
+    user's clean-tree run at `2c71a20` (the entry two below this one)
+    covered 39. Per the repo rule, a user run validates only at the
+    count and tree it was run at. That entry must NOT be rewritten — it
+    is correct as dated history. A fresh user run at 82 is required
+    before release.
+
+13. **Still open, reported and not fixed:** `signJws`/`attestAnswer`
+    return a bare string on success but `{ok:false, reason}` on failure
+    — an undocumented union that fails closed; `makeNonceStore` grows
+    unbounded with no expiry pruning, acceptable for a PoC; and
+    `docs/index.md`'s generated line counts are each one too high,
+    because the generator counts `split('\n')` on files ending in a
+    newline — a bug in `docs-builder.cjs`, which lives OUTSIDE this
+    repo, pre-dating this branch.
+
+**DECISION**
+
+1. Pause and run a POC loop to find the strongest and simplest fix,
+   rather than choosing between the two options on the table (the
+   user's call). This is what surfaced the both-directions nature of
+   the bug, the 12-name scope, and the projection layer's independence.
+2. Candidate A (`hasOwnProperty.call`) over B (`Set`) — on style: it is
+   the conventional JS anti-pollution idiom, allocates nothing per
+   call, and matches the vanilla-primitives bias in AGENT_RULES.
+3. Ship the projection layer WITH the fix rather than as a follow-up —
+   proven complementary by the disabled-guard negative control, and it
+   enforces the invariant where the invariant is actually written, at
+   what reaches the requester.
+
+Three lessons worth stating, consistent with existing practice:
+
+- A 39-case suite passing 39/39 is not coverage. It passed against code
+  with a critical leak, because it never probed that surface. Two
+  earlier review passes also missed it.
+- A test that sets `__proto__` by bracket assignment cannot fail. Build
+  the key as a real own property.
+- The strongest evidence for a second control is disabling the first
+  one and showing the second still holds.
+
+---
+
+## 2026-09-01 — User validation run at `2c71a20`, first CLEAN-tree run this session: all seven v2 suites green at `m1-jws-check` 39
 
 **EVIDENCE**
 
