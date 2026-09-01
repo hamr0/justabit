@@ -623,10 +623,9 @@
             <tr><td>partialPolicy</td><td>one_of</td><td>same singleton rule as subjectClass</td><td>same note</td></tr>
             <tr><td>actionClass</td><td>rank</td><td>ordered set r &lt; w &lt; x</td><td>semantics specified in <xref target="action-class"/></td></tr>
             <tr><td>classSource</td><td>rank</td><td>ordered set method &lt; declared</td><td>semantics specified in <xref target="action-class"/></td></tr>
-            <tr><td>writeBudget</td><td>max</td><td>non-negative integer, cumulative per chain</td><td>the LIMIT rides in the chain as a max constraint; the COUNT spent against it is state the verifier holds, not a value carried by any link; semantics specified in the writeBudget section (-01 item 4, not yet written)</td></tr>
+            <tr><td>writeBudget</td><td>max</td><td>non-negative integer, cumulative per chain</td><td>semantics specified in <xref target="write-budget"/></td></tr>
           </tbody>
         </table>
-        <!-- TODO -01 item 4 -->
         <t>
           For the three enum-typed axes (subjectClass, accountClass,
           partialPolicy), a multi-valued (set) encoding is out of scope
@@ -635,12 +634,12 @@
           nothing on the wire.
         </t>
         <t>
-          This document does not yet specify the semantics of writeBudget
-          beyond registering its name, comparator, and value domain above;
-          a subject's actual write budget accounting is left to the
-          section of this document that defines it. The semantics of
-          actionClass and classSource, and the method by which each is
-          assigned to a request, are specified in
+          The semantics of writeBudget, including the distinction between
+          the limit carried in the chain and the count a verifier holds,
+          and the derivation of the chain identifier that count is keyed
+          by, are specified in <xref target="write-budget"/>. The
+          semantics of actionClass and classSource, and the method by
+          which each is assigned to a request, are specified in
           <xref target="action-class"/>.
         </t>
       </section>
@@ -928,6 +927,160 @@
           Neither limitation is corrected by this document; a deployment
           relying on the survey's numbers should treat them as directional,
           not as an audited count.
+        </t>
+      </section>
+    </section>
+
+    <section anchor="write-budget" numbered="true" toc="default">
+      <name>Write Budget</name>
+      <t>
+        This section specifies the semantics of the writeBudget axis
+        registered in <xref target="axis-registry"/>. It answers three
+        separate questions: what value a link carries (<xref
+        target="write-budget-axis"/>); what a verifier holds as state
+        separately from that value, and how a request is admitted against
+        the two together (<xref target="write-budget-limit-count"/>); and
+        how a verifier derives the identifier that state is keyed by
+        (<xref target="write-budget-chain-identifier"/>).
+      </t>
+      <section anchor="write-budget-axis" numbered="true" toc="default">
+        <name>writeBudget</name>
+        <t>
+          writeBudget is a non-negative integer, compared with the max
+          comparator of <xref target="axis-registry"/>: it is the total
+          number of w-class or x-class operations, per the actionClass
+          values of <xref target="action-class-values"/>, that the chain
+          carrying it may have admitted in aggregate. A child link MUST
+          NOT carry a writeBudget value greater than its parent's; per the
+          max comparator, tightening on this axis means lowering the
+          value, and a child that raises it violates rule 2 of
+          <xref target="attenuation"/>.
+        </t>
+        <t>
+          Where a link omits writeBudget, the published floor for
+          writeBudget is zero unless the issuer's published floor for the
+          chain states otherwise, and a link that omits the axis inherits
+          that floor under the omitted-axis rule of
+          <xref target="axis-registry"/>; omission is therefore never a
+          widening, only ever an inheritance of whatever floor already
+          applies. This is the same effective-zero outcome the
+          proof-of-concept's own handling of an omitted writeBudget
+          already produces.
+        </t>
+      </section>
+      <section anchor="write-budget-limit-count" numbered="true" toc="default">
+        <name>Limit and Count</name>
+        <t>
+          Two distinct quantities are in play, and this document uses
+          "limit" and "count" to keep them apart. The LIMIT is the
+          writeBudget value carried in the chain, per
+          <xref target="write-budget-axis"/>: it rides on the wire, on
+          every link that carries the axis, and a verifier reads it the
+          same way it reads any other floor value. The COUNT is the
+          number already spent against that limit for a given chain; it
+          is state the verifier holds, keyed by the chain identifier of
+          <xref target="write-budget-chain-identifier"/>, and it is never
+          carried in a link. A link MUST NOT be interpreted as carrying
+          the count, and a verifier MUST NOT treat any field of a link as
+          the count merely because it varies between requests.
+        </t>
+        <t>
+          Admission proceeds as follows. A request classed r, per
+          <xref target="classification"/>, never spends against
+          writeBudget: it is admitted or refused on the actionClass rule
+          of <xref target="action-class-values"/> alone, and the count is
+          left unchanged. A request classed w or x is admitted only if
+          the remaining count for the chain is at least one, and the
+          count MUST be decremented as part of the same admission
+          decision that admits the request, with no window in which two
+          concurrent requests against the same chain can both observe the
+          same remaining count before either decrement is applied; this
+          is a requirement on the outcome, not on any particular locking
+          or storage mechanism a verifier uses to achieve it. Where the
+          remaining count is zero, a request classed w or x MUST be
+          rejected, with the same uniform rejection outcome
+          <xref target="verification"/> requires for any other failed
+          check; the verifier does not disclose the remaining count in
+          the rejection. <xref target="binding-not-replay"/>
+          is why this count can only ever live in verifier-held state:
+          anything carried on the wire can be re-presented, and a count
+          that could be re-presented is not a count.
+        </t>
+      </section>
+      <section anchor="write-budget-chain-identifier" numbered="true" toc="default">
+        <name>Chain Identifier</name>
+        <t>
+          The chain identifier that keys the count of
+          <xref target="write-budget-limit-count"/> MUST be derived by
+          the verifier itself from the chain being verified, and MUST NOT
+          be taken from a value the request supplies. A verifier that
+          accepts a caller-supplied chain identifier does not conform to
+          this section, regardless of what other checks it performs.
+        </t>
+        <t>
+          The chain identifier is the SHA-256 <xref target="RFC6234"/>
+          digest of the octet string that is the signature value of
+          L(0), the root link of the chain, in whatever encoding that
+          signature value is carried on the wire by the credential format
+          in use, per <xref target="header"/> and <xref
+          target="attestation"/>. This document defines no signature
+          encoding of its own and needs none for this purpose: the digest
+          is computed over the same exact bytes a verifier already
+          extracts, and has already verified, as L(0)'s signature under
+          item 1 of <xref target="attestation"/>. This document does not
+          otherwise use a hash function; SHA-256 is adopted here as the
+          digest for this one purpose.
+        </t>
+        <t>
+          Every link in a chain, from L(0) to L(n), shares the single
+          chain identifier derived from L(0)'s signature. A
+          re-delegation, which produces a new child link L(i) with its
+          own signature, does not change L(0) and therefore does not
+          change the chain identifier; re-delegation MUST NOT mint a
+          fresh budget, and a verifier MUST NOT derive a chain identifier
+          from any link other than L(0).
+        </t>
+        <t>
+          This resolves case 22 of the proof-of-concept accompanying this
+          document, recorded in <xref target="implementation-status"/>:
+          the code takes a chain identifier as a caller-supplied request
+          field, so a fresh identifier presented with the same chain
+          refills the budget rather than continuing to spend against it.
+          This section's rule is authoritative where the code differs;
+          the code has not yet been changed to derive the identifier as
+          this section requires, and the text is ahead of the code on
+          this point.
+        </t>
+      </section>
+      <section anchor="write-budget-limits" numbered="true" toc="default">
+        <name>Limits</name>
+        <t>
+          The count of <xref target="write-budget-limit-count"/> is held
+          per verifier, not shared across verifiers. Two verifiers
+          holding no shared state do not share a count, so a single chain
+          presented in parallel to N distinct verifiers can spend up to N
+          times its writeBudget limit in aggregate, one full budget at
+          each verifier, before any single verifier's own count reaches
+          zero. A mechanism for verifiers to share a count is out of
+          scope for this document; this limitation is stated here rather
+          than hidden.
+        </t>
+        <t>
+          The budget is cumulative per chain, counted across every
+          admitted w-class or x-class request regardless of which
+          operation each request invokes, and is deliberately not
+          allocated per action or per operation: a per-action cap is
+          defeated by splitting one action into many smaller ones, each
+          within its own separate cap, so this document defines only one
+          running count per chain.
+        </t>
+        <t>
+          This document makes no claim about how many real transactions a
+          given writeBudget value can accommodate. Economic scarcity is
+          not measured here, and no writeBudget size is described in this
+          document as practical, sufficient, or adequate for any
+          deployment; a deployment choosing a value does so without
+          guidance from this document beyond the mechanism itself.
         </t>
       </section>
     </section>
@@ -1349,6 +1502,7 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         <li>the signed-refusal shape of <xref target="refusal"/> and its independent verification path;</li>
         <li>the closed floor axis set of <xref target="floors"/>, the duration grammar of <xref target="duration-grammar"/>, and the monotone tightening comparison of <xref target="monotone"/>;</li>
         <li>the actionClass and classSource classification and admission rules of <xref target="action-class"/>, exercised by 24 automated cases in the proof-of-concept. That code predates this text and this text is authoritative where the two differ: the proof-of-concept takes a caller-supplied chain identifier rather than deriving one from the signed chain; matches menu operation keys as exact strings rather than by the path-template rule of <xref target="declared-menu"/>; and does not compare a menu's issuer against the request's target origin, the binding <xref target="declared-menu"/> requires.</li>
+        <li>the writeBudget ledger of <xref target="write-budget"/>: reserve-then-decrement admission against a stateful, per-chain count, and an actionClass r request never spending against it. This shares the same proof-of-concept and predates this text in the same way as the previous bullet, with one named gap: the code takes the chain identifier from the caller-supplied request field rather than deriving it from L(0)'s signature per <xref target="write-budget-chain-identifier"/>, so a fresh identifier presented with the same chain refills the budget (its own case 22 pins this exact gap). This section's text is authoritative; the code has not been changed to close it.</li>
       </ul>
       <t>
         The following elements of this profile are NOT implemented in the
@@ -1434,6 +1588,23 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         to withhold.
       </t>
       <t>
+        <strong>An unforgeable chain identifier is what makes a write
+        budget a cap rather than a suggestion.</strong> The derivation of
+        <xref target="write-budget-chain-identifier"/>, from L(0)'s own
+        signature rather than from any value the request supplies, is
+        what prevents the presenter of a chain from choosing its own
+        identifier and thereby choosing its own remaining count. A
+        verifier that accepts a presenter-supplied chain identifier
+        converts the hard cap of <xref target="write-budget"/> into
+        something the presenter can reset at will, simply by supplying a
+        different value on the next request; <xref target="vectors"/>'s
+        V11 exists to catch exactly that failure. Per-verifier counting,
+        by contrast, per <xref target="write-budget-limits"/>, is a
+        stated limitation of this document, not a defect to be concealed:
+        a deployment that needs a single shared count across verifiers
+        needs a mechanism this document does not supply.
+      </t>
+      <t>
         <strong>A declared menu is an owner-signed downgrade surface.</strong>
         classSource declared lets the resource owner's menu lower a
         request's actionClass below its method default, for example
@@ -1498,6 +1669,7 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
       <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.8126.xml"/>
       <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.7515.xml"/>
       <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.6454.xml"/>
+      <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.6234.xml"/>
     </references>
     <references>
       <name>Informative References</name>
@@ -1949,21 +2121,64 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         leaf of the chain.
       </t>
       <t>
+        Vectors V10 and V11 below extend this appendix to the writeBudget
+        axis of <xref target="write-budget"/>. Both present the same
+        single-link chain, L(0) with actionClass x and writeBudget 2,
+        against a series of x-class requests; the chain identifier is
+        whatever <xref target="write-budget-chain-identifier"/> derives
+        from L(0)'s signature, and is the same value across every request
+        in both vectors, since both present the same L(0).
+      </t>
+      <table>
+        <thead>
+          <tr><th>Step</th><th>Request</th><th>Vector</th><th>Expected outcome</th><th>Remaining count after step</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td>x-class request 1</td><td>V10</td><td>admitted</td><td>1</td></tr>
+          <tr><td>2</td><td>x-class request 2</td><td>V10</td><td>admitted</td><td>0</td></tr>
+          <tr><td>3</td><td>x-class request 3</td><td>V10</td><td>refused, budget exhausted</td><td>0</td></tr>
+          <tr><td>4</td><td>x-class request 4, presented with a different, caller-supplied chain identifier value</td><td>V11</td><td>refused, budget exhausted</td><td>0</td></tr>
+        </tbody>
+      </table>
+      <t>
+        V10 is the positive case: two successive x-class requests against
+        the chain are admitted, dropping the remaining count from 2 to 1
+        to 0, and a third is refused because the remaining count is
+        already 0, per the admission rule of
+        <xref target="write-budget-limit-count"/>.
+      </t>
+      <t>
+        V11 is the negative control. It re-presents the identical chain
+        used in V10, after its budget is already exhausted, but the
+        fourth request carries a different chain identifier value of the
+        caller's own choosing rather than one the verifier derived from
+        L(0). Because <xref target="write-budget-chain-identifier"/>
+        requires the verifier to derive the chain identifier itself and
+        forbids taking one from the request, the count is not refilled
+        and step 4 is refused on the same exhausted count as step 3. A
+        verifier that instead took the chain identifier from the request
+        would treat the fourth request as belonging to a fresh chain with
+        a full budget of 2, and would wrongly admit it; V11 exists
+        specifically to detect that failure.
+      </t>
+      <t>
         These vectors are illustrative and not exhaustive. Passing them
         does not establish conformance to this document as a whole: V1
         through V6 cover the three attenuation rules of
-        <xref target="attenuation"/>, and V7 through V9 cover the
+        <xref target="attenuation"/>, V7 through V9 cover the
         actionClass tightening rule, the declared-value substitution
         rule, and the menu origin-binding rule of
-        <xref target="action-class"/>; together they do not exercise
-        signature verification of a delegation link itself, nonce
-        binding, expiry evaluation against wall-clock time, the header
-        field encoding described in <xref target="header"/> and
-        <xref target="rfc9421-profile"/>, or the writeBudget axis, which
-        this revision registers but does not yet specify. These vectors
-        have not been executed against any implementation by anyone,
-        including the author; they were derived by hand from the rules in
-        <xref target="attenuation"/> and <xref target="action-class"/>.
+        <xref target="action-class"/>, and V10 through V11 cover the
+        writeBudget admission rule and the chain-identifier-derivation
+        rule of <xref target="write-budget"/>; together they do not
+        exercise signature verification of a delegation link itself,
+        nonce binding, expiry evaluation against wall-clock time, or the
+        header field encoding described in <xref target="header"/> and
+        <xref target="rfc9421-profile"/>. These vectors have not been
+        executed against any implementation by anyone, including the
+        author; they were derived by hand from the rules in
+        <xref target="attenuation"/>, <xref target="action-class"/>, and
+        <xref target="write-budget"/>.
       </t>
     </section>
 
@@ -2063,6 +2278,35 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
             Registry table cells that deferred actionClass's and
             classSource's semantics, and the standalone marker comment
             for this item, with a cross-reference to the new section.
+          </t>
+        </li>
+        <li>
+          <t>
+            Added <xref target="write-budget"/>, a new normative section
+            placed after <xref target="action-class"/>, specifying the
+            writeBudget axis reserved but not yet specified by the Floor
+            Axis Registry addition above: the axis as a non-negative,
+            max-comparator, cumulative-per-chain integer with an
+            omitted-axis floor of zero; the distinction between the
+            limit carried in the chain and the count a verifier holds as
+            its own state, keyed by a chain identifier and never carried
+            in a link, with reserve-then-decrement admission and an
+            actionClass r request never spending; and the chain
+            identifier itself, derived by the verifier as the SHA-256
+            digest of the root link L(0)'s signature value, never taken
+            from the request, which resolves case 22 of the
+            proof-of-concept. Added a corresponding paragraph to
+            <xref target="security"/>, two test vectors (V10, a positive
+            three-request sequence, and V11, a negative control re-using
+            an exhausted chain under a caller-supplied identifier) to
+            <xref target="vectors"/>, and a bullet to
+            <xref target="implementation-status"/> naming the
+            proof-of-concept's one remaining gap against this section.
+            Replaced the writeBudget row's deferred-semantics note in
+            <xref target="axis-registry"/>'s table, and the standalone
+            marker comment for this item, with a cross-reference to the
+            new section, and rewrote the paragraph after that table so it
+            no longer describes writeBudget's semantics as unspecified.
           </t>
         </li>
       </ul>
