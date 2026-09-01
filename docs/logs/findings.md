@@ -14,7 +14,87 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
-## 2026-09-01 (latest) — Spike B built at `ietf/v1/poc/` (actionClass / classSource / writeBudget gate), 24/24, USER-VALIDATED at the working tree on tip `ac18310`; three assumptions pinned as cases 22-24; Rafael (asor) reply aligns on registry shape and the three layers
+## 2026-09-01 (latest) — Second reply sent on the EMILIA pre-flight thread after a full read of asor -00; Rafael (asor) and Iman (EMILIA) both aligned; the no-menu case and who-verifies settled in discussion; PR #19 merged
+
+**EVIDENCE**
+
+1. Spike-B round merged: PR #19 squashed to `1f3ee21` on `main`
+   (2026-09-01T18:08:38Z), remote branch deleted, `m7-check` exit 0 re-run
+   on merged main. Version unchanged at 0.11.0.
+
+2. Rafael Asor replied on the private thread: asor's -01 "already has" an
+   IANA constraint-type registry, Specification Required, unknown types
+   denied at every verifier — the shape HAMR's point 3 described; and
+   asor's -00/-01 is layer (a) with typed floors on (b) carried as
+   constraints, (c) deliberately out; "composition with something that
+   owns (c), not growth into it, is our answer too."
+
+3. Iman Schrock replied: the matrix will keep the two NOT_SUPPORTED
+   grades and "state plainly that HAMR -00 rejects an unknown floor by
+   design"; the three layers stay separate; AEB described as one
+   composition for admission and outcome state, "not a dependency or
+   proposed expansion of either token profile"; the matrix stays pinned
+   to published revisions — neither pending -01 will be folded into a
+   public claim until posted.
+
+4. Main session read asor -00 in full from the posted .txt (672 lines)
+   before drafting the reply. Findings: the "Agent Delegation Constraint
+   Types" registry is ALREADY in -00 §10 (Specification Required; unknown
+   types fail closed per §4.1), so Rafael's "-01" attribution is early —
+   asor -01 is NOT posted (datatracker latest -00; -01 .txt 404). asor
+   registers comparator TYPES (`max`, `one_of`, `not_one_of`, `prefix`,
+   `rank`) and leaves the constrained quantity as a profile naming
+   agreement; HAMR -00 §8 does the reverse (fixed axis NAMES, built-in
+   comparator each). asor's `rank` is the ordered-enum comparator; asor
+   has `max` but no `min`, while every HAMR duration floor is a minimum
+   tightened upward (§4.2 subsumption tightens ceilings downward). asor
+   §9.1 states that a parent token remains valid after attenuation,
+   mitigated by short TTL, holder binding, status lists — the same point
+   the main session made to the user about self-attenuated links.
+
+5. The user's second reply SENT 2026-09-01T20:11:29+02:00; record at
+   `ietf/v1/docs/emilia-preflight-reply-2-sent-2026-09-01.md` (quoted
+   originals omitted). It acknowledges Iman; corrects the registry
+   citation to -00 §10; names the comparator vocabulary (not axis names)
+   as the real bridge; notes `rank` and the missing `min`; names §9.1 as
+   shared and as the layer (c) boundary; still says nothing about the
+   spike. Every cited section verified against the posted bytes, including
+   the two phrases that wrap across lines.
+
+6. -01 scope item 1 REFINED by the asor read: HAMR registers axis names
+   each bound to a comparator type; the comparator types align with
+   asor's registry; asor needs `min` for the alignment to be complete.
+   Mapping: `actionClass` = `rank`, `writeBudget` = `max`, duration floors
+   = `min`. Not yet written anywhere but this log.
+
+7. Design discussion settled (recorded so it is not re-argued). (a) The
+   menu the agent holds is advisory and may be discarded; the verifier's
+   copy is authoritative; the verifier's ledger is the mechanical
+   counter. (b) Deciding classes is a human design-time act; signing is
+   code at publish time; the delegation link is likewise key-signed,
+   human- or policy-backed — HAMR sees a signature only. (c) NO MENU is a
+   defined state: method default (GET r, POST x); nobody creates a menu
+   on the fly, and a guess from appearance is judgement, never
+   enforcement. (d) For a site that does not implement HAMR the verifier
+   cannot be the resource; it must be the credential-owning gate on the
+   agent side, which cannot use `classSource: declared` and for which
+   complete mediation becomes load-bearing. (e) The honest cost on
+   unvouched sites: a multi-POST checkout spends one budget unit per
+   step; the human sets a larger budget or vouches. (f) A future third
+   `classSource` value — the DELEGATOR vouching a menu for a site they
+   know, signed by the delegator's key, never the agent's — is principled
+   (it loosens nothing below the delegator's own authority) and is the
+   registry's purpose; NOT for -01. (g) UNMEASURED: how many real
+   e-commerce checkouts fit inside a small `x` budget — a spike on real
+   sites before any text says "practical."
+
+**DECISION: none** beyond the item-1 refinement in 6, which the user has
+seen and not objected to; it is a refinement of an existing decision, not
+a new one.
+
+---
+
+## 2026-09-01 — Spike B built at `ietf/v1/poc/` (actionClass / classSource / writeBudget gate), 24/24, USER-VALIDATED at the working tree on tip `ac18310`; three assumptions pinned as cases 22-24; Rafael (asor) reply aligns on registry shape and the three layers
 
 **EVIDENCE** — all observed; do not soften:
 
