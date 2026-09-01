@@ -152,8 +152,20 @@ camara/v2/docs/     working copy being reshaped per the 2026-08-31 feedback
                     — not filed
 camara/v2/poc/      working copy of camara/v1/poc/, copied unchanged
 camara/v2/spec/     working copy of camara/v1/spec/, copied unchanged
-ietf/v1/docs/       ietf-agent-delegation.md — the IETF proposal (agent/
-                    delegation side, OAuth WG target)
+ietf/v1/docs/       frozen record of draft-hamr-oauth-agent-delegation-00
+                    as posted 2026-08-31 (agent/delegation side, OAuth WG
+                    target); ietf-agent-delegation.md is the companion
+                    prose proposal
+ietf/v1/poc/        the actionClass floor axis spike (M7) this -00 record
+                    was validated against; copied unchanged into v2
+ietf/v2/docs/       working copy for -01 (not yet submitted): all four items
+                    and Appendix A direction 4 drafted and user-validated
+                    2026-09-01; not submitted; review round and PoC catch-up
+                    (cases 22-24) pending
+ietf/v2/poc/        copy of ietf/v1/poc/; only the run-path comment in
+                    m7-check.mjs differs (2026-09-01); spike-a/ holds the
+                    catalogue-survey dataset (specs/ omitted, reproducible
+                    from its SHA column), moved in 2026-09-01
 ```
 
 ## The two tracks
@@ -165,7 +177,8 @@ Each track cites the other as its counterpart; neither depends on the other's ap
   `camara/v2/docs/`). What the operator attests and how it travels. Profile to
   Commonalities, consent hooks to ICM, adoption PRs to sim-swap and roaming-status,
   new-case proposal to APIBacklog (template pre-filled in §10).
-- **[IETF](ietf/v1/docs/ietf-agent-delegation.md)** — the agent/delegation side. What the
+- **[IETF](ietf/v1/docs/ietf-agent-delegation.md)** — the agent/delegation side (v1, as
+  posted; v2 -01 working copy at `ietf/v2/docs/`, not yet submitted). What the
   agent carries and how permissions flow: floor-gated SIM attestation, scoped monotone
   delegations, presentment via RFC 9421. The OAuth Working Group (`oauth@ietf.org`) is
   the target.

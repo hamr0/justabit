@@ -14,7 +14,481 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
-## 2026-09-01 (latest) — Second reply sent on the EMILIA pre-flight thread after a full read of asor -00; Rafael (asor) and Iman (EMILIA) both aligned; the no-menu case and who-verifies settled in discussion; PR #19 merged
+## 2026-09-01 (latest) — -01 item 4 drafted: Write Budget; all four -01 items and Appendix A direction 4 now in the text; user-validated at the uncommitted tree
+
+**EVIDENCE**
+
+1. New normative section after Action Class Floors, anchor `write-budget`,
+   specifying the `writeBudget` axis: max, lower only, omitted inherits the
+   published floor (zero by default).
+2. Limit and Count: `r` never spends against the budget; `w`/`x` requests
+   reserve-then-decrement as one admission outcome; exhaustion produces a
+   uniform rejection per the verification section, with the remaining count
+   never disclosed to the caller.
+   - The orchestrator's original brief pointed this exhaustion refusal at
+     the Attestation Issuer's signed-refusal section. The agent escalated
+     rather than building against it; the orchestrator corrected the target
+     to the verifier's uniform rejection outcome, which is where admission
+     and refusal for this axis actually happen.
+3. Chain Identifier: SHA-256 (RFC 6234, adopted here as this document's
+   first use of any hash function, cited normatively via bibxml) over
+   L(0)'s signature bytes, verifier-derived and never caller-supplied. The
+   user chose this option (a digest of the root link's signature, shared by
+   every hop) over the alternative of a whole-chain digest, because the
+   budget is a property of the delegation as a whole, not of any one hop —
+   a whole-chain digest changes at every re-delegation and would let a
+   re-delegated chain mint a fresh budget against the same underlying
+   grant.
+4. Limits: per-verifier count (N verifiers imply N independent budgets),
+   cumulative per chain rather than per individual action, and no
+   writeBudget size is described as practically sufficient by this text.
+5. Registry `writeBudget` row's deferred-semantics TODO cross-referenced to
+   `write-budget`; the standalone `<!-- TODO -01 item 4 -->` marker comment
+   removed — it was the last such marker in the document.
+6. Vectors V10 (positive) and V11 (negative control) added to the appendix,
+   using a step table rather than the V1-V9 chain-shape table because V10/
+   V11 test sequential admission across one chain rather than one-shot
+   chain validity: a single-link chain, `actionClass` x, `writeBudget` 2;
+   step 1 (x-class request 1) admitted, remaining 1; step 2 (x-class
+   request 2) admitted, remaining 0; step 3 (x-class request 3) refused,
+   budget exhausted; step 4 (V11, x-class request 4, re-presented with a
+   different caller-supplied chain identifier value against the same
+   already-exhausted chain) refused, budget exhausted. V11 exists to catch
+   a verifier that treats a fresh caller-supplied identifier as a fresh
+   budget — the exact PoC case 22 gap.
+7. Implementation Status bullet added: the writeBudget ledger (reserve-
+   then-decrement admission against a stateful, per-chain count, `r` never
+   spending) shares the same PoC as the actionClass/classSource work, with
+   one named gap — the code takes the chain identifier from a caller-
+   supplied request field rather than deriving it from L(0)'s signature per
+   `write-budget-chain-identifier`, so a fresh identifier presented with
+   the same chain refills the budget (its own case 22 pins this exact gap).
+   Text is authoritative; the code has not been changed to close it.
+8. Security Considerations paragraph added describing the exhaustion
+   behaviour (uniform rejection, count undisclosed) and the chain-
+   identifier derivation as closing the re-delegation budget-refill attack
+   surface a caller-supplied identifier would otherwise open.
+9. "Changes since -00" bullet appended naming the `write-budget` section,
+   the registry row it resolves plus the marker comment it removes, the
+   Security Considerations paragraph, and V10/V11 including which is the
+   negative control.
+10. Fix round ordered by the orchestrator: (a) the exhaustion refusal
+    cross-reference corrected from the Attestation Issuer's signed-refusal
+    section to the verifier's uniform rejection outcome, per item 2 above;
+    (b) one redundant clause trimmed.
+11. Checks run by exit code at this tree: non-ASCII scan 0, `xmllint`
+    well-formedness 0, forbidden-RFCXML-tag scan 0, BCP14 capitalization-
+    after-`<back>` scan 0, `m7-check.mjs` 24/24 exit 0, `m3-check.mjs`
+    26/26 exit 0. The XML is now 2315 lines; `git diff --stat` for the one
+    changed file: +262/-18.
+12. USER VALIDATION 2026-09-01: the user reported both PoC check suites
+    exit 0 and `idnits` clean. The author-tools RFCXML validator run was
+    NOT separately reported for this tree — do not claim it. This
+    validation holds only at this tree.
+
+**DECISION**
+
+-01 text is now complete for all four scope items (Floor Axis Registry,
+Position Among Delegation Layers, Action Class Floors, Write Budget) plus
+Appendix A direction 4 (harness-side experience). The draft is NOT
+submitted. Remaining before submission, in order: (1) a full read-through
+review of the whole -01 document (a review round, not a drafting round);
+(2) code catch-up in `ietf/v2/poc` for cases 22-24 so the PoC matches the
+text, with the user re-validating the suite at the new count; (3) re-verify
+every cited draft revision live on submission day; (4) the user's own
+author-tools and `idnits` run on the final XML; (5) the user submits. Open:
+asor -01 has not yet posted; when it posts, the min-pending wording in the
+axis-registry alignment paragraph must be revisited.
+
+---
+
+## 2026-09-01 — -01 item 3 drafted: Action Class Floors (actionClass, classSource, declared menu), user-validated at the uncommitted tree
+
+**EVIDENCE**
+
+1. A new normative section, anchor `action-class`, added after the Floor
+   Axis Registry addition in
+   `ietf/v2/docs/draft-hamr-oauth-agent-delegation-01.xml`, with five
+   subsections:
+   - **actionClass values** (anchor `action-class-values`): an ordered
+     enumeration r &lt; w &lt; x per the rank comparator; a child link's
+     actionClass rank MUST be less than or equal to its parent's, so
+     tightening means lowering the value (x to w, w to r, or x to r).
+   - **classSource** (anchor `class-source`): an ordered enumeration
+     ranked method &lt; declared; the default is method, which is also
+     the tighter of the two, so default and tightest coincide; a child
+     link's classSource rank MUST be less than or equal to its parent's,
+     so the only permitted change is declared to method — the same
+     lower-only direction as actionClass, stated explicitly as no
+     per-axis exception. A note records that the proof-of-concept names
+     the two values in the opposite written order internally (declared
+     before method in a source table) with identical admission
+     semantics, so the code's ordering is not a disagreement with this
+     text.
+   - **Classification** (anchor `classification`): where classSource is
+     method, actionClass follows the RFC 9110 method default (GET/HEAD/
+     OPTIONS -> r, PUT/DELETE -> w, POST/PATCH -> x); where classSource
+     is declared, the resource owner's menu value governs only when the
+     menu verifies and names the operation, replacing the method default
+     rather than being combined with it (a verifier MUST NOT compute the
+     greater of the two). Any menu failure — absent, unsigned, unknown
+     key, mismatched issuer — falls back to the method default; the
+     absence of any menu at all is a defined state, not a distinct fault
+     condition; a verifier MUST NOT synthesize a menu on the owner's
+     behalf.
+   - **The Declared Menu** (anchor `declared-menu`): a JWS (RFC 7515)
+     whose payload has `iss` (an RFC 6454 origin) and `menu` (a map from
+     `"METHOD path-template"` to an actionClass value). Matching is
+     deterministic: same method, same segment count, literal segments
+     must match exactly, brace-delimited segments match any one
+     non-empty segment; where more than one key matches, the one with
+     more literal segments governs; an equal-literal tie is treated as a
+     miss (fail closed), never resolved by JSON key order. `iss` MUST
+     equal the request target's origin octet-for-octet or the menu fails
+     exactly as an invalid signature would. The key comes from a
+     configured trust source, never the menu itself, mirroring the root
+     attestation's key rule. Algorithm is EdDSA/Ed25519 only, no
+     negotiation.
+   - **Publication** (anchor `menu-publication`, non-normative): an
+     OpenAPI extension plus a detached JWS is named as one option; the
+     publication format itself is out of scope.
+   - **Verifier Placement** (anchor `action-class-verifier-placement`):
+     classification and admission happen at the resource/credential
+     boundary of `layers`, never in a harness or orchestration layer; an
+     agent declining an action it expects to be refused does not satisfy
+     this section.
+   - **Limits** (anchor `action-class-limits`, honest-limits paragraph):
+     the method default is a reliable floor in one direction only — a
+     GET is never admitted as w/x, but a POST is not always x. The
+     2026-09-01 survey (292 operations, 60 repositories, committed to
+     this repo) found 57 of 138 POST operations named as reads (`retrieve-`
+     /`check`/`verify`/`status`-prefixed) still classed x under method.
+     The survey's GET judgement was templated, not read per-operation, so
+     "no GET classed x" rests on CAMARA Design Guide convention, not an
+     audited reading; the cost of the 57 read-named POSTs defaulting to x
+     was never audited either. Both limitations are stated, not fixed, by
+     this document.
+
+2. Floor Axis Registry table: the `actionClass` and `classSource` rows'
+   "semantics specified in ... TODO" cells now cross-reference
+   `action-class`; a labelling slip in the `classSource` cell (it had
+   read "item 4" rather than pointing at this item's own section) was
+   corrected in the same pass. The `writeBudget` row's TODO ("item 4, not
+   yet written") remains, unchanged, and its standalone marker comment
+   (`<!-- TODO -01 item 4 -->`) stays for that item.
+
+3. Vectors V7 through V9 added to the appendix's vector table: V7 (a
+   two-link chain, actionClass x -> w, classSource method throughout;
+   accept — the direction the rank comparator permits); V8 (a single
+   link, actionClass r/classSource declared; request `POST /check`
+   against a menu declaring it r, issuer matching the request's origin
+   exactly; accept, declared value r governs); V9, the negative control
+   (identical menu and declared entry to V8, but the menu's `iss` is
+   `https://attacker.example.com` against a request target of
+   `https://api.example.com` — mismatched issuer, so the menu fails and
+   the method default for POST, x, applies; refused). The vector text
+   states explicitly that a verifier which checks the menu's signature
+   but skips the iss/origin comparison would wrongly reach V8's outcome
+   on V9's input, and that V7-V9 together cover the actionClass
+   tightening rule, the declared-value substitution rule, and the menu
+   origin-binding rule — not signature verification, nonce binding,
+   expiry, header encoding, or writeBudget, none of which this revision's
+   vectors exercise. The vectors have not been executed against any
+   implementation by anyone, including the author.
+
+4. Implementation Status bullet added: the actionClass/classSource
+   classification and admission rules are exercised by 24 automated
+   proof-of-concept cases; the bullet names this text as authoritative
+   where code and text differ, and names three specific gaps: the
+   proof-of-concept takes a caller-supplied chain identifier instead of
+   deriving one from the signed chain; it matches menu keys as exact
+   strings rather than by the path-template rule; and it does not
+   compare the menu's issuer against the request's target origin. A
+   further sentence points to the committed catalogue survey behind the
+   Limits paragraph.
+
+5. A "Changes since -00" bullet was appended describing the
+   `action-class` addition: the new section, the registry table cells it
+   resolves plus the marker comment it replaces, the Security
+   Considerations paragraph (menu as an owner-signed downgrade surface),
+   and the three vectors including which is the negative control.
+
+6. Two orchestrator-ordered fix rounds before this entry: (1) the rank
+   direction for classSource was made uniform with actionClass — both
+   lower-only, stated as "no per-axis exception" rather than left
+   implicit; a fail-closed tie-break was added for the equal-literal-
+   segment menu-matching case (the "executable one way" rule — two
+   conforming verifiers must not be able to disagree). (2) two em dashes
+   were found and removed after the agent's own non-ASCII scan was
+   discovered to be structurally unable to fail (a `grep -x` line-anchor
+   match paired with a zero-width lookahead, which cannot flag a
+   mid-line character) — caught by the orchestrator's own independent
+   character count, not by the scan itself.
+
+7. Checks run by exit code at this tree: non-ASCII scan exit 0, `xmllint`
+   well-formedness exit 0, forbidden-RFCXML-tag scan exit 0, BCP14
+   capitalization-after-`<back>` scan exit 0, `m7-check.mjs` 24/24 exit 0,
+   `m3-check.mjs` 26/26 exit 0. `git diff --stat` for the one changed
+   file: +393/-19. The XML is now 2071 lines.
+
+8. USER VALIDATION 2026-09-01: the user reported both PoC check suites
+   exit 0, `idnits` clean, and read section 9 (`action-class`) and the
+   V7-V9 vector rows. The author-tools RFCXML validator run was NOT
+   separately reported for this tree — do not claim it. This validation
+   holds only at this tree.
+
+**DECISION**
+
+Item 3 is done. The proof-of-concept's code is behind the text on the
+three points named in the Implementation Status bullet (caller-supplied
+chain identifier, exact-string menu keys, no origin check); bringing the
+spike up to match the text is a separate, later step, not part of -01
+drafting. Next is item 4 (`writeBudget`), option one under consideration:
+a chain identifier defined as a digest of the root link's signature.
+
+---
+
+## 2026-09-01 — -01 Appendix A direction 4 (harness-side experience) drafted, user-validated at the uncommitted tree
+
+**EVIDENCE**
+
+1. A fourth non-normative direction added to Appendix A of
+   `ietf/v2/docs/draft-hamr-oauth-agent-delegation-01.xml`, placed after
+   the summary paragraph closing directions 1-3 (placement chosen because
+   directions 1-3 share a scarcity theme and direction 4 does not).
+
+2. Names three single-author experiments at `github.com/hamr0/bareguard`,
+   `github.com/hamr0/bareloop`, and `github.com/hamr0/bareagent`, one
+   introductory line each plus exactly three bullets each, closing with
+   the sentence: in each case the point of control sat at the credential
+   boundary or the resource, never in the harness. States plainly that
+   they are NOT implementations of this profile and are therefore not
+   listed in Implementation Status (RFC 7942).
+
+3. Every bullet traces to `.claude/research/harness-learnings-2026-09-01.md`
+   (local, gitignored, not committed — user decision) and through it to a
+   file:line in the three sibling repos.
+
+4. The `<!-- TODO -01: Appendix A direction 4, harness-side experience -->`
+   comment in the `layers` section was removed; a "Changes since -00" bullet
+   describing the Direction 4 addition was appended. `git diff --stat` for
+   the one changed file: +56/-1.
+
+5. Checks run by exit code at the uncommitted tree: BCP14
+   capitalization-after-`<back>` scan exit 0, non-ASCII scan exit 0,
+   `xmllint` well-formedness exit 0, forbidden-RFCXML-tag (`b`/`i`/`code`/
+   `pre`/`span`) scan exit 0, `m7-check.mjs` (`ietf/v2/poc/`) 24/24 exit 0,
+   `m3-check.mjs` (`ietf/v2/poc/`) 26/26 exit 0.
+
+6. USER VALIDATION 2026-09-01: the user reported both PoC check suites
+   exit 0, `idnits` clean, and skimmed the rendered direction 4 text as
+   clean. The author-tools RFCXML validator run was NOT reported for this
+   tree — do not claim it. This validation holds only at this uncommitted
+   tree.
+
+7. Spike A's dataset (the actionClass method-default catalogue survey,
+   run 2026-09-01 in a session scratchpad) was committed to the repo at
+   `ietf/v2/poc/spike-a/` by user decision, `specs/` (65 fetched CAMARA
+   YAML copies, ~4 MB) omitted — reproducible from the SHA column in
+   `operations.csv`/`repos.json`. Its README carries the same caveat: the
+   GET judgements behind readout R3 were templated (one boilerplate
+   reason for every GET), so "no `x` behind GET" rests on CAMARA Design
+   Guide §6.5 rather than a per-operation reading, and the cost side (57
+   of 138 POSTs named `retrieve-*`/`check`/`verify`/`status`, all judged
+   `x` by default) was never audited. Any number item 3 states now traces
+   to this repo data, not a scratchpad no longer reachable.
+
+**DECISION**
+
+Appendix A direction 4 is done. Next is item 3 (`actionClass` and
+`classSource` semantics, with the menu JWS shape defined in this document
+itself — the user chose this over deferring the format to Commonalities),
+then item 4 (`writeBudget`).
+
+---
+
+## 2026-09-01 — -01 item 2 drafted: "Position Among Delegation Layers" section, user-validated at the uncommitted tree
+
+**EVIDENCE**
+
+1. A new informational section, anchor `layers`, added after Motivation in
+   `ietf/v2/docs/draft-hamr-oauth-agent-delegation-01.xml`. It states three
+   layers: (a) who may act on whose behalf, (b) what exactly may be done
+   per invocation, (c) what happened, once. This document occupies (a)
+   plus floors; floors (the chain model of `attenuation`, the axes of
+   `floors`/`axis-registry`, naming `actionClass` and `writeBudget`) bound
+   the space of what an agent could invoke coarsely, evaluated once per
+   link, not per call.
+
+2. States plainly that this document does no per-call argument binding
+   and produces no receipt. Neighbouring work is placed: RFC 9396 (grant
+   time), `draft-das-agentic-tool-binding-02` (per call, after the model
+   has chosen), `draft-schrock-ep-authorization-receipts-12` (layer c).
+   An ordering sentence runs grant-time -> floors -> per-call digest ->
+   receipt.
+
+3. Names a structural problem shared across the layering and unsolved by
+   any one layer: a parent credential stays valid after attenuation into
+   a narrower child, so the parent holder retains the broader authority
+   the child only narrowed — sitting in the composition boundary, not in
+   any single token profile. Cites asor -00 §9.1's listed mitigations
+   (short lifetime, holder binding, status lists) and states this
+   document offers no token-profile fix either.
+
+4. A forward pointer to Appendix A carries a TODO comment for direction 4
+   (harness-side implementation experience) — not written this round.
+
+5. Citations verified live against the Datatracker API 2026-09-01: `das`
+   agentic-tool-binding at rev 02, `schrock` ep-authorization-receipts at
+   rev 12, `asor` wimse-agent-delegation-chain at rev 00; bibxml fetched
+   canonically for all three (note: the `bib.ietf.org` path omits the
+   "draft-" prefix — the prefixed form 404s). Abstracts were stripped
+   from all three I-D references to match the -00 reference style, which
+   also cleared one capitalized BCP-14 keyword (MAY) that had been
+   sitting in back-matter reference text.
+
+6. Checks run by exit code at the uncommitted tree: BCP14
+   capitalization-after-`<back>` scan exit 0, non-ASCII scan exit 0,
+   `xmllint` well-formedness exit 0, forbidden-RFCXML-tag scan exit 0,
+   `m7-check.mjs` 24/24 exit 0, `m3-check.mjs` 26/26 exit 0. `git diff
+   --stat` for the one changed file: +119/-3.
+
+7. USER VALIDATION 2026-09-01: the user reported both PoC check suites
+   exit 0 and `idnits` clean. The author-tools RFCXML validator run was
+   NOT reported for this tree — do not claim it. This validation holds
+   only at this uncommitted tree.
+
+**DECISION**
+
+Item 2 (Position Among Delegation Layers) is done. Next step is Appendix
+A direction 4 (short, non-normative mentions of three harness repos with
+bullet points), then items 3 and 4 — this order was chosen by the user on
+2026-09-01. Implementation Status (RFC 7942) was rejected as a home for
+the three harness repos because they are not implementations of this
+profile.
+
+---
+
+## 2026-09-01 — IETF -01 round opened (ietf/v2); item 1 Floor Axis Registry drafted, user-validated at the uncommitted tree
+
+**EVIDENCE**
+
+1. `ietf/v1/poc/` copied to `ietf/v2/poc/` per the layout rule (v1 stays a
+   frozen copy behind the -00 record and is never edited again). The -01
+   XML itself lives at `ietf/v2/docs/draft-hamr-oauth-agent-delegation-01.xml`,
+   1528 lines; `docName` bumped to `-01`; the `date` element left empty
+   (filled at submission time); the author block is unchanged on purpose.
+
+2. Item 1 content: a new `axis-registry` subsection (anchor
+   `axis-registry`) defines four comparators — `min`, `max`, `rank`,
+   `one_of` — and states subsumption lines for each in asor's shape (a
+   child link's value for an axis must not loosen the parent's, per
+   comparator semantics). Five registration fields are defined per entry.
+   Eight initial entries are registered: the five -00 §8 axes
+   (`subjectClass`, `accountClass`, `partialPolicy` registered as
+   `one_of` over a singleton value domain; `tenureMin`, `credentialAgeMin`
+   registered as `min`) plus three new axes for -01 items 3-4
+   (`actionClass` = `rank`, `classSource` = `rank`, `writeBudget` = `max`),
+   with their semantics deferred to items 3 and 4 respectively — only the
+   registry entry and comparator assignment land in item 1. The -00 §8
+   table's "comparison" column is mapped onto these comparator names. The
+   IANA considerations request a new "HAMR Floor Axis Registry", policy
+   Specification Required, per RFC 8126 cited via its canonical bibxml
+   entry. A related-work alignment paragraph cites asor -00 §10 and
+   describes `min` as "stated as intended for a future revision" of
+   asor — never as present in a posted asor document. The asor citation
+   was replaced with the canonical bibxml reference (no hand-typed
+   bibliography entry). A "Changes since -00" section was added
+   (anchor confirmed present, line ~1490).
+
+3. Orchestrator error caught by the building agent: an early draft of the
+   spec handed to the agent named the CAMARA PoC's own axis names
+   (`tenure`, `swapAge`, `simType`) instead of the axis names actually
+   posted in -00 §8. The agent did not rename §8 to match the wrong spec;
+   it stopped and escalated the mismatch. The spec was corrected in a
+   second round to use the posted -00 names, and a re-sweep of the -01
+   XML found zero stray-name hits afterward.
+
+4. User decision: for the three enum axes (`subjectClass`, `accountClass`,
+   `partialPolicy`), registered as `one_of` over a singleton value domain
+   with the bare-value wire encoding unchanged from -00 — option 1 — over
+   adding a fifth `eq` comparator to the registry (option 2, rejected).
+
+5. Checks run by exit code at the uncommitted tree: non-ASCII scan exit 0,
+   `xmllint` well-formedness exit 0, forbidden-RFCXML-tag scan exit 0,
+   BCP 14 capitalization-after-`<back>` scan exit 0, `m7-check.mjs`
+   24/24 exit 0, `m3-check.mjs` 26/26 exit 0. Live Datatracker API check:
+   `draft-klrc-aiagent-auth` (asor) is still at -00 (posted 2026-08-27,
+   no -01 live); `draft-hamr-oauth-agent-delegation-00` expires
+   2027-03-04.
+
+6. USER VALIDATION 2026-09-01: the user ran both PoC check suites, the
+   author-tools RFCXML validator (no error reported) against the -01 XML,
+   and `idnits` (clean), and read §8 and the sections following it. This
+   validation holds only at this uncommitted tree.
+
+**DECISION**
+
+Item 1 (Floor Axis Registry) is done. Items 2 (the three-layer boundary
+statement), 3 (`actionClass` + `classSource` semantics), and 4
+(`writeBudget` semantics) are next, in that order. Appendix A is held
+until items 1-4 all exist — the user's own call, made so Appendix A is
+written against a stable registry rather than revised piecemeal. The
+harness research from the EMILIA/asor threads stays local, not committed,
+per the standing no-go on shipping a conformance harness.
+
+---
+
+## 2026-09-01 — Rafael (asor) accepts the -00 §10 correction; asor -01 will register a mirrored `min` comparator; §9.1 parent-validity confirmed shared
+
+**EVIDENCE**
+
+1. Rafael Asor replied a third time on the private EMILIA pre-flight
+   thread, received 2026-09-01, after the user's second reply SENT
+   2026-09-01T20:11:29+02:00. Record (paraphrased, quoted third-party
+   text stripped per this repo's convention) at
+   `ietf/v1/docs/asor-reply-3-received-2026-09-01.md`.
+
+2. Rafael accepts the correction: the "Agent Delegation Constraint Types"
+   registry and the fail-closed unknown-type-denies rule are already in
+   asor -00 Sections 4.1 and 10; nothing about that shape was waiting on
+   -01. He attributes his own earlier "-01" citation to habit, not to a
+   claim that the shape is unposted.
+
+3. Rafael reframes `min`: it is a missing constraint TYPE, not a
+   normalization achievable by negating `max`. Max over a negated
+   quantity preserves order but loses value semantics a third party can
+   read without a decoder ring (a tenure floor written as a negative
+   number fails that readability test). asor -01 (still not submitted)
+   will add `min` to the initial registry entries alongside `max`, with
+   a mirrored subsumption line: a `min` present in the parent must be
+   present in the child with `C.min >= P.min`, non-droppable, unknown
+   types still deny. Against -00 as posted this is one Specification
+   Required registration away — the same shape as the evidence field. He
+   asks that the negation trick not be graded as equivalent, since the
+   value semantics are exactly what it loses.
+
+4. Rafael confirms the parent-stays-valid-after-attenuation problem
+   (asor §9.1) is shared and structural, sitting in the composition
+   boundary; none of §9.1's listed mitigations turn it into a
+   token-profile fix. The EMILIA matrix's framing of this as shared
+   between the two drafts is accurate.
+
+5. What changes for HAMR -01 scope item 1 (axis names bound to
+   comparator types): the alignment target now includes `min`, but only
+   once asor -01 is actually posted. Until then, any -01 text must cite
+   asor **-00 §10** for the registry and describe `min` as *pending in
+   asor -01* — never as present in a posted asor document. No HAMR draft
+   text has changed; this is a citation-accuracy constraint recorded
+   ahead of writing.
+
+**DECISION: none.** No reply has been sent by the user to this message;
+nothing here is a course change, only a refinement of the item-1 mapping
+already recorded in the entry below, gated on asor -01 actually posting.
+
+---
+
+## 2026-09-01 — Second reply sent on the EMILIA pre-flight thread after a full read of asor -00; Rafael (asor) and Iman (EMILIA) both aligned; the no-menu case and who-verifies settled in discussion; PR #19 merged
 
 **EVIDENCE**
 
