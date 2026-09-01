@@ -126,8 +126,15 @@ camara/v2/poc/     v1 M1-M6/demo copied unchanged 2026-08-31 (still what M2/M6/
 camara/v2/spec/    working copy of camara/v1/spec/, rewritten 2026-08-31 for the
                    JWS envelope (renamed schemas, required phoneNumber, replaces
                    the old {claims,sig} shape) — 215 -> 319 lines, not unchanged
-ietf/v1/docs/      ietf-agent-delegation.md — IETF proposal (agent/delegation
-                   side only, OAuth WG target) + the draft XML
+ietf/v1/docs/      frozen record of draft-hamr-oauth-agent-delegation-00 as
+                   posted 2026-08-31 (agent/delegation side, OAuth WG target);
+                   ietf-agent-delegation.md is the companion prose proposal
+ietf/v1/poc/       the actionClass floor axis spike (M7) -00 was validated
+                   against; copied unchanged into v2, never edit this copy
+ietf/v2/docs/      working copy for -01 (not yet submitted): item 1 (Floor
+                   Axis Registry) done; items 2-4 pending
+ietf/v2/poc/       copy of ietf/v1/poc/; only the run-path comment in
+                   m7-check.mjs differs (2026-09-01)
 .claude/           local session context (gitignored — never publish)
 ```
 <!-- MEMORY:START -->

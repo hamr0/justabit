@@ -14,7 +14,77 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
-## 2026-09-01 (latest) — Rafael (asor) accepts the -00 §10 correction; asor -01 will register a mirrored `min` comparator; §9.1 parent-validity confirmed shared
+## 2026-09-01 (latest) — IETF -01 round opened (ietf/v2); item 1 Floor Axis Registry drafted, user-validated at the uncommitted tree
+
+**EVIDENCE**
+
+1. `ietf/v1/poc/` copied to `ietf/v2/poc/` per the layout rule (v1 stays a
+   frozen copy behind the -00 record and is never edited again). The -01
+   XML itself lives at `ietf/v2/docs/draft-hamr-oauth-agent-delegation-01.xml`,
+   1528 lines; `docName` bumped to `-01`; the `date` element left empty
+   (filled at submission time); the author block is unchanged on purpose.
+
+2. Item 1 content: a new `axis-registry` subsection (anchor
+   `axis-registry`) defines four comparators — `min`, `max`, `rank`,
+   `one_of` — and states subsumption lines for each in asor's shape (a
+   child link's value for an axis must not loosen the parent's, per
+   comparator semantics). Five registration fields are defined per entry.
+   Eight initial entries are registered: the five -00 §8 axes
+   (`subjectClass`, `accountClass`, `partialPolicy` registered as
+   `one_of` over a singleton value domain; `tenureMin`, `credentialAgeMin`
+   registered as `min`) plus three new axes for -01 items 3-4
+   (`actionClass` = `rank`, `classSource` = `rank`, `writeBudget` = `max`),
+   with their semantics deferred to items 3 and 4 respectively — only the
+   registry entry and comparator assignment land in item 1. The -00 §8
+   table's "comparison" column is mapped onto these comparator names. The
+   IANA considerations request a new "HAMR Floor Axis Registry", policy
+   Specification Required, per RFC 8126 cited via its canonical bibxml
+   entry. A related-work alignment paragraph cites asor -00 §10 and
+   describes `min` as "stated as intended for a future revision" of
+   asor — never as present in a posted asor document. The asor citation
+   was replaced with the canonical bibxml reference (no hand-typed
+   bibliography entry). A "Changes since -00" section was added
+   (anchor confirmed present, line ~1490).
+
+3. Orchestrator error caught by the building agent: an early draft of the
+   spec handed to the agent named the CAMARA PoC's own axis names
+   (`tenure`, `swapAge`, `simType`) instead of the axis names actually
+   posted in -00 §8. The agent did not rename §8 to match the wrong spec;
+   it stopped and escalated the mismatch. The spec was corrected in a
+   second round to use the posted -00 names, and a re-sweep of the -01
+   XML found zero stray-name hits afterward.
+
+4. User decision: for the three enum axes (`subjectClass`, `accountClass`,
+   `partialPolicy`), registered as `one_of` over a singleton value domain
+   with the bare-value wire encoding unchanged from -00 — option 1 — over
+   adding a fifth `eq` comparator to the registry (option 2, rejected).
+
+5. Checks run by exit code at the uncommitted tree: non-ASCII scan exit 0,
+   `xmllint` well-formedness exit 0, forbidden-RFCXML-tag scan exit 0,
+   BCP 14 capitalization-after-`<back>` scan exit 0, `m7-check.mjs`
+   24/24 exit 0, `m3-check.mjs` 26/26 exit 0. Live Datatracker API check:
+   `draft-klrc-aiagent-auth` (asor) is still at -00 (posted 2026-08-27,
+   no -01 live); `draft-hamr-oauth-agent-delegation-00` expires
+   2027-03-04.
+
+6. USER VALIDATION 2026-09-01: the user ran both PoC check suites, the
+   author-tools RFCXML validator (no error reported) against the -01 XML,
+   and `idnits` (clean), and read §8 and the sections following it. This
+   validation holds only at this uncommitted tree.
+
+**DECISION**
+
+Item 1 (Floor Axis Registry) is done. Items 2 (the three-layer boundary
+statement), 3 (`actionClass` + `classSource` semantics), and 4
+(`writeBudget` semantics) are next, in that order. Appendix A is held
+until items 1-4 all exist — the user's own call, made so Appendix A is
+written against a stable registry rather than revised piecemeal. The
+harness research from the EMILIA/asor threads stays local, not committed,
+per the standing no-go on shipping a conformance harness.
+
+---
+
+## 2026-09-01 — Rafael (asor) accepts the -00 §10 correction; asor -01 will register a mirrored `min` comparator; §9.1 parent-validity confirmed shared
 
 **EVIDENCE**
 
