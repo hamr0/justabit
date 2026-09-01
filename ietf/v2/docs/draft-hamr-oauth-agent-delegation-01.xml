@@ -189,6 +189,84 @@
       </t>
     </section>
 
+    <section anchor="layers" numbered="true" toc="default">
+      <name>Position Among Delegation Layers</name>
+      <t>
+        This section is informational. It introduces no new requirement
+        beyond those stated elsewhere in this document; it exists to
+        place this document among neighboring work so a reader does not
+        mistake the boundary this document draws for an oversight.
+      </t>
+      <t>
+        Delegated agent authorization, read across the drafts active in
+        this space, separates into three distinct layers:
+      </t>
+      <dl newline="false" spacing="normal">
+        <dt>(a) Who may act on whose behalf:</dt>
+        <dd>
+          the delegation chain and the floor conditions that bound it, as
+          it narrows from an originating principal down to the agent
+          making a request.
+        </dd>
+        <dt>(b) What exactly may be done, per invocation:</dt>
+        <dd>
+          binding a specific action, tool name, or argument set to a
+          grant, at the moment the action is about to occur.
+        </dd>
+        <dt>(c) What happened, once:</dt>
+        <dd>
+          the receipts and audit evidence that record that a given
+          action was authorized, presented, and consumed.
+        </dd>
+      </dl>
+      <t>
+        This document occupies layer (a), plus floors. The chain model of
+        <xref target="attenuation"/> and the floor axes of
+        <xref target="floors"/>, including the extensible registry of
+        <xref target="axis-registry"/>, bound the space of what an agent
+        could invoke coarsely: an axis such as actionClass or writeBudget
+        constrains a category of action or a cumulative budget across an
+        entire chain, not the arguments of any single call. A floor is
+        evaluated once, when a link is issued or verified, and it does
+        not change per invocation.
+      </t>
+      <t>
+        This document does not perform per-call argument binding, and it
+        does not produce a receipt. <xref target="RFC9396"/> defines Rich
+        Authorization Requests, which bind authorization detail at grant
+        time. <xref target="I-D.das-agentic-tool-binding"/> binds a tool
+        name and its arguments per call, at the moment a request is
+        dispatched, after a model has already chosen what to invoke.
+        <xref target="I-D.schrock-ep-authorization-receipts"/> addresses
+        layer (c), the recorded evidence that an action occurred. Read
+        together, the ordering runs: authorization detail is bound at
+        grant time; floors of the kind this document specifies bound the
+        space in between as a chain is attenuated hop to hop; and a
+        per-call digest is bound after a specific choice has been made,
+        with a receipt recording what happened afterward.
+      </t>
+      <t>
+        One structural problem is shared across this layering and is not
+        solved by any one layer alone: a parent credential remains valid
+        after it has been attenuated into a narrower child, so a holder
+        of the parent retains the broader authority the child was only
+        ever a narrowing of. This problem sits in the composition
+        boundary between layers, not inside any single token profile.
+        <xref target="I-D.asor-wimse-agent-delegation-chain"/> Section 9.1
+        lists mitigations for it (a short token lifetime, holder binding,
+        and status lists). This document shares the same problem and
+        offers no token-profile fix for it either; a deployment that
+        needs to close it needs a mechanism this document does not
+        supply.
+      </t>
+      <t>
+        Implementation experience that informed where this document draws
+        its boundary is summarized, non-normatively, in
+        <xref target="appendix-a"/>.
+      </t>
+      <!-- TODO -01: Appendix A direction 4, harness-side experience -->
+    </section>
+
     <section anchor="header" numbered="true" toc="default">
       <name>The Agent-Delegation Header Field</name>
       <t>
@@ -1146,6 +1224,27 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
     <references>
       <name>Informative References</name>
       <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.7942.xml"/>
+      <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.9396.xml"/>
+      <reference anchor="I-D.das-agentic-tool-binding" target="https://datatracker.ietf.org/doc/html/draft-das-agentic-tool-binding-02">
+        <front>
+          <title>tool_use Is Not invoke(): Binding Execution-Finality to Agentic Tool-Call Interfaces and MCP</title>
+          <author fullname="Sangam Das" initials="S." surname="Das">
+            <organization>Independent Inventor</organization>
+          </author>
+          <date day="31" month="August" year="2026"/>
+        </front>
+        <seriesInfo name="Internet-Draft" value="draft-das-agentic-tool-binding-02"/>
+      </reference>
+      <reference anchor="I-D.schrock-ep-authorization-receipts" target="https://datatracker.ietf.org/doc/html/draft-schrock-ep-authorization-receipts-12">
+        <front>
+          <title>Authorization Receipts for High-Risk Agent Actions</title>
+          <author fullname="Iman Schrock" initials="I." surname="Schrock">
+            <organization>EMILIA Protocol, Inc.</organization>
+          </author>
+          <date day="16" month="August" year="2026"/>
+        </front>
+        <seriesInfo name="Internet-Draft" value="draft-schrock-ep-authorization-receipts-12"/>
+      </reference>
       <reference anchor="I-D.klrc-aiagent-auth" target="https://datatracker.ietf.org/doc/draft-klrc-aiagent-auth/">
         <front>
           <title>AI Agent Authentication and Authorization</title>
@@ -1166,9 +1265,6 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
             <organization>Attenu</organization>
           </author>
           <date day="27" month="August" year="2026"/>
-          <abstract>
-            <t>AI agents increasingly delegate tasks to other agents. Each delegation should convey only a subset of the delegating party's authority, that subset should be bounded in scope, magnitude, and time, and any enforcement point should be able to verify -- offline, with no call to an authorization server -- that a token presented at hop N carries authority no greater than the token at hop N-1, back to a trusted root. OAuth 2.0 Token Exchange (RFC 8693) models two-party delegation and records prior actors in a nested "act" claim, but that claim is informational only and cannot enforce attenuation across a chain of depth two or more. This document defines the Agent Delegation Chain: a profile of OAuth 2.0 JWT access tokens (RFC 9068) that carries authority as Rich Authorization Requests (RFC 9396), links each delegation to its parent by a cryptographic byte- commitment, and specifies a deterministic offline verification algorithm that enforces monotonic attenuation, bounded depth, and monotonic expiry. It reuses existing JOSE, proof-of-possession (RFC 9449), and status-list machinery (the OAuth Status List draft) and introduces no new cryptography.</t>
-          </abstract>
         </front>
         <seriesInfo name="Internet-Draft" value="draft-asor-wimse-agent-delegation-chain-00"/>
       </reference>
@@ -1518,6 +1614,26 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
             <xref target="related-work"/> comparing this registry's
             approach against the constraint-type registry of
             <xref target="I-D.asor-wimse-agent-delegation-chain"/>.
+          </t>
+        </li>
+        <li>
+          <t>
+            Added <xref target="layers"/>, a new, purely informational
+            section placed after <xref target="motivation"/> and before
+            <xref target="header"/>. It positions this document among
+            three delegation layers (who may act, what exactly may be
+            done per invocation, and what happened once), states that
+            this document occupies layer (a) plus floors, and
+            distinguishes it from <xref target="RFC9396"/> (grant-time
+            binding), <xref target="I-D.das-agentic-tool-binding"/>
+            (per-call tool-name-and-argument binding), and
+            <xref target="I-D.schrock-ep-authorization-receipts"/>
+            (layer (c) receipts). It also names, non-normatively, the
+            shared structural problem that a parent credential remains
+            valid after attenuation, citing
+            <xref target="I-D.asor-wimse-agent-delegation-chain"/>
+            Section 9.1 for mitigations this document does not itself
+            supply.
           </t>
         </li>
       </ul>

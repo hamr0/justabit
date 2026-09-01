@@ -14,7 +14,69 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
-## 2026-09-01 (latest) — IETF -01 round opened (ietf/v2); item 1 Floor Axis Registry drafted, user-validated at the uncommitted tree
+## 2026-09-01 (latest) — -01 item 2 drafted: "Position Among Delegation Layers" section, user-validated at the uncommitted tree
+
+**EVIDENCE**
+
+1. A new informational section, anchor `layers`, added after Motivation in
+   `ietf/v2/docs/draft-hamr-oauth-agent-delegation-01.xml`. It states three
+   layers: (a) who may act on whose behalf, (b) what exactly may be done
+   per invocation, (c) what happened, once. This document occupies (a)
+   plus floors; floors (the chain model of `attenuation`, the axes of
+   `floors`/`axis-registry`, naming `actionClass` and `writeBudget`) bound
+   the space of what an agent could invoke coarsely, evaluated once per
+   link, not per call.
+
+2. States plainly that this document does no per-call argument binding
+   and produces no receipt. Neighbouring work is placed: RFC 9396 (grant
+   time), `draft-das-agentic-tool-binding-02` (per call, after the model
+   has chosen), `draft-schrock-ep-authorization-receipts-12` (layer c).
+   An ordering sentence runs grant-time -> floors -> per-call digest ->
+   receipt.
+
+3. Names a structural problem shared across the layering and unsolved by
+   any one layer: a parent credential stays valid after attenuation into
+   a narrower child, so the parent holder retains the broader authority
+   the child only narrowed — sitting in the composition boundary, not in
+   any single token profile. Cites asor -00 §9.1's listed mitigations
+   (short lifetime, holder binding, status lists) and states this
+   document offers no token-profile fix either.
+
+4. A forward pointer to Appendix A carries a TODO comment for direction 4
+   (harness-side implementation experience) — not written this round.
+
+5. Citations verified live against the Datatracker API 2026-09-01: `das`
+   agentic-tool-binding at rev 02, `schrock` ep-authorization-receipts at
+   rev 12, `asor` wimse-agent-delegation-chain at rev 00; bibxml fetched
+   canonically for all three (note: the `bib.ietf.org` path omits the
+   "draft-" prefix — the prefixed form 404s). Abstracts were stripped
+   from all three I-D references to match the -00 reference style, which
+   also cleared one capitalized BCP-14 keyword (MAY) that had been
+   sitting in back-matter reference text.
+
+6. Checks run by exit code at the uncommitted tree: BCP14
+   capitalization-after-`<back>` scan exit 0, non-ASCII scan exit 0,
+   `xmllint` well-formedness exit 0, forbidden-RFCXML-tag scan exit 0,
+   `m7-check.mjs` 24/24 exit 0, `m3-check.mjs` 26/26 exit 0. `git diff
+   --stat` for the one changed file: +119/-3.
+
+7. USER VALIDATION 2026-09-01: the user reported both PoC check suites
+   exit 0 and `idnits` clean. The author-tools RFCXML validator run was
+   NOT reported for this tree — do not claim it. This validation holds
+   only at this uncommitted tree.
+
+**DECISION**
+
+Item 2 (Position Among Delegation Layers) is done. Next step is Appendix
+A direction 4 (short, non-normative mentions of three harness repos with
+bullet points), then items 3 and 4 — this order was chosen by the user on
+2026-09-01. Implementation Status (RFC 7942) was rejected as a home for
+the three harness repos because they are not implementations of this
+profile.
+
+---
+
+## 2026-09-01 — IETF -01 round opened (ietf/v2); item 1 Floor Axis Registry drafted, user-validated at the uncommitted tree
 
 **EVIDENCE**
 
