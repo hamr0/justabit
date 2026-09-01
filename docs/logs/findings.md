@@ -14,7 +14,147 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
-## 2026-09-01 (latest) — User validation run at the uncommitted `camara/v2-rescope` tree: all seven v2 suites green, superseding the voided `8a454c9` record
+## 2026-09-01 (latest) — `/branch-review` gate at `f1c73a1`: two findings, a regression caught in the fix round itself, `m1-jws-check` 33 -> 39
+
+**EVIDENCE**
+
+1. **The gate.** Ran on branch `camara/v2-rescope` at HEAD `f1c73a1`,
+   target `df5e4856..HEAD` (16 commits, 57 files). Stage 1 general review at
+   level medium, stage 2 security full, both run by separate agents in
+   parallel, every finding then independently re-verified by the main
+   session. No Critical findings. Two Warnings, both confirmed.
+
+2. **W1 — schema self-collision, `camara/v2/poc/m1-jws.mjs`.**
+   `checkNoReservedCollision(extraFields)` compares a schema against
+   `BASE_FIELDS` only. It cannot see a key present in BOTH `schema.params`
+   and `schema.answer`, because it receives
+   `extraFields = {...schema.params, ...schema.answer}` — already merged,
+   so the collision information is gone before the check runs. Both that
+   merge and the payload merge `{...base, ...params, ...answer}` are
+   last-key-wins in the same order, so the `answer` value survives and the
+   caller's `params` value silently vanishes. Reproduced by the main
+   session with two negative controls; verbatim output:
+
+   ```
+   W1 params/answer collision -> SIGNED; verify ok= true claims= {"iss":"op","aud":"req","nonce":"n1","iat":1000,"exp":2000,"swapped":true}
+   CONTROL base-claim collision -> REFUSED RESERVED_CLAIM
+   CONTROL normal -> SIGNED; verify ok= true claims= {...,"maxAge":720,"swapped":true}
+   ```
+
+   Input: base `{iss:'op',aud:'req',nonce:'n1',iat:1000,exp:2000}`, schema
+   `{params:{swapped:'integer'}, answer:{swapped:'boolean'}}`, params
+   `{swapped:5}`, answer `{swapped:true}`. The caller's `swapped:5` never
+   reached the signed payload. NOT attacker-reachable — `schema` is
+   developer-supplied, never wire input — so it is a footgun of the same
+   class as the reserved-claim clobber, one level narrower. It mattered
+   because V2-M3 adds callers.
+
+3. **W2 — stale line count, `CLAUDE.md:128`.** The repo map read
+   `215 -> 310 lines` for `camara/v2/spec/carrier-attestation.yaml`.
+   `wc -l` gives 319. The 215 baseline is correct. 310 was true at commit
+   `2623c86`; the same commit range then added the `/retrieve-age-band`
+   retraction note and never updated the figure — an orphaned reference
+   created inside the very diff being reviewed.
+
+4. **The fix round.** A new sibling guard
+   `checkNoSelfCollision(paramsFields, answerFields)` was added, returning
+   `ClaimRejected('SCHEMA_SELF_COLLISION', ...)`, called at BOTH
+   `attestAnswer` (construction) and `verifyAnswer` (verification), ordered
+   after `checkNoReservedCollision` so a base collision still returns
+   `RESERVED_CLAIM`. Three cases added (34 attest-side positive, 35
+   verify-side positive that bypasses `attestAnswer` via `signJws` to prove
+   the second site holds independently, 36 negative control).
+   `conclude(33)` -> `conclude(36)`.
+
+   Mutation proof of that round: the new suite against the pre-fix
+   `m1-jws.mjs` from `f1c73a1` gave `exit 1, RESULT: 34/36`, with cases 34
+   and 35 the failures. Real tree: `exit 0, RESULT: 36/36`.
+
+5. **THE REGRESSION.** Reviewing the fix round's own diff, the main
+   session found `checkNoSelfCollision` calls `Object.keys(paramsFields)`,
+   and `verifyAnswer` — unlike `attestAnswer` — had no `isPlainObject`
+   guard on its schema. Spreading `undefined` is harmless;
+   `Object.keys(undefined)` throws. So a malformed schema stopped returning
+   a typed rejection and started throwing. Reproduced against both
+   sources:
+
+   | input to `verifyAnswer`             | pre-fix (`f1c73a1`)  | fix round        |
+   |--------------------------------------|-----------------------|------------------|
+   | `schema = {}`                        | returned `EXTRA_CLAIM` | THREW TypeError |
+   | `schema = {answer:{...}}`, no params | returned `EXTRA_CLAIM` | THREW TypeError |
+   | `schema = null`                      | THREW TypeError        | THREW TypeError (pre-existing) |
+
+   The first two rows were a NEW regression; the third was pre-existing.
+   This violated the module's own reject-never-throw contract on the
+   verification path.
+
+6. **The hardening.** An `isPlainObject` guard now sits at the top of
+   `verifyAnswer`, after `verifyJws`'s token check (so a bad token still
+   rejects as `JwsRejected` first) and before `schema` is touched, covering
+   `schema`, `schema.params` and `schema.answer`, returning
+   `ClaimRejected('MALFORMED_INPUT', ...)` to match `attestAnswer`. This
+   also closes the pre-existing `schema = null` throw. Three more cases
+   added (37 `schema={}`, 38 `schema=null`, 39 missing `params`), each
+   asserting BOTH that nothing threw AND the returned code, following case
+   25's established pattern. `conclude(36)` -> `conclude(39)`.
+
+   Mutation proof of the hardening: with only the new guard removed,
+   `exit 1, RESULT: 36/39`, failures exactly 37, 38, 39. Real tree:
+   `exit 0, RESULT: 39/39`.
+
+7. **Main session's own re-verification after the hardening**, verbatim:
+
+   ```
+   schema={} (no params/answer) -> returned false MALFORMED_INPUT
+   schema=null -> returned false MALFORMED_INPUT
+   params missing -> returned false MALFORMED_INPUT
+   W1 params/answer collision -> REFUSED SCHEMA_SELF_COLLISION
+   CONTROL base-claim collision -> REFUSED RESERVED_CLAIM
+   CONTROL normal -> SIGNED; verify ok= true
+   ```
+
+8. **Seven suites, run by the main session on the final tree**, all
+   exit 0: m1-check 20/20, m1-jws-check 39/39, m2-check 10/10, m3-check
+   26/26, m4-check 42/42, m5-check 67/67, m6-check 47/47.
+
+9. **`verifyRefusal` checked, no equivalent defect** — it never derives
+   its fields from a caller-supplied schema, always using the frozen
+   module constant `REFUSAL_FIELDS`. Reported, not changed.
+
+10. **Two items reported and NOT fixed**, standing open: `signJws`/
+    `attestAnswer` return a bare string on success but `{ok:false, reason}`
+    on failure — an undocumented union that fails closed, and which the
+    check suite already handles at `m1-jws-check.mjs:374`; and
+    `makeNonceStore` grows unbounded with no expiry pruning, correct for a
+    PoC.
+
+11. **CRITICAL — user validation state.** The count moved 33 -> 39. The
+    user validation record earlier this same day (the entry directly below
+    this one, seven suites at `m1-jws-check` 33/33) is therefore VOID for
+    `m1-jws-check`, per the repo rule that a user run validates only at the
+    count and tree it was run at. That earlier entry must NOT be rewritten
+    — it is correct as dated history. A FRESH user validation run at 39 is
+    required before release.
+
+**DECISION**
+
+1. Fix both findings now and re-run the gate, rather than logging W1 as a
+   documented open item — because W1 is live-reproduced silent data loss
+   in code V2-M3 will build callers on, and fixing it before those callers
+   exist is cheaper than after.
+2. Harden `verifyAnswer` to match `attestAnswer` rather than merely
+   restoring parity — because it undoes the regression and makes the two
+   sides symmetric, which is that file's own stated design goal.
+
+One standing lesson worth stating, consistent with the repo's existing
+practice: the fix round is the least-reviewed code in a session, and here
+it introduced a regression that only reading its diff caught. Both
+mutation proofs were sound and still would not have surfaced it — the new
+tests passed while a previously-clean rejection path had started throwing.
+
+---
+
+## 2026-09-01 — User validation run at the uncommitted `camara/v2-rescope` tree: all seven v2 suites green, superseding the voided `8a454c9` record
 
 **EVIDENCE**
 

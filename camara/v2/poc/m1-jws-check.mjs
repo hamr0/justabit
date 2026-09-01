@@ -377,6 +377,100 @@ check('1 WRONG SEGMENT COUNT', false, verifyJws('abc.def', resolveKey), JwsRejec
   check('29 NEGATIVE CONTROL (non-colliding schema still signs and verifies)', true, v);
 }
 
+// 34 SCHEMA SELF COLLISION AT ATTEST — the exact defect this fix closes:
+// schema {params:{swapped:'integer'}, answer:{swapped:'boolean'}} with
+// params={swapped:5}, answer={swapped:true} used to sign a payload carrying
+// "swapped":true, silently dropping the caller's params.swapped:5 — both
+// `extraFields = {...params, ...answer}` and the payload merge are
+// last-key-wins in the same order. Must now be refused at attestAnswer
+// time, before any signature exists.
+{
+  const base = freshBase();
+  const collidingSchema = { params: { swapped: 'integer' }, answer: { swapped: 'boolean' } };
+  check('34 SCHEMA SELF COLLISION AT ATTEST (params.swapped vs answer.swapped)', false,
+    attestAnswer(operator.privateKey, OP_KID, base, collidingSchema, { swapped: 5 }, { swapped: true }),
+    ClaimRejected, 'SCHEMA_SELF_COLLISION');
+}
+
+// 35 SCHEMA SELF COLLISION AT VERIFY — attestAnswer would refuse to build
+// this (case 34), so this bypasses it via signJws directly to prove
+// verifyAnswer holds the same line independently.
+{
+  const base = freshBase();
+  const collidingSchema = { params: { swapped: 'integer' }, answer: { swapped: 'boolean' } };
+  const token = signJws(operator.privateKey, OP_KID, { ...base, swapped: true });
+  check('35 SCHEMA SELF COLLISION AT VERIFY (params.swapped vs answer.swapped)', false,
+    verifyAnswer(token, resolveKey, collidingSchema, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW }),
+    ClaimRejected, 'SCHEMA_SELF_COLLISION');
+}
+
+// 36 NEGATIVE CONTROL — a normal non-self-colliding schema must still sign
+// and verify; the new self-collision guard must not be reachable from
+// ordinary schemas, only from ones that actually name the same claim on
+// both sides.
+{
+  const base = freshBase();
+  const okSchema = { params: { maxAge: 'integer' }, answer: { swapped: 'boolean' } };
+  const token = attestAnswer(operator.privateKey, OP_KID, base, okSchema, { maxAge: 2160 }, { swapped: false });
+  const v = typeof token === 'string'
+    ? verifyAnswer(token, resolveKey, okSchema, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW })
+    : token;
+  check('36 NEGATIVE CONTROL (non-self-colliding schema still signs and verifies)', true, v);
+}
+
+// 37 VERIFYANSWER MALFORMED SCHEMA {} NEVER THROWS — the regression this fix
+// closes: checkNoSelfCollision's Object.keys(schema.params) threw a
+// TypeError on an empty schema instead of returning a clean rejection
+// (pre-fix behaviour was ClaimRejected/EXTRA_CLAIM). Must reject, not throw.
+{
+  const base = freshBase();
+  const token = signJws(operator.privateKey, OP_KID, { ...base, maxAge: 2160, swapped: false });
+  let threw = false;
+  let v;
+  try {
+    v = verifyAnswer(token, resolveKey, {}, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW });
+  } catch {
+    threw = true;
+  }
+  checkTrue('37 VERIFYANSWER MALFORMED SCHEMA {} REFUSES, NEVER THROWS',
+    !threw && v && v.ok === false && v.reason instanceof ClaimRejected && v.reason.code === 'MALFORMED_INPUT');
+}
+
+// 38 VERIFYANSWER SCHEMA=NULL NEVER THROWS — same regression, schema itself
+// is null (pre-fix this threw reading `.params` off null, both before and
+// after the fix round — this closes it too, which is intended).
+{
+  const base = freshBase();
+  const token = signJws(operator.privateKey, OP_KID, { ...base, maxAge: 2160, swapped: false });
+  let threw = false;
+  let v;
+  try {
+    v = verifyAnswer(token, resolveKey, null, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW });
+  } catch {
+    threw = true;
+  }
+  checkTrue('38 VERIFYANSWER SCHEMA=NULL REFUSES, NEVER THROWS',
+    !threw && v && v.ok === false && v.reason instanceof ClaimRejected && v.reason.code === 'MALFORMED_INPUT');
+}
+
+// 39 VERIFYANSWER SCHEMA MISSING ONE HALF NEVER THROWS — schema with only
+// `answer`, no `params`, is the shape most likely to occur from a caller
+// bug rather than an adversarial input; must reject cleanly, not throw.
+{
+  const base = freshBase();
+  const token = signJws(operator.privateKey, OP_KID, { ...base, maxAge: 2160, swapped: false });
+  let threw = false;
+  let v;
+  try {
+    v = verifyAnswer(token, resolveKey, { answer: { swapped: 'boolean' } },
+      { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW });
+  } catch {
+    threw = true;
+  }
+  checkTrue('39 VERIFYANSWER SCHEMA MISSING params REFUSES, NEVER THROWS',
+    !threw && v && v.ok === false && v.reason instanceof ClaimRejected && v.reason.code === 'MALFORMED_INPUT');
+}
+
 // =====================================================================
 // POSITIVES
 // =====================================================================
@@ -442,4 +536,4 @@ check('1 WRONG SEGMENT COUNT', false, verifyJws('abc.def', resolveKey), JwsRejec
   checkTrue(`33 SIZE GUARD (${size}B < ${capacity}B derived RSA-4096 OAEP cap)`, typeof token === 'string' && size < capacity);
 }
 
-conclude(33);
+conclude(39);

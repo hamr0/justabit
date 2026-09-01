@@ -12,11 +12,13 @@ primitive, and `attestAnswer`/`verifyAnswer` + `attestRefusal`/
 `camara/v2/docs/camara-attested-windowed-disclosure.md` §4 exactly
 (the exported `SIM_SWAP_CHECK` schema; `m1-jws-check.mjs` also carries a
 test-only `TENURE_CHECK` fixture proving the mechanism generalizes).
-AGENT-RUN 33/33, user validation PENDING:
+AGENT-RUN 39/39, user validation PENDING:
 
 ```
-node camara/v2/poc/m1-jws-check.mjs   # V2-M1 JWS attestation core — 33 cases (AGENT-RUN
-                        #   33/33, 2026-08-31; user validation PENDING)
+node camara/v2/poc/m1-jws-check.mjs   # V2-M1 JWS attestation core — 39 cases (AGENT-RUN
+                        #   39/39, 2026-09-01 — verifyAnswer schema guard
+                        #   hardened to match attestAnswer, 36 -> 39; user
+                        #   validation PENDING)
 ```
 
 **Requirements & no-gos:** [`docs/product/prd.md`](../../docs/product/prd.md) §4–§5.

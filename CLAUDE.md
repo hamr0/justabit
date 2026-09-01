@@ -125,7 +125,7 @@ camara/v2/poc/     v1 M1-M6/demo copied unchanged 2026-08-31 (still what M2/M6/
                    day (m1-jws.mjs, m1-jws-check.mjs) — caller migration is V2-M3
 camara/v2/spec/    working copy of camara/v1/spec/, rewritten 2026-08-31 for the
                    JWS envelope (renamed schemas, required phoneNumber, replaces
-                   the old {claims,sig} shape) — 215 -> 310 lines, not unchanged
+                   the old {claims,sig} shape) — 215 -> 319 lines, not unchanged
 ietf/v1/docs/      ietf-agent-delegation.md — IETF proposal (agent/delegation
                    side only, OAuth WG target) + the draft XML
 .claude/           local session context (gitignored — never publish)

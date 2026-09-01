@@ -247,6 +247,27 @@ function checkNoReservedCollision(extraFields) {
   return null;
 }
 
+// Fails closed on an answer schema whose OWN two halves collide with each
+// other. `checkNoReservedCollision` cannot see this: it receives
+// `extraFields = {...schema.params, ...schema.answer}`, which is ALREADY
+// merged, so a name present in both halves has already lost the collision
+// information before that check ever runs. PROVEN: schema
+// `{params:{swapped:'integer'}, answer:{swapped:'boolean'}}` with
+// `params={swapped:5}` signed a payload carrying `"swapped":true` —
+// `{...base, ...params, ...answer}` is last-key-wins, so the caller's
+// `params.swapped:5` silently vanished with no error. Checked from this one
+// definition at BOTH construction (attestAnswer, before the payload is
+// built) and verification (verifyAnswer), so the two sides cannot drift
+// apart, exactly as `checkNoReservedCollision` is.
+function checkNoSelfCollision(paramsFields, answerFields) {
+  for (const k of Object.keys(paramsFields)) {
+    if (k in answerFields) {
+      return new ClaimRejected('SCHEMA_SELF_COLLISION', `schema params/answer both name claim: ${k}`);
+    }
+  }
+  return null;
+}
+
 function verifyRequesterChecks(payload, { expectedIss, expectedAud, nonceStore, now }) {
   if (payload.iss !== expectedIss) return new ClaimRejected('ISS_MISMATCH', 'iss mismatch');
   if (payload.aud !== expectedAud) return new ClaimRejected('AUD_MISMATCH', 'aud mismatch');
@@ -294,6 +315,8 @@ export function attestAnswer(privateKey, kid, base, schema, params, answer) {
   const extraFields = { ...schema.params, ...schema.answer };
   const collisionErr = checkNoReservedCollision(extraFields);
   if (collisionErr) return { ok: false, reason: collisionErr };
+  const selfCollisionErr = checkNoSelfCollision(schema.params, schema.answer);
+  if (selfCollisionErr) return { ok: false, reason: selfCollisionErr };
   const payload = { ...base, ...params, ...answer };
   const err = checkClosedPayload(payload, extraFields);
   if (err) return { ok: false, reason: err };
@@ -303,9 +326,20 @@ export function attestAnswer(privateKey, kid, base, schema, params, answer) {
 export function verifyAnswer(token, resolveKey, schema, { expectedIss, expectedAud, nonceStore, now }) {
   const r = verifyJws(token, resolveKey);
   if (!r.ok) return r;
+  // `attestAnswer` guards schema/schema.params/schema.answer before ever
+  // touching them; this side did not, so `checkNoSelfCollision`'s
+  // `Object.keys(paramsFields)` threw on a malformed schema instead of
+  // rejecting cleanly (schema={} or schema missing `params`/`answer` ->
+  // TypeError: Cannot convert undefined or null to object). Mirrors
+  // attestAnswer's own guard so the two sides cannot drift apart.
+  if (!isPlainObject(schema) || !isPlainObject(schema.params) || !isPlainObject(schema.answer)) {
+    return { ok: false, reason: new ClaimRejected('MALFORMED_INPUT', 'schema must be a plain object with params/answer') };
+  }
   const extraFields = { ...schema.params, ...schema.answer };
   const collisionErr = checkNoReservedCollision(extraFields);
   if (collisionErr) return { ok: false, reason: collisionErr };
+  const selfCollisionErr = checkNoSelfCollision(schema.params, schema.answer);
+  if (selfCollisionErr) return { ok: false, reason: selfCollisionErr };
   const closedErr = checkClosedPayload(r.payload, extraFields);
   if (closedErr) return { ok: false, reason: closedErr };
   const reqErr = verifyRequesterChecks(r.payload, { expectedIss, expectedAud, nonceStore, now });
