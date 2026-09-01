@@ -139,6 +139,18 @@
           The service that receives a request bearing a delegation chain
           and must decide whether to honor it.
         </dd>
+        <dt>Resource Owner:</dt>
+        <dd>
+          The party that owns the resource named by a request's target
+          origin and that publishes and signs the declared menu
+          (<xref target="declared-menu"/>) governing that origin's
+          classSource declared value. A deployment commonly has the
+          Resource Owner and the Relying Service be the same operator,
+          but this document does not require it; the two are distinct
+          roles, and only the Resource Owner's signing key and the
+          menu's origin binding are constrained by this document, not
+          the roles' organizational identity.
+        </dd>
         <dt>Scope:</dt>
         <dd>
           The set of capabilities a link grants, expressed as a set of
@@ -149,7 +161,9 @@
           A named set of conditions a subject must satisfy, expressed as
           axis/value pairs, that a Relying Service or an intermediate
           Delegate requires before it will act. See
-          <xref target="floors"/>.
+          <xref target="floors"/>. Each axis/value pair within that set
+          is a constraint; a floor is the aggregate of the constraints
+          it carries, at most one per axis.
         </dd>
         <dt>Link:</dt>
         <dd>
@@ -598,14 +612,21 @@
           <li><t><strong>Tightening direction.</strong> Which change to
             a value on this axis counts as tightening, per the
             comparator's definition above.</t></li>
-          <li><t><strong>Omitted-axis rule.</strong> An axis absent from
-            a link inherits the published or parent floor's value for
-            that axis; this inheritance is surfaced to the caller in a
-            returned <tt>effective</tt> field rather than left implicit.
-            This is not a new rule: it restates, for the registry, the
-            omission handling already required by rule 2 of
-            <xref target="attenuation"/> and by
-            <xref target="monotone"/>.</t></li>
+          <li><t><strong>Omitted-axis rule.</strong> Two distinct cases
+            apply, and this field states both rather than one. First,
+            link-to-link within a chain: where the parent link L(i-1)
+            carries a constraint on a registered axis and the child link
+            L(i) omits it, that omission is non-relaxation-by-omission
+            and the chain MUST be rejected, per rule 2 of
+            <xref target="attenuation"/>. Second, link-to-published-floor:
+            where no link in the chain up to and including the link under
+            evaluation carries a constraint on a registered axis, the
+            issuer's published floor for that axis applies unchanged.
+            <tt>effective</tt> names the verifier's evaluated outcome for
+            an axis under this second case; how, or whether, a verifier
+            conveys that outcome to a caller is out of scope for this
+            document. The second case is inheritance, not relaxation, and
+            it is not a restatement of the first.</t></li>
         </ol>
         <t>
           The initial contents of the registry, established by this
@@ -725,11 +746,15 @@
           classSource is an ordered enumeration with two values, ranked
           method &lt; declared per the rank comparator of
           <xref target="axis-registry"/>, naming where a verifier is
-          permitted to obtain a request's actionClass. When a link omits
-          classSource, the default value is method, per the omitted-axis
-          rule of <xref target="axis-registry"/>; method is also the
-          lower-ranked, tighter value of the two, so the default and the
-          tightest value coincide.
+          permitted to obtain a request's actionClass. Where no link in
+          the chain constrains classSource, an omitting link's default
+          value is method, per the link-to-published-floor case of the
+          omitted-axis rule of <xref target="axis-registry"/>; method is
+          also the lower-ranked, tighter value of the two, so the default
+          and the tightest value coincide. Where a parent link does
+          constrain classSource, a child link's omission of it is instead
+          the link-to-link case of that same rule, and the chain MUST be
+          rejected rather than defaulted.
         </t>
         <dl newline="false" spacing="normal">
           <dt>method:</dt>
@@ -740,7 +765,7 @@
           </dd>
           <dt>declared:</dt>
           <dd>
-            the verifier additionally consults the resource owner's
+            the verifier additionally consults the Resource Owner's
             signed menu (<xref target="declared-menu"/>) and, where that
             menu verifies and names the operation, uses the menu's
             declared value in place of the method default.
@@ -749,7 +774,7 @@
         <t>
           method never extends trust to a value asserted by a party other
           than the verifier itself, while declared extends that trust to
-          whatever the resource owner's menu asserts; method is
+          whatever the Resource Owner's menu asserts; method is
           therefore the tighter of the two values, and is ranked lower
           per <xref target="axis-registry"/>'s ordered set method &lt;
           declared. Per the rank comparator, a child link's classSource
@@ -784,7 +809,7 @@
         </t>
         <t>
           Where a request's classSource is declared, its actionClass is
-          the value the resource owner's menu declares for that
+          the value the Resource Owner's menu declares for that
           operation, provided the menu verifies per
           <xref target="declared-menu"/> and names the operation. On any
           failure of the menu: the menu is absent, its signature does
@@ -866,7 +891,7 @@
           regardless of whether the menu's signature is otherwise valid.
         </t>
         <t>
-          A menu MUST be verified against the resource owner's public
+          A menu MUST be verified against the Resource Owner's public
           key, obtained out of band or from a configured trust source; a
           verifier MUST NOT obtain that key from the menu itself,
           following the same rule <xref target="verification"/> already
@@ -879,7 +904,7 @@
       <section anchor="menu-publication" numbered="true" toc="default">
         <name>Publication</name>
         <t>
-          This section is non-normative. A resource owner may publish its
+          This section is non-normative. A Resource Owner may publish its
           menu through its API description; one way to do so is a
           per-operation extension in an OpenAPI document, accompanied by
           a detached JWS at a well-known location. The format of such a
@@ -923,7 +948,7 @@
           convention rather than on an individual reading of each GET
           operation; and the cost of the 57 read-named POST operations
           above defaulting to x was not itself reviewed for whether a
-          resource owner would actually want to declare them down to r.
+          Resource Owner would actually want to declare them down to r.
           Neither limitation is corrected by this document; a deployment
           relying on the survey's numbers should treat them as directional,
           not as an audited count.
@@ -957,15 +982,20 @@
           <xref target="attenuation"/>.
         </t>
         <t>
-          Where a link omits writeBudget, the published floor for
-          writeBudget is zero unless the issuer's published floor for the
-          chain states otherwise, and a link that omits the axis inherits
-          that floor under the omitted-axis rule of
-          <xref target="axis-registry"/>; omission is therefore never a
-          widening, only ever an inheritance of whatever floor already
+          Where no link in the chain constrains writeBudget, an omitting
+          link inherits the issuer's published floor for writeBudget,
+          which is zero unless the issuer's published floor for the
+          chain states otherwise; this is the link-to-published-floor
+          case of the omitted-axis rule of
+          <xref target="axis-registry"/>, and omission is therefore never
+          a widening, only ever an inheritance of whatever floor already
           applies. This is the same effective-zero outcome the
           proof-of-concept's own handling of an omitted writeBudget
-          already produces.
+          already produces. Where a parent link does constrain
+          writeBudget, a child link's omission of it is instead the
+          link-to-link case of that same rule, and the chain MUST be
+          rejected rather than defaulted, per rule 2 of
+          <xref target="attenuation"/>.
         </t>
       </section>
       <section anchor="write-budget-limit-count" numbered="true" toc="default">
@@ -1041,15 +1071,12 @@
           from any link other than L(0).
         </t>
         <t>
-          This resolves case 22 of the proof-of-concept accompanying this
-          document, recorded in <xref target="implementation-status"/>:
-          the code takes a chain identifier as a caller-supplied request
-          field, so a fresh identifier presented with the same chain
-          refills the budget rather than continuing to spend against it.
-          This section's rule is authoritative where the code differs;
-          the code has not yet been changed to derive the identifier as
-          this section requires, and the text is ahead of the code on
-          this point.
+          This rule is what case 22 of the proof-of-concept accompanying
+          this document, recorded in <xref target="implementation-status"/>,
+          now exercises: the code derives the chain identifier itself and
+          pins that a caller-supplied identifier field has no effect,
+          rather than refilling the budget when one is presented with the
+          same chain.
         </t>
       </section>
       <section anchor="write-budget-limits" numbered="true" toc="default">
@@ -1221,6 +1248,7 @@
         <li><t>Verify the three attenuation rules of <xref target="attenuation"/> for every adjacent pair of links in the chain.</t></li>
         <li><t>Verify that every floor attestation carried by the chain echoes, exactly, the nonce the verifier issued for this exchange, and reject if any does not.</t></li>
         <li><t>Verify that no link in the chain has an expiry that has passed, evaluated at the time of verification.</t></li>
+        <li><t>Classify the request's actionClass per <xref target="classification"/>, consulting the declared menu of <xref target="declared-menu"/> where the chain's classSource is declared, and admit or refuse the request against the writeBudget ledger of <xref target="write-budget"/>; per <xref target="action-class-verifier-placement"/>, this step is performed by the verifier at the resource or credential boundary, not by an upstream harness or orchestration layer.</t></li>
         <li><t>Only after every preceding step has succeeded, apply the Relying Service's authorization policy to the resulting, fully verified chain.</t></li>
       </ol>
       <t>
@@ -1501,8 +1529,8 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         <li>expiry enforcement, including the missing/non-numeric-expiry-is-expired rule;</li>
         <li>the signed-refusal shape of <xref target="refusal"/> and its independent verification path;</li>
         <li>the closed floor axis set of <xref target="floors"/>, the duration grammar of <xref target="duration-grammar"/>, and the monotone tightening comparison of <xref target="monotone"/>;</li>
-        <li>the actionClass and classSource classification and admission rules of <xref target="action-class"/>, exercised by 24 automated cases in the proof-of-concept. That code predates this text and this text is authoritative where the two differ: the proof-of-concept takes a caller-supplied chain identifier rather than deriving one from the signed chain; matches menu operation keys as exact strings rather than by the path-template rule of <xref target="declared-menu"/>; and does not compare a menu's issuer against the request's target origin, the binding <xref target="declared-menu"/> requires.</li>
-        <li>the writeBudget ledger of <xref target="write-budget"/>: reserve-then-decrement admission against a stateful, per-chain count, and an actionClass r request never spending against it. This shares the same proof-of-concept and predates this text in the same way as the previous bullet, with one named gap: the code takes the chain identifier from the caller-supplied request field rather than deriving it from L(0)'s signature per <xref target="write-budget-chain-identifier"/>, so a fresh identifier presented with the same chain refills the budget (its own case 22 pins this exact gap). This section's text is authoritative; the code has not been changed to close it.</li>
+        <li>the actionClass and classSource classification and admission rules of <xref target="action-class"/>, exercised by 27 automated cases in the proof-of-concept: the classification procedure; the deterministic path-template rule for matching menu operation keys, per <xref target="declared-menu"/>; and the binding of a menu's issuer to the request's target origin that <xref target="declared-menu"/> requires.</li>
+        <li>the writeBudget ledger of <xref target="write-budget"/>: reserve-then-decrement admission against a stateful, per-chain count, and an actionClass r request never spending against it. This shares the same proof-of-concept and the same case count as the previous bullet, and includes the chain identifier derived by the verifier as the SHA-256 digest of L(0)'s signature value, per <xref target="write-budget-chain-identifier"/>, rather than taken from a caller-supplied request field.</li>
       </ul>
       <t>
         The following elements of this profile are NOT implemented in the
@@ -1606,13 +1634,13 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
       </t>
       <t>
         <strong>A declared menu is an owner-signed downgrade surface.</strong>
-        classSource declared lets the resource owner's menu lower a
+        classSource declared lets the Resource Owner's menu lower a
         request's actionClass below its method default, for example
         declaring a POST as r. The origin-binding rule and the
         out-of-band key requirement of <xref target="declared-menu"/> are
         what keep a third party from supplying that downgrade for a
         resource it does not own: without both checks, a verifier that
-        resolves one key for more than one resource owner could be
+        resolves one key for more than one Resource Owner could be
         handed a validly-signed menu for the wrong resource and apply its
         declared classes to a request it was never meant to cover. A
         verifier that accepts a menu without checking both the
@@ -1722,9 +1750,9 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         <front>
           <title>Cross-Organizational Delegation for Workload and Agent Identity: Problem Statement and Requirements</title>
           <author initials="M." surname="Reece"><organization>TowerGuardian Consulting</organization></author>
-          <date month="July" day="30" year="2026"/>
+          <date month="August" day="31" year="2026"/>
         </front>
-        <seriesInfo name="Internet-Draft" value="draft-reece-wimse-cross-org-delegation-01"/>
+        <seriesInfo name="Internet-Draft" value="draft-reece-wimse-cross-org-delegation-02"/>
       </reference>
       <reference anchor="I-D.sweeney-wimse-credential-delegation" target="https://datatracker.ietf.org/doc/draft-sweeney-wimse-credential-delegation/">
         <front>
@@ -2081,7 +2109,7 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
       <t>
         V8 and V9 each present a request "POST /check" against a link
         whose actionClass is r. Both are accompanied by a menu, signed by
-        the resource owner's key, declaring "POST /check" as r. In V8 the
+        the Resource Owner's key, declaring "POST /check" as r. In V8 the
         menu's iss value is the origin of the request target,
         https://api.example.com, matching it exactly. In V9 the menu
         carries the same declared entry and the same valid signature, but
@@ -2272,9 +2300,9 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
             paragraph to <xref target="security"/>, three test vectors
             (V7 through V9, the last a negative control for the
             origin-binding rule) to <xref target="vectors"/>, and a bullet
-            to <xref target="implementation-status"/> naming the three
-            places the proof-of-concept's existing code falls short of
-            this section's requirements. Replaced the two Floor Axis
+            to <xref target="implementation-status"/> recording the
+            proof-of-concept's case count against this section's
+            requirements. Replaced the two Floor Axis
             Registry table cells that deferred actionClass's and
             classSource's semantics, and the standalone marker comment
             for this item, with a cross-reference to the new section.
@@ -2300,13 +2328,34 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
             three-request sequence, and V11, a negative control re-using
             an exhausted chain under a caller-supplied identifier) to
             <xref target="vectors"/>, and a bullet to
-            <xref target="implementation-status"/> naming the
-            proof-of-concept's one remaining gap against this section.
-            Replaced the writeBudget row's deferred-semantics note in
+            <xref target="implementation-status"/> recording that the
+            proof-of-concept now derives the chain identifier as this
+            section requires. Replaced the writeBudget row's deferred-semantics note in
             <xref target="axis-registry"/>'s table, and the standalone
             marker comment for this item, with a cross-reference to the
             new section, and rewrote the paragraph after that table so it
             no longer describes writeBudget's semantics as unspecified.
+          </t>
+        </li>
+        <li>
+          <t>
+            Updated three sections that already existed in -00. Added a
+            Resource Owner entry to the Conventions and Terminology list
+            (<xref target="conventions"/>), and a clause to the Floor
+            definition in that same list making explicit that a floor is
+            the aggregate of its per-axis constraints, at most one per
+            axis. Added a step to the ordered Verification Procedure
+            (<xref target="verification"/>) placing actionClass
+            classification, declared-menu consultation, and writeBudget
+            admission after chain and attenuation validation and before
+            the Relying Service's authorization-policy step. Restated the
+            Floor Axis Registry's Omitted-axis rule
+            (<xref target="axis-registry"/>) as two distinct cases,
+            link-to-link omission of an axis the parent constrained
+            (a rejection per rule 2 of <xref target="attenuation"/>) and
+            link-to-published-floor inheritance where no link in the
+            chain constrains the axis, replacing an earlier statement
+            that conflated the two.
           </t>
         </li>
       </ul>
