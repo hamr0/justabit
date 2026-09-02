@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+- **`draft-hamr-oauth-agent-delegation-01` SUBMITTED and posted**
+  (2026-09-02). Verified live against the IETF Datatracker API: rev 01,
+  state "posted", submission_date 2026-09-02, expires 2027-03-06, 48
+  pages, title "An Attenuated Delegation Profile for Automated Agents".
+  The user's own `author-tools` and `idnits` runs on the uploaded XML
+  both reported CLEAN — the first author-tools schema validation
+  reported this cycle. Submitted XML: sha256 prefix `cc1f8435231db0fe`,
+  2364 lines, byte-unchanged from commit `49e3fab` onward. All seven
+  cited I-D references re-verified live against `bib.ietf.org` on
+  submission day; all seven matched on revision and date. Submission is
+  not adoption — reply to the live OAuth WG thread and watching for
+  `asor` -01 to post remain open.
+
 ## 0.12.0 — 2026-09-02
 
 - **CAMARA PR #331 reply and nit closed** (`ac18310`, #18). Posted the

@@ -14,6 +14,63 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-09-02 — draft-hamr-oauth-agent-delegation-01 SUBMITTED and posted
+
+**EVIDENCE**
+
+1. Queried live from the IETF Datatracker API (not the web page), on
+   2026-09-02: `name draft-hamr-oauth-agent-delegation`, `rev 01`, `state
+   "posted"`, `submission_date 2026-09-02`, `expires 2027-03-06`, `pages
+   48`, title "An Attenuated Delegation Profile for Automated Agents".
+   The submission queue shows rev 00 posted 2026-08-31 and rev 01 posted
+   2026-09-02.
+2. The user ran `author-tools` and `idnits` on the uploaded XML before
+   submission; both reported CLEAN. This is the first author-tools
+   schema validation reported this cycle — every prior entry in this log
+   correctly says author-tools was NOT reported; those entries are
+   unchanged. The submitted XML: sha256 prefix `cc1f8435231db0fe`, 2364
+   lines, byte-unchanged from commit `49e3fab` onward — every commit
+   after `49e3fab` touched only the PoC and the docs, never the draft
+   XML.
+3. This closes the standing gap named in the prior entry: local xmllint
+   well-formedness is not RFCXML schema validity, and author-tools had
+   never been run at any tree this cycle. It has now run, on the exact
+   submitted bytes, and passed.
+4. All seven cited I-D references were re-verified live against
+   canonical bibxml at `bib.ietf.org` on submission day, 2026-09-02; all
+   seven matched on both revision and date. `asor-wimse-agent-delegation-
+   chain` is still revision 00, so the axis-registry alignment
+   paragraph's wording — that a mirrored `min` comparator is stated as
+   intended for a future revision and is not present as posted — remains
+   accurate as submitted.
+5. Contents of -01 as posted: item 1 Floor Axis Registry; item 2
+   Position Among Delegation Layers; item 3 Action Class Floors; item 4
+   Write Budget; Appendix A direction 4; vectors V7 through V11; the
+   two-case omitted-axis rule; Resource Owner as a defined term; a new
+   step in the Verification Procedure. 48 pages.
+6. The release: v0.12.0 cut as commit `851efb4`, PR #22 squash-merged to
+   `main` as `6400324`, tag `v0.12.0` pushed. The cycle ran two
+   `/branch-review` rounds; the second found a Critical the first
+   round's own fix had left open (recorded in the prior entry above).
+7. PoC state at submission: `ietf/v2/poc` `m7-check` 40/40 and `m3-check`
+   26/26, both exit 0, user-validated at 40 cases. The code matches the
+   -01 text on the chain identifier, path-template matching, origin
+   binding, and the link-to-link omitted-axis rule.
+
+**DECISION**
+
+-01 is posted; submission is not adoption. Open next, in order: reply to
+the live OAuth WG thread — Sangam Das (author of
+`draft-das-agentic-tool-binding-02`) and Jijie Wei converged there on
+enforcement placement (gateway versus in-process dispatch), which is the
+same boundary -01's Verifier Placement subsection draws independently,
+and which the layers section positions; watch for `asor` -01 to post,
+and when it does revisit the min-pending wording in the axis-registry
+alignment paragraph; the -01 expiry is 2027-03-06; and CAMARA's
+Commonalities issue #705 is still open awaiting a maintainer label.
+
+---
+
 ## 2026-09-02 — second /branch-review round on the -01 PoC: one Critical fixed, suite 34 -> 40 cases
 
 **EVIDENCE**
