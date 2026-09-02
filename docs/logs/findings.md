@@ -14,6 +14,82 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-09-02 — asor acknowledgment consent and OAuth WG thread reply sent; earlier "convergence" reading corrected to a stated tension
+
+**EVIDENCE**
+
+1. Two replies were sent by the user today, both recorded verbatim in
+   `ietf/v2/docs/`: `asor-ack-reply-sent-2026-09-02.md` (private, to
+   Rafael Asor, consenting to be named in the acknowledgments of
+   draft-asor-wimse-agent-delegation-chain-01 and correcting his
+   proposed sentence's axis name from `tenure_years` to the actual
+   `tenureMin`, duration-typed under the closed `P<n>D`/`P<n>Y` grammar)
+   and `oauth-wg-reply-sent-2026-09-02.md` (public, cross-posted to
+   wimse@ietf.org and oauth@ietf.org, replying to Jijie Wei and Sangam
+   Das). The inbound thread the second reply answers is recorded
+   verbatim in `oauth-wg-thread-received-2026-09-02.md` (four messages:
+   Jijie Wei's opening AIC description, Sangam Das's two replies, Jijie
+   Wei's reply). Neither of today's two sent replies has a response yet.
+2. Rafael's proposed acknowledgment sentence named `tenure_years` as
+   "his" example. The axis in draft-hamr-oauth-agent-delegation-01 is
+   `tenureMin`; `tenure_years` names nothing in that document. Two fixes
+   were offered (use `tenureMin` and call it duration-typed, or keep
+   `tenure_years` as Rafael's own naming and drop "the example is his");
+   replacement wording was supplied.
+3. Reading the actual OAuth WG thread messages (not a summary of them)
+   shows the prior entry's characterization of Sangam Das and Jijie Wei
+   as having "converged" with -01's Verifier Placement subsection was
+   inaccurate. Sangam and Jijie hold that a host wrap invoking the
+   bound-check before dispatch is a legitimate earlier enforcement point
+   for local/in-process tools. -01's Verifier Placement text says
+   classification and admission are performed by the verifier at the
+   resource or credential boundary, never by a harness or orchestration
+   layer upstream of it, and does not on its face distinguish two
+   readings: (i) for an in-process tool with no gateway, the host's
+   function table IS the resource boundary, so the host wrap is the
+   verifier and there is no disagreement; (ii) the host wrap is upstream
+   of the boundary, so it is defense in depth and not admission, which
+   for a purely local tool means admission never happens. This is a
+   correction of this repo's own prior reading, not new information from
+   the thread — the thread messages existed before the "independent
+   convergence" line was written in the 2026-09-02 -01-submission entry
+   above.
+
+**DECISION**
+
+The sent reply states a lean toward reading (i) — the boundary is
+defined by what refuses, not by whether a socket is involved — and asks
+the thread to settle it rather than pre-deciding it in the draft. It also
+offered `actionClass` (r<w<x, a ceiling on the whole link, evaluated once
+at issue or verification) as shared vocabulary for Sangam's "class
+grant", mapped Jijie's four-row matrix onto it (flagging `delete_file` as
+`w` under -01's idempotence test versus the `x` most operators would
+likely pick, motivating `classSource`), and noted that the current
+std/mcp-v1 vectors structurally cannot produce an argument-subset denial
+(a property of the vectors, stated rather than left to inference). It
+made no claim about the AIC implementation; `scenario-demo.py` was not
+run, and Jijie Wei's AIC work stays out of the draft (not an Internet-
+Draft) per the standing decision — it is named in a list reply only.
+
+Two -02 items are now open:
+- The axis-registry alignment paragraph's min-pending wording (already
+  flagged in the 2026-09-02 -01-submission entry above) goes stale the
+  moment asor -01 posts (expected Thursday); Rafael was told this will
+  be corrected in his -02, and this repo's own -01 text will need the
+  same correction in HAMR -02.
+- Verifier Placement needs a sentence deciding between reading (i) and
+  (ii) for in-process dispatch. This is BLOCKED on the OAuth WG thread's
+  answer; it is not to be pre-decided.
+
+Standing lesson: a summary of a thread is not the thread. The
+"independent convergence" reading recorded in the -01-submission entry
+above did not survive contact with the actual messages, which show a
+tension the draft's own text does not yet resolve. That prior entry is
+left unedited, as a dated record of what was believed true at
+submission time; this entry is the correction.
+
+---
+
 ## 2026-09-02 — draft-hamr-oauth-agent-delegation-01 SUBMITTED and posted
 
 **EVIDENCE**

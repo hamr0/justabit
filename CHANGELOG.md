@@ -12,8 +12,18 @@
   2364 lines, byte-unchanged from commit `49e3fab` onward. All seven
   cited I-D references re-verified live against `bib.ietf.org` on
   submission day; all seven matched on revision and date. Submission is
-  not adoption — reply to the live OAuth WG thread and watching for
-  `asor` -01 to post remain open.
+  not adoption — watching for `asor` -01 to post remains open.
+- **Asor acknowledgment consent sent; OAuth WG thread reply sent**
+  (2026-09-02). Consented, privately, to being named in the
+  acknowledgments of draft-asor-wimse-agent-delegation-chain-01, with a
+  correction to Rafael's proposed example (`tenureMin`, duration-typed,
+  not `tenure_years`). Replied on the public cross-posted WIMSE/OAuth
+  thread with Jijie Wei and Sangam Das, offering `actionClass`/
+  `classSource` as shared vocabulary and asking the thread to settle
+  Verifier Placement's in-process-dispatch reading rather than
+  pre-deciding it. Neither reply has a response yet. This reply also
+  corrects this repo's own prior "independent convergence" reading of
+  that thread into a stated, unresolved tension.
 
 ## 0.12.0 — 2026-09-02
 
