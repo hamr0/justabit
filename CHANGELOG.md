@@ -100,12 +100,45 @@
   27 -> 34/34, `m3-check` 26/26. User-validated 2026-09-02 at the tree
   of `e638d6a` (both suites exit 0; the prior 27-case validation is
   void).
+- **Second `/branch-review` round on the -01 PoC, one Critical fixed,
+  suite 34 -> 40 cases** (`bb880ed`). Ran at HEAD `d5b7194`, target
+  `7384e07..d5b7194`, stage 1 medium, stage 2 security full; found one
+  Critical, two Warnings, one Suggestion, all reproduced independently
+  by the orchestrator; aimed at the first review's own fix commit
+  (`e638d6a`), the previously unreviewed code. CRITICAL: the first
+  collision fix (strict base64url charset check) closed out-of-alphabet
+  collisions only, leaving the decoder's own truncation open — a string
+  2 or 3 characters past a multiple of four discards low-order bits of
+  its final group, so distinct in-alphabet strings (`'AA'`/`'AB'`/`'AC'`/
+  `'AD'`, and separately `'AAA'`/`'AAB'`/`'AAC'`/`'AAD'`) all decoded to
+  the same digest; cases 29-30 could not catch it since both used
+  out-of-alphabet input, meaning the fix and its own tests targeted the
+  same narrow class. Fixed by requiring the CANONICAL unpadded form —
+  decode, re-encode with `toString('base64url')`, reject unless
+  identical to the input (cases 35-37, pinning the same-length collider,
+  the mod-4 input, and padded-input rejection). Two test-quality gaps
+  closed: the `hasOwnProperty` presence guard was undefended against a
+  truthiness test or `in` (closed by case 38, a falsy-but-legitimate
+  `writeBudget` 0, and cases 39-40, an `Object.prototype`-pollution
+  probe cleaned up in a `finally`); the unpadded contract itself was
+  untested against a widened, padding-accepting regex (closed by case
+  37). The base64url charset guard is now subsumed by the round-trip
+  check and kept as documented defense in depth (commit message and
+  `ietf/v2/poc/README.md` both say so) — reported, not hidden, as a
+  deliberate redundancy rather than a defect. Orchestrator mutation
+  proofs, verified by exit code: removing the round-trip check reds
+  case 35; the `hasOwnProperty` weakenings each red only their own
+  cases; removing the now-subsumed charset guard reds nothing. `m7-check`
+  34 -> 40/40, `m3-check` 26/26. User-validated 2026-09-02 at the tree
+  of `bb880ed` (both suites exit 0, m7 40/40, m3 26/26; the prior
+  34-case validation is void).
 - **Honest limits.** The -01 draft is drafted and PoC-matched but NOT
-  submitted — remaining steps are merging PR #22, a final live citation
-  re-verification on submission day (asor -01 still unposted), and the
-  user's own author-tools schema validation run (not reported at any
-  tree this cycle; local `xmllint` well-formedness is not schema
-  validity). The Commonalities enhancement issue
+  submitted — remaining steps are a THIRD `/branch-review` at `bb880ed`
+  (HEAD moved past the SHA the second round covered), merging PR #22, a
+  final live citation re-verification on submission day (asor -01 still
+  unposted), and the user's own author-tools schema validation run (not
+  reported at any tree this cycle; local `xmllint` well-formedness is
+  not schema validity). The Commonalities enhancement issue
   camaraproject/Commonalities#705, filed for the CAMARA v2 track, is
   still open and awaiting a maintainer label.
 

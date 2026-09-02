@@ -14,7 +14,114 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
-## 2026-09-02 (latest) — /branch-review round on the -01 PoC: three findings fixed, suite 27 -> 34 cases
+## 2026-09-02 — second /branch-review round on the -01 PoC: one Critical fixed, suite 34 -> 40 cases
+
+**EVIDENCE**
+
+1. A second `/branch-review` ran at HEAD `d5b7194`, target `7384e07..d5b7194`,
+   stage 1 at level medium and stage 2 (security) full, tree clean at start
+   and exit. Verdict: one Critical, two Warnings, one Suggestion. The
+   first review's own fix commit (`e638d6a`) was the previously unreviewed
+   code the round was aimed at. Every item below was reproduced
+   independently by the orchestrator — none is attributed to the review
+   agent alone.
+2. CRITICAL, confirmed by the orchestrator against the then-current
+   source: the FIRST collision fix was incomplete. The strict base64url
+   alphabet check closed out-of-alphabet collisions only. It left the
+   decoder's own truncation: where a string's length is 2 or 3 past a
+   multiple of four, `Buffer.from` discards the low-order bits of the
+   final group, so distinct in-alphabet strings decode to identical
+   bytes. Observed: `deriveChainId('AA')`, `('AB')`, `('AC')` and `('AD')`
+   all returned
+   `6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d`, and
+   `'AAA'`/`'AAB'`/`'AAC'`/`'AAD'` likewise collided. Cases 29 and 30
+   structurally could not catch it because both used an out-of-alphabet
+   character: the fix and its own tests were aimed at the same narrow
+   class. `admit()` reads `request.rootSignature` off the caller-supplied
+   object without verifying it, so two nominally different chains
+   collapsed onto one `writeBudget` ledger key — one chain's exhaustion
+   wrongly refusing another, or a chain riding another's remaining
+   balance.
+3. Fix: require the CANONICAL unpadded form. Decode, re-encode with
+   `toString('base64url')`, reject unless identical to the input. The
+   orchestrator verified the separation before briefing it: `'AA'`
+   accepted, `'AB'`/`'AC'`/`'AD'` rejected, `'AAA'` accepted, `'AAB'`
+   rejected, `'A'` rejected (length mod 4 equals 1 decodes to zero
+   bytes), `'abcd'` and `'a-_Z'` accepted. Reject-never-throw preserved.
+   Case 35 pins the same-length same-alphabet collider with a positive
+   control; case 36 pins the mod-4 input; case 37 pins that a padded
+   input is rejected.
+4. WARNING 1, confirmed by the orchestrator's own mutations against the
+   then-current source: the `hasOwnProperty` guard was correct but
+   undefended. Replacing it with a truthiness test left the suite green
+   at exit 0; replacing it with `in` also left it green at exit 0. Closed
+   by case 38 (a parent `writeBudget` of 0 — a legitimate falsy
+   constraint — with a child that omits it must still reject) and cases
+   39 and 40 (`Object.prototype` polluted with the axis name, proving the
+   lookup is own-property only, cleaned up in a `finally` with the
+   prototype asserted clean afterwards). No `classSource` equivalent of
+   case 38 exists because both its legal values are truthy; that was
+   stated rather than covered by a case that cannot fail.
+5. WARNING 2, confirmed: the module's unpadded contract was untested.
+   Widening the alphabet regex to accept `'='` left the suite green at
+   exit 0. Closed by case 37.
+6. SUGGESTION, recorded not fixed: the link-to-link omission rule tests
+   presence by `hasOwnProperty` while per-link default substitution tests
+   `value === undefined`. A link with an own property explicitly set to
+   `undefined` is therefore "present" to one rule and "omitted" to the
+   other. Harmless today because every per-link default is the tightest
+   value, so it can never loosen; it would matter only for a future axis
+   whose default is not the tightest. Flagged for awareness, not
+   blocking.
+7. Six fixtures were non-canonical and had to change (c1sig, c2sig,
+   c3sig, c5sig, c22root, c25root, all length mod 4 in {1,3}), replaced
+   with canonical base64url. The orchestrator verified no case changed
+   its expected result by reading every removed line of the check file:
+   fixture literals and the case-count line only.
+8. REPORTED, NOT HIDDEN: after the round-trip check exists, the charset
+   guard is subsumed. Removing it, or widening it to accept `'='`, leaves
+   the suite green — the orchestrator confirmed this with its own
+   mutation. It is retained as defense in depth and both the commit
+   message and `ietf/v2/poc/README.md` say so. Record this as a
+   deliberately documented redundancy, not a defect and not a hidden
+   tautology.
+9. Orchestrator mutation proofs at the fixed tree, run independently of
+   the fix agent's own: removing the round-trip check reds case 35 at
+   exit 1; `hasOwn` to truthiness reds 38, 39 and 40 at exit 1; `hasOwn`
+   to `in` reds 39 and 40 at exit 1; removing the charset guard reds
+   nothing at exit 0. Every restore byte-identical. Verified by exit
+   code, never by matching printed output.
+10. Suite state: `m7-check` 40/40 exit 0, `m3-check` 26/26 exit 0. Commit
+    `bb880ed`.
+11. The draft XML is BYTE-IDENTICAL to the `49e3fab` tree the user ran
+    idnits against (sha256 prefix `cc1f8435231db0fe` on both). No XML
+    change has occurred since that idnits run. Record this precisely: it
+    means the idnits result still describes these exact bytes, and it
+    does NOT mean an author-tools schema validation has been run, which
+    has still never been reported at any tree this cycle.
+12. USER VALIDATION 2026-09-02, at the tree of `bb880ed`: the user ran
+    both suites and reported exit 0, m7 40/40 and m3 26/26. This holds
+    only at 40 cases; the 34-case record is void.
+
+**DECISION**
+
+The lesson this round earns is that a fix and its own tests aimed at one
+narrow class leave the neighbouring class untouched and reading as
+solved — the first collision fix passed its own two cases while three
+further collision classes stayed open, and only an adversarial probe of
+ACCEPTED inputs found them. Pair this with the existing lesson that a fix
+round is the least-reviewed code in a session. Remaining before
+submission: a THIRD `/branch-review` at `bb880ed`, because HEAD moved
+past the reviewed SHA; then merge PR #22; re-verify every cited draft
+revision live on submission day (asor -01 still unposted; when it posts,
+revisit the min-pending wording in the axis-registry alignment
+paragraph); the user's own author-tools run on the final XML; then the
+user submits, before the -00 expiry of 2027-03-04. Then reply to the live
+OAuth WG thread citing the layers section and Verifier Placement.
+
+---
+
+## 2026-09-02 — /branch-review round on the -01 PoC: three findings fixed, suite 27 -> 34 cases
 
 **EVIDENCE**
 
