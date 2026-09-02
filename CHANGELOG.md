@@ -24,6 +24,18 @@
   pre-deciding it. Neither reply has a response yet. This reply also
   corrects this repo's own prior "independent convergence" reading of
   that thread into a stated, unresolved tension.
+- **OAuth WG boundary rule resolved; actionClass predicate correction
+  traced to the email, not the draft** (2026-09-02). Sangam Das replied,
+  confirming reading (i) for in-process dispatch and supplying a general
+  rule ("the relevant boundary is the first point whose successful
+  admission is necessary for the effect to occur") plus a bypass test;
+  he also corrected this repo's own prior email — not the draft — for
+  conflating tool identity with actionClass, verified false against
+  `draft-hamr-oauth-agent-delegation-01.xml` lines 227/243/248. Two -02
+  consequences: Verifier Placement gains the boundary definition and
+  bypass test as an additive check; a new drafting problem (the property
+  is per path, not per system) is open pending Sangam Das's
+  confirmation.
 
 ## 0.12.0 — 2026-09-02
 
