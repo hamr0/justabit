@@ -73,14 +73,41 @@
   forbidden RFCXML tags 0, BCP 14 capitals after `<back>` 0, `m7-check`
   27/27, `m3-check` 26/26. User-validated at the tree of `49e3fab`
   (both PoC suites exit 0, `idnits` clean).
+- **`/branch-review` round on the -01 PoC, three findings fixed, suite
+  27 -> 34 cases** (`e638d6a`). Ran at HEAD `6f40ffc`, target
+  `7384e07..6f40ffc`, stage 1 medium, stage 2 security full; found no
+  Critical, two Warnings, one Suggestion, all three independently
+  reproduced by the orchestrator both before and after the fix. A real
+  defect: `deriveChainId` collided on malformed input because
+  `Buffer.from(s,'base64url')` silently strips out-of-alphabet
+  characters instead of rejecting them — three differently-malformed
+  inputs produced the same digest, defeating the function's one
+  purpose; fixed with a strict unpadded base64url charset check,
+  returning `null` on any other character (cases 29-30). A conformance
+  gap this branch's OWN earlier text fix (`49e3fab`) had created: the
+  omitted-axis rule written into the -01 text was never implemented in
+  `checkActionFloor`, which admitted rather than rejected when a child
+  omitted an axis its parent's declared menu constrained; fixed with
+  `Object.prototype.hasOwnProperty.call` presence checks throughout,
+  since `writeBudget` 0 and `classSource` 'method' are legitimate and
+  falsy-adjacent (cases 31-34). A test-quality gap: case 27's comment
+  claimed it pinned the enumeration guard against prototype-walking,
+  but swapping `Object.keys` for `for...in` left the suite green
+  because `Object.prototype` members are non-enumerable; fixed by
+  adding case 28, which temporarily defines an enumerable property on
+  `Object.prototype` to make the guard falsifiable. Orchestrator
+  mutation proofs on all three fixes, verified by exit code: `m7-check`
+  27 -> 34/34, `m3-check` 26/26. User-validated 2026-09-02 at the tree
+  of `e638d6a` (both suites exit 0; the prior 27-case validation is
+  void).
 - **Honest limits.** The -01 draft is drafted and PoC-matched but NOT
-  submitted — remaining steps are pushing/merging this branch, a final
-  live citation re-verification on submission day, and the user's own
-  author-tools schema validation run (not reported at any tree this
-  cycle; local `xmllint` well-formedness is not schema validity). The
-  Commonalities enhancement issue camaraproject/Commonalities#705,
-  filed for the CAMARA v2 track, is still open and awaiting a
-  maintainer label.
+  submitted — remaining steps are merging PR #22, a final live citation
+  re-verification on submission day (asor -01 still unposted), and the
+  user's own author-tools schema validation run (not reported at any
+  tree this cycle; local `xmllint` well-formedness is not schema
+  validity). The Commonalities enhancement issue
+  camaraproject/Commonalities#705, filed for the CAMARA v2 track, is
+  still open and awaiting a maintainer label.
 
 ## 0.11.0 — 2026-09-01
 

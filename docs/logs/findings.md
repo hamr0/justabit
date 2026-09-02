@@ -14,7 +14,91 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
-## 2026-09-01 (latest) — -01 review round: PoC catch-up (24 -> 27 cases), one blocker and five other review findings fixed, citation and stale-claim sweeps; NOT submitted
+## 2026-09-02 (latest) — /branch-review round on the -01 PoC: three findings fixed, suite 27 -> 34 cases
+
+**EVIDENCE**
+
+1. A `/branch-review` ran at HEAD `6f40ffc` against target `7384e07..6f40ffc`,
+   stage 1 at level medium and stage 2 (security) full, tree clean at start
+   and exit. It found no Critical, two Warnings and one Suggestion. All
+   three were independently reproduced by the orchestrator before any fix,
+   and re-reproduced by the orchestrator after the fix — none of the three
+   findings below are attributed to the review agent alone.
+2. Finding 1, a real defect: `deriveChainId` collided on malformed input.
+   `Buffer.from(s,'base64url')` does not reject characters outside the
+   base64url alphabet; Node strips them and decodes the remainder.
+   Observed: `deriveChainId('abcd')`, `deriveChainId('ab!!cd')` and
+   `deriveChainId('ab cd')` all returned the same digest
+   `a3647d10fb70630ab54eb54dd9d5dc7647353c60da9ff640873b43d14db8a937`. That
+   defeats the single property the function exists to provide, an
+   identifier a caller cannot steer. Fixed by matching the string against
+   a strict UNPADDED base64url alphabet before decoding and returning
+   `null` on any other character; reject-never-throw preserved; byte
+   inputs unchanged. After the fix the three malformed inputs return
+   `null` and the valid one is unchanged. Cases 29 and 30 pin
+   non-collision.
+3. Finding 2, a conformance gap CREATED BY THIS SESSION'S OWN EARLIER FIX:
+   the two-case omitted-axis rule written into the -01 text at commit
+   `49e3fab` was never implemented in the code. Observed before the fix:
+   `checkActionFloor({actionClass:'x',classSource:'declared'},{actionClass:'x'})`
+   returned `allowed:true` with `effective.classSource` `'method'`, and the
+   `writeBudget` equivalent likewise, where the text requires rejection.
+   Fixed in `checkActionFloor`, which now rejects when the parent link
+   owns the axis and the child omits it, using
+   `Object.prototype.hasOwnProperty.call` for every presence test because
+   `writeBudget` `0` and `classSource` `'method'` are both legitimate and
+   falsy-adjacent. Cases 31 and 32 pin the rejection; cases 33 and 34 pin
+   that link-to-published-floor inheritance still admits, so the fix does
+   not over-reject. USER DECISION: option 1 of two, implement in code
+   rather than disclose the gap in Implementation Status. No existing case
+   changed its expected result; the orchestrator verified this by reading
+   every removed line of the check file (five lines: four of a narrowed
+   comment, and the case-count line).
+4. Finding 3, a test-quality gap: case 27's comment claimed it pinned the
+   enumeration guard against a prototype-walking lookup. It did not.
+   Swapping `Object.keys(menu)` for `for (const key in menu)` left the
+   suite fully green, because `Object.prototype`'s own members are
+   non-enumerable, so the two enumerate identically for a plain object.
+   Fixed by adding case 28, which temporarily defines an enumerable
+   property on `Object.prototype`, asserts `matchOperationKey` does not
+   treat it as a menu entry, and removes it in a `finally`; case 27's
+   comment narrowed to what it actually proves.
+5. Orchestrator mutation proofs, run independently of the fix agent's own:
+   dropping the base64url charset guard reds cases 29 and 30 at exit 1;
+   replacing `Object.keys` with `for...in` reds case 28 and only case 28
+   at exit 1; both restores return exit 0 and are byte-identical. Verified
+   by exit code, never by matching printed output.
+6. Suite state: `m7-check` 34/34 exit 0, `m3-check` 26/26 exit 0. Commit
+   `e638d6a`.
+7. The review agent could not verify the cited draft revisions because it
+   had no network access. The orchestrator had already checked all seven
+   I-D references against canonical bibxml at `bib.ietf.org` on both
+   revision and date; all seven match. Record that the reviewer's stated
+   gap was already closed, not outstanding.
+8. USER VALIDATION 2026-09-02, at the tree of `e638d6a`: the user ran both
+   suites and reported exit 0. This validation holds only at 34 cases; the
+   earlier 27-case record is void. No author-tools run was reported at
+   this tree.
+
+**DECISION**
+
+Two standing lessons earned this round. First, a fix round creates
+orphans of its own — this session's text fix at `49e3fab` silently made
+the code non-conformant, the second time in one session that a change
+orphaned a claim (the first was the stale 24-case count). Second, a test
+whose guard mutation leaves the suite green is not pinning what its
+comment says; the enumeration guard needed an inherited enumerable
+property to become falsifiable at all. Remaining before submission: merge
+PR #22; re-verify every cited draft revision live on submission day (asor
+-01 has not posted; when it does, revisit the min-pending wording in the
+axis-registry alignment paragraph); the user's own author-tools run on
+the final XML; then the user submits, before the -00 expiry of
+2027-03-04. Then reply to the live OAuth WG thread citing the layers
+section and Verifier Placement.
+
+---
+
+## 2026-09-01 — -01 review round: PoC catch-up (24 -> 27 cases), one blocker and five other review findings fixed, citation and stale-claim sweeps; NOT submitted
 
 **EVIDENCE**
 
