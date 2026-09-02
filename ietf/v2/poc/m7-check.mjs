@@ -33,6 +33,13 @@ function adaptClassify(actual) {
   return { ok: true, reason: actual };
 }
 
+// deriveChainId() returns a hex digest string or null — never throws, never
+// a {ok,reason} shape. Adapted so a rejection reads as REJECT/'REJECTED' in
+// the harness's own vocabulary, same as every other module here.
+function adaptChainId(actual) {
+  return { ok: actual !== null, reason: actual === null ? 'REJECTED' : actual };
+}
+
 // ---------------------------------------------------------------------------
 // Fixtures: an owner keypair and a signed menu, plus a byte-flipped forgery.
 // ---------------------------------------------------------------------------
@@ -412,10 +419,12 @@ check('19 N13 menu present but missing entry, falls back to method default', tru
 // 27 — prototype safety of the path-template lookup: a menu whose JSON
 // payload carries a literal "__proto__" key (a real OWN property once
 // decoded by JSON.parse inside verifyJws, not the Object.prototype
-// accessor) is matched like any other string key by matchOperationKey's
-// Object.keys-only enumeration — no crash, no bypass, and the unrelated
-// "__proto__ /x" key does not match a "/calls/123" request under a
-// different method/path.
+// accessor) is matched like any other string key — no crash, no bypass,
+// and the unrelated "__proto__ /x" key does not match a "/calls/123"
+// request under a different method/path. This case alone does NOT
+// distinguish matchOperationKey's Object.keys-only enumeration from a
+// for...in walk (both would pass it, since "__proto__" here is an own
+// property, not an inherited one) — case 28 below pins that distinction.
 {
   const protoMenuPayload = JSON.parse(JSON.stringify({
     iss: TARGET_ORIGIN,
@@ -433,4 +442,99 @@ check('19 N13 menu present but missing entry, falls back to method default', tru
     'ok', { label: `actionClass=${r.ok ? r.actionClass : 'n/a'}`, ok: r.ok === true && r.actionClass === 'r' });
 }
 
-conclude(27);
+// 28 — the enumeration guard itself: matchOperationKey (reached via
+// classify) MUST only ever consider a menu object's OWN enumerable keys
+// (Object.keys), never keys inherited via its prototype chain (a bare
+// `for...in` walks both). Proof: temporarily define an ENUMERABLE
+// "POST /calls/{callId}" property directly on Object.prototype — every
+// plain object, including this menu, inherits it — with a declared value
+// (r) that differs from the POST method default (x). The menu's own
+// payload declares no matching key at all (`menu: {}`), so the correct,
+// Object.keys-only implementation must see no match and fall back to the
+// method default x; a for...in mutant would instead pick up the inherited
+// key and return r. The injected property is removed in a finally block
+// before any assertion, so no global state leaks to any other case
+// regardless of pass or fail.
+{
+  const emptyMenuPayload = { iss: TARGET_ORIGIN, menu: {} };
+  const emptyMenuToken = signJws(owner.privateKey, 'owner-1', emptyMenuPayload);
+  if (typeof emptyMenuToken !== 'string') {
+    throw new Error('fixture setup failed: could not sign empty menu');
+  }
+  const emptyMenu = { token: emptyMenuToken, ownerPublicKey: owner.publicKey };
+  const pollutedKey = 'POST /calls/{callId}';
+  let actual;
+  try {
+    Object.defineProperty(Object.prototype, pollutedKey, {
+      value: 'r', enumerable: true, configurable: true, writable: true,
+    });
+    actual = classify('POST', '/calls/123', emptyMenu, 'declared', TARGET_ORIGIN);
+  } finally {
+    delete Object.prototype[pollutedKey];
+  }
+  check('28 matchOperationKey ignores an inherited Object.prototype key, uses only own keys', true,
+    adaptClassify(actual), 'x',
+    { label: 'Object.prototype left clean after the case', ok: !Object.prototype.hasOwnProperty(pollutedKey) });
+}
+
+// 29 — deriveChainId defect fix: 'ab!!cd' contains a character ('!') outside
+// the strict base64url alphabet and MUST be rejected (null), never decoded
+// down to a digest — the orchestrator reproduced this input colliding with
+// deriveChainId('abcd') under Buffer.from's permissive parse (Node strips
+// invalid characters rather than throwing). Paired with a positive control
+// proving 'abcd' alone still derives a normal 64-hex-char digest, so this
+// case cannot pass merely because deriveChainId always returns null.
+{
+  const validId = deriveChainId('abcd');
+  check('29 deriveChainId rejects punctuation outside the base64url alphabet, not collided', false,
+    adaptChainId(deriveChainId('ab!!cd')), 'REJECTED',
+    { label: `positive control: deriveChainId('abcd')=${validId} (valid 64-hex digest)`,
+      ok: typeof validId === 'string' && /^[0-9a-f]{64}$/.test(validId) });
+}
+
+// 30 — same defect, second reproduction: an embedded space is also outside
+// the base64url alphabet and MUST be rejected, not silently stripped down
+// to a digest that would collide with 'abcd' or with case 29's rejection.
+check('30 deriveChainId rejects an embedded space, not collided', false,
+  adaptChainId(deriveChainId('ab cd')), 'REJECTED');
+
+// 31 — Fix 2 (conformance gap), link-to-link omission on classSource: the
+// orchestrator's exact reproduction. The parent link constrains
+// classSource=declared; the child omits the axis entirely. Per draft -01's
+// axis-registry Omitted-axis rule, link-to-link case (attenuation rule 2),
+// this is non-relaxation-by-omission and the chain MUST be rejected — never
+// silently defaulted to classSource's tightest value, 'method'.
+check('31 parent constrains classSource, child omits it, chain rejected', false,
+  adaptGate(checkActionFloor({ actionClass: 'x', classSource: 'declared' }, { actionClass: 'x' })),
+  'classSource omitted: parent link constrains it, child link must not omit it');
+
+// 32 — Fix 2, link-to-link omission on writeBudget: same shape, the
+// orchestrator's second reproduction. The parent link constrains
+// writeBudget=5; the child omits it. Rejected, never defaulted to 0.
+check('32 parent constrains writeBudget, child omits it, chain rejected', false,
+  adaptGate(checkActionFloor({ actionClass: 'x', writeBudget: 5 }, { actionClass: 'x' })),
+  'writeBudget omitted: parent link constrains it, child link must not omit it');
+
+// 33 — the OTHER direction of the same rule, so Fix 2 is proven not to have
+// broken link-to-published-floor inheritance: where NEITHER link
+// constrains classSource, the child's omission is inheritance, not
+// rejection, and admits with the effective default 'method' (same shape
+// case 17 already exercises through admit(); pinned here directly against
+// checkActionFloor's own return).
+{
+  const v = checkActionFloor({ actionClass: 'x' }, { actionClass: 'x' });
+  check('33 neither link constrains classSource, child omits it, inherited default admits', true,
+    adaptGate(v), 'ok',
+    { label: `effective.classSource=${v.effective?.classSource}`, ok: v.effective?.classSource === 'method' });
+}
+
+// 34 — same direction, writeBudget axis: neither link constrains it, so
+// omission inherits the published floor's default (0), not a rejection.
+{
+  const v = checkActionFloor({ actionClass: 'x' }, { actionClass: 'x' });
+  check('34 neither link constrains writeBudget, child omits it, inherited default admits', true,
+    adaptGate(v), 'ok',
+    { label: `effective.writeBudget=${v.effective?.writeBudget}`, ok: v.effective?.writeBudget === 0 });
+}
+
+conclude(34);

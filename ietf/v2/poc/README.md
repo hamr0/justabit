@@ -76,3 +76,56 @@ Case 25 adds the appendix's V10 step sequence (writeBudget 2: admit, admit,
 refuse) as its own case, distinct from case 11's writeBudget-1 sequence.
 The suite grew from 24 to 27 cases; all 27 pass, `node
 ietf/v2/poc/m3-check.mjs` (untouched) still passes its 26.
+
+### 2026-09-02 — branch-review round: one defect, one conformance gap, one test-quality fix; 27 -> 34 cases
+
+A `/branch-review` found three items, independently reproduced, all fixed:
+
+- **`deriveChainId` collision on malformed input.** `Buffer.from(s,
+  'base64url')` does not throw on a character outside the base64url
+  alphabet — it silently strips it and decodes what's left, so
+  `deriveChainId('abcd')`, `deriveChainId('ab!!cd')`, and
+  `deriveChainId('ab cd')` all produced the identical digest. Fixed by
+  validating a string `rootSignature` against the strict base64url
+  alphabet (`A-Za-z0-9_-`) before any decode; base64url is treated as
+  UNPADDED here (matching `m1-jws.mjs`'s own `toString('base64url')`
+  output), so a `=` character is also rejected. Byte inputs
+  (Buffer/Uint8Array) are unaffected — they never went through the
+  charset-dependent path. Cases 29-30 pin non-collision and rejection;
+  mutation-confirmed (see table below).
+- **Link-to-link omitted-axis rule was not implemented.**
+  `checkActionFloor` only ever applied the link-to-published-floor case of
+  the draft's Omitted-axis rule (inherit the tightest default), never the
+  link-to-link case: where the PARENT link constrains classSource or
+  writeBudget and the CHILD omits it, that omission is
+  non-relaxation-by-omission and the chain MUST be rejected, per
+  attenuation rule 2. `checkActionFloor` now rejects that shape for both
+  axes (actionClass needs no such check — the draft gives it no omission
+  semantics at all, and `validateLink` already hard-rejects a child that
+  omits it). Cases 31-32 pin the new rejection (one per axis); cases 33-34
+  pin that the *other* direction — neither link constrains the axis — is
+  still inheritance, not rejection, so the fix did not regress it (cases
+  16-17 already covered this shape and still pass). No existing case's
+  expected result changed.
+- **Case 27's comment overstated what it pins.** Replacing
+  `matchOperationKey`'s `Object.keys(menu)` with `for (const key in menu)`
+  left the suite green at 27/27 — case 27 proves a literal `"__proto__"`
+  *own* key doesn't crash or bypass matching (still true and useful) but
+  never exercised the *enumeration guard* (own keys only, no prototype
+  walk) its comment claimed. Fixed by adding case 28: it temporarily
+  defines an enumerable property directly on `Object.prototype` (removed
+  in a `finally`, so no state leaks across cases either way) and confirms
+  `classify()` does not treat it as a menu match. Case 27's comment is
+  narrowed to what it actually pins, with a forward pointer to case 28.
+
+The suite grew from 27 to 34 cases; all 34 pass. `node
+ietf/v2/poc/m3-check.mjs` (untouched) still passes its 26 unchanged.
+
+Mutation table (revert guard -> confirm red -> restore -> confirm green;
+each restore diffed byte-identical to the fixed file):
+
+| Mutation | Mutant exit | Cases red | Restored exit |
+|---|---|---|---|
+| Remove the base64url charset check in `deriveChainId` | 1 | 29, 30 (both digests collided with `deriveChainId('abcd')`, confirming the reproduced defect) | 0 |
+| Remove both link-to-link omitted-axis checks in `checkActionFloor` | 1 | 31, 32 | 0 |
+| `matchOperationKey`: `Object.keys(menu)` -> `for (const key in menu)` | 1 | 28 (Object.prototype still confirmed clean afterward) | 0 |

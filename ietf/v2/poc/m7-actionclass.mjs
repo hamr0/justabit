@@ -153,6 +153,14 @@ function validateLink(link) {
 //     axis wins, named.
 // ---------------------------------------------------------------------------
 
+// hasOwn(obj, key) — presence test for the omitted-axis rule below. NEVER
+// `in` and NEVER a truthiness/bracket check: an axis value of 0
+// (writeBudget) or 'method' (classSource) is a legitimate, falsy-adjacent
+// value that a naive check would misread as "omitted".
+function hasOwn(obj, key) {
+  return Object.prototype.hasOwnProperty.call(obj, key);
+}
+
 export function checkActionFloor(parentFloor, childFloor) {
   const p = validateLink(parentFloor);
   if (!p.ok) return { allowed: false, reason: `parent: ${p.reason.message}` };
@@ -160,12 +168,32 @@ export function checkActionFloor(parentFloor, childFloor) {
   if (!c.ok) return { allowed: false, reason: `child: ${c.reason.message}` };
 
   // actionClass: child rank must be <= parent rank (child may lower, never raise).
+  // (No link-to-link omitted-axis check is needed here: draft -01 gives
+  // actionClass no omission semantics at all — a chain hop always states it
+  // explicitly — and validateLink above already hard-rejects a child link
+  // that omits it, via INVALID_ACTION_CLASS, before this function runs.)
   if (c.normalized.actionClassRank > p.normalized.actionClassRank) {
     return { allowed: false, reason: `actionClass raised: ${childFloor.actionClass} > ${parentFloor.actionClass}` };
+  }
+
+  // classSource omitted-axis rule (draft -01 axis-registry, link-to-link
+  // case; attenuation rule 2): where the PARENT link constrains classSource
+  // as its own property and the CHILD link omits it, that omission is
+  // non-relaxation-by-omission and the chain MUST be rejected — never
+  // silently defaulted to 'method'. Only where NEITHER link constrains the
+  // axis does the link-to-published-floor case (inheritance, via
+  // validateLink's own declared default) apply.
+  if (hasOwn(parentFloor, 'classSource') && !hasOwn(childFloor, 'classSource')) {
+    return { allowed: false, reason: 'classSource omitted: parent link constrains it, child link must not omit it' };
   }
   // classSource: child rank must be >= parent rank (declared -> method only).
   if (c.normalized.classSourceRank < p.normalized.classSourceRank) {
     return { allowed: false, reason: `classSource loosened: ${c.normalized.classSource} looser than ${p.normalized.classSource}` };
+  }
+
+  // writeBudget omitted-axis rule — same shape as classSource's, above.
+  if (hasOwn(parentFloor, 'writeBudget') && !hasOwn(childFloor, 'writeBudget')) {
+    return { allowed: false, reason: 'writeBudget omitted: parent link constrains it, child link must not omit it' };
   }
   // writeBudget: child must be <= parent (monotone down).
   if (c.normalized.writeBudget > p.normalized.writeBudget) {
@@ -317,14 +345,31 @@ function matchOperationKey(menu, method, path) {
 // extracted and verified it (this is verifier-held input, not a
 // caller-supplied request field): a base64url string (matching the JWS
 // signature-segment encoding this repo's own credential format uses), or
-// already-decoded bytes (Buffer/Uint8Array). Returns a lowercase hex digest,
-// or null if `rootSignature` is not a usable byte source.
+// already-decoded bytes (Buffer/Uint8Array).
+//
+// A string input MUST be validated against the strict base64url alphabet
+// (A-Z, a-z, 0-9, '-', '_') BEFORE decoding: Node's Buffer.from(s,
+// 'base64url') does not throw on a character outside that alphabet, it
+// silently strips it and decodes whatever is left, which makes two
+// distinct strings collide on one digest — exactly the property this
+// function exists to prevent (an identifier the caller cannot steer). This
+// module treats base64url as UNPADDED, matching m1-jws.mjs's own
+// toString('base64url') output convention (no trailing '='): a '='
+// character is therefore invalid input here, same as any other
+// out-of-alphabet character, and causes rejection.
+//
+// Returns a lowercase hex digest, or null if `rootSignature` is not a
+// usable, validly-encoded byte source. Never throws (reject-never-throw,
+// mirrors every other wire-facing function in this module).
 // ---------------------------------------------------------------------------
+
+const BASE64URL_STRICT_RE = /^[A-Za-z0-9_-]+$/;
 
 export function deriveChainId(rootSignature) {
   let bytes;
   if (typeof rootSignature === 'string') {
     if (rootSignature.length === 0) return null;
+    if (!BASE64URL_STRICT_RE.test(rootSignature)) return null;
     try {
       bytes = Buffer.from(rootSignature, 'base64url');
     } catch {
