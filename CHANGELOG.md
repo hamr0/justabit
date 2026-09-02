@@ -1,5 +1,30 @@
 # Changelog
 
+## Unreleased
+
+- **`draft-hamr-oauth-agent-delegation-01` SUBMITTED and posted**
+  (2026-09-02). Verified live against the IETF Datatracker API: rev 01,
+  state "posted", submission_date 2026-09-02, expires 2027-03-06, 48
+  pages, title "An Attenuated Delegation Profile for Automated Agents".
+  The user's own `author-tools` and `idnits` runs on the uploaded XML
+  both reported CLEAN — the first author-tools schema validation
+  reported this cycle. Submitted XML: sha256 prefix `cc1f8435231db0fe`,
+  2364 lines, byte-unchanged from commit `49e3fab` onward. All seven
+  cited I-D references re-verified live against `bib.ietf.org` on
+  submission day; all seven matched on revision and date. Submission is
+  not adoption — watching for `asor` -01 to post remains open.
+- **Asor acknowledgment consent sent; OAuth WG thread reply sent**
+  (2026-09-02). Consented, privately, to being named in the
+  acknowledgments of draft-asor-wimse-agent-delegation-chain-01, with a
+  correction to Rafael's proposed example (`tenureMin`, duration-typed,
+  not `tenure_years`). Replied on the public cross-posted WIMSE/OAuth
+  thread with Jijie Wei and Sangam Das, offering `actionClass`/
+  `classSource` as shared vocabulary and asking the thread to settle
+  Verifier Placement's in-process-dispatch reading rather than
+  pre-deciding it. Neither reply has a response yet. This reply also
+  corrects this repo's own prior "independent convergence" reading of
+  that thread into a stated, unresolved tension.
+
 ## 0.12.0 — 2026-09-02
 
 - **CAMARA PR #331 reply and nit closed** (`ac18310`, #18). Posted the

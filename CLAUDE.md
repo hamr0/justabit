@@ -131,10 +131,10 @@ ietf/v1/docs/      frozen record of draft-hamr-oauth-agent-delegation-00 as
                    ietf-agent-delegation.md is the companion prose proposal
 ietf/v1/poc/       the actionClass floor axis spike (M7) -00 was validated
                    against; copied unchanged into v2, never edit this copy
-ietf/v2/docs/      working copy for -01 (not yet submitted): all four items
-                   and Appendix A direction 4 drafted; two review rounds run
-                   and their findings fixed; the PoC catch-up done; still
-                   not submitted
+ietf/v2/docs/      -01 SUBMITTED and posted 2026-09-02, expires 2027-03-06:
+                   all four items and Appendix A direction 4 drafted; two
+                   review rounds run and their findings fixed; the PoC
+                   catch-up done
 ietf/v2/poc/       DIVERGED from the frozen v1 copy: m7-actionclass.mjs and
                    m7-check.mjs now carry the -01 text's rules (verifier-
                    derived chain identifier, path-template menu matching,

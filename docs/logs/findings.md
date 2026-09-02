@@ -14,6 +14,139 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-09-02 — asor acknowledgment consent and OAuth WG thread reply sent; earlier "convergence" reading corrected to a stated tension
+
+**EVIDENCE**
+
+1. Two replies were sent by the user today, both recorded verbatim in
+   `ietf/v2/docs/`: `asor-ack-reply-sent-2026-09-02.md` (private, to
+   Rafael Asor, consenting to be named in the acknowledgments of
+   draft-asor-wimse-agent-delegation-chain-01 and correcting his
+   proposed sentence's axis name from `tenure_years` to the actual
+   `tenureMin`, duration-typed under the closed `P<n>D`/`P<n>Y` grammar)
+   and `oauth-wg-reply-sent-2026-09-02.md` (public, cross-posted to
+   wimse@ietf.org and oauth@ietf.org, replying to Jijie Wei and Sangam
+   Das). The inbound thread the second reply answers is recorded
+   verbatim in `oauth-wg-thread-received-2026-09-02.md` (four messages:
+   Jijie Wei's opening AIC description, Sangam Das's two replies, Jijie
+   Wei's reply). Neither of today's two sent replies has a response yet.
+2. Rafael's proposed acknowledgment sentence named `tenure_years` as
+   "his" example. The axis in draft-hamr-oauth-agent-delegation-01 is
+   `tenureMin`; `tenure_years` names nothing in that document. Two fixes
+   were offered (use `tenureMin` and call it duration-typed, or keep
+   `tenure_years` as Rafael's own naming and drop "the example is his");
+   replacement wording was supplied.
+3. Reading the actual OAuth WG thread messages (not a summary of them)
+   shows the prior entry's characterization of Sangam Das and Jijie Wei
+   as having "converged" with -01's Verifier Placement subsection was
+   inaccurate. Sangam and Jijie hold that a host wrap invoking the
+   bound-check before dispatch is a legitimate earlier enforcement point
+   for local/in-process tools. -01's Verifier Placement text says
+   classification and admission are performed by the verifier at the
+   resource or credential boundary, never by a harness or orchestration
+   layer upstream of it, and does not on its face distinguish two
+   readings: (i) for an in-process tool with no gateway, the host's
+   function table IS the resource boundary, so the host wrap is the
+   verifier and there is no disagreement; (ii) the host wrap is upstream
+   of the boundary, so it is defense in depth and not admission, which
+   for a purely local tool means admission never happens. This is a
+   correction of this repo's own prior reading, not new information from
+   the thread — the thread messages existed before the "independent
+   convergence" line was written in the 2026-09-02 -01-submission entry
+   above.
+
+**DECISION**
+
+The sent reply states a lean toward reading (i) — the boundary is
+defined by what refuses, not by whether a socket is involved — and asks
+the thread to settle it rather than pre-deciding it in the draft. It also
+offered `actionClass` (r<w<x, a ceiling on the whole link, evaluated once
+at issue or verification) as shared vocabulary for Sangam's "class
+grant", mapped Jijie's four-row matrix onto it (flagging `delete_file` as
+`w` under -01's idempotence test versus the `x` most operators would
+likely pick, motivating `classSource`), and noted that the current
+std/mcp-v1 vectors structurally cannot produce an argument-subset denial
+(a property of the vectors, stated rather than left to inference). It
+made no claim about the AIC implementation; `scenario-demo.py` was not
+run, and Jijie Wei's AIC work stays out of the draft (not an Internet-
+Draft) per the standing decision — it is named in a list reply only.
+
+Two -02 items are now open:
+- The axis-registry alignment paragraph's min-pending wording (already
+  flagged in the 2026-09-02 -01-submission entry above) goes stale the
+  moment asor -01 posts (expected Thursday); Rafael was told this will
+  be corrected in his -02, and this repo's own -01 text will need the
+  same correction in HAMR -02.
+- Verifier Placement needs a sentence deciding between reading (i) and
+  (ii) for in-process dispatch. This is BLOCKED on the OAuth WG thread's
+  answer; it is not to be pre-decided.
+
+Standing lesson: a summary of a thread is not the thread. The
+"independent convergence" reading recorded in the -01-submission entry
+above did not survive contact with the actual messages, which show a
+tension the draft's own text does not yet resolve. That prior entry is
+left unedited, as a dated record of what was believed true at
+submission time; this entry is the correction.
+
+---
+
+## 2026-09-02 — draft-hamr-oauth-agent-delegation-01 SUBMITTED and posted
+
+**EVIDENCE**
+
+1. Queried live from the IETF Datatracker API (not the web page), on
+   2026-09-02: `name draft-hamr-oauth-agent-delegation`, `rev 01`, `state
+   "posted"`, `submission_date 2026-09-02`, `expires 2027-03-06`, `pages
+   48`, title "An Attenuated Delegation Profile for Automated Agents".
+   The submission queue shows rev 00 posted 2026-08-31 and rev 01 posted
+   2026-09-02.
+2. The user ran `author-tools` and `idnits` on the uploaded XML before
+   submission; both reported CLEAN. This is the first author-tools
+   schema validation reported this cycle — every prior entry in this log
+   correctly says author-tools was NOT reported; those entries are
+   unchanged. The submitted XML: sha256 prefix `cc1f8435231db0fe`, 2364
+   lines, byte-unchanged from commit `49e3fab` onward — every commit
+   after `49e3fab` touched only the PoC and the docs, never the draft
+   XML.
+3. This closes the standing gap named in the prior entry: local xmllint
+   well-formedness is not RFCXML schema validity, and author-tools had
+   never been run at any tree this cycle. It has now run, on the exact
+   submitted bytes, and passed.
+4. All seven cited I-D references were re-verified live against
+   canonical bibxml at `bib.ietf.org` on submission day, 2026-09-02; all
+   seven matched on both revision and date. `asor-wimse-agent-delegation-
+   chain` is still revision 00, so the axis-registry alignment
+   paragraph's wording — that a mirrored `min` comparator is stated as
+   intended for a future revision and is not present as posted — remains
+   accurate as submitted.
+5. Contents of -01 as posted: item 1 Floor Axis Registry; item 2
+   Position Among Delegation Layers; item 3 Action Class Floors; item 4
+   Write Budget; Appendix A direction 4; vectors V7 through V11; the
+   two-case omitted-axis rule; Resource Owner as a defined term; a new
+   step in the Verification Procedure. 48 pages.
+6. The release: v0.12.0 cut as commit `851efb4`, PR #22 squash-merged to
+   `main` as `6400324`, tag `v0.12.0` pushed. The cycle ran two
+   `/branch-review` rounds; the second found a Critical the first
+   round's own fix had left open (recorded in the prior entry above).
+7. PoC state at submission: `ietf/v2/poc` `m7-check` 40/40 and `m3-check`
+   26/26, both exit 0, user-validated at 40 cases. The code matches the
+   -01 text on the chain identifier, path-template matching, origin
+   binding, and the link-to-link omitted-axis rule.
+
+**DECISION**
+
+-01 is posted; submission is not adoption. Open next, in order: reply to
+the live OAuth WG thread — Sangam Das (author of
+`draft-das-agentic-tool-binding-02`) and Jijie Wei converged there on
+enforcement placement (gateway versus in-process dispatch), which is the
+same boundary -01's Verifier Placement subsection draws independently,
+and which the layers section positions; watch for `asor` -01 to post,
+and when it does revisit the min-pending wording in the axis-registry
+alignment paragraph; the -01 expiry is 2027-03-06; and CAMARA's
+Commonalities issue #705 is still open awaiting a maintainer label.
+
+---
+
 ## 2026-09-02 — second /branch-review round on the -01 PoC: one Critical fixed, suite 34 -> 40 cases
 
 **EVIDENCE**

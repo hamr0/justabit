@@ -158,10 +158,10 @@ ietf/v1/docs/       frozen record of draft-hamr-oauth-agent-delegation-00
                     prose proposal
 ietf/v1/poc/        the actionClass floor axis spike (M7) this -00 record
                     was validated against; copied unchanged into v2
-ietf/v2/docs/       working copy for -01 (not yet submitted): all four items
-                    and Appendix A direction 4 drafted; two review rounds
-                    run and their findings fixed; the PoC catch-up done;
-                    still not submitted
+ietf/v2/docs/       -01 SUBMITTED and posted 2026-09-02, expires 2027-03-06:
+                    all four items and Appendix A direction 4 drafted; two
+                    review rounds run and their findings fixed; the PoC
+                    catch-up done
 ietf/v2/poc/        DIVERGED from the frozen v1 copy: m7-actionclass.mjs
                     and m7-check.mjs now carry the -01 text's rules
                     (verifier-derived chain identifier, path-template menu
@@ -182,7 +182,8 @@ Each track cites the other as its counterpart; neither depends on the other's ap
   Commonalities, consent hooks to ICM, adoption PRs to sim-swap and roaming-status,
   new-case proposal to APIBacklog (template pre-filled in §10).
 - **[IETF](ietf/v1/docs/ietf-agent-delegation.md)** — the agent/delegation side (v1, as
-  posted; v2 -01 working copy at `ietf/v2/docs/`, not yet submitted). What the
+  posted; v2 `-01` SUBMITTED and posted 2026-09-02, expires 2027-03-06, at
+  `ietf/v2/docs/`). What the
   agent carries and how permissions flow: floor-gated SIM attestation, scoped monotone
   delegations, presentment via RFC 9421. The OAuth Working Group (`oauth@ietf.org`) is
   the target.
