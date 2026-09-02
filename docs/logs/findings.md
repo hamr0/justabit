@@ -14,6 +14,117 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-09-02 — OAuth WG thread closed: per-path identification and system-wide closure agreed, boundary reframed as a role not a component, naming permissions received, -02 Verifier Placement fully specified
+
+**EVIDENCE**
+
+1. Both correspondents replied to `oauth-wg-reply-2-sent-2026-09-02.md`,
+   recorded verbatim as two messages in one file,
+   `ietf/v2/docs/oauth-wg-round3-received-2026-09-02.md` (the file's own
+   header notes the relative send order of the two is not established).
+   The user sent a further reply, recorded verbatim in
+   `ietf/v2/docs/oauth-wg-reply-3-sent-2026-09-02.md`, stating it is the
+   last he will put on the lists about this. Both questions left open by
+   the entry immediately below (per-system vs per-path, and permission
+   to name both correspondents) are now answered.
+2. Re-verified directly against the submitted XML
+   `ietf/v2/docs/draft-hamr-oauth-agent-delegation-01.xml`: the phrase
+   quoted in the user's sent reply, "not by any harness or orchestration
+   layer upstream of that boundary," is verbatim in the file, spanning
+   lines 919-920 (wrapped inside the `<t>` element of the
+   `action-class-verifier-placement` section), not line 917 as an
+   earlier brief for this task stated — the text matches exactly, the
+   line number cited to this agent did not.
+
+**DECISION**
+
+Both open questions are RESOLVED, with both correspondents agreeing
+independently rather than one confirming the other's reading.
+
+Jijie Wei and Sangam Das both answered the per-path/per-system question
+the same way, converging on a two-part split:
+
+- Boundary identification is PER EFFECT-CAPABLE PATH: the first
+  admission point on that path whose successful admission is necessary
+  for the protected effect to complete through that path.
+- Closure (the anti-bypass invariant) is SYSTEM-WIDE: every path
+  capable of producing the protected effect MUST cross a qualifying
+  enforcement boundary before that effect can complete.
+
+Sangam Das's notation: for disjoint paths P1 and P2, "P1 -> verifier V1
+-> effect" and "P2 -> verifier V2 -> effect" — there does not need to
+be one physical verifier common to both paths, only a qualifying
+verifier per path, plus the system-wide requirement that no path
+escapes uncrossed. This directly resolves the drafting problem raised
+in the entry below: "first point whose admission is necessary," read
+per path, is not vacuous for a two-path resource; it is the pairing of
+a per-path identification test with a separate, system-wide closure
+statement that makes the property total.
+
+Both correspondents independently added a NEW point neither had stated
+before: the boundary must not be defined by COMPONENT IDENTITY. It is a
+ROLE in an effectuation path; different paths may realize that role at
+different components or layers (Sangam Das's wording: "I would avoid
+defining the boundary by component identity... different paths may
+realize that role at different components or layers"; Jijie Wei's
+wording: "define the boundary as a role in an effectuation path, then
+state the closure invariant separately," illustrated with gateway-http
+and an in-process host wrap as two enforcement points carrying the same
+certificate and bounds, not one "AIC verifier" component). This is a
+convergent, not a solicited, addition — neither the user's prior reply
+nor the entry below asked for a role-vs-component distinction.
+
+Naming: BOTH GRANTED. Sangam Das: "please feel free to name me for the
+boundary definition and bypass formulation. I am comfortable with
+attribution" — he stated no preferred form; the user's sent reply asks
+him for one and none has been given yet. Jijie Wei: "please feel free
+to name me as well. Preferred form: Jijie Wei (varwof)" — an exact
+preferred form was given and the user's sent reply records it as such.
+
+-02 consequences, superseding item 1 of the entry below (which treated
+the addition as ADDITIVE to -01's existing wording):
+
+1. Verifier Placement is now FULLY SPECIFIED, unblocked, and no longer
+   an open item pending a WG answer. Its content: (a) boundary is a
+   role in an effectuation path, not a component; (b) identification is
+   per effect-capable path; (c) closure is a separate, system-wide
+   invariant; (d) the bypass test is the check, now carrying a
+   system-level meaning — if any alternate path can produce the
+   protected effect without crossing a qualifying boundary, enforcement
+   is not closed for that effect.
+2. This REPLACES rather than extends -01's "upstream of that boundary"
+   wording (verified verbatim above, lines 919-920), because under the
+   role framing "upstream"/"downstream" is the wrong axis once the test
+   is whether an admission is necessary for the effect on that
+   particular path. The original failure the subsection was written to
+   close still fails — a harness that merely knows about a floor, where
+   the resource stays reachable another way, now fails the CLOSURE
+   statement rather than the word "upstream" — so nothing is loosened
+   by the replacement.
+3. ONE DRAFTING QUESTION IS LEFT OPEN AND NOT DECIDED BY THIS ENTRY:
+   where the closure invariant is placed in -02 text. It constrains a
+   deployment property, not a token, so Security Considerations is an
+   arguable home; the main session's recommendation is to keep both
+   statements adjacent in Verifier Placement, and the sent reply commits
+   to that placement and to that order ("I want them adjacent and in
+   that order"). This is recorded here as a recommendation plus an
+   already-made commitment, not as a settled -02 drafting decision.
+4. Unchanged and still open: the min-pending paragraph goes stale once
+   asor -01 posts (expected Thursday); CAMARA Commonalities issue #705
+   still awaits a maintainer label.
+
+Standing lesson: the user's own two-path objection, raised against a
+rule he had already agreed to adopt, is what produced the sharper final
+form. Sangam Das named it directly: "Your two-path example is useful
+because it catches an ambiguity in the shorter formulation." Stating a
+drafting problem with a rule being accepted, rather than accepting it
+silently, improved the rule — the same shape as the entry below's own
+lesson (the counterparty's correction, not this repo's own review,
+caught the actionClass conflation), now recurring on the drafting side
+rather than the review side.
+
+---
+
 ## 2026-09-02 — OAuth WG boundary rule resolved (Sangam Das); actionClass predicate correction traced to the prior email, not the draft; per-path drafting problem raised, two questions still open
 
 **EVIDENCE**
