@@ -14,6 +14,96 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-09-02 — OAuth WG boundary rule resolved (Sangam Das); actionClass predicate correction traced to the prior email, not the draft; per-path drafting problem raised, two questions still open
+
+**EVIDENCE**
+
+1. Sangam Das replied to `oauth-wg-reply-sent-2026-09-02.md` (recorded
+   verbatim in `ietf/v2/docs/oauth-wg-sangam-reply-received-2026-09-02.md`).
+   The user sent a further reply (recorded verbatim in
+   `ietf/v2/docs/oauth-wg-reply-2-sent-2026-09-02.md`). Both open
+   questions from the entry above are now resolved or advanced; two new
+   questions raised in the user's reply have no answer yet, as noted in
+   the DECISION below.
+2. Verified directly against the submitted XML
+   `ietf/v2/docs/draft-hamr-oauth-agent-delegation-01.xml`: line 227
+   places "a specific action, tool name, or argument set" at the
+   per-invocation layer, layer (b); line 243 says a floor constrains a
+   category of action across an entire chain, "not the arguments of any
+   single call"; line 248 says the document performs no per-call
+   argument binding. The tool-identity/actionClass conflation Sangam
+   Das flagged therefore existed ONLY in the outbound email of the
+   prior round (`oauth-wg-reply-sent-2026-09-02.md`), never in the
+   draft text — confirmed against these three line numbers, not
+   asserted from memory of having written the section.
+
+**DECISION**
+
+Placement is UNBLOCKED. Sangam Das confirmed reading (i) from the prior
+reply, with a qualification, and supplied a general rule:
+
+  The relevant boundary is the first point whose successful admission
+  is necessary for the effect to occur.
+
+plus a bypass test: "if another path can produce the same effect
+without crossing the verifier, the claimed boundary is not yet
+load-bearing." His framing: boundary is defined by effectuation
+dependency, not by whether a socket exists — a host wrapper can be the
+boundary if the protected function cannot be reached except through
+it; if another local path bypasses it, the wrapper is only upstream
+defence-in-depth. The user's reply adopts this rule for -02, with
+attribution credited to both correspondents (Jijie Wei proposed the
+host wrap; Sangam Das defined it), and confirms it is a tightening with
+a definition attached, not a loosening: a harness that merely knows
+about a floor, where the resource stays reachable by another path,
+still fails the bypass test.
+
+The actionClass wording is a CORRECTION TO THIS REPO'S OWN prior
+outbound email, not to the draft. Sangam Das accepts r/w/x as the
+action-class vocabulary but declined to make it synonymous with a
+named-tool allowlist, separating four predicates: tool identity, action
+class, argument subset where present, and enforcement placement /
+necessary-effect boundary — asking that a denial name which predicate
+failed rather than calling all four "policy denial". The user's reply
+accepts the correction, states for the record that the draft does not
+make that error (verified at the three cited line numbers above), and
+supports the four-predicate list for the write-up.
+
+A new -02 drafting problem, raised by the user and not yet answered:
+"first point whose admission is necessary" is unambiguous along a
+single path, but where a resource has two disjoint guarded paths no
+single point is necessary, so read strictly there is no boundary at
+all — while the bypass test implies each path needs its own verifier.
+The property is therefore PER PATH, not per system, and -02 must say so
+explicitly or the two halves of the rule read against each other.
+
+Two questions have no answer yet as of this entry: whether Sangam Das
+meant the rule per system or per path, and whether the user may name
+both correspondents in -02.
+
+-02 consequences:
+1. Verifier Placement keeps the existing requirement and ADDS the
+   effectuation-dependency definition of "boundary" plus the bypass
+   test as its check. This is additive, not a retraction of the
+   requirement recorded in the entry above: a harness that merely knows
+   about a floor, where the resource stays reachable by another path,
+   fails the bypass test.
+2. A new -02 drafting requirement: the boundary property must be stated
+   PER PATH, not per system. Pending Sangam Das's confirmation.
+3. NOT a -02 item: the tool-identity/actionClass conflation needs no
+   draft change, because the draft never made it (see EVIDENCE point 2
+   above) — only the prior round's email did.
+4. The min-pending paragraph item from the entry above is UNCHANGED and
+   still open — asor -01 posts Thursday.
+
+Standing lesson, distinct from the entry above's "a summary of a thread
+is not the thread": an offer of shared vocabulary can overreach by
+collapsing predicates that answer different questions, and the
+correction came from the counterparty, not from this repo's own
+review. The draft was clean; the email was not.
+
+---
+
 ## 2026-09-02 — asor acknowledgment consent and OAuth WG thread reply sent; earlier "convergence" reading corrected to a stated tension
 
 **EVIDENCE**
