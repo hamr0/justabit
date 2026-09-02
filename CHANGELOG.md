@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.12.1 — 2026-09-02
 
 - **Asor ack wording confirmed identical after transmission corruption;
   archive check resolved as false alarm** (2026-09-02). Rafael Asor
