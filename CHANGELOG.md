@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.12.0 — 2026-09-02
 
 - **CAMARA PR #331 reply and nit closed** (`ac18310`, #18). Posted the
   four-step reply to PR #331; first post was silently truncated by a
@@ -132,15 +132,19 @@
   34 -> 40/40, `m3-check` 26/26. User-validated 2026-09-02 at the tree
   of `bb880ed` (both suites exit 0, m7 40/40, m3 26/26; the prior
   34-case validation is void).
-- **Honest limits.** The -01 draft is drafted and PoC-matched but NOT
-  submitted — remaining steps are a THIRD `/branch-review` at `bb880ed`
-  (HEAD moved past the SHA the second round covered), merging PR #22, a
-  final live citation re-verification on submission day (asor -01 still
-  unposted), and the user's own author-tools schema validation run (not
-  reported at any tree this cycle; local `xmllint` well-formedness is
-  not schema validity). The Commonalities enhancement issue
+- **Honest limits.** A third `/branch-review` ran at HEAD `8844e44`,
+  target `d5b7194..8844e44`, verdict "Ready to merge? Yes" — no Critical
+  or High findings, one non-blocking item recorded in the local
+  gitignored fix ledger. The -01 draft is drafted and PoC-matched but
+  still NOT submitted — remaining steps are a final live citation
+  re-verification on submission day (asor -01 still unposted) and the
+  user's own author-tools schema validation run (not reported at any
+  tree this cycle; local `xmllint` well-formedness is not schema
+  validity). The Commonalities enhancement issue
   camaraproject/Commonalities#705, filed for the CAMARA v2 track, is
-  still open and awaiting a maintainer label.
+  still open and awaiting a maintainer label. This release contains no
+  CAMARA code change — every code change in this cycle is in
+  `ietf/v2/poc/`.
 
 ## 0.11.0 — 2026-09-01
 

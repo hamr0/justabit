@@ -4,7 +4,7 @@
 **Date:** 2026-08-14 (consolidated from `carrier-attestation-proposal.md`,
 `camara-plan.md`, `aaif-plan.md` — all three deleted; outward content moved to
 `docs/product/`).
-**Last updated:** 2026-09-01.
+**Last updated:** 2026-09-02.
 **Doctrine:** `CLAUDE.md` (invariants, claims discipline). This PRD is the
 *what/when/how-good*; CLAUDE.md is the *never-break*.
 
@@ -52,7 +52,7 @@ not created. Proposal docs follow the target body's proposal standards.
 | D1 | **This PRD** — requirements, sequence, no-gos, decisions | `docs/product/prd.md` | us |
 | D2 | **CAMARA proposal** — problem, the normative profile (8 rules), modes, phase plan, risks, pre-filled APIBacklog template mapping. CAMARA filing is now versioned per project, per version at the repo root: v1 is the frozen record as filed 2026-08-28; v2 is the working rescoping draft opened 2026-08-31 after WG feedback. | `camara/v1/docs/camara-attested-windowed-disclosure.md` (v1); `camara/v2/docs/camara-attested-windowed-disclosure.md` (v2, drafting) | CAMARA Commonalities / ICM / APIBacklog WG |
 | D2 v2 | **CAMARA resubmission** — as a Commonalities Scope Enhancement, not a new sub-project. Five files: `camara-attested-windowed-disclosure.md` (rewrite), `camara-filing-template.md`, `camara-filing-issue.md`, `pr331-reply-posted-2026-08-31.md`, `wg-deck-outline.md` | `camara/v2/docs/` — drafting, not filed | CAMARA Commonalities WG |
-| D3 | **Agent/delegation proposal** — agent/delegation side only, targets the IETF OAuth WG. Now versioned per project like CAMARA: v1 is the frozen record of `-00` as posted 2026-08-31; v2 is the working copy for `-01` (not yet submitted), item 1 (Floor Axis Registry) done, items 2-4 pending. | `ietf/v1/docs/ietf-agent-delegation.md` (v1); `ietf/v2/docs/draft-hamr-oauth-agent-delegation-01.xml` (v2, drafting) | IETF (OAuth WG); supersedes `docs/archive/aaif-agent-auth.md`, retained only as a dated, superseded record of the earlier AAIF-targeted text |
+| D3 | **Agent/delegation proposal** — agent/delegation side only, targets the IETF OAuth WG. Now versioned per project like CAMARA: v1 is the frozen record of `-00` as posted 2026-08-31; v2 is the working copy for `-01` (not yet submitted): all four scope items and Appendix A direction 4 drafted; two review rounds run and their findings fixed; the PoC catch-up done. | `ietf/v1/docs/ietf-agent-delegation.md` (v1); `ietf/v2/docs/draft-hamr-oauth-agent-delegation-01.xml` (v2, drafting) | IETF (OAuth WG); supersedes `docs/archive/aaif-agent-auth.md`, retained only as a dated, superseded record of the earlier AAIF-targeted text |
 | D4 | **PoC** — Mode A demo, 4 assertions, mock + Orange backends | `camara/v1/poc/` | WG readers, demo audiences |
 | D5 | Sustained WG presence (meetings, mailing lists, PR responses) | calendars, minutes | CAMARA anti-staleness rules |
 | D6 | **IETF submission artifact** — posted 31 August 2026 as `draft-hassan-oauth-agent-delegation-00`, then re-posted the same day as `draft-hamr-oauth-agent-delegation-00` (https://datatracker.ietf.org/doc/draft-hamr-oauth-agent-delegation/), `Replaces` pointing at the `-hassan-` draft, which is now Datatracker state `repl`/Replaced (stays posted, un-deleted, until its own 4 March 2027 expiry); the live document expires 4 March 2027; an individual submission, NOT adopted by the OAuth WG, and reviewed by no one — posting confers a timestamp and visibility, not standing; submission is not adoption, adoption is not publication | `ietf/v1/docs/draft-hamr-oauth-agent-delegation-00.xml` | IETF (OAuth WG) |
