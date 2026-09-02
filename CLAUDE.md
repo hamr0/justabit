@@ -132,13 +132,17 @@ ietf/v1/docs/      frozen record of draft-hamr-oauth-agent-delegation-00 as
 ietf/v1/poc/       the actionClass floor axis spike (M7) -00 was validated
                    against; copied unchanged into v2, never edit this copy
 ietf/v2/docs/      working copy for -01 (not yet submitted): all four items
-                   and Appendix A direction 4 drafted and user-validated
-                   2026-09-01; not submitted; review round and PoC catch-up
-                   (cases 22-24) pending
-ietf/v2/poc/       copy of ietf/v1/poc/; only the run-path comment in
-                   m7-check.mjs differs (2026-09-01); spike-a/ holds the
-                   catalogue-survey dataset (specs/ omitted, reproducible
-                   from its SHA column), moved in 2026-09-01
+                   and Appendix A direction 4 drafted; two review rounds run
+                   and their findings fixed; the PoC catch-up done; still
+                   not submitted
+ietf/v2/poc/       DIVERGED from the frozen v1 copy: m7-actionclass.mjs and
+                   m7-check.mjs now carry the -01 text's rules (verifier-
+                   derived chain identifier, path-template menu matching,
+                   origin binding, the link-to-link omitted-axis rule), 40
+                   cases against v1's 24 — v1 stays frozen as the -00
+                   record; spike-a/ holds the catalogue-survey dataset
+                   (specs/ omitted, reproducible from its SHA column),
+                   moved in 2026-09-01
 .claude/           local session context (gitignored — never publish)
 ```
 <!-- MEMORY:START -->

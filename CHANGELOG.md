@@ -1,5 +1,151 @@
 # Changelog
 
+## 0.12.0 — 2026-09-02
+
+- **CAMARA PR #331 reply and nit closed** (`ac18310`, #18). Posted the
+  four-step reply to PR #331; first post was silently truncated by a
+  heredoc paste and repaired in place by PATCH; body verified by reading
+  it back against source. JSDoc nit closed on the return union of
+  `signJws`/`attestAnswer`/`verifyAnswer`/`attestRefusal`/`verifyRefusal`
+  in `camara/v2/poc/m1-jws.mjs`.
+- **IETF ActionClass spike built and user-validated** (`1f3ee21`, #19).
+  New PoC at `ietf/v1/poc/` gates `actionClass` (ordered enum r<w<x),
+  `classSource` (ordered enum declared/method), and `writeBudget`
+  (monotone-down integer, stateful per-chain ledger); 24/24 cases,
+  five mutation proofs (classSource short-circuit, JWS verify, budget
+  decrement, r-never-spends, monotone writeBudget), user-validated at
+  tip `ac18310`. Cases 22-24 pin three assumptions the -01 text would
+  later have to resolve (caller-supplied chain id, exact-string menu
+  keys, no menu-origin check). EMILIA pre-flight reply recorded.
+- **Second EMILIA-thread reply, asor -00 read in full, -01 scope
+  refined** (`431b315`, #20). Corrected a registry citation from asor
+  -01 (not posted) to asor -00 §10; identified the comparator vocabulary
+  (not shared axis names) as the real bridge between the two drafts;
+  named asor's `rank` comparator and its missing `min`. The no-menu
+  default state and non-HAMR-site verifier placement were settled in
+  discussion. -01 scope item 1 refined: axis names bound to comparator
+  types (`actionClass`=rank, `writeBudget`=max, duration floors=min).
+- **IETF -01 drafted: all four scope items plus Appendix A direction 4**
+  (`7384e07`, #21). Floor Axis Registry (item 1, anchor `axis-registry`):
+  registers axis names each bound to one comparator from the closed set
+  min/max/rank/one_of, non-droppable, eight initial entries. Position
+  Among Delegation Layers (item 2, anchor `layers`): a three-layer
+  boundary statement (who may act / what exactly per invocation / what
+  happened once), positioning this document as layer (a) plus floors,
+  citing RFC 9396, `draft-das-agentic-tool-binding-02`,
+  `draft-schrock-ep-authorization-receipts-12`, and asor -00 §9.1.
+  Action Class Floors (item 3, anchor `action-class`): `actionClass`
+  and `classSource` axes, an RFC 9110 method-default classification a
+  verified declared menu (JWS, RFC 7515) can replace but never combine
+  with, deterministic path-template matching, fail-closed tie-break;
+  vectors V7-V9. Write Budget (item 4, anchor `write-budget`): a
+  monotone-down `writeBudget` axis, reserve-then-decrement admission,
+  and a chain identifier derived as the SHA-256 digest (RFC 6234) of
+  L(0)'s signature bytes rather than a caller-supplied field; vectors
+  V10-V11. Appendix A direction 4: three non-normative, single-author
+  harness experiments (bareguard/bareloop/bareagent), explicitly not
+  implementations of this profile. Spike A's catalogue-survey dataset
+  (292 ops across 60 CAMARA repos, SHA-pinned) committed under
+  `ietf/v2/poc/spike-a/` (`specs/` omitted, reproducible from its SHA
+  column). Each item was user-validated at its own uncommitted tree
+  (PoC suites exit 0, `idnits` clean); author-tools schema validation
+  was not separately reported for any of these trees.
+- **IETF -01 PoC catch-up, review round, and sweeps** (`47ebce6`,
+  `49e3fab`). `ietf/v2/poc` cases 22-24 brought up to the -01 text,
+  suite grown 24 -> 27 cases: case 22 derives the chain identifier via
+  `deriveChainId(rootSignature)` rather than reading a caller-supplied
+  field; case 23 does deterministic path-template matching; case 24
+  binds the menu's `iss` to the request target origin; cases 25-27 pin
+  V10's step sequence, the equal-literal fail-closed tie, and a literal
+  `__proto__` menu key as a real own property. A read-through review of
+  the whole -01 found 1 blocker (the omitted-axis rule stated three
+  incompatible ways across attenuation rule 2/V4, the registry's
+  Omitted-axis rule field, and the classSource/writeBudget passages),
+  4 should-fix, and 1 nit — all fixed, with the omitted-axis rule now
+  stated as two distinct cases (link-to-link omission stays a rejection
+  per unchanged rule 2/V4; link-to-published-floor inheritance covers
+  the classSource/writeBudget defaults). A live citation sweep found and
+  fixed a stale revision and date on `draft-reece-wimse-cross-org-delegation`,
+  then re-checked all seven I-D references against `bib.ietf.org`. A
+  stale-claim sweep, caused by this branch's own PoC-catch-up commit,
+  found and fixed three locations still describing the code as 24 cases
+  short by three points. Checks by exit code: non-ASCII 0, `xmllint` 0,
+  forbidden RFCXML tags 0, BCP 14 capitals after `<back>` 0, `m7-check`
+  27/27, `m3-check` 26/26. User-validated at the tree of `49e3fab`
+  (both PoC suites exit 0, `idnits` clean).
+- **`/branch-review` round on the -01 PoC, three findings fixed, suite
+  27 -> 34 cases** (`e638d6a`). Ran at HEAD `6f40ffc`, target
+  `7384e07..6f40ffc`, stage 1 medium, stage 2 security full; found no
+  Critical, two Warnings, one Suggestion, all three independently
+  reproduced by the orchestrator both before and after the fix. A real
+  defect: `deriveChainId` collided on malformed input because
+  `Buffer.from(s,'base64url')` silently strips out-of-alphabet
+  characters instead of rejecting them — three differently-malformed
+  inputs produced the same digest, defeating the function's one
+  purpose; fixed with a strict unpadded base64url charset check,
+  returning `null` on any other character (cases 29-30). A conformance
+  gap this branch's OWN earlier text fix (`49e3fab`) had created: the
+  omitted-axis rule written into the -01 text was never implemented in
+  `checkActionFloor`, which admitted rather than rejected when a child
+  omitted an axis its parent's declared menu constrained; fixed with
+  `Object.prototype.hasOwnProperty.call` presence checks throughout,
+  since `writeBudget` 0 and `classSource` 'method' are legitimate and
+  falsy-adjacent (cases 31-34). A test-quality gap: case 27's comment
+  claimed it pinned the enumeration guard against prototype-walking,
+  but swapping `Object.keys` for `for...in` left the suite green
+  because `Object.prototype` members are non-enumerable; fixed by
+  adding case 28, which temporarily defines an enumerable property on
+  `Object.prototype` to make the guard falsifiable. Orchestrator
+  mutation proofs on all three fixes, verified by exit code: `m7-check`
+  27 -> 34/34, `m3-check` 26/26. User-validated 2026-09-02 at the tree
+  of `e638d6a` (both suites exit 0; the prior 27-case validation is
+  void).
+- **Second `/branch-review` round on the -01 PoC, one Critical fixed,
+  suite 34 -> 40 cases** (`bb880ed`). Ran at HEAD `d5b7194`, target
+  `7384e07..d5b7194`, stage 1 medium, stage 2 security full; found one
+  Critical, two Warnings, one Suggestion, all reproduced independently
+  by the orchestrator; aimed at the first review's own fix commit
+  (`e638d6a`), the previously unreviewed code. CRITICAL: the first
+  collision fix (strict base64url charset check) closed out-of-alphabet
+  collisions only, leaving the decoder's own truncation open — a string
+  2 or 3 characters past a multiple of four discards low-order bits of
+  its final group, so distinct in-alphabet strings (`'AA'`/`'AB'`/`'AC'`/
+  `'AD'`, and separately `'AAA'`/`'AAB'`/`'AAC'`/`'AAD'`) all decoded to
+  the same digest; cases 29-30 could not catch it since both used
+  out-of-alphabet input, meaning the fix and its own tests targeted the
+  same narrow class. Fixed by requiring the CANONICAL unpadded form —
+  decode, re-encode with `toString('base64url')`, reject unless
+  identical to the input (cases 35-37, pinning the same-length collider,
+  the mod-4 input, and padded-input rejection). Two test-quality gaps
+  closed: the `hasOwnProperty` presence guard was undefended against a
+  truthiness test or `in` (closed by case 38, a falsy-but-legitimate
+  `writeBudget` 0, and cases 39-40, an `Object.prototype`-pollution
+  probe cleaned up in a `finally`); the unpadded contract itself was
+  untested against a widened, padding-accepting regex (closed by case
+  37). The base64url charset guard is now subsumed by the round-trip
+  check and kept as documented defense in depth (commit message and
+  `ietf/v2/poc/README.md` both say so) — reported, not hidden, as a
+  deliberate redundancy rather than a defect. Orchestrator mutation
+  proofs, verified by exit code: removing the round-trip check reds
+  case 35; the `hasOwnProperty` weakenings each red only their own
+  cases; removing the now-subsumed charset guard reds nothing. `m7-check`
+  34 -> 40/40, `m3-check` 26/26. User-validated 2026-09-02 at the tree
+  of `bb880ed` (both suites exit 0, m7 40/40, m3 26/26; the prior
+  34-case validation is void).
+- **Honest limits.** A third `/branch-review` ran at HEAD `8844e44`,
+  target `d5b7194..8844e44`, verdict "Ready to merge? Yes" — no Critical
+  or High findings, one non-blocking item recorded in the local
+  gitignored fix ledger. The -01 draft is drafted and PoC-matched but
+  still NOT submitted — remaining steps are a final live citation
+  re-verification on submission day (asor -01 still unposted) and the
+  user's own author-tools schema validation run (not reported at any
+  tree this cycle; local `xmllint` well-formedness is not schema
+  validity). The Commonalities enhancement issue
+  camaraproject/Commonalities#705, filed for the CAMARA v2 track, is
+  still open and awaiting a maintainer label. This release contains no
+  CAMARA code change — every code change in this cycle is in
+  `ietf/v2/poc/`.
+
 ## 0.11.0 — 2026-09-01
 
 - **CAMARA v2 rescoped as a Commonalities Scope Enhancement.** After

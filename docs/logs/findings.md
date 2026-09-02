@@ -14,11 +14,295 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
-## 2026-09-01 (latest) — -01 item 4 drafted: Write Budget; all four -01 items and Appendix A direction 4 now in the text; user-validated at the uncommitted tree
+## 2026-09-02 — second /branch-review round on the -01 PoC: one Critical fixed, suite 34 -> 40 cases
+
+**EVIDENCE**
+
+1. A second `/branch-review` ran at HEAD `d5b7194`, target `7384e07..d5b7194`,
+   stage 1 at level medium and stage 2 (security) full, tree clean at start
+   and exit. Verdict: one Critical, two Warnings, one Suggestion. The
+   first review's own fix commit (`e638d6a`) was the previously unreviewed
+   code the round was aimed at. Every item below was reproduced
+   independently by the orchestrator — none is attributed to the review
+   agent alone.
+2. CRITICAL, confirmed by the orchestrator against the then-current
+   source: the FIRST collision fix was incomplete. The strict base64url
+   alphabet check closed out-of-alphabet collisions only. It left the
+   decoder's own truncation: where a string's length is 2 or 3 past a
+   multiple of four, `Buffer.from` discards the low-order bits of the
+   final group, so distinct in-alphabet strings decode to identical
+   bytes. Observed: `deriveChainId('AA')`, `('AB')`, `('AC')` and `('AD')`
+   all returned
+   `6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d`, and
+   `'AAA'`/`'AAB'`/`'AAC'`/`'AAD'` likewise collided. Cases 29 and 30
+   structurally could not catch it because both used an out-of-alphabet
+   character: the fix and its own tests were aimed at the same narrow
+   class. `admit()` reads `request.rootSignature` off the caller-supplied
+   object without verifying it, so two nominally different chains
+   collapsed onto one `writeBudget` ledger key — one chain's exhaustion
+   wrongly refusing another, or a chain riding another's remaining
+   balance.
+3. Fix: require the CANONICAL unpadded form. Decode, re-encode with
+   `toString('base64url')`, reject unless identical to the input. The
+   orchestrator verified the separation before briefing it: `'AA'`
+   accepted, `'AB'`/`'AC'`/`'AD'` rejected, `'AAA'` accepted, `'AAB'`
+   rejected, `'A'` rejected (length mod 4 equals 1 decodes to zero
+   bytes), `'abcd'` and `'a-_Z'` accepted. Reject-never-throw preserved.
+   Case 35 pins the same-length same-alphabet collider with a positive
+   control; case 36 pins the mod-4 input; case 37 pins that a padded
+   input is rejected.
+4. WARNING 1, confirmed by the orchestrator's own mutations against the
+   then-current source: the `hasOwnProperty` guard was correct but
+   undefended. Replacing it with a truthiness test left the suite green
+   at exit 0; replacing it with `in` also left it green at exit 0. Closed
+   by case 38 (a parent `writeBudget` of 0 — a legitimate falsy
+   constraint — with a child that omits it must still reject) and cases
+   39 and 40 (`Object.prototype` polluted with the axis name, proving the
+   lookup is own-property only, cleaned up in a `finally` with the
+   prototype asserted clean afterwards). No `classSource` equivalent of
+   case 38 exists because both its legal values are truthy; that was
+   stated rather than covered by a case that cannot fail.
+5. WARNING 2, confirmed: the module's unpadded contract was untested.
+   Widening the alphabet regex to accept `'='` left the suite green at
+   exit 0. Closed by case 37.
+6. SUGGESTION, recorded not fixed: the link-to-link omission rule tests
+   presence by `hasOwnProperty` while per-link default substitution tests
+   `value === undefined`. A link with an own property explicitly set to
+   `undefined` is therefore "present" to one rule and "omitted" to the
+   other. Harmless today because every per-link default is the tightest
+   value, so it can never loosen; it would matter only for a future axis
+   whose default is not the tightest. Flagged for awareness, not
+   blocking.
+7. Six fixtures were non-canonical and had to change (c1sig, c2sig,
+   c3sig, c5sig, c22root, c25root, all length mod 4 in {1,3}), replaced
+   with canonical base64url. The orchestrator verified no case changed
+   its expected result by reading every removed line of the check file:
+   fixture literals and the case-count line only.
+8. REPORTED, NOT HIDDEN: after the round-trip check exists, the charset
+   guard is subsumed. Removing it, or widening it to accept `'='`, leaves
+   the suite green — the orchestrator confirmed this with its own
+   mutation. It is retained as defense in depth and both the commit
+   message and `ietf/v2/poc/README.md` say so. Record this as a
+   deliberately documented redundancy, not a defect and not a hidden
+   tautology.
+9. Orchestrator mutation proofs at the fixed tree, run independently of
+   the fix agent's own: removing the round-trip check reds case 35 at
+   exit 1; `hasOwn` to truthiness reds 38, 39 and 40 at exit 1; `hasOwn`
+   to `in` reds 39 and 40 at exit 1; removing the charset guard reds
+   nothing at exit 0. Every restore byte-identical. Verified by exit
+   code, never by matching printed output.
+10. Suite state: `m7-check` 40/40 exit 0, `m3-check` 26/26 exit 0. Commit
+    `bb880ed`.
+11. The draft XML is BYTE-IDENTICAL to the `49e3fab` tree the user ran
+    idnits against (sha256 prefix `cc1f8435231db0fe` on both). No XML
+    change has occurred since that idnits run. Record this precisely: it
+    means the idnits result still describes these exact bytes, and it
+    does NOT mean an author-tools schema validation has been run, which
+    has still never been reported at any tree this cycle.
+12. USER VALIDATION 2026-09-02, at the tree of `bb880ed`: the user ran
+    both suites and reported exit 0, m7 40/40 and m3 26/26. This holds
+    only at 40 cases; the 34-case record is void.
+
+**DECISION**
+
+The lesson this round earns is that a fix and its own tests aimed at one
+narrow class leave the neighbouring class untouched and reading as
+solved — the first collision fix passed its own two cases while three
+further collision classes stayed open, and only an adversarial probe of
+ACCEPTED inputs found them. Pair this with the existing lesson that a fix
+round is the least-reviewed code in a session. Remaining before
+submission: a THIRD `/branch-review` at `bb880ed`, because HEAD moved
+past the reviewed SHA; then merge PR #22; re-verify every cited draft
+revision live on submission day (asor -01 still unposted; when it posts,
+revisit the min-pending wording in the axis-registry alignment
+paragraph); the user's own author-tools run on the final XML; then the
+user submits, before the -00 expiry of 2027-03-04. Then reply to the live
+OAuth WG thread citing the layers section and Verifier Placement.
+
+---
+
+## 2026-09-02 — /branch-review round on the -01 PoC: three findings fixed, suite 27 -> 34 cases
+
+**EVIDENCE**
+
+1. A `/branch-review` ran at HEAD `6f40ffc` against target `7384e07..6f40ffc`,
+   stage 1 at level medium and stage 2 (security) full, tree clean at start
+   and exit. It found no Critical, two Warnings and one Suggestion. All
+   three were independently reproduced by the orchestrator before any fix,
+   and re-reproduced by the orchestrator after the fix — none of the three
+   findings below are attributed to the review agent alone.
+2. Finding 1, a real defect: `deriveChainId` collided on malformed input.
+   `Buffer.from(s,'base64url')` does not reject characters outside the
+   base64url alphabet; Node strips them and decodes the remainder.
+   Observed: `deriveChainId('abcd')`, `deriveChainId('ab!!cd')` and
+   `deriveChainId('ab cd')` all returned the same digest
+   `a3647d10fb70630ab54eb54dd9d5dc7647353c60da9ff640873b43d14db8a937`. That
+   defeats the single property the function exists to provide, an
+   identifier a caller cannot steer. Fixed by matching the string against
+   a strict UNPADDED base64url alphabet before decoding and returning
+   `null` on any other character; reject-never-throw preserved; byte
+   inputs unchanged. After the fix the three malformed inputs return
+   `null` and the valid one is unchanged. Cases 29 and 30 pin
+   non-collision.
+3. Finding 2, a conformance gap CREATED BY THIS SESSION'S OWN EARLIER FIX:
+   the two-case omitted-axis rule written into the -01 text at commit
+   `49e3fab` was never implemented in the code. Observed before the fix:
+   `checkActionFloor({actionClass:'x',classSource:'declared'},{actionClass:'x'})`
+   returned `allowed:true` with `effective.classSource` `'method'`, and the
+   `writeBudget` equivalent likewise, where the text requires rejection.
+   Fixed in `checkActionFloor`, which now rejects when the parent link
+   owns the axis and the child omits it, using
+   `Object.prototype.hasOwnProperty.call` for every presence test because
+   `writeBudget` `0` and `classSource` `'method'` are both legitimate and
+   falsy-adjacent. Cases 31 and 32 pin the rejection; cases 33 and 34 pin
+   that link-to-published-floor inheritance still admits, so the fix does
+   not over-reject. USER DECISION: option 1 of two, implement in code
+   rather than disclose the gap in Implementation Status. No existing case
+   changed its expected result; the orchestrator verified this by reading
+   every removed line of the check file (five lines: four of a narrowed
+   comment, and the case-count line).
+4. Finding 3, a test-quality gap: case 27's comment claimed it pinned the
+   enumeration guard against a prototype-walking lookup. It did not.
+   Swapping `Object.keys(menu)` for `for (const key in menu)` left the
+   suite fully green, because `Object.prototype`'s own members are
+   non-enumerable, so the two enumerate identically for a plain object.
+   Fixed by adding case 28, which temporarily defines an enumerable
+   property on `Object.prototype`, asserts `matchOperationKey` does not
+   treat it as a menu entry, and removes it in a `finally`; case 27's
+   comment narrowed to what it actually proves.
+5. Orchestrator mutation proofs, run independently of the fix agent's own:
+   dropping the base64url charset guard reds cases 29 and 30 at exit 1;
+   replacing `Object.keys` with `for...in` reds case 28 and only case 28
+   at exit 1; both restores return exit 0 and are byte-identical. Verified
+   by exit code, never by matching printed output.
+6. Suite state: `m7-check` 34/34 exit 0, `m3-check` 26/26 exit 0. Commit
+   `e638d6a`.
+7. The review agent could not verify the cited draft revisions because it
+   had no network access. The orchestrator had already checked all seven
+   I-D references against canonical bibxml at `bib.ietf.org` on both
+   revision and date; all seven match. Record that the reviewer's stated
+   gap was already closed, not outstanding.
+8. USER VALIDATION 2026-09-02, at the tree of `e638d6a`: the user ran both
+   suites and reported exit 0. This validation holds only at 34 cases; the
+   earlier 27-case record is void. No author-tools run was reported at
+   this tree.
+
+**DECISION**
+
+Two standing lessons earned this round. First, a fix round creates
+orphans of its own — this session's text fix at `49e3fab` silently made
+the code non-conformant, the second time in one session that a change
+orphaned a claim (the first was the stale 24-case count). Second, a test
+whose guard mutation leaves the suite green is not pinning what its
+comment says; the enumeration guard needed an inherited enumerable
+property to become falsifiable at all. Remaining before submission: merge
+PR #22; re-verify every cited draft revision live on submission day (asor
+-01 has not posted; when it does, revisit the min-pending wording in the
+axis-registry alignment paragraph); the user's own author-tools run on
+the final XML; then the user submits, before the -00 expiry of
+2027-03-04. Then reply to the live OAuth WG thread citing the layers
+section and Verifier Placement.
+
+---
+
+## 2026-09-01 — -01 review round: PoC catch-up (24 -> 27 cases), one blocker and five other review findings fixed, citation and stale-claim sweeps; NOT submitted
+
+**EVIDENCE**
+
+1. PoC catch-up committed as `47ebce6`: `ietf/v2/poc` cases 22-24 brought up
+   to the -01 text; the suite grew 24 -> 27 cases. Case 22 now derives the
+   chain identifier via `deriveChainId(rootSignature)`, the SHA-256 digest
+   of L(0)'s wire signature bytes, and reads no caller-supplied `chainId`
+   field. Case 23 does deterministic path-template matching. Case 24 binds
+   the menu's `iss` to the request target origin. Case 25 is vector V10's
+   step sequence. Case 26 pins the equal-literal fail-closed tie. Case 27
+   pins a literal `__proto__` menu key built as a real own property. The
+   agent ran five mutation proofs; the orchestrator independently ran a
+   sixth on the derived chain identifier (mutant exit 1, restore exit 0,
+   restore byte-identical via `cp` backup).
+2. A read-through review of the whole -01 by a separate read-only agent
+   found 1 blocker, 4 should-fix, 1 nit. The blocker was verified
+   independently by the orchestrator before any fix: the omitted-axis rule
+   was stated three incompatible ways — attenuation rule 2 and vector V4
+   reject a child that omits an axis its parent constrained; the
+   registry's Omitted-axis rule field said an absent axis inherits and
+   falsely claimed to restate rule 2; the `classSource` and `writeBudget`
+   passages said omission is only ever inheritance. Two conforming
+   verifiers would have disagreed on the same wire input.
+3. USER DECISION taken by the orchestrator under a "continue" instruction,
+   stated as an assumption and flagged to the user as reversible: option 1
+   of two — state the rule as two distinct cases (link-to-link omission of
+   a parent-constrained axis is a rejection per rule 2, unchanged, which is
+   what V4 tests; link-to-published-floor inheritance where no link in the
+   chain constrains the axis, which is what the `classSource` method
+   default and the `writeBudget` zero default are instances of) rather
+   than option 2 (make omission always mean inheritance, which would have
+   loosened posted -00 rule 2 and deleted V4). Attenuation rule 2, vector
+   V4 and the vectors table were not changed.
+4. The false "restates rule 2" claim and its dangling cross-reference to
+   the monotone section were deleted; the monotone section covers only
+   widening a value already present on an ordered axis and says nothing
+   about omission.
+5. Four other fixes: `effective` defined as the verifier's evaluated
+   per-axis outcome with the response encoding explicitly out of scope
+   (the document defines no response encoding); "Resource Owner" added as
+   a defined term in Conventions and Terminology, distinct from the
+   already-defined Relying Service, and capitalized at all eleven prose
+   sites; a step added to the ordered Verification Procedure placing
+   actionClass classification, declared-menu consultation and writeBudget
+   admission after chain and attenuation validation and before the
+   authorization-policy step; the Floor definition now states that a
+   floor is the aggregate of its per-axis constraints, at most one per
+   axis.
+6. Live citation re-verification on the IETF Datatracker API found
+   `draft-reece-wimse-cross-org-delegation` had moved to rev 02 while the
+   draft cited -01. After the bump, the orchestrator found the
+   reference's `<date>` still carried the -01 date (July 30 2026).
+   Corrected to August 31 2026 from canonical bibxml. The orchestrator
+   then re-checked ALL SEVEN I-D references against
+   `https://bib.ietf.org` canonical bibxml on both revision and date; all
+   seven now match. This is an instance of the standing lesson that a
+   sweep bounded to the row you were told about is not a sweep.
+7. A stale-claim sweep caused by the orchestrator's OWN PoC commit: after
+   `47ebce6`, the draft still described the code as having 24 cases and
+   falling short in three places, in three separate locations (the two
+   Implementation Status bullets, the write-budget chain-identifier
+   paragraph, and two Changes-since-00 bullets). All corrected. This is an
+   instance of the standing no-orphaned-references rule; the orphan was
+   created by this session's own change, not inherited.
+8. Three -01 changes to sections that already existed in -00 were missing
+   from "Changes since -00" entirely (the terminology additions, the new
+   verification step, the two-case omitted-axis restatement). A bullet
+   was added.
+9. Checks by exit code at the final tree: non-ASCII 0, `xmllint` 0,
+   forbidden RFCXML tags 0, BCP 14 capitals after `<back>` 0, `m7-check`
+   27/27 exit 0, `m3-check` 26/26 exit 0. XML 2315 -> 2364 lines. Commits:
+   `47ebce6` (PoC catch-up), `49e3fab` (review fixes and sweep).
+10. USER VALIDATION 2026-09-01, at the tree of `49e3fab`: the user
+    reported both PoC check suites exit 0 and `idnits` clean. The
+    author-tools RFCXML schema validator run was NOT separately reported
+    for this tree — do not claim one. Local `xmllint` well-formedness is
+    not schema validity.
+
+**DECISION**
+
+-01 is text-complete for its four scope items plus Appendix A direction 4,
+and the PoC now matches the text. It is NOT submitted. Remaining before
+submission: push the branch and merge; re-verify every cited draft
+revision live again on submission day (asor -01 has not posted; when it
+does, the min-pending wording in the axis-registry alignment paragraph
+must be revisited); an author-tools run on the final XML; then the user
+submits. The -01 draft must be posted before the -00 expiry of
+2027-03-04.
+
+---
+
+## 2026-09-01 — -01 item 4 drafted: Write Budget; all four -01 items and Appendix A direction 4 now in the text; user-validated at the uncommitted tree
 
 **EVIDENCE**
 
 1. New normative section after Action Class Floors, anchor `write-budget`,
+
    specifying the `writeBudget` axis: max, lower only, omitted inherits the
    published floor (zero by default).
 2. Limit and Count: `r` never spends against the budget; `w`/`x` requests

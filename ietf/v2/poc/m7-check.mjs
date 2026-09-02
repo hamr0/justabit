@@ -6,7 +6,7 @@
 // green (check-harness.mjs's own defence, reused unchanged here).
 import { generateKeyPairSync } from 'node:crypto';
 import { signJws } from './m1-jws.mjs';
-import { checkActionFloor, admit, classify } from './m7-actionclass.mjs';
+import { checkActionFloor, admit, classify, deriveChainId } from './m7-actionclass.mjs';
 import { makeHarness } from './check-harness.mjs';
 
 // One shared harness, field 'ok'/'ADMIT'. checkActionFloor's {allowed,
@@ -33,6 +33,13 @@ function adaptClassify(actual) {
   return { ok: true, reason: actual };
 }
 
+// deriveChainId() returns a hex digest string or null — never throws, never
+// a {ok,reason} shape. Adapted so a rejection reads as REJECT/'REJECTED' in
+// the harness's own vocabulary, same as every other module here.
+function adaptChainId(actual) {
+  return { ok: actual !== null, reason: actual === null ? 'REJECTED' : actual };
+}
+
 // ---------------------------------------------------------------------------
 // Fixtures: an owner keypair and a signed menu, plus a byte-flipped forgery.
 // ---------------------------------------------------------------------------
@@ -40,8 +47,13 @@ function adaptClassify(actual) {
 const owner = generateKeyPairSync('ed25519');
 const impostor = generateKeyPairSync('ed25519');
 
+// The origin the menu below is bound to, and that every declared-classSource
+// test presents as the request's targetOrigin unless it is deliberately
+// testing the origin-binding mismatch (case 24). RFC 6454 origin, no path.
+const TARGET_ORIGIN = 'https://api.example.com';
+
 const menuPayload = {
-  iss: 'owner-1',
+  iss: TARGET_ORIGIN,
   menu: {
     'POST /check': 'r',   // a POST the owner is willing to CLASSIFY as read-only
     'GET /danger': 'x',   // a GET the owner wants CLASSIFIED as a write/execute
@@ -80,7 +92,7 @@ void impostor;
 // -> x. Link actionClass: r -> REFUSED.
 {
   const link = { actionClass: 'r', classSource: 'method' };
-  const req = { method: 'POST', path: '/check', menu: validMenu, chainId: 'c1' };
+  const req = { method: 'POST', path: '/check', menu: validMenu, rootSignature: 'Y2FzZTEtcm9vdA' };
   const r = admit(link, req, new Map());
   check('1 N1 classSource=method ignores menu, classified x, refused', false, adaptAdmit(r),
     'classified x exceeds actionClass floor r');
@@ -91,7 +103,7 @@ void impostor;
 // (x for POST) -> REFUSED under actionClass: r.
 {
   const link = { actionClass: 'r', classSource: 'declared' };
-  const req = { method: 'POST', path: '/check', menu: forgedMenu, chainId: 'c2' };
+  const req = { method: 'POST', path: '/check', menu: forgedMenu, targetOrigin: TARGET_ORIGIN, rootSignature: 'Y2FzZTItcm9vdA' };
   const r = admit(link, req, new Map());
   check('2 N3 forged menu signature falls back to method, refused', false, adaptAdmit(r),
     'classified x exceeds actionClass floor r');
@@ -102,7 +114,7 @@ void impostor;
 // method default (r), which is exactly what classSource=declared opts into.
 {
   const link = { actionClass: 'r', classSource: 'declared' };
-  const req = { method: 'GET', path: '/danger', menu: validMenu, chainId: 'c3' };
+  const req = { method: 'GET', path: '/danger', menu: validMenu, targetOrigin: TARGET_ORIGIN, rootSignature: 'Y2FzZTMtcm9vdA' };
   const r = admit(link, req, new Map());
   check('3 N4 declared menu tightens GET to x, refused', false, adaptAdmit(r),
     'classified x exceeds actionClass floor r');
@@ -149,11 +161,11 @@ check('10 N9a child raises actionClass w->x, refused', false,
 {
   const link = { actionClass: 'x', classSource: 'method', writeBudget: 1 };
   const state = new Map();
-  const req = { method: 'POST', path: '/bookings', chainId: 'c5' };
+  const req = { method: 'POST', path: '/bookings', rootSignature: 'Y2FzZTUtcm9vdA' };
   const first = admit(link, req, state);
   const second = admit(link, req, state);
   check('11 N5 second write after budget exhausted, refused', false, adaptAdmit(second),
-    'writeBudget exhausted for chain c5',
+    `writeBudget exhausted for chain ${deriveChainId('Y2FzZTUtcm9vdA')}`,
     { label: 'first request was admitted', ok: first.ok === true && first.effective.writeBudget === 0 });
 }
 
@@ -187,7 +199,7 @@ check('10 N9a child raises actionClass w->x, refused', false,
 // is actually wired into the classSource=declared path, not just ignored.
 {
   const link = { actionClass: 'r', classSource: 'declared' };
-  const req = { method: 'POST', path: '/check', menu: validMenu, chainId: 'c13' };
+  const req = { method: 'POST', path: '/check', menu: validMenu, targetOrigin: TARGET_ORIGIN, rootSignature: 'c13sig' };
   const r = admit(link, req, new Map());
   check('13 N2 declared classSource + valid menu, admitted as r', true, adaptAdmit(r),
     'ok', { label: `actionClass=${r.ok ? r.actionClass : 'n/a'}`, ok: r.ok === true && r.actionClass === 'r' });
@@ -200,12 +212,12 @@ check('10 N9a child raises actionClass w->x, refused', false,
 {
   const link = { actionClass: 'r', classSource: 'method', writeBudget: 1 };
   const state = new Map();
-  const req = { method: 'GET', path: '/bookings/1', chainId: 'c14' };
+  const req = { method: 'GET', path: '/bookings/1', rootSignature: 'c14sig' };
   const r1 = admit(link, req, state);
   const r2 = admit(link, req, state);
   const r3 = admit(link, req, state);
   const wLink = { actionClass: 'x', classSource: 'method', writeBudget: 1 };
-  const wReq = { method: 'POST', path: '/bookings', chainId: 'c14' };
+  const wReq = { method: 'POST', path: '/bookings', rootSignature: 'c14sig' };
   const rw = admit(wLink, wReq, state); // proves the r's above never spent
   check('14 N6 three r requests admitted, budget untouched', true, adaptAdmit(r3),
     'ok', {
@@ -229,9 +241,9 @@ check('10 N9a child raises actionClass w->x, refused', false,
 {
   const gate = checkActionFloor({ actionClass: 'x' }, { actionClass: 'x' }); // both omit writeBudget
   const link = { actionClass: 'x', classSource: 'method' }; // writeBudget omitted
-  const r = admit(link, { method: 'POST', path: '/bookings', chainId: 'c16' }, new Map());
+  const r = admit(link, { method: 'POST', path: '/bookings', rootSignature: 'c16sig' }, new Map());
   check('16 N11a omitted writeBudget -> effective 0, w/x refused', false, adaptAdmit(r),
-    'writeBudget exhausted for chain c16',
+    `writeBudget exhausted for chain ${deriveChainId('c16sig')}`,
     { label: `checkActionFloor effective.writeBudget=${gate.effective?.writeBudget}`, ok: gate.allowed === true && gate.effective.writeBudget === 0 });
 }
 
@@ -240,7 +252,7 @@ check('10 N9a child raises actionClass w->x, refused', false,
 {
   const gate = checkActionFloor({ actionClass: 'x' }, { actionClass: 'x' }); // both omit classSource
   const link = { actionClass: 'r' }; // classSource omitted -> 'method'
-  const req = { method: 'GET', path: '/danger', menu: validMenu, chainId: 'c17' }; // menu would say x if consulted
+  const req = { method: 'GET', path: '/danger', menu: validMenu, targetOrigin: TARGET_ORIGIN, rootSignature: 'c17sig' }; // menu would say x if consulted
   const r = admit(link, req, new Map());
   check('17 N11b omitted classSource -> effective method, menu ignored', true, adaptAdmit(r),
     'ok', {
@@ -255,10 +267,11 @@ check('10 N9a child raises actionClass w->x, refused', false,
 check('18 N12 unknown method BREW classifies as x', true,
   adaptClassify(classify('BREW', '/pot', undefined, 'method')), 'x');
 
-// 19 — N13: menu present and signature-valid, but lacks the requested
-// METHOD path -> falls back to the method default.
+// 19 — N13: menu present, signature-valid, and its iss matches the request
+// target's origin, but it lacks the requested METHOD path -> falls back to
+// the method default.
 check('19 N13 menu present but missing entry, falls back to method default', true,
-  adaptClassify(classify('GET', '/unlisted', validMenu, 'declared')), 'r');
+  adaptClassify(classify('GET', '/unlisted', validMenu, 'declared', TARGET_ORIGIN)), 'r');
 
 // 20 — EQUAL: restating the parent link exactly is allowed; effective
 // mirrors the child (which here equals the parent).
@@ -279,38 +292,46 @@ check('19 N13 menu present but missing entry, falls back to method default', tru
 }
 
 // ---------------------------------------------------------------------------
-// ASSUMPTION cases — each pins a spike-scope limit the review flagged. These
-// document the behaviour as it stands, not a bug: a later -01 change that
-// closes the gap will flip the case's expected value and force this file's
-// (and the README's) description to be updated, rather than letting the gap
-// go unnoticed.
+// Cases 22-24: the three assumptions the -01 draft text has since resolved
+// (write-budget-chain-identifier, action-class's declared-menu path-template
+// matching, and its origin-binding rule). The code below now implements
+// each rule; these cases pin the RESOLVED behaviour, replacing the
+// ASSUMPTION cases that used to pin the gap. See README.md's dated note.
 // ---------------------------------------------------------------------------
 
-// 22 — ASSUMPTION: chainId is caller-supplied; a fresh chainId refills the
-// budget. The verifier MUST derive chainId from the signed chain (e.g. a
-// digest of the root link's signature), never take it from the request —
-// the spike takes chainId as plain input and does not model that
-// derivation. A -01 requirement, not spike scope.
+// 22 — write-budget-chain-identifier: the chain identifier is derived by
+// the verifier itself, as the SHA-256 digest of L(0)'s wire signature
+// bytes, and MUST NOT be taken from a value the request supplies. Same
+// rootSignature (the same chain), writeBudget 1: the first x-class request
+// spends the budget; a second request against the SAME chain, which also
+// carries an arbitrary caller-supplied "chainId"-shaped field, is refused
+// on the exhausted budget rather than being treated as a fresh chain —
+// proving admit() never reads that field at all.
 {
   const link = { actionClass: 'x', writeBudget: 1 };
   const state = new Map();
-  const req1 = { method: 'POST', path: '/bookings', chainId: 'c22a' };
+  const rootSig = 'Y2FzZTIyLXJvb3Q';
+  const req1 = { method: 'POST', path: '/bookings', rootSignature: rootSig };
   const r1 = admit(link, req1, state);
-  const req2 = { method: 'POST', path: '/bookings', chainId: 'c22b' };
+  const req2 = {
+    method: 'POST', path: '/bookings', rootSignature: rootSig,
+    chainId: 'attacker-supplied-fresh-id', // MUST be ignored; not a fresh chain
+  };
   const r2 = admit(link, req2, state);
-  check('22 ASSUMPTION fresh chainId refills budget, both admitted', true, adaptAdmit(r2),
-    'ok', { label: 'first chainId c22a was also admitted', ok: r1.ok === true });
+  check('22 chain identifier is verifier-derived; caller-supplied chainId does not refill budget', false, adaptAdmit(r2),
+    `writeBudget exhausted for chain ${deriveChainId(rootSig)}`,
+    { label: 'first request (same chain) was admitted', ok: r1.ok === true });
 }
 
-// 23 — ASSUMPTION: menu keys are exact strings; path templates do not match.
-// The menu declares "POST /calls/{callId}": "r" verbatim, but a real request
-// path like /calls/123 is looked up as-is and misses, so classification
-// falls back to the method default (x for POST) -> REFUSED under
-// actionClass: r. A real menu needs OpenAPI-style path-template matching;
-// out of spike scope. Note this fails CLOSED (refuse), the safe direction.
+// 23 — declared-menu path-template matching: the menu declares
+// "POST /calls/{callId}": "r" as a template; a concrete request path
+// "/calls/123" MUST match it per the deterministic segment rule (same
+// segment count, {callId} matches the single non-empty segment "123") and
+// classification uses the menu's declared value, r -> ADMITTED under
+// actionClass: r.
 {
   const templateMenuPayload = {
-    iss: 'owner-1',
+    iss: TARGET_ORIGIN,
     menu: { 'POST /calls/{callId}': 'r' },
   };
   const templateMenuToken = signJws(owner.privateKey, 'owner-1', templateMenuPayload);
@@ -319,39 +340,313 @@ check('19 N13 menu present but missing entry, falls back to method default', tru
   }
   const templateMenu = { token: templateMenuToken, ownerPublicKey: owner.publicKey };
   const link = { actionClass: 'r', classSource: 'declared' };
-  const req = { method: 'POST', path: '/calls/123', menu: templateMenu, chainId: 'c23' };
+  const req = { method: 'POST', path: '/calls/123', menu: templateMenu, targetOrigin: TARGET_ORIGIN, rootSignature: 'c23sig' };
   const r = admit(link, req, new Map());
-  check('23 ASSUMPTION menu keys exact-string only, path template misses, refused', false, adaptAdmit(r),
-    'classified x exceeds actionClass floor r');
-}
-
-// 24 — ASSUMPTION: the menu is not bound to the resource being called.
-// The menu is signed by the owner key but carries iss: 'owner-OTHER' — a
-// different issuer than the request's notional target — and the request
-// itself has no host field at all (that absence is the point: nothing in
-// admit()/classify() ever checks the menu's origin against the target).
-// classSource: declared still ADMITS as the menu's declared class. -01 must
-// bind the menu to the resource origin (iss == the authority of the request
-// target, or the key resolver must be per-origin); a multi-API gate that
-// resolves one key for many owners would otherwise accept the wrong menu.
-// Out of spike scope.
-{
-  const otherOwnerMenuPayload = {
-    iss: 'owner-OTHER',
-    menu: { 'POST /pay': 'r' },
-  };
-  const otherOwnerMenuToken = signJws(owner.privateKey, 'owner-1', otherOwnerMenuPayload);
-  if (typeof otherOwnerMenuToken !== 'string') {
-    throw new Error('fixture setup failed: could not sign other-owner menu');
-  }
-  const otherOwnerMenu = { token: otherOwnerMenuToken, ownerPublicKey: owner.publicKey };
-  const link = { actionClass: 'r', classSource: 'declared' };
-  // No host field on the request at all — the point being pinned is that
-  // nothing in admit()/classify() consults one.
-  const req = { method: 'POST', path: '/pay', menu: otherOwnerMenu, chainId: 'c24' };
-  const r = admit(link, req, new Map());
-  check('24 ASSUMPTION menu iss not bound to target resource, admitted as r', true, adaptAdmit(r),
+  check('23 path-template menu key /calls/{callId} matches /calls/123, admitted as r', true, adaptAdmit(r),
     'ok', { label: `actionClass=${r.ok ? r.actionClass : 'n/a'}`, ok: r.ok === true && r.actionClass === 'r' });
 }
 
-conclude(24);
+// 24 — declared-menu origin binding: the menu is signed by the resource
+// owner's own key and declares "POST /check": "r" with a VALID signature,
+// but its iss is a different origin (https://attacker.example.com) than
+// the request target's origin (TARGET_ORIGIN). Per -01's rule the menu
+// fails exactly as if its signature had not verified — this is V9's shape
+// from the appendix — so classification falls back to the method default
+// for POST, x, which exceeds the actionClass: r floor -> REFUSED.
+{
+  const mismatchMenuPayload = {
+    iss: 'https://attacker.example.com',
+    menu: { 'POST /check': 'r' },
+  };
+  const mismatchMenuToken = signJws(owner.privateKey, 'owner-1', mismatchMenuPayload);
+  if (typeof mismatchMenuToken !== 'string') {
+    throw new Error('fixture setup failed: could not sign mismatched-origin menu');
+  }
+  const mismatchMenu = { token: mismatchMenuToken, ownerPublicKey: owner.publicKey };
+  const link = { actionClass: 'r', classSource: 'declared' };
+  const req = { method: 'POST', path: '/check', menu: mismatchMenu, targetOrigin: TARGET_ORIGIN, rootSignature: 'c24sig' };
+  const r = admit(link, req, new Map());
+  check('24 declared menu iss does not match request target origin, method default applies, refused', false, adaptAdmit(r),
+    'classified x exceeds actionClass floor r');
+}
+
+// 25 — V10 from the appendix: a single chain, actionClass x, writeBudget 2,
+// against a sequence of x-class requests. Two successive requests are
+// admitted (remaining count 2 -> 1 -> 0); a third is refused, budget
+// exhausted.
+{
+  const link = { actionClass: 'x', writeBudget: 2 };
+  const state = new Map();
+  const rootSig = 'Y2FzZTI1LXJvb3Q';
+  const req = { method: 'POST', path: '/bookings', rootSignature: rootSig };
+  const step1 = admit(link, req, state);
+  const step2 = admit(link, req, state);
+  const step3 = admit(link, req, state);
+  check('25 V10 budget 2: admit, admit, refuse', false, adaptAdmit(step3),
+    `writeBudget exhausted for chain ${deriveChainId(rootSig)}`,
+    {
+      label: 'step1 admitted remaining=1, step2 admitted remaining=0',
+      ok: step1.ok === true && step1.effective.writeBudget === 1
+        && step2.ok === true && step2.effective.writeBudget === 0,
+    });
+}
+
+// 26 — declared-menu tie: two operation keys under the same method both
+// match the same concrete request path with an EQUAL number of literal
+// segments ("POST /a/{id}" and "POST /{id}/b" both match "/a/b" with
+// exactly one literal segment each). -01 requires a verifier to treat such
+// a tie as a miss, never resolving it by JSON key order or any other
+// means, so classification falls back to the method default for POST, x —
+// not either tied declared value (r or w) — proving the tie is not merely
+// ignored down to a single arbitrary winner.
+{
+  const tieMenuPayload = {
+    iss: TARGET_ORIGIN,
+    menu: { 'POST /a/{id}': 'r', 'POST /{id}/b': 'w' },
+  };
+  const tieMenuToken = signJws(owner.privateKey, 'owner-1', tieMenuPayload);
+  if (typeof tieMenuToken !== 'string') {
+    throw new Error('fixture setup failed: could not sign tie menu');
+  }
+  const tieMenu = { token: tieMenuToken, ownerPublicKey: owner.publicKey };
+  const link = { actionClass: 'x', classSource: 'declared', writeBudget: 1 };
+  const req = { method: 'POST', path: '/a/b', menu: tieMenu, targetOrigin: TARGET_ORIGIN, rootSignature: 'c26sig' };
+  const r = admit(link, req, new Map());
+  check('26 equal-literal-segment tie between distinct menu keys fails closed to method default', true, adaptAdmit(r),
+    'ok', { label: `actionClass=${r.ok ? r.actionClass : 'n/a'}`, ok: r.ok === true && r.actionClass === 'x' });
+}
+
+// 27 — prototype safety of the path-template lookup: a menu whose JSON
+// payload carries a literal "__proto__" key (a real OWN property once
+// decoded by JSON.parse inside verifyJws, not the Object.prototype
+// accessor) is matched like any other string key — no crash, no bypass,
+// and the unrelated "__proto__ /x" key does not match a "/calls/123"
+// request under a different method/path. This case alone does NOT
+// distinguish matchOperationKey's Object.keys-only enumeration from a
+// for...in walk (both would pass it, since "__proto__" here is an own
+// property, not an inherited one) — case 28 below pins that distinction.
+{
+  const protoMenuPayload = JSON.parse(JSON.stringify({
+    iss: TARGET_ORIGIN,
+    menu: { '__proto__ /x': 'x', 'POST /calls/{callId}': 'r' },
+  }));
+  const protoMenuToken = signJws(owner.privateKey, 'owner-1', protoMenuPayload);
+  if (typeof protoMenuToken !== 'string') {
+    throw new Error('fixture setup failed: could not sign proto-keyed menu');
+  }
+  const protoMenu = { token: protoMenuToken, ownerPublicKey: owner.publicKey };
+  const link = { actionClass: 'r', classSource: 'declared' };
+  const req = { method: 'POST', path: '/calls/123', menu: protoMenu, targetOrigin: TARGET_ORIGIN, rootSignature: 'c27sig' };
+  const r = admit(link, req, new Map());
+  check('27 a literal __proto__ menu key does not crash or bypass template matching', true, adaptAdmit(r),
+    'ok', { label: `actionClass=${r.ok ? r.actionClass : 'n/a'}`, ok: r.ok === true && r.actionClass === 'r' });
+}
+
+// 28 — the enumeration guard itself: matchOperationKey (reached via
+// classify) MUST only ever consider a menu object's OWN enumerable keys
+// (Object.keys), never keys inherited via its prototype chain (a bare
+// `for...in` walks both). Proof: temporarily define an ENUMERABLE
+// "POST /calls/{callId}" property directly on Object.prototype — every
+// plain object, including this menu, inherits it — with a declared value
+// (r) that differs from the POST method default (x). The menu's own
+// payload declares no matching key at all (`menu: {}`), so the correct,
+// Object.keys-only implementation must see no match and fall back to the
+// method default x; a for...in mutant would instead pick up the inherited
+// key and return r. The injected property is removed in a finally block
+// before any assertion, so no global state leaks to any other case
+// regardless of pass or fail.
+{
+  const emptyMenuPayload = { iss: TARGET_ORIGIN, menu: {} };
+  const emptyMenuToken = signJws(owner.privateKey, 'owner-1', emptyMenuPayload);
+  if (typeof emptyMenuToken !== 'string') {
+    throw new Error('fixture setup failed: could not sign empty menu');
+  }
+  const emptyMenu = { token: emptyMenuToken, ownerPublicKey: owner.publicKey };
+  const pollutedKey = 'POST /calls/{callId}';
+  let actual;
+  try {
+    Object.defineProperty(Object.prototype, pollutedKey, {
+      value: 'r', enumerable: true, configurable: true, writable: true,
+    });
+    actual = classify('POST', '/calls/123', emptyMenu, 'declared', TARGET_ORIGIN);
+  } finally {
+    delete Object.prototype[pollutedKey];
+  }
+  check('28 matchOperationKey ignores an inherited Object.prototype key, uses only own keys', true,
+    adaptClassify(actual), 'x',
+    { label: 'Object.prototype left clean after the case', ok: !Object.prototype.hasOwnProperty(pollutedKey) });
+}
+
+// 29 — deriveChainId defect fix: 'ab!!cd' contains a character ('!') outside
+// the strict base64url alphabet and MUST be rejected (null), never decoded
+// down to a digest — the orchestrator reproduced this input colliding with
+// deriveChainId('abcd') under Buffer.from's permissive parse (Node strips
+// invalid characters rather than throwing). Paired with a positive control
+// proving 'abcd' alone still derives a normal 64-hex-char digest, so this
+// case cannot pass merely because deriveChainId always returns null.
+{
+  const validId = deriveChainId('abcd');
+  check('29 deriveChainId rejects punctuation outside the base64url alphabet, not collided', false,
+    adaptChainId(deriveChainId('ab!!cd')), 'REJECTED',
+    { label: `positive control: deriveChainId('abcd')=${validId} (valid 64-hex digest)`,
+      ok: typeof validId === 'string' && /^[0-9a-f]{64}$/.test(validId) });
+}
+
+// 30 — same defect, second reproduction: an embedded space is also outside
+// the base64url alphabet and MUST be rejected, not silently stripped down
+// to a digest that would collide with 'abcd' or with case 29's rejection.
+check('30 deriveChainId rejects an embedded space, not collided', false,
+  adaptChainId(deriveChainId('ab cd')), 'REJECTED');
+
+// 31 — Fix 2 (conformance gap), link-to-link omission on classSource: the
+// orchestrator's exact reproduction. The parent link constrains
+// classSource=declared; the child omits the axis entirely. Per draft -01's
+// axis-registry Omitted-axis rule, link-to-link case (attenuation rule 2),
+// this is non-relaxation-by-omission and the chain MUST be rejected — never
+// silently defaulted to classSource's tightest value, 'method'.
+check('31 parent constrains classSource, child omits it, chain rejected', false,
+  adaptGate(checkActionFloor({ actionClass: 'x', classSource: 'declared' }, { actionClass: 'x' })),
+  'classSource omitted: parent link constrains it, child link must not omit it');
+
+// 32 — Fix 2, link-to-link omission on writeBudget: same shape, the
+// orchestrator's second reproduction. The parent link constrains
+// writeBudget=5; the child omits it. Rejected, never defaulted to 0.
+check('32 parent constrains writeBudget, child omits it, chain rejected', false,
+  adaptGate(checkActionFloor({ actionClass: 'x', writeBudget: 5 }, { actionClass: 'x' })),
+  'writeBudget omitted: parent link constrains it, child link must not omit it');
+
+// 33 — the OTHER direction of the same rule, so Fix 2 is proven not to have
+// broken link-to-published-floor inheritance: where NEITHER link
+// constrains classSource, the child's omission is inheritance, not
+// rejection, and admits with the effective default 'method' (same shape
+// case 17 already exercises through admit(); pinned here directly against
+// checkActionFloor's own return).
+{
+  const v = checkActionFloor({ actionClass: 'x' }, { actionClass: 'x' });
+  check('33 neither link constrains classSource, child omits it, inherited default admits', true,
+    adaptGate(v), 'ok',
+    { label: `effective.classSource=${v.effective?.classSource}`, ok: v.effective?.classSource === 'method' });
+}
+
+// 34 — same direction, writeBudget axis: neither link constrains it, so
+// omission inherits the published floor's default (0), not a rejection.
+{
+  const v = checkActionFloor({ actionClass: 'x' }, { actionClass: 'x' });
+  check('34 neither link constrains writeBudget, child omits it, inherited default admits', true,
+    adaptGate(v), 'ok',
+    { label: `effective.writeBudget=${v.effective?.writeBudget}`, ok: v.effective?.writeBudget === 0 });
+}
+
+// ---------------------------------------------------------------------------
+// Cases 35-40: 2026-09-02 second branch-review round — one CRITICAL, two
+// WARNINGs, all independently reproduced by the orchestrator against this
+// source before the fix. See README.md's dated note for the fix and the
+// mutation table.
+// ---------------------------------------------------------------------------
+
+// 35 — CRITICAL fix (canonical round-trip): 'AB' is in-alphabet and the same
+// length as 'AA', but Buffer.from('AB', 'base64url') decodes to the SAME
+// single zero byte as 'AA' (the low 6 bits of a 1-byte partial group are
+// silently discarded) — the orchestrator's exact reproduction
+// (deriveChainId('AA') === deriveChainId('AB') === ... under the old code).
+// The canonical round-trip check now rejects 'AB' (its re-encoding is 'AA',
+// not 'AB') while the canonical spelling 'AA' still derives a normal
+// digest, proving the two distinct strings no longer collide on one
+// identifier.
+{
+  const canonicalId = deriveChainId('AA');
+  check('35 deriveChainId rejects a non-canonical same-length same-alphabet collider, canonical form still derives', false,
+    adaptChainId(deriveChainId('AB')), 'REJECTED',
+    { label: `positive control: deriveChainId('AA')=${canonicalId} (valid 64-hex digest)`,
+      ok: typeof canonicalId === 'string' && /^[0-9a-f]{64}$/.test(canonicalId) });
+}
+
+// 36 — CRITICAL fix: a length-mod-4-equals-1 input ('A', 1 char) decoded to
+// 0 usable bytes under the old truncating behaviour (Buffer.from drops the
+// lone leftover character) and MUST be rejected. The canonical round-trip
+// check catches it generically — no string of that length remainder can
+// ever round-trip — so no separate length-mod-4 check was needed.
+check('36 deriveChainId rejects a length-mod-4-equals-1 input', false,
+  adaptChainId(deriveChainId('A')), 'REJECTED');
+
+// 37 — WARNING 2 (unpadded contract untested): a padded input ('AA==') is
+// out-of-alphabet under BASE64URL_STRICT_RE (which excludes '=') and MUST
+// be rejected. This case defends both guards at once: mutating the regex to
+// also accept '=' (see the mutation table) lets 'AA==' past the alphabet
+// check, but Buffer.from('AA==', 'base64url') then decodes to the same
+// single byte as 'AA', and re-encoding produces 'AA', not 'AA==' — so the
+// canonical round-trip check still rejects it under that mutant too.
+check('37 deriveChainId rejects a padded (\'=\'-suffixed) input', false,
+  adaptChainId(deriveChainId('AA==')), 'REJECTED');
+
+// 38 — WARNING 1 (hasOwn guard untested): a parent link with writeBudget: 0
+// (a LEGITIMATE, falsy-adjacent constraint) whose child omits the axis MUST
+// still be rejected by the link-to-link omitted-axis rule. The orchestrator
+// found the existing suite stayed green when hasOwn's hasOwnProperty-based
+// body was replaced with a truthiness check (`!!obj[key]`), because `!!0`
+// is false and the rule silently treated the parent as unconstrained,
+// wrongly admitting. classSource has no falsy-adjacent legal value
+// ('declared'/'method' are both non-empty strings, always truthy under
+// `!!`), so no equivalent classSource case is added — it could not fail
+// under the truthiness mutant either way.
+check('38 parent writeBudget:0 (falsy), child omits it, chain still rejected', false,
+  adaptGate(checkActionFloor({ actionClass: 'x', writeBudget: 0 }, { actionClass: 'x' })),
+  'writeBudget omitted: parent link constrains it, child link must not omit it');
+
+// 39 — WARNING 1 (hasOwn guard untested), classSource axis, prototype
+// pollution: `isPlainObject` forces every link either implementation
+// accepts to share Object.prototype as its own prototype, so a construction
+// where BOTH parent and child merely omit a polluted axis is symmetric —
+// `in` and hasOwnProperty agree on it either way, and cannot be told apart.
+// The construction that DOES distinguish them: the PARENT constrains the
+// axis as its own property (case 31's exact shape) while the CHILD's
+// omission is real — hasOwnProperty correctly reports the child as not
+// owning it regardless of pollution; `key in child` does not distinguish
+// "child's own" from "inherited via the polluted Object.prototype" and so
+// reports the child as owning it too, masking the omission and wrongly
+// admitting. Object.prototype is polluted with an ENUMERABLE 'classSource'
+// property, restored in a finally (case 28's pattern), and confirmed clean
+// afterward regardless of pass or fail.
+{
+  const pollutedKey = 'classSource';
+  let v;
+  try {
+    Object.defineProperty(Object.prototype, pollutedKey, {
+      value: 'method', enumerable: true, configurable: true,
+    });
+    v = checkActionFloor({ actionClass: 'x', classSource: 'declared' }, { actionClass: 'x' });
+  } finally {
+    delete Object.prototype[pollutedKey];
+  }
+  check('39 Object.prototype polluted with classSource, parent-owned constraint still rejects a real child omission', false,
+    adaptGate(v), 'classSource omitted: parent link constrains it, child link must not omit it',
+    { label: 'Object.prototype left clean after the case', ok: !Object.prototype.hasOwnProperty(pollutedKey) });
+}
+
+// 40 — WARNING 1 (hasOwn guard untested), writeBudget axis: same
+// construction as case 39, on writeBudget (case 32's exact link shapes).
+// Under the `in` mutant this one goes red via a DIFFERENT path than case
+// 39: the omitted-axis rule stops short-circuiting (both links "own" the
+// polluted property under `in`), so the child's effective writeBudget is
+// read straight off the polluted inherited value (999) and compared as
+// RAISED against the parent's 5 — a different reason string
+// ('writeBudget raised: 999 > 5') than this case expects, so the exact-
+// reason assertion still fails the mutant even though both are `allowed:
+// false`. Object.prototype is polluted and restored the same way as case 39.
+{
+  const pollutedKey = 'writeBudget';
+  let v;
+  try {
+    Object.defineProperty(Object.prototype, pollutedKey, {
+      value: 999, enumerable: true, configurable: true,
+    });
+    v = checkActionFloor({ actionClass: 'x', writeBudget: 5 }, { actionClass: 'x' });
+  } finally {
+    delete Object.prototype[pollutedKey];
+  }
+  check('40 Object.prototype polluted with writeBudget, parent-owned constraint still rejects a real child omission', false,
+    adaptGate(v), 'writeBudget omitted: parent link constrains it, child link must not omit it',
+    { label: 'Object.prototype left clean after the case', ok: !Object.prototype.hasOwnProperty(pollutedKey) });
+}
+
+conclude(40);
