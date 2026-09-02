@@ -1,7 +1,22 @@
 # Changelog
 
-## Unreleased
+## 0.12.1 — 2026-09-02
 
+- **Asor ack wording confirmed identical after transmission corruption;
+  archive check resolved as false alarm** (2026-09-02). Rafael Asor
+  reported the user's private mail reached him with characters missing
+  inside several lines; he hand-filled two gaps, including completing a
+  final word cut at "e" as "example," and asked for confirmation before
+  publishing. A `diff` of the sent sentence against his reconstruction
+  showed no content differences — the acknowledgment wording is
+  confirmed and final from this side, not yet on the asor site, going up
+  with Thursday's submission. The corruption's origin is unknown and no
+  cause is asserted. A related archive check for the same corruption
+  across the WIMSE/OAuth lists came back inconclusive and was correctly
+  reported as a gap in evidence rather than a finding; the user then
+  confirmed the messages had reached both lists, resolving it as a false
+  alarm from a fetch/summariser limitation. The -02 citation naming the
+  WIMSE and OAuth lists stands unchanged. No -02 item changed.
 - **OAuth WG thread closed: per-path/system-wide split and role-not-
   component framing agreed, -02 Verifier Placement fully specified**
   (2026-09-02). Jijie Wei and Sangam Das both replied, independently
