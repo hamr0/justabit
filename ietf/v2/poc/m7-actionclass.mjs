@@ -351,16 +351,32 @@ function matchOperationKey(menu, method, path) {
 // (A-Z, a-z, 0-9, '-', '_') BEFORE decoding: Node's Buffer.from(s,
 // 'base64url') does not throw on a character outside that alphabet, it
 // silently strips it and decodes whatever is left, which makes two
-// distinct strings collide on one digest — exactly the property this
-// function exists to prevent (an identifier the caller cannot steer). This
-// module treats base64url as UNPADDED, matching m1-jws.mjs's own
+// distinct strings collide on one digest. The alphabet check alone does
+// NOT eliminate every collision, though: Buffer.from(s, 'base64url') also
+// silently DISCARDS the low-order bits of a final partial group when
+// s.length mod 4 is 2 or 3 (and drops the whole trailing character when
+// s.length mod 4 is 1), rather than rejecting them — so e.g. 'AA', 'AB',
+// 'AC' and 'AD' are all in-alphabet, all length 2, and all decode to the
+// same single zero byte. Closing THIS collision class requires a second,
+// independent check after decoding: the decoded bytes are re-encoded with
+// the same .toString('base64url') convention this module's own strings
+// use, and the input is rejected unless that re-encoding reproduces the
+// original string EXACTLY. Only the canonical unpadded base64url encoding
+// of a byte string round-trips to itself this way, so this check accepts a
+// string if and only if it IS that canonical encoding — collapsing the
+// "many strings decode to the same bytes" class down to exactly one
+// accepted spelling per byte string. It also rejects every length-mod-4-
+// equals-1 string as a side effect (no such string can ever round-trip),
+// so no separate length check is needed for that case either. This module
+// treats base64url as UNPADDED, matching m1-jws.mjs's own
 // toString('base64url') output convention (no trailing '='): a '='
-// character is therefore invalid input here, same as any other
-// out-of-alphabet character, and causes rejection.
+// character is therefore invalid input here (rejected by the alphabet
+// check, before the canonical check even runs), same as any other
+// out-of-alphabet character.
 //
 // Returns a lowercase hex digest, or null if `rootSignature` is not a
-// usable, validly-encoded byte source. Never throws (reject-never-throw,
-// mirrors every other wire-facing function in this module).
+// usable, canonically-encoded byte source. Never throws (reject-never-
+// throw, mirrors every other wire-facing function in this module).
 // ---------------------------------------------------------------------------
 
 const BASE64URL_STRICT_RE = /^[A-Za-z0-9_-]+$/;
@@ -375,6 +391,9 @@ export function deriveChainId(rootSignature) {
     } catch {
       return null;
     }
+    // Canonical round-trip: reject unless re-encoding the decoded bytes
+    // reproduces the original string exactly (see the comment above).
+    if (bytes.toString('base64url') !== rootSignature) return null;
   } else if (Buffer.isBuffer(rootSignature) || rootSignature instanceof Uint8Array) {
     bytes = Buffer.from(rootSignature);
   } else {

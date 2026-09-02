@@ -92,7 +92,7 @@ void impostor;
 // -> x. Link actionClass: r -> REFUSED.
 {
   const link = { actionClass: 'r', classSource: 'method' };
-  const req = { method: 'POST', path: '/check', menu: validMenu, rootSignature: 'c1sig' };
+  const req = { method: 'POST', path: '/check', menu: validMenu, rootSignature: 'Y2FzZTEtcm9vdA' };
   const r = admit(link, req, new Map());
   check('1 N1 classSource=method ignores menu, classified x, refused', false, adaptAdmit(r),
     'classified x exceeds actionClass floor r');
@@ -103,7 +103,7 @@ void impostor;
 // (x for POST) -> REFUSED under actionClass: r.
 {
   const link = { actionClass: 'r', classSource: 'declared' };
-  const req = { method: 'POST', path: '/check', menu: forgedMenu, targetOrigin: TARGET_ORIGIN, rootSignature: 'c2sig' };
+  const req = { method: 'POST', path: '/check', menu: forgedMenu, targetOrigin: TARGET_ORIGIN, rootSignature: 'Y2FzZTItcm9vdA' };
   const r = admit(link, req, new Map());
   check('2 N3 forged menu signature falls back to method, refused', false, adaptAdmit(r),
     'classified x exceeds actionClass floor r');
@@ -114,7 +114,7 @@ void impostor;
 // method default (r), which is exactly what classSource=declared opts into.
 {
   const link = { actionClass: 'r', classSource: 'declared' };
-  const req = { method: 'GET', path: '/danger', menu: validMenu, targetOrigin: TARGET_ORIGIN, rootSignature: 'c3sig' };
+  const req = { method: 'GET', path: '/danger', menu: validMenu, targetOrigin: TARGET_ORIGIN, rootSignature: 'Y2FzZTMtcm9vdA' };
   const r = admit(link, req, new Map());
   check('3 N4 declared menu tightens GET to x, refused', false, adaptAdmit(r),
     'classified x exceeds actionClass floor r');
@@ -161,11 +161,11 @@ check('10 N9a child raises actionClass w->x, refused', false,
 {
   const link = { actionClass: 'x', classSource: 'method', writeBudget: 1 };
   const state = new Map();
-  const req = { method: 'POST', path: '/bookings', rootSignature: 'c5sig' };
+  const req = { method: 'POST', path: '/bookings', rootSignature: 'Y2FzZTUtcm9vdA' };
   const first = admit(link, req, state);
   const second = admit(link, req, state);
   check('11 N5 second write after budget exhausted, refused', false, adaptAdmit(second),
-    `writeBudget exhausted for chain ${deriveChainId('c5sig')}`,
+    `writeBudget exhausted for chain ${deriveChainId('Y2FzZTUtcm9vdA')}`,
     { label: 'first request was admitted', ok: first.ok === true && first.effective.writeBudget === 0 });
 }
 
@@ -310,7 +310,7 @@ check('19 N13 menu present but missing entry, falls back to method default', tru
 {
   const link = { actionClass: 'x', writeBudget: 1 };
   const state = new Map();
-  const rootSig = 'c22root';
+  const rootSig = 'Y2FzZTIyLXJvb3Q';
   const req1 = { method: 'POST', path: '/bookings', rootSignature: rootSig };
   const r1 = admit(link, req1, state);
   const req2 = {
@@ -377,7 +377,7 @@ check('19 N13 menu present but missing entry, falls back to method default', tru
 {
   const link = { actionClass: 'x', writeBudget: 2 };
   const state = new Map();
-  const rootSig = 'c25root';
+  const rootSig = 'Y2FzZTI1LXJvb3Q';
   const req = { method: 'POST', path: '/bookings', rootSignature: rootSig };
   const step1 = admit(link, req, state);
   const step2 = admit(link, req, state);
@@ -537,4 +537,116 @@ check('32 parent constrains writeBudget, child omits it, chain rejected', false,
     { label: `effective.writeBudget=${v.effective?.writeBudget}`, ok: v.effective?.writeBudget === 0 });
 }
 
-conclude(34);
+// ---------------------------------------------------------------------------
+// Cases 35-40: 2026-09-02 second branch-review round — one CRITICAL, two
+// WARNINGs, all independently reproduced by the orchestrator against this
+// source before the fix. See README.md's dated note for the fix and the
+// mutation table.
+// ---------------------------------------------------------------------------
+
+// 35 — CRITICAL fix (canonical round-trip): 'AB' is in-alphabet and the same
+// length as 'AA', but Buffer.from('AB', 'base64url') decodes to the SAME
+// single zero byte as 'AA' (the low 6 bits of a 1-byte partial group are
+// silently discarded) — the orchestrator's exact reproduction
+// (deriveChainId('AA') === deriveChainId('AB') === ... under the old code).
+// The canonical round-trip check now rejects 'AB' (its re-encoding is 'AA',
+// not 'AB') while the canonical spelling 'AA' still derives a normal
+// digest, proving the two distinct strings no longer collide on one
+// identifier.
+{
+  const canonicalId = deriveChainId('AA');
+  check('35 deriveChainId rejects a non-canonical same-length same-alphabet collider, canonical form still derives', false,
+    adaptChainId(deriveChainId('AB')), 'REJECTED',
+    { label: `positive control: deriveChainId('AA')=${canonicalId} (valid 64-hex digest)`,
+      ok: typeof canonicalId === 'string' && /^[0-9a-f]{64}$/.test(canonicalId) });
+}
+
+// 36 — CRITICAL fix: a length-mod-4-equals-1 input ('A', 1 char) decoded to
+// 0 usable bytes under the old truncating behaviour (Buffer.from drops the
+// lone leftover character) and MUST be rejected. The canonical round-trip
+// check catches it generically — no string of that length remainder can
+// ever round-trip — so no separate length-mod-4 check was needed.
+check('36 deriveChainId rejects a length-mod-4-equals-1 input', false,
+  adaptChainId(deriveChainId('A')), 'REJECTED');
+
+// 37 — WARNING 2 (unpadded contract untested): a padded input ('AA==') is
+// out-of-alphabet under BASE64URL_STRICT_RE (which excludes '=') and MUST
+// be rejected. This case defends both guards at once: mutating the regex to
+// also accept '=' (see the mutation table) lets 'AA==' past the alphabet
+// check, but Buffer.from('AA==', 'base64url') then decodes to the same
+// single byte as 'AA', and re-encoding produces 'AA', not 'AA==' — so the
+// canonical round-trip check still rejects it under that mutant too.
+check('37 deriveChainId rejects a padded (\'=\'-suffixed) input', false,
+  adaptChainId(deriveChainId('AA==')), 'REJECTED');
+
+// 38 — WARNING 1 (hasOwn guard untested): a parent link with writeBudget: 0
+// (a LEGITIMATE, falsy-adjacent constraint) whose child omits the axis MUST
+// still be rejected by the link-to-link omitted-axis rule. The orchestrator
+// found the existing suite stayed green when hasOwn's hasOwnProperty-based
+// body was replaced with a truthiness check (`!!obj[key]`), because `!!0`
+// is false and the rule silently treated the parent as unconstrained,
+// wrongly admitting. classSource has no falsy-adjacent legal value
+// ('declared'/'method' are both non-empty strings, always truthy under
+// `!!`), so no equivalent classSource case is added — it could not fail
+// under the truthiness mutant either way.
+check('38 parent writeBudget:0 (falsy), child omits it, chain still rejected', false,
+  adaptGate(checkActionFloor({ actionClass: 'x', writeBudget: 0 }, { actionClass: 'x' })),
+  'writeBudget omitted: parent link constrains it, child link must not omit it');
+
+// 39 — WARNING 1 (hasOwn guard untested), classSource axis, prototype
+// pollution: `isPlainObject` forces every link either implementation
+// accepts to share Object.prototype as its own prototype, so a construction
+// where BOTH parent and child merely omit a polluted axis is symmetric —
+// `in` and hasOwnProperty agree on it either way, and cannot be told apart.
+// The construction that DOES distinguish them: the PARENT constrains the
+// axis as its own property (case 31's exact shape) while the CHILD's
+// omission is real — hasOwnProperty correctly reports the child as not
+// owning it regardless of pollution; `key in child` does not distinguish
+// "child's own" from "inherited via the polluted Object.prototype" and so
+// reports the child as owning it too, masking the omission and wrongly
+// admitting. Object.prototype is polluted with an ENUMERABLE 'classSource'
+// property, restored in a finally (case 28's pattern), and confirmed clean
+// afterward regardless of pass or fail.
+{
+  const pollutedKey = 'classSource';
+  let v;
+  try {
+    Object.defineProperty(Object.prototype, pollutedKey, {
+      value: 'method', enumerable: true, configurable: true,
+    });
+    v = checkActionFloor({ actionClass: 'x', classSource: 'declared' }, { actionClass: 'x' });
+  } finally {
+    delete Object.prototype[pollutedKey];
+  }
+  check('39 Object.prototype polluted with classSource, parent-owned constraint still rejects a real child omission', false,
+    adaptGate(v), 'classSource omitted: parent link constrains it, child link must not omit it',
+    { label: 'Object.prototype left clean after the case', ok: !Object.prototype.hasOwnProperty(pollutedKey) });
+}
+
+// 40 — WARNING 1 (hasOwn guard untested), writeBudget axis: same
+// construction as case 39, on writeBudget (case 32's exact link shapes).
+// Under the `in` mutant this one goes red via a DIFFERENT path than case
+// 39: the omitted-axis rule stops short-circuiting (both links "own" the
+// polluted property under `in`), so the child's effective writeBudget is
+// read straight off the polluted inherited value (999) and compared as
+// RAISED against the parent's 5 — a different reason string
+// ('writeBudget raised: 999 > 5') than this case expects, so the exact-
+// reason assertion still fails the mutant even though both are `allowed:
+// false`. Object.prototype is polluted and restored the same way as case 39.
+{
+  const pollutedKey = 'writeBudget';
+  let v;
+  try {
+    Object.defineProperty(Object.prototype, pollutedKey, {
+      value: 999, enumerable: true, configurable: true,
+    });
+    v = checkActionFloor({ actionClass: 'x', writeBudget: 5 }, { actionClass: 'x' });
+  } finally {
+    delete Object.prototype[pollutedKey];
+  }
+  check('40 Object.prototype polluted with writeBudget, parent-owned constraint still rejects a real child omission', false,
+    adaptGate(v), 'writeBudget omitted: parent link constrains it, child link must not omit it',
+    { label: 'Object.prototype left clean after the case', ok: !Object.prototype.hasOwnProperty(pollutedKey) });
+}
+
+conclude(40);

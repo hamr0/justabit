@@ -129,3 +129,98 @@ each restore diffed byte-identical to the fixed file):
 | Remove the base64url charset check in `deriveChainId` | 1 | 29, 30 (both digests collided with `deriveChainId('abcd')`, confirming the reproduced defect) | 0 |
 | Remove both link-to-link omitted-axis checks in `checkActionFloor` | 1 | 31, 32 | 0 |
 | `matchOperationKey`: `Object.keys(menu)` -> `for (const key in menu)` | 1 | 28 (Object.prototype still confirmed clean afterward) | 0 |
+
+### 2026-09-02 — second branch-review round: one CRITICAL still-collides defect, two untested WARNINGs; 34 -> 40 cases
+
+A second `/branch-review` found the previous round's `deriveChainId` fix
+incomplete, plus two guards in this module with no case defending them at
+all — all three independently reproduced before any fix:
+
+- **CRITICAL — `deriveChainId` still collided, via decode truncation.** The
+  base64url charset check (previous round) closes out-of-alphabet
+  collisions only. `Buffer.from(s, 'base64url')` also silently DISCARDS the
+  low-order bits of a final partial group when `s.length` mod 4 is 2 or 3
+  (and drops the whole trailing character when it's 1) instead of
+  rejecting them, so in-alphabet strings of equal length can still collide:
+  `deriveChainId('AA') === deriveChainId('AB') === deriveChainId('AC') ===
+  deriveChainId('AD')`, all four decoding to `<Buffer 00>`. Fixed by adding
+  a canonical round-trip check after decode: the decoded bytes are
+  re-encoded with the same `.toString('base64url')` convention, and the
+  input is rejected unless that re-encoding reproduces the original string
+  exactly — only the canonical unpadded encoding of a byte string
+  round-trips to itself, so this collapses "many strings decode to the same
+  bytes" down to exactly one accepted spelling per byte string. It also
+  rejects every length-mod-4-equals-1 string as a side effect (no such
+  string ever round-trips), so no separate length check was added. Byte
+  inputs (Buffer/Uint8Array) are unaffected — verified a zero-length Buffer
+  and a zero-length Uint8Array are both still rejected (case coverage:
+  cases 29-30, unchanged, still exercise the charset guard; new cases 35-36
+  pin the round-trip defect itself and the length-mod-4-equals-1 case).
+- **WARNING — the `hasOwn` guard (line ~161) had no case defending it.**
+  Mutating it to a truthiness check (`!!obj[key]`) or to `key in obj` left
+  the (then-34-case) suite green at exit 0. Fixed with three new cases: 38
+  pins the falsy-adjacent value `writeBudget: 0` (a legitimate constraint
+  that reads false under `!!`); 39 and 40 pollute `Object.prototype` with
+  the axis name and confirm a link that genuinely omits the axis is still
+  rejected against a parent that constrains it as its own property —
+  `isPlainObject` forces every accepted link to share `Object.prototype` as
+  its prototype, so a construction where BOTH links merely omit a polluted
+  axis is symmetric under both `hasOwnProperty` and `in` and cannot
+  distinguish them; the parent-owns / child-truly-omits shape (mirroring
+  cases 31/32) does distinguish them, since `in` cannot tell "child's own"
+  from "inherited via the polluted prototype" the way `hasOwnProperty` can.
+  `Object.prototype` is restored in a `finally` in both cases (case 28's
+  pattern) and confirmed clean afterward regardless of pass or fail. No
+  classSource equivalent of case 38 was added: `classSource`'s legal values
+  (`'declared'`/`'method'`) are both non-empty strings, always truthy under
+  `!!`, so no falsy-adjacent value exists there for a truthiness mutant to
+  exploit — a case built on that axis could not fail.
+- **WARNING — the unpadded-base64url contract had no case defending it.**
+  The module's comment says a `=` character is invalid input, but no case
+  supplied a padded string; mutating the alphabet regex to also accept `=`
+  left the suite green. Case 37 supplies a padded input (`'AA=='`) and
+  asserts rejection; it defends the contract at both guards at once — even
+  under the regex-accepts-`=` mutant, `'AA=='` fails the canonical
+  round-trip check too (it decodes to the same byte as `'AA'`, and
+  re-encoding gives `'AA'`, not `'AA=='`).
+
+**Fixtures changed, and why.** The canonical round-trip rule is *stricter*
+than the previous charset-only check, so every existing case's
+`rootSignature` fixture had to be re-checked against it. Six were not
+canonical unpadded base64url and were replaced with mnemonic canonical
+strings (`Buffer.from('caseN-root', 'utf8').toString('base64url')`, e.g.
+`'c1sig'` (5 chars, decodes+truncates to 3 bytes, does not round-trip) ->
+`'Y2FzZTEtcm9vdA'`): cases 1 (`c1sig`), 2 (`c2sig`), 3 (`c3sig`), 11
+(`c5sig`), 22 (`c22root`), 25 (`c25root`). Every other existing
+`rootSignature` fixture (`c13sig`, `c14sig`, `c16sig`, `c17sig`, `c23sig`,
+`c24sig`, `c26sig`, `c27sig`, and cases 29-30's `'abcd'` / `'ab!!cd'` /
+`'ab cd'`) was already canonical or already deliberately invalid and needed
+no change. No case's expected PASS/FAIL result changed — only the input
+string each case's `admit()` call was given, and (for case 11, whose
+expected reason string embeds a live `deriveChainId(...)` call) the string
+passed to that same call, kept in sync with the fixture.
+
+**A tautology found and reported, not hidden.** Two of the five required
+mutations no longer distinguish correct code from mutant once the
+round-trip check is in place: removing the charset guard entirely, or
+widening the regex to also accept `=`, both still leave every input this
+suite exercises rejected — the round-trip check independently catches every
+out-of-alphabet or padded string the charset guard used to catch alone,
+because no such string can ever be the canonical re-encoding of its own
+decoded bytes. The suite stays green under both mutations; see the table
+below.
+
+The suite grew from 34 to 40 cases; all 40 pass. `node
+ietf/v2/poc/m3-check.mjs` (untouched, not edited this round either) still
+passes its 26 unchanged.
+
+Mutation table (revert guard -> confirm red -> restore -> confirm green;
+each restore diffed byte-identical to the fixed file):
+
+| # | Mutation | Mutant exit | Cases red | Restored exit |
+|---|---|---|---|---|
+| 1 | Remove the base64url charset check entirely | 0 | **none — tautology.** The canonical round-trip check independently rejects every out-of-alphabet string this suite exercises (it can never be its own canonical re-encoding), so this guard is currently untestable in isolation now that the round-trip check exists. | 0 |
+| 2 | Widen the charset regex to also accept `=` | 0 | **none — tautology**, same reason as #1: a padded string still fails the round-trip check. | 0 |
+| 3 | Remove the canonical round-trip check | 1 | 35 | 0 |
+| 4 | `hasOwn`: `Object.prototype.hasOwnProperty.call` -> `!!obj[key]` (truthiness) | 1 | 38, 39, 40 | 0 |
+| 5 | `hasOwn`: `Object.prototype.hasOwnProperty.call` -> `key in obj` | 1 | 39, 40 | 0 |
