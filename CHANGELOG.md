@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- **OAuth WG thread closed: per-path/system-wide split and role-not-
+  component framing agreed, -02 Verifier Placement fully specified**
+  (2026-09-02). Jijie Wei and Sangam Das both replied, independently
+  converging on the same split — boundary identification per
+  effect-capable path, closure (anti-bypass) system-wide across all
+  paths — and both reframing the boundary as a role in an effectuation
+  path rather than a component. Naming permissions received from both:
+  Sangam Das granted attribution without stating a preferred form;
+  Jijie Wei granted attribution as "Jijie Wei (varwof)". The user sent a
+  closing reply stating this REPLACES rather than extends -01's
+  "upstream of that boundary" wording; Verifier Placement is now fully
+  specified for -02. One drafting question is left open and not
+  decided: where the closure invariant is placed in -02 text.
 - **`draft-hamr-oauth-agent-delegation-01` SUBMITTED and posted**
   (2026-09-02). Verified live against the IETF Datatracker API: rev 01,
   state "posted", submission_date 2026-09-02, expires 2027-03-06, 48
