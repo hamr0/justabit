@@ -14,6 +14,101 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-09-02 — Asor ack wording confirmed identical after transmission corruption; archive check inconclusive-then-resolved as false alarm
+
+**EVIDENCE**
+
+1. Rafael Asor reported that the user's private mail to him (the reply
+   recorded in `ietf/v2/docs/asor-ack-reply-sent-2026-09-02.md`) arrived
+   "with runs of characters missing inside several lines." He filled two
+   gaps by hand: one taken from his own earlier sentence, and a final
+   word cut at "e" which he completed as "example." He asked the user to
+   confirm the wording before publishing it rather than assuming it was
+   right. Both messages recorded verbatim in
+   `ietf/v2/docs/asor-ack-confirmed-received-2026-09-02.md`, arriving
+   together with an unrelated Iman-to-Morgan-and-Matthew message that
+   required no reply from this side (a "new"-wording fix, a two-axis
+   unknown-profile note, a 12/12-case/5/5-matrix-row suite, and a
+   clarification that Matthew's permission covers only the AgentEnvelope
+   row, not an endorsement).
+2. The acknowledgment sentence was normalized from the sent file
+   (`asor-ack-reply-sent-2026-09-02.md`, lines 37-40, joined onto one
+   line) and diffed against Rafael's reconstructed sentence as pasted in
+   `asor-ack-confirmed-received-2026-09-02.md`. `diff` reported no
+   content differences (the only reported line was a trailing-newline
+   artifact of the extraction, not a text difference). Rafael's two
+   hand-filled gaps, including completing the truncated final word as
+   "example," reproduce the sent text exactly.
+3. Because the user had sent three messages to wimse@ietf.org and
+   oauth@ietf.org over the prior two days, an archive check was run for
+   the same corruption or a delivery failure. Observed:
+   `https://mailarchive.ietf.org/arch/browse/oauth/` showed the thread
+   live for Sept 1-2, listing Sangam Das, Jijie Wei, Yaron Zehavi, and
+   Mohamad Khalil Yossif; `https://mailarchive.ietf.org/arch/browse/wimse/`
+   showed the same thread listing Sangam Das, Yaron Zehavi, Ashay Raut,
+   and Jijie Wei; neither listing named Amr Hassan. The archive search
+   endpoint returned HTTP 403 and could not be queried directly. A
+   domain-restricted web search confirmed the thread exists but surfaced
+   no message from the user. This was reported as a GAP IN EVIDENCE with
+   three ranked hypotheses (list moderation of a non-subscriber, a
+   fetch/summariser limitation, or an actual delivery failure) and two
+   checks named as answerable only by the user — per the standing rule
+   that a single failed web read is not evidence of absence, this was
+   not reported as a finding of non-delivery.
+4. THE USER THEN CONFIRMED the three messages did reach both lists. The
+   correct explanation was the fetch/summariser limitation, not
+   moderation or delivery failure. This is recorded as a FALSE ALARM
+   that was correctly reported as inconclusive rather than as a finding.
+
+**DECISION**
+
+The asor -01 acknowledgment wording is CONFIRMED and final from this
+side, byte-identical to the sentence the user actually sent, despite the
+transmission corruption on the wire between the user and Rafael. It is
+not yet on the asor site; Rafael says it goes up with Thursday's
+submission and he will report the same day if that slips.
+
+The transmission corruption's ORIGIN IS UNKNOWN. No cause is asserted —
+not the user's mail client, not a relay, not Rafael's receiving system.
+
+The user's -02 citation "settled with both on the WIMSE and OAuth lists
+in September 2026" (see the entry immediately below) STANDS UNCHANGED:
+the archive check's apparent absence of the user's messages was a
+fetch/summariser limitation confirmed by the user, not evidence the
+messages failed to post. Nobody should re-run this same archive check
+expecting a different automated read — the resolution is that the
+messages are there; the tooling used to check could not see them.
+
+Rafael additionally confirmed, unprompted: "tenure_years" stays as the
+key in asor's OWN example and names nothing in the HAMR draft (matching
+the correction already sent); and nothing is needed on the user's
+alignment paragraph — it was true at submission, and -02 handles the
+staleness once asor -01 posts.
+
+No -02 item changed in this round. Still open and unchanged: asor -01
+posts Thursday; Sangam Das's preferred name form; CAMARA Commonalities
+issue #705 awaiting a maintainer label.
+
+Standing lesson (first part): this is the SECOND silent-corruption
+incident in this project. The first was two GitHub posts to APIBacklog
+issue #330 that were silently truncated despite exit 0, caught only by
+reading the body back. This one was caught only because the RECIPIENT
+checked rather than guessing. The lesson generalises: a send reporting
+success does not establish that the body arrived intact, and on a
+channel with no read-back the only detector is a careful counterparty.
+Rafael's practice — reconstruct, then show the reconstruction and ask
+before publishing — is the behaviour worth naming and repeating.
+
+Standing lesson (second part): the archive check produced a
+plausible-looking negative from three separate reads (two live page
+loads plus a failed search-endpoint query), and was still correctly
+withheld as inconclusive rather than reported as a finding. Reporting
+it as a finding would have been wrong — the user's own confirmation
+shows the true cause was a limitation of the checking tool, not of
+delivery.
+
+---
+
 ## 2026-09-02 — OAuth WG thread closed: per-path identification and system-wide closure agreed, boundary reframed as a role not a component, naming permissions received, -02 Verifier Placement fully specified
 
 **EVIDENCE**
