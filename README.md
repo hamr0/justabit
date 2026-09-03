@@ -21,8 +21,9 @@
 
 A standards effort to make telecom network APIs answer with exactly what the requester
 needs — a windowed, nonce-bound, expiring boolean — and nothing else, ever. Operators keep
-the revenue; aggregators stay blind carriage; requesters get compliance-grade minimal
-answers; subscribers stop leaking.
+the revenue; aggregators stay blind carriage (designed and PoC-demonstrated; not yet in the
+filed CAMARA scope — see below); requesters get compliance-grade minimal answers; subscribers
+stop leaking.
 
 CAMARA / GSMA Open Gateway network APIs answer useful questions (SIM swapped? number real?
 device roaming?) but the current lookup model ships identifiers on the wire, returns raw
@@ -33,11 +34,14 @@ the query.
 The fix is **attested windowed disclosure**: the requester states a predicate and a floor,
 supplies a nonce, and receives a signed boolean bound to that nonce, valid for the duration
 of the query — end-to-end encrypted past the aggregator, which fulfills and bills but
-cannot read.
+cannot read. (That blind-hub encryption is designed and demonstrated in the PoC, but is held
+for a companion filing — the CAMARA enhancement as filed today does not yet cover it, so
+under the filed scope the aggregator can still read the identifier and the answer.)
 
-> **Status: filed and submitted, not approved or adopted.** CAMARA: issue #330 and PR #331
-> are filed and open, awaiting Working Group evaluation; a v2 rescope is being reshaped as a
-> Commonalities enhancement and has not yet been filed. IETF: `draft-hamr-oauth-agent-delegation-00`
+> **Status: filed and submitted, not approved or adopted.** CAMARA: APIBacklog issue #330 and
+> PR #331 are filed and open, awaiting Working Group evaluation; the v2 rescope is filed as
+> Commonalities issue #705, open and awaiting a maintainer label, discussed at the 2026-09-03
+> Technical Steering Committee. IETF: `draft-hamr-oauth-agent-delegation-01`
 > is submitted and live on the Datatracker as an individual draft — not a working-group
 > document, not adopted. This repo is the staging ground for two tracks: **CAMARA**
 > (operator/attestation side) and **IETF** (agent/delegation side).
