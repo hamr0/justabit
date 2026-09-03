@@ -14,6 +14,139 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-09-03 — asor-01 posted, acknowledgment confirmed live against the bytes, hamr-02 reference-bump-and-rewrite pair identified
+
+**EVIDENCE**
+
+1. Rafael Asor emailed the user (private) that
+   `draft-asor-wimse-agent-delegation-chain-01` is posted at
+   `https://datatracker.ietf.org/doc/draft-asor-wimse-agent-delegation-chain/01/`,
+   and that the user's acknowledgment is in it. Recorded verbatim in
+   `ietf/v2/docs/asor-01-posted-confirmed-2026-09-03.md`.
+2. The claims were NOT taken from the email. The posted text was
+   fetched from
+   `https://www.ietf.org/archive/id/draft-asor-wimse-agent-delegation-chain-01.txt`
+   and read directly. Confirmed: posted 3 September 2026, expires 7
+   March 2027, 784 lines, title "Verifiable Attenuated Delegation for
+   AI Agent Chains", author R. Asor (Attenu).
+3. The `min` constraint type IS present, in Section 4.2 "Constraint
+   Vocabulary", verbatim: `*  "min" : a number.  The value of the
+   associated quantity MUST NOT be less than it (e.g. {"key":
+   "tenure_years", "min": 2}).  Where "max" carries a ceiling
+   tightened downward, "min" carries a floor tightened upward.`
+4. The acknowledgment IS present, in Appendix A, verbatim: `The "min"
+   constraint type was added after Amr Hassan, author of
+   [I-D.hamr-oauth-agent-delegation], observed that -00 had no
+   comparator for a floor tightened upward; the duration-typed
+   "tenureMin" axis of that document is the motivating example.`
+5. The `tenureMin` correction WAS taken: the acknowledgment reads
+   "duration-typed \"tenureMin\" axis", not "tenure_years" — the
+   wording the user corrected in the 2026-09-02 consent round.
+   `tenure_years` remains the key in asor's OWN §4.2 example, which
+   Rafael had already said would stay and which names nothing in the
+   HAMR draft; this needs no action.
+6. asor -01 cites the HAMR draft in its references:
+   `[I-D.hamr-oauth-agent-delegation]  Hassan, A., "An Attenuated
+   Delegation Profile for ...", draft-hamr-oauth-agent-delegation-01,
+   2 September 2026.`
+
+**DECISION**
+
+`draft-hamr-oauth-agent-delegation-01.xml` lines 1484-1489 state that
+a mirrored `min` comparator "is not present in
+[asor-wimse-agent-delegation-chain] as posted, and this document does
+not describe it as present." That sentence is NOT YET FALSE: the
+reference block at lines 1739-1747 pins the citation (both `target`
+URL and `seriesInfo value`) to `-00`, and read against `-00` the
+sentence remains true. It becomes false the instant `-02` bumps that
+reference to `-01`, which -02 must do per the standing rule to
+re-verify every cited draft's version live before any submission or
+revision. This makes the -02 work a PAIR, not two independent edits:
+(1) bump the `I-D.asor-wimse-agent-delegation-chain` reference from
+`-00` to `-01`, and (2) rewrite the "not present ... as posted"
+sentence, because `min` IS now present in `-01`. Doing only one half
+leaves the document self-contradictory. The posted `-01`
+(`draft-hamr-oauth-agent-delegation-01.xml`) is NEVER edited to
+reflect this — the correction belongs only in `-02`, not yet drafted.
+
+---
+
+## 2026-09-03 — CAMARA TSC relay answered: sign-then-encrypt order stated, aggregator claim corrected, Commonalities-vs-Security-Profile boundary condition named
+
+**EVIDENCE**
+
+1. camaraproject/APIBacklog PR #331 received a comment (id 5526707740,
+   posted 2026-09-03T13:42:42Z) from @albertoramosmonagas relaying three
+   points from the CAMARA Technical Steering Committee's 2026-09-03
+   discussion: (1) coordination with parallel GSMA OPG discussion on
+   response-layer end-to-end encryption; (2) whether the aggregator's
+   new metering-without-reading role has been validated with aggregator
+   operators, and whether it requires contract/capability changes; (3)
+   whether the filing belongs in Commonalities or, eventually, CAMARA's
+   Security and Interoperability Profile (potentially under ICM scope).
+   Recorded verbatim in
+   `camara/v2/docs/pr331-tsc-comment-received-2026-09-03.md`.
+2. Verified live, 2026-09-03: Commonalities' stated scope is guidelines
+   and artifacts common to all CAMARA APIs (common data types, error
+   formats, headers, the CloudEvents envelope, design guidelines, test
+   scenarios), mandatory for all sub-projects. The CAMARA Security and
+   Interoperability Profile lives in
+   camaraproject/IdentityAndConsentManagement at tag r4.2,
+   `documentation/CAMARA-Security-Interoperability.md`; its introduction
+   states it restricts options available in OIDC and CIBA without
+   changing those standards, covering the OIDC authorization code flow,
+   CIBA, client credentials, JWT bearer, the scope parameter, and client
+   authentication. Its "Additional Recommendations for DPoP
+   Implementations" section defines `camara:qh` (SHA-256 of the raw
+   query string) and `camara:bh` (SHA-256 of the full request body byte
+   stream), base64url per RFC 7515 §2, carried as claims inside the DPoP
+   proof, which API providers SHOULD require.
+3. A reply was posted (id 5528133063, 2026-09-03T15:35:34Z), recorded
+   verbatim in `camara/v2/docs/pr331-tsc-reply-posted-2026-09-03.md`.
+   Read-back verification: the posted body was fetched back from the
+   GitHub API and diffed against the local draft. Result: content
+   IDENTICAL — the only difference was that three bullet lines under
+   point 2 lost their three-space indentation in the paste, and GitHub
+   returned CRLF line endings. The rendered HTML was checked separately:
+   the ordered list splits into `<ol>` (items 1-2), a `<ul>`, then
+   `<ol start="3">`; GitHub set `start="3"` itself, so the comment
+   renders correctly as 1, 2, 3 with no visible defect. Both local and
+   posted bodies measured 3294 bytes.
+
+**CORRECTION**
+
+The TSC's point 2, as relayed, described the aggregator as metering and
+billing "without reading the predicate or answer." That describes the
+DEFERRED blind hub, not the filed scope. The filed scope signs the
+response; it does not encrypt it, and an aggregator in the path can
+still read the identifier and the answer.
+`camara/v2/docs/camara-filing-template.md` already states this limit on
+purpose. The posted reply corrects it explicitly. The user had
+initially carried the same conflation in conversation and it was caught
+before it reached GitHub.
+
+**DECISION**
+
+1. Commonalities is the home now, and the enhancement names ONE
+   boundary condition rather than pre-committing a migration: if the
+   attestation's algorithm set, JWKS discovery, or replay/expiry window
+   ever need normative pinning across providers, that part is Security
+   Profile work, where the request-side `camara:bh`/`camara:qh`
+   counterpart already lives. The schema and pattern stay in
+   Commonalities. Rationale: the attestation is a response body field,
+   carried in neither a token nor a DPoP proof.
+2. The companion blind-hub filing may be named explicitly in public
+   replies. Encryption stays out of the current enhancement; the
+   composition order is stated as normative — sign first, then encrypt
+   to the requester, because signing over ciphertext would leave the
+   requester verifying the encrypter rather than the operator.
+
+Also stated in the reply, as an honest limit: no aggregator operator
+has reviewed the design; and the author has no GSMA OPG seat and cannot
+carry the encryption item into OPG himself.
+
+---
+
 ## 2026-09-02 — Asor ack wording confirmed identical after transmission corruption; archive check inconclusive-then-resolved as false alarm
 
 **EVIDENCE**
