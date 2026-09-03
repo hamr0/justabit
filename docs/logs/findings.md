@@ -14,6 +14,63 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-09-03 — asor-01 posted, acknowledgment confirmed live against the bytes, hamr-02 reference-bump-and-rewrite pair identified
+
+**EVIDENCE**
+
+1. Rafael Asor emailed the user (private) that
+   `draft-asor-wimse-agent-delegation-chain-01` is posted at
+   `https://datatracker.ietf.org/doc/draft-asor-wimse-agent-delegation-chain/01/`,
+   and that the user's acknowledgment is in it. Recorded verbatim in
+   `ietf/v2/docs/asor-01-posted-confirmed-2026-09-03.md`.
+2. The claims were NOT taken from the email. The posted text was
+   fetched from
+   `https://www.ietf.org/archive/id/draft-asor-wimse-agent-delegation-chain-01.txt`
+   and read directly. Confirmed: posted 3 September 2026, expires 7
+   March 2027, 784 lines, title "Verifiable Attenuated Delegation for
+   AI Agent Chains", author R. Asor (Attenu).
+3. The `min` constraint type IS present, in Section 4.2 "Constraint
+   Vocabulary", verbatim: `*  "min" : a number.  The value of the
+   associated quantity MUST NOT be less than it (e.g. {"key":
+   "tenure_years", "min": 2}).  Where "max" carries a ceiling
+   tightened downward, "min" carries a floor tightened upward.`
+4. The acknowledgment IS present, in Appendix A, verbatim: `The "min"
+   constraint type was added after Amr Hassan, author of
+   [I-D.hamr-oauth-agent-delegation], observed that -00 had no
+   comparator for a floor tightened upward; the duration-typed
+   "tenureMin" axis of that document is the motivating example.`
+5. The `tenureMin` correction WAS taken: the acknowledgment reads
+   "duration-typed \"tenureMin\" axis", not "tenure_years" — the
+   wording the user corrected in the 2026-09-02 consent round.
+   `tenure_years` remains the key in asor's OWN §4.2 example, which
+   Rafael had already said would stay and which names nothing in the
+   HAMR draft; this needs no action.
+6. asor -01 cites the HAMR draft in its references:
+   `[I-D.hamr-oauth-agent-delegation]  Hassan, A., "An Attenuated
+   Delegation Profile for ...", draft-hamr-oauth-agent-delegation-01,
+   2 September 2026.`
+
+**DECISION**
+
+`draft-hamr-oauth-agent-delegation-01.xml` lines 1484-1489 state that
+a mirrored `min` comparator "is not present in
+[asor-wimse-agent-delegation-chain] as posted, and this document does
+not describe it as present." That sentence is NOT YET FALSE: the
+reference block at lines 1739-1747 pins the citation (both `target`
+URL and `seriesInfo value`) to `-00`, and read against `-00` the
+sentence remains true. It becomes false the instant `-02` bumps that
+reference to `-01`, which -02 must do per the standing rule to
+re-verify every cited draft's version live before any submission or
+revision. This makes the -02 work a PAIR, not two independent edits:
+(1) bump the `I-D.asor-wimse-agent-delegation-chain` reference from
+`-00` to `-01`, and (2) rewrite the "not present ... as posted"
+sentence, because `min` IS now present in `-01`. Doing only one half
+leaves the document self-contradictory. The posted `-01`
+(`draft-hamr-oauth-agent-delegation-01.xml`) is NEVER edited to
+reflect this — the correction belongs only in `-02`, not yet drafted.
+
+---
+
 ## 2026-09-03 — CAMARA TSC relay answered: sign-then-encrypt order stated, aggregator claim corrected, Commonalities-vs-Security-Profile boundary condition named
 
 **EVIDENCE**
