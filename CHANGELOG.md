@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.12.2 — 2026-09-03
+
+- **CAMARA TSC relay on PR #331 answered: sign-then-encrypt order stated,
+  aggregator claim corrected, Commonalities boundary named** (2026-09-03).
+  The CAMARA Technical Steering Committee relayed three questions via
+  @albertoramosmonagas. (a) GSMA OPG's parallel end-to-end
+  response-encryption discussion: the two coexist; composition order is
+  stated as normative — sign first, then encrypt to the requester;
+  encryption itself stays out of this enhancement, deferred to a
+  companion "blind hub" filing; the author has no GSMA OPG seat. (b)
+  Aggregators: the TSC's description of the aggregator "metering and
+  billing without reading the predicate or answer" was CORRECTED — that
+  describes the deferred blind hub, not the filed scope, which signs but
+  does not encrypt, so an aggregator can still read the identifier and
+  the answer; no aggregator operator has reviewed the design; no
+  contract or interface change, one capability change (cache-substitution
+  stops working). (c) Commonalities confirmed as the home now, with one
+  boundary condition named rather than a migration pre-committed. Two new
+  records in `camara/v2/docs/`, plus a `findings.md` entry and a `prd.md`
+  §9 row.
+- **`draft-asor-wimse-agent-delegation-chain-01` posted, acknowledgment
+  confirmed live against the bytes** (2026-09-03). Posted 2026-09-03,
+  expires 7 March 2027. Verified against the fetched XML, not the
+  author's email: the `min` constraint type is present in §4.2, the
+  user's acknowledgment is in Appendix A with the `tenureMin` correction
+  taken, `tenure_years` correctly stays in asor's own example, and asor
+  -01 cites the HAMR draft. A PAIRED task for HAMR -02 is identified: bump
+  the asor reference from -00 to -01 AND rewrite the "min is not present
+  as posted" sentence together — the sentence is not yet false only
+  because the citation is still pinned to -00. One new record in
+  `ietf/v2/docs/`, plus a `findings.md` entry and a `prd.md` §9 row.
+- **Docs regenerated** (2026-09-03). `docs/index.md` rebuilt by
+  docs-builder after the two records above; corpus already sorted, 0
+  moves, 0 sync failures.
+
 ## 0.12.1 — 2026-09-02
 
 - **Asor ack wording confirmed identical after transmission corruption;
