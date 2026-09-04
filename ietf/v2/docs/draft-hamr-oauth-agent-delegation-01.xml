@@ -1962,7 +1962,8 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         <eref target="https://github.com/hamr0/bareguard"/>,
         <eref target="https://github.com/hamr0/bareloop"/>, and
         <eref target="https://github.com/hamr0/bareagent"/>, that exercise
-        the boundary drawn in <xref target="layers"/>; they are not
+        the enforcement-boundary role of
+        <xref target="action-class-verifier-placement"/>; they are not
         implementations of this profile, which is why they are not listed
         in <xref target="implementation-status"/>. Non-normative, like the
         rest of this appendix.
@@ -2334,9 +2335,10 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
           <t>
             Added Direction 4 to <xref target="appendix-a"/>: three
             single-author, open-source harness experiments (bareguard,
-            bareloop, bareagent) that exercise the boundary drawn in
-            <xref target="layers"/> without implementing this profile,
-            and are therefore not listed in
+            bareloop, bareagent) that exercise the enforcement-boundary
+            role of <xref target="action-class-verifier-placement"/>
+            without implementing this profile, and are therefore not
+            listed in
             <xref target="implementation-status"/>.
           </t>
         </li>
@@ -2359,12 +2361,13 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
             origin (<xref target="RFC6454"/>) and a map from
             operation key to actionClass value, including a deterministic
             path-template matching rule and an origin-binding requirement
-            on the menu's issuer; verifier placement at the resource or
-            credential boundary; and an honest-limits paragraph, backed
-            by a committed catalogue survey, that a POST is not always
-            classed correctly by method alone. Added a corresponding
-            paragraph to <xref target="security"/>, three test vectors
-            (V7 through V9, the last a negative control for the
+            on the menu's issuer; verifier placement, then stated as
+            sitting at the resource boundary or the credential boundary;
+            and an honest-limits paragraph, backed by a committed
+            catalogue survey, that a POST is not always classed
+            correctly by method alone. Added a corresponding paragraph
+            to <xref target="security"/>, three test vectors (V7
+            through V9, the last a negative control for the
             origin-binding rule) to <xref target="vectors"/>, and a bullet
             to <xref target="implementation-status"/> recording the
             proof-of-concept's case count against this section's
