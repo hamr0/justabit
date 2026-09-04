@@ -5,10 +5,7 @@
 > Subject: correction to HAMR -01 §4's description of EP Authorization
 > Receipts, plus a request to add an informative AEB reference.
 > The user's reply is `emilia-layering-reply-sent-2026-09-04.md` (this
-> same directory). This is a private email thread, so per this
-> directory's convention it is recorded with quoted third-party email
-> stripped, unlike the public WIMSE/OAuth mailing-list thread recorded
-> verbatim elsewhere in this directory.
+> same directory).
 > Verbatim record — do not edit.
 
 Amr,

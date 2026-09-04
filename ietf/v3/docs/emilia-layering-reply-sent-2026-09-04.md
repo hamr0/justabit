@@ -3,10 +3,6 @@
 > Subject: reply to the layering correction on HAMR -01 §4 — see
 > `emilia-layering-correction-received-2026-09-03.md` (this same
 > directory) for the inbound message this one answers.
-> This is a private email thread, so per this directory's convention it
-> is recorded with quoted third-party email stripped, unlike the public
-> WIMSE/OAuth mailing-list thread recorded verbatim elsewhere in this
-> directory.
 > Verbatim record of the user's own text — do not edit.
 
 Iman,
