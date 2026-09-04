@@ -2364,8 +2364,8 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         <li>
           <t>
             Corrected the Implementation Status case count
-            (<xref target="implementation-status"/>) from 27 to 40, the
-            count node ietf/v3/poc/m7-check.mjs actually reports; the
+            (<xref target="implementation-status"/>) from 27 to 40, the count the
+            proof-of-concept accompanying this document actually reports; the
             earlier figure was arithmetic rather than a suite run.
           </t>
         </li>
