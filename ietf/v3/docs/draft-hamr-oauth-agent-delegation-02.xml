@@ -2272,6 +2272,125 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
       </t>
     </section>
 
+    <section anchor="changes-since-01" numbered="true" toc="default">
+      <name>Changes since -01</name>
+      <t>
+        This section is non-normative and is expected to be removed
+        before this document leaves individual submission status.
+      </t>
+      <ul spacing="normal">
+        <li>
+          <t>
+            Rewrote <xref target="action-class-verifier-placement"/>.
+            An enforcement boundary is now defined as a role in an
+            effect-capable path, the first admission point on that path
+            whose successful admission is necessary for the protected
+            effect to complete, rather than as a component fixed at the
+            resource or credential boundary. Boundary identification is
+            now performed separately for each effect-capable path. Added
+            closure, a separate, system-wide requirement that every
+            effect-capable path to a protected effect cross a qualifying
+            enforcement boundary, together with the bypass test: closure
+            fails for an effect if any path to it can complete without
+            crossing a qualifying boundary, however many other paths are
+            correctly guarded. Added a sentence tying the term
+            "verifier," as used throughout this document, to the
+            enforcement-boundary role, and a sentence distinguishing
+            this closure and bypass-test requirement from the
+            bypass-enumeration requirement of
+            <xref target="I-D.schrock-action-evidence-boundary"/>, which
+            asks a single executor to enumerate the paths that bypass
+            its own local enforcement within one deployment, a narrower
+            scope than this document's closure requirement across the
+            complete set of admission paths to a given protected effect.
+            This replaces the -01 wording, which placed the verifier at
+            "the resource or credential boundary" and cited
+            <xref target="layers"/> for a boundary that section never
+            drew.
+          </t>
+        </li>
+        <li>
+          <t>
+            Updated step 9 of the Verification Procedure
+            (<xref target="verification"/>) to match: actionClass
+            classification, declared-menu consultation, and writeBudget
+            admission are now stated as performed by whichever component
+            occupies the enforcement-boundary role for the request's
+            effect-capable path, rather than by "the verifier at the
+            resource or credential boundary."
+          </t>
+        </li>
+        <li>
+          <t>
+            Corrected the description of
+            <xref target="I-D.schrock-ep-authorization-receipts"/> in
+            <xref target="layers"/>: that draft addresses layer (c) with
+            a pre-execution approval bundle and terminal consumption
+            evidence, and does not itself establish that the action
+            occurred. Relabeled layer (c) from "what happened, once" to
+            "what was approved and consumed, once" accordingly. Added an
+            informative reference to
+            <xref target="I-D.schrock-action-evidence-boundary"/>, which
+            complements the receipts draft with an executor-side model
+            for local authorization, atomic consumption, and outcome
+            reconciliation at invocation, and placed it in the layering
+            alongside <xref target="RFC9396"/>,
+            <xref target="I-D.das-agentic-tool-binding"/>, and
+            <xref target="I-D.schrock-ep-authorization-receipts"/>.
+          </t>
+        </li>
+        <li>
+          <t>
+            Bumped the citation of
+            <xref target="I-D.asor-wimse-agent-delegation-chain"/> from
+            -00 to -01 and corrected five claims about that draft that
+            the version bump left stale. The registry's initial entries
+            now include min alongside max, one_of, not_one_of, prefix,
+            and rank. The unknown-constraint-type fail-closed rule is
+            now in that draft's Section 4.2, not 4.1. The subsumption
+            rules are now in Section 4.3, not 4.2. Replaced the former
+            contrast, that every constraint in that draft's registry
+            narrows a ceiling while this document's duration-typed axes
+            are floors tightened upward, because that draft's Section
+            4.3 subsumption rules now include a floor comparator,
+            child.min &gt;= parent.min, tightened upward in the same
+            direction as this document's axes; the argument was rewritten
+            rather than patched around the now-false premise. Removed the
+            closing sentence stating that a mirrored min comparator was
+            not present in that draft as posted, since that draft's
+            registry now includes one matching this document's min.
+          </t>
+        </li>
+        <li>
+          <t>
+            Corrected the Implementation Status case count
+            (<xref target="implementation-status"/>) from 27 to 40, the
+            count node ietf/v3/poc/m7-check.mjs actually reports; the
+            earlier figure was arithmetic rather than a suite run.
+          </t>
+        </li>
+        <li>
+          <t>
+            Corrected two sites in Appendix A
+            (<xref target="appendix-a"/>). Direction 4's closing
+            sentence no longer claims the point of control "sat at the
+            credential boundary or the resource, never in the harness";
+            it now reads the three prior implementations (bareguard,
+            bareloop, bareagent) as evidence for the enforcement-boundary
+            role model of
+            <xref target="action-class-verifier-placement"/>, realized
+            at a different component in each experiment, rather than as
+            evidence that the point of control never sits in a harness.
+            The bareguard bullet's layer mapping was corrected: the
+            floor gate maps onto layer (a), but the after-the-result
+            detector fits none of the three layers, since it observes
+            after execution rather than recording what was approved and
+            consumed.
+          </t>
+        </li>
+      </ul>
+    </section>
+
     <section anchor="changes-since-00" numbered="true" toc="default">
       <name>Changes since -00</name>
       <t>
