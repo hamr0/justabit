@@ -152,7 +152,7 @@ ietf/v2/poc/       DIVERGED from the frozen v1 copy: m7-actionclass.mjs and
 <!-- AGENT_RULES:START -->
 Consult when building something new or adding a feature — a standards guide, not hot
 context like MEMORY.md above:
-@.claude/remember/AGENT_RULES.md
+.claude/remember/AGENT_RULES.md
 <!-- AGENT_RULES:END -->
 
 <!-- DOCS_INDEX:START -->
