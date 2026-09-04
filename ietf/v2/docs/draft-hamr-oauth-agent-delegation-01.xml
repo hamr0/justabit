@@ -1471,28 +1471,25 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
       <t>
         <xref target="I-D.asor-wimse-agent-delegation-chain"/> Section 10
         requests a new "Agent Delegation Constraint Types" registry, with
-        initial entries max, one_of, not_one_of, prefix, and rank, and
-        its Section 4.1 requires a verifier that encounters an unknown
+        initial entries max, min, one_of, not_one_of, prefix, and rank, and
+        its Section 4.2 requires a verifier that encounters an unknown
         constraint type to deny the action, never to treat it as
-        unconstrained. That draft's registry, as posted, has no entry
-        named min: every constraint that draft's Section 4.2 subsumption
-        rules define narrows a ceiling (child.max &lt;= parent.max,
-        child.one_of a subset of parent.one_of, child.rank &lt;=
-        parent.rank), where this document's duration-typed axes are all
-        floors tightened upward instead. That draft's registry names
-        comparator TYPES and leaves the constrained quantity to a
-        profile-level naming agreement; the registry defined in
-        <xref target="axis-registry"/> takes the complementary approach
+        unconstrained. That draft's Section 4.3 subsumption rules include
+        both ceiling and floor comparators (e.g. child.max &lt;= parent.max
+        alongside child.min &gt;= parent.min), the latter tightened upward
+        in the same direction as this document's duration-typed axes. That
+        draft's registry names comparator TYPES and leaves the constrained
+        quantity to a profile-level naming agreement; the registry defined
+        in <xref target="axis-registry"/> takes the complementary approach
         of naming axes, each bound to one comparator from a closed set.
         The comparator vocabulary is therefore the bridge between the two
         registries, not a shared set of names: rank in that draft's
         registry and the rank comparator of
         <xref target="axis-registry"/> are the same comparator, and
-        actionClass in this document's registry uses it. A mirrored min
-        comparator, matching this document's min, has been stated as
-        intended for a future revision of that draft; it is not present
-        in <xref target="I-D.asor-wimse-agent-delegation-chain"/> as
-        posted, and this document does not describe it as present.
+        actionClass in this document's registry uses it. That draft's
+        registry now also includes a min comparator matching this
+        document's min, so the comparator vocabulary bridging the two
+        registries now spans both the ceiling and floor direction.
       </t>
       <t>
         A companion document, <xref target="CAMARA-PROPOSAL"/>, is an
@@ -1753,15 +1750,13 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         </front>
         <seriesInfo name="Internet-Draft" value="draft-klrc-aiagent-auth-03"/>
       </reference>
-      <reference anchor="I-D.asor-wimse-agent-delegation-chain" target="https://datatracker.ietf.org/doc/html/draft-asor-wimse-agent-delegation-chain-00">
+      <reference anchor="I-D.asor-wimse-agent-delegation-chain" target="https://datatracker.ietf.org/doc/html/draft-asor-wimse-agent-delegation-chain-01">
         <front>
           <title>Verifiable Attenuated Delegation for AI Agent Chains</title>
-          <author fullname="Rafael Asor" initials="R." surname="Asor">
-            <organization>Attenu</organization>
-          </author>
-          <date day="27" month="August" year="2026"/>
+          <author fullname="Rafael Asor"/>
+          <date day="3" month="September" year="2026"/>
         </front>
-        <seriesInfo name="Internet-Draft" value="draft-asor-wimse-agent-delegation-chain-00"/>
+        <seriesInfo name="Internet-Draft" value="draft-asor-wimse-agent-delegation-chain-01"/>
       </reference>
       <reference anchor="I-D.reece-wimse-cross-org-delegation" target="https://datatracker.ietf.org/doc/draft-reece-wimse-cross-org-delegation/">
         <front>
