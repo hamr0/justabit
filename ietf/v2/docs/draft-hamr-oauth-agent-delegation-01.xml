@@ -1753,7 +1753,9 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
       <reference anchor="I-D.asor-wimse-agent-delegation-chain" target="https://datatracker.ietf.org/doc/html/draft-asor-wimse-agent-delegation-chain-01">
         <front>
           <title>Verifiable Attenuated Delegation for AI Agent Chains</title>
-          <author fullname="Rafael Asor"/>
+          <author fullname="Rafael Asor" initials="R." surname="Asor">
+            <organization>Attenu</organization>
+          </author>
           <date day="3" month="September" year="2026"/>
         </front>
         <seriesInfo name="Internet-Draft" value="draft-asor-wimse-agent-delegation-chain-01"/>
