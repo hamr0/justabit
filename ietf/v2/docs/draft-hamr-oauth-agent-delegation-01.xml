@@ -252,12 +252,19 @@
         name and its arguments per call, at the moment a request is
         dispatched, after a model has already chosen what to invoke.
         <xref target="I-D.schrock-ep-authorization-receipts"/> addresses
-        layer (c), the recorded evidence that an action occurred. Read
-        together, the ordering runs: authorization detail is bound at
-        grant time; floors of the kind this document specifies bound the
-        space in between as a chain is attenuated hop to hop; and a
-        per-call digest is bound after a specific choice has been made,
-        with a receipt recording what happened afterward.
+        layer (c) with a pre-execution approval bundle and terminal
+        consumption evidence, without itself establishing that the
+        action occurred.
+        <xref target="I-D.schrock-action-evidence-boundary"/> complements
+        it with an executor-side model for local authorization, atomic
+        consumption, and outcome reconciliation at invocation, including
+        a requirement to enumerate every path that bypasses it. Read
+        together, the ordering runs: authorization
+        detail is bound at grant time; floors of the kind this document
+        specifies bound the space in between as a chain is attenuated
+        hop to hop; and a per-call digest is bound after a specific
+        choice has been made, with a receipt evidencing pre-execution
+        approval rather than post-execution occurrence.
       </t>
       <t>
         One structural problem is shared across this layering and is not
@@ -1723,6 +1730,16 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         </front>
         <seriesInfo name="Internet-Draft" value="draft-schrock-ep-authorization-receipts-12"/>
       </reference>
+      <reference anchor="I-D.schrock-action-evidence-boundary" target="https://datatracker.ietf.org/doc/html/draft-schrock-action-evidence-boundary-05">
+        <front>
+          <title>The Action Evidence Boundary for Consequential Agent Effects</title>
+          <author fullname="Iman Schrock" initials="I." surname="Schrock">
+            <organization>EMILIA Protocol, Inc.</organization>
+          </author>
+          <date day="31" month="August" year="2026"/>
+        </front>
+        <seriesInfo name="Internet-Draft" value="draft-schrock-action-evidence-boundary-05"/>
+      </reference>
       <reference anchor="I-D.klrc-aiagent-auth" target="https://datatracker.ietf.org/doc/draft-klrc-aiagent-auth/">
         <front>
           <title>AI Agent Authentication and Authorization</title>
@@ -2254,11 +2271,15 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
             this document occupies layer (a) plus floors, and
             distinguishes it from <xref target="RFC9396"/> (grant-time
             binding), <xref target="I-D.das-agentic-tool-binding"/>
-            (per-call tool-name-and-argument binding), and
+            (per-call tool-name-and-argument binding),
             <xref target="I-D.schrock-ep-authorization-receipts"/>
-            (layer (c) receipts). It also names, non-normatively, the
-            shared structural problem that a parent credential remains
-            valid after attenuation, citing
+            (layer (c) pre-execution approval and terminal consumption
+            evidence, not itself proof of execution), and
+            <xref target="I-D.schrock-action-evidence-boundary"/>
+            (executor-side verification, consumption, and
+            reconciliation at invocation). It also names, non-normatively,
+            the shared structural problem that a parent credential
+            remains valid after attenuation, citing
             <xref target="I-D.asor-wimse-agent-delegation-chain"/>
             Section 9.1 for mitigations this document does not itself
             supply.
