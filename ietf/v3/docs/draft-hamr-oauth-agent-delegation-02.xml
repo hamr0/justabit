@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<rfc xmlns:xi="http://www.w3.org/2001/XInclude" category="std" docName="draft-hamr-oauth-agent-delegation-01" ipr="trust200902" submissionType="IETF" consensus="true" version="3">
+<rfc xmlns:xi="http://www.w3.org/2001/XInclude" category="std" docName="draft-hamr-oauth-agent-delegation-02" ipr="trust200902" submissionType="IETF" consensus="true" version="3">
   <front>
     <title abbrev="Agent Delegation Profile">An Attenuated Delegation Profile for Automated Agents</title>
-    <seriesInfo name="Internet-Draft" value="draft-hamr-oauth-agent-delegation-01"/>
+    <seriesInfo name="Internet-Draft" value="draft-hamr-oauth-agent-delegation-02"/>
     <author initials="A." surname="Hassan" fullname="Amr Hassan">
       <organization>Independent</organization>
       <address>
@@ -227,7 +227,7 @@
           binding a specific action, tool name, or argument set to a
           grant, at the moment the action is about to occur.
         </dd>
-        <dt>(c) What happened, once:</dt>
+        <dt>(c) What was approved and consumed, once:</dt>
         <dd>
           the receipts and audit evidence that record that a given
           action was authorized, presented, and consumed.
@@ -252,12 +252,19 @@
         name and its arguments per call, at the moment a request is
         dispatched, after a model has already chosen what to invoke.
         <xref target="I-D.schrock-ep-authorization-receipts"/> addresses
-        layer (c), the recorded evidence that an action occurred. Read
-        together, the ordering runs: authorization detail is bound at
-        grant time; floors of the kind this document specifies bound the
-        space in between as a chain is attenuated hop to hop; and a
-        per-call digest is bound after a specific choice has been made,
-        with a receipt recording what happened afterward.
+        layer (c) with a pre-execution approval bundle and terminal
+        consumption evidence, without itself establishing that the
+        action occurred.
+        <xref target="I-D.schrock-action-evidence-boundary"/> complements
+        it with an executor-side model for local authorization, atomic
+        consumption, and outcome reconciliation at invocation, including
+        a requirement to enumerate every path that bypasses it. Read
+        together, the ordering runs: authorization
+        detail is bound at grant time; floors of the kind this document
+        specifies bound the space in between as a chain is attenuated
+        hop to hop; and a per-call digest is bound after a specific
+        choice has been made, with a receipt evidencing pre-execution
+        approval rather than post-execution occurrence.
       </t>
       <t>
         One structural problem is shared across this layering and is not
@@ -914,17 +921,58 @@
       <section anchor="action-class-verifier-placement" numbered="true" toc="default">
         <name>Verifier Placement</name>
         <t>
-          Classification and admission under this section are performed
-          by the verifier at the resource or credential boundary
-          described in <xref target="layers"/>, not by any harness or
-          orchestration layer upstream of that boundary. A harness that
-          coordinates an agent's actions does not itself classify a
-          request or admit it against an actionClass floor; an agent that
-          declines to attempt an action it believes will be refused does
-          not, by that restraint, satisfy this section. Admission is an
-          act of the verifier refusing or permitting a request at the
-          boundary, not an act of the harness or the agent abiding by a
-          floor it was merely told about.
+          An enforcement boundary is a role in an effect-capable path,
+          not a component: the first admission point on that path whose
+          successful admission is necessary for the protected effect to
+          complete through that path. Any component can occupy this
+          role for a given path, including a harness or orchestration
+          layer, provided that component actually refuses or permits
+          the request rather than merely observing or advising on it; a
+          component that only coordinates or advises does not classify
+          or admit, whatever else it does. Different paths to the same
+          effect can realize the role at different components or
+          layers, and no single component need be common to all of
+          them. The verifier, as used throughout this document, is the
+          component occupying the enforcement-boundary role for a given
+          effect-capable path; the two terms refer to the same role,
+          not two different things.
+        </t>
+        <t>
+          Boundary identification under this section is performed
+          separately for each effect-capable path. A deployment with
+          more than one path to the same protected effect identifies a
+          qualifying enforcement boundary on each path individually;
+          identifying one on a single path says nothing about any
+          other.
+        </t>
+        <t>
+          Closure is a separate, system-wide requirement: every
+          effect-capable path MUST cross an enforcement boundary
+          qualifying under the definition above before the protected
+          effect can complete. This is checked by the bypass test: for
+          a given protected effect, if any path capable of producing
+          that effect can do so without crossing a qualifying
+          enforcement boundary, closure fails for that effect,
+          regardless of how many other paths to it are correctly
+          guarded. This closure requirement is distinct from the
+          bypass-enumeration requirement of
+          <xref target="I-D.schrock-action-evidence-boundary"/>: that
+          requirement asks a single executor to enumerate the paths
+          that bypass its own local enforcement within one deployment,
+          while this document's closure requirement governs the
+          complete set of effect-capable admission paths to a given
+          protected effect, however many components realize the
+          enforcement-boundary role across them.
+        </t>
+        <t>
+          An agent that declines to attempt an action it expects to be
+          refused does not, by that restraint, satisfy this section:
+          satisfaction requires an enforcement boundary that would
+          refuse the request had it actually arrived, not an agent's
+          choice not to send it. Admission is an act of an enforcement
+          boundary refusing or permitting a request, not an act of a
+          harness or an agent abiding by a floor it was merely told
+          about.
         </t>
       </section>
       <section anchor="action-class-limits" numbered="true" toc="default">
@@ -1248,7 +1296,7 @@
         <li><t>Verify the three attenuation rules of <xref target="attenuation"/> for every adjacent pair of links in the chain.</t></li>
         <li><t>Verify that every floor attestation carried by the chain echoes, exactly, the nonce the verifier issued for this exchange, and reject if any does not.</t></li>
         <li><t>Verify that no link in the chain has an expiry that has passed, evaluated at the time of verification.</t></li>
-        <li><t>Classify the request's actionClass per <xref target="classification"/>, consulting the declared menu of <xref target="declared-menu"/> where the chain's classSource is declared, and admit or refuse the request against the writeBudget ledger of <xref target="write-budget"/>; per <xref target="action-class-verifier-placement"/>, this step is performed by the verifier at the resource or credential boundary, not by an upstream harness or orchestration layer.</t></li>
+        <li><t>Classify the request's actionClass per <xref target="classification"/>, consulting the declared menu of <xref target="declared-menu"/> where the chain's classSource is declared, and admit or refuse the request against the writeBudget ledger of <xref target="write-budget"/>; per <xref target="action-class-verifier-placement"/>, this step is performed by whichever component occupies the enforcement-boundary role for the effect-capable path the request is on, not by a component that only coordinates or advises.</t></li>
         <li><t>Only after every preceding step has succeeded, apply the Relying Service's authorization policy to the resulting, fully verified chain.</t></li>
       </ol>
       <t>
@@ -1464,28 +1512,25 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
       <t>
         <xref target="I-D.asor-wimse-agent-delegation-chain"/> Section 10
         requests a new "Agent Delegation Constraint Types" registry, with
-        initial entries max, one_of, not_one_of, prefix, and rank, and
-        its Section 4.1 requires a verifier that encounters an unknown
+        initial entries max, min, one_of, not_one_of, prefix, and rank, and
+        its Section 4.2 requires a verifier that encounters an unknown
         constraint type to deny the action, never to treat it as
-        unconstrained. That draft's registry, as posted, has no entry
-        named min: every constraint that draft's Section 4.2 subsumption
-        rules define narrows a ceiling (child.max &lt;= parent.max,
-        child.one_of a subset of parent.one_of, child.rank &lt;=
-        parent.rank), where this document's duration-typed axes are all
-        floors tightened upward instead. That draft's registry names
-        comparator TYPES and leaves the constrained quantity to a
-        profile-level naming agreement; the registry defined in
-        <xref target="axis-registry"/> takes the complementary approach
+        unconstrained. That draft's Section 4.3 subsumption rules include
+        both ceiling and floor comparators (e.g. child.max &lt;= parent.max
+        alongside child.min &gt;= parent.min), the latter tightened upward
+        in the same direction as this document's duration-typed axes. That
+        draft's registry names comparator TYPES and leaves the constrained
+        quantity to a profile-level naming agreement; the registry defined
+        in <xref target="axis-registry"/> takes the complementary approach
         of naming axes, each bound to one comparator from a closed set.
         The comparator vocabulary is therefore the bridge between the two
         registries, not a shared set of names: rank in that draft's
         registry and the rank comparator of
         <xref target="axis-registry"/> are the same comparator, and
-        actionClass in this document's registry uses it. A mirrored min
-        comparator, matching this document's min, has been stated as
-        intended for a future revision of that draft; it is not present
-        in <xref target="I-D.asor-wimse-agent-delegation-chain"/> as
-        posted, and this document does not describe it as present.
+        actionClass in this document's registry uses it. That draft's
+        registry now also includes a min comparator matching this
+        document's min, so the comparator vocabulary bridging the two
+        registries now spans both the ceiling and floor direction.
       </t>
       <t>
         A companion document, <xref target="CAMARA-PROPOSAL"/>, is an
@@ -1529,7 +1574,7 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         <li>expiry enforcement, including the missing/non-numeric-expiry-is-expired rule;</li>
         <li>the signed-refusal shape of <xref target="refusal"/> and its independent verification path;</li>
         <li>the closed floor axis set of <xref target="floors"/>, the duration grammar of <xref target="duration-grammar"/>, and the monotone tightening comparison of <xref target="monotone"/>;</li>
-        <li>the actionClass and classSource classification and admission rules of <xref target="action-class"/>, exercised by 27 automated cases in the proof-of-concept: the classification procedure; the deterministic path-template rule for matching menu operation keys, per <xref target="declared-menu"/>; and the binding of a menu's issuer to the request's target origin that <xref target="declared-menu"/> requires.</li>
+        <li>the actionClass and classSource classification and admission rules of <xref target="action-class"/>, exercised by 40 automated cases in the proof-of-concept: the classification procedure; the deterministic path-template rule for matching menu operation keys, per <xref target="declared-menu"/>; and the binding of a menu's issuer to the request's target origin that <xref target="declared-menu"/> requires.</li>
         <li>the writeBudget ledger of <xref target="write-budget"/>: reserve-then-decrement admission against a stateful, per-chain count, and an actionClass r request never spending against it. This shares the same proof-of-concept and the same case count as the previous bullet, and includes the chain identifier derived by the verifier as the SHA-256 digest of L(0)'s signature value, per <xref target="write-budget-chain-identifier"/>, rather than taken from a caller-supplied request field.</li>
       </ul>
       <t>
@@ -1723,6 +1768,16 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         </front>
         <seriesInfo name="Internet-Draft" value="draft-schrock-ep-authorization-receipts-12"/>
       </reference>
+      <reference anchor="I-D.schrock-action-evidence-boundary" target="https://datatracker.ietf.org/doc/html/draft-schrock-action-evidence-boundary-05">
+        <front>
+          <title>The Action Evidence Boundary for Consequential Agent Effects</title>
+          <author fullname="Iman Schrock" initials="I." surname="Schrock">
+            <organization>EMILIA Protocol, Inc.</organization>
+          </author>
+          <date day="31" month="August" year="2026"/>
+        </front>
+        <seriesInfo name="Internet-Draft" value="draft-schrock-action-evidence-boundary-05"/>
+      </reference>
       <reference anchor="I-D.klrc-aiagent-auth" target="https://datatracker.ietf.org/doc/draft-klrc-aiagent-auth/">
         <front>
           <title>AI Agent Authentication and Authorization</title>
@@ -1736,15 +1791,15 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         </front>
         <seriesInfo name="Internet-Draft" value="draft-klrc-aiagent-auth-03"/>
       </reference>
-      <reference anchor="I-D.asor-wimse-agent-delegation-chain" target="https://datatracker.ietf.org/doc/html/draft-asor-wimse-agent-delegation-chain-00">
+      <reference anchor="I-D.asor-wimse-agent-delegation-chain" target="https://datatracker.ietf.org/doc/html/draft-asor-wimse-agent-delegation-chain-01">
         <front>
           <title>Verifiable Attenuated Delegation for AI Agent Chains</title>
           <author fullname="Rafael Asor" initials="R." surname="Asor">
             <organization>Attenu</organization>
           </author>
-          <date day="27" month="August" year="2026"/>
+          <date day="3" month="September" year="2026"/>
         </front>
-        <seriesInfo name="Internet-Draft" value="draft-asor-wimse-agent-delegation-chain-00"/>
+        <seriesInfo name="Internet-Draft" value="draft-asor-wimse-agent-delegation-chain-01"/>
       </reference>
       <reference anchor="I-D.reece-wimse-cross-org-delegation" target="https://datatracker.ietf.org/doc/draft-reece-wimse-cross-org-delegation/">
         <front>
@@ -1907,7 +1962,8 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         <eref target="https://github.com/hamr0/bareguard"/>,
         <eref target="https://github.com/hamr0/bareloop"/>, and
         <eref target="https://github.com/hamr0/bareagent"/>, that exercise
-        the boundary drawn in <xref target="layers"/>; they are not
+        the enforcement-boundary role of
+        <xref target="action-class-verifier-placement"/>; they are not
         implementations of this profile, which is why they are not listed
         in <xref target="implementation-status"/>. Non-normative, like the
         rest of this appendix.
@@ -1918,7 +1974,7 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         back allow, deny, or ask a human.
       </t>
       <ul spacing="normal">
-        <li>a floor gate decides before the action runs, plus a separate detector after the result that annotates and never blocks alone; the split maps onto layers (a) and (c) of <xref target="layers"/>;</li>
+        <li>a floor gate decides before the action runs, plus a separate detector after the result that annotates and never blocks alone; the floor gate maps onto layer (a) of <xref target="layers"/>, but the after-the-result detector fits none of the three layers there: it observes after execution rather than recording what was approved and consumed, and this document does not claim otherwise;</li>
         <li>capability presets may only narrow the floor, never widen it, so a wrong preset is not a safety hole;</li>
         <li>quantitative limits are enforced as a running cumulative total, because a per-action cap is defeated by splitting one action into many; only two comparator kinds were needed in practice, set membership and an ordered-enum threshold.</li>
       </ul>
@@ -1943,9 +1999,15 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         <li>an incomplete result is returned honestly rather than as a faked pass.</li>
       </ul>
       <t>
-        In each case the point of control sat at the credential boundary
-        or the resource, never in the harness, which is the placement
-        <xref target="layers"/> assumes.
+        In each case, the point of control occupied the
+        enforcement-boundary role of
+        <xref target="action-class-verifier-placement"/>, realized at a
+        different component in each experiment: a single gate, an outer
+        arbiter, and a policy chokepoint respectively. This is evidence
+        for the role model, not for any one component being the
+        placement: what these three prior implementations have in
+        common is a component that actually refuses or permits, not a
+        shared location.
       </t>
     </section>
 
@@ -2250,15 +2312,20 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
             section placed after <xref target="motivation"/> and before
             <xref target="header"/>. It positions this document among
             three delegation layers (who may act, what exactly may be
-            done per invocation, and what happened once), states that
+            done per invocation, and what was approved and consumed
+            once), states that
             this document occupies layer (a) plus floors, and
             distinguishes it from <xref target="RFC9396"/> (grant-time
             binding), <xref target="I-D.das-agentic-tool-binding"/>
-            (per-call tool-name-and-argument binding), and
+            (per-call tool-name-and-argument binding),
             <xref target="I-D.schrock-ep-authorization-receipts"/>
-            (layer (c) receipts). It also names, non-normatively, the
-            shared structural problem that a parent credential remains
-            valid after attenuation, citing
+            (layer (c) pre-execution approval and terminal consumption
+            evidence, not itself proof of execution), and
+            <xref target="I-D.schrock-action-evidence-boundary"/>
+            (executor-side verification, consumption, and
+            reconciliation at invocation). It also names, non-normatively,
+            the shared structural problem that a parent credential
+            remains valid after attenuation, citing
             <xref target="I-D.asor-wimse-agent-delegation-chain"/>
             Section 9.1 for mitigations this document does not itself
             supply.
@@ -2268,9 +2335,10 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
           <t>
             Added Direction 4 to <xref target="appendix-a"/>: three
             single-author, open-source harness experiments (bareguard,
-            bareloop, bareagent) that exercise the boundary drawn in
-            <xref target="layers"/> without implementing this profile,
-            and are therefore not listed in
+            bareloop, bareagent) that exercise the enforcement-boundary
+            role of <xref target="action-class-verifier-placement"/>
+            without implementing this profile, and are therefore not
+            listed in
             <xref target="implementation-status"/>.
           </t>
         </li>
@@ -2293,12 +2361,13 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
             origin (<xref target="RFC6454"/>) and a map from
             operation key to actionClass value, including a deterministic
             path-template matching rule and an origin-binding requirement
-            on the menu's issuer; verifier placement at the resource or
-            credential boundary; and an honest-limits paragraph, backed
-            by a committed catalogue survey, that a POST is not always
-            classed correctly by method alone. Added a corresponding
-            paragraph to <xref target="security"/>, three test vectors
-            (V7 through V9, the last a negative control for the
+            on the menu's issuer; verifier placement, then stated as
+            sitting at the resource boundary or the credential boundary;
+            and an honest-limits paragraph, backed by a committed
+            catalogue survey, that a POST is not always classed
+            correctly by method alone. Added a corresponding paragraph
+            to <xref target="security"/>, three test vectors (V7
+            through V9, the last a negative control for the
             origin-binding rule) to <xref target="vectors"/>, and a bullet
             to <xref target="implementation-status"/> recording the
             proof-of-concept's case count against this section's
