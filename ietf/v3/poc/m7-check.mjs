@@ -1,4 +1,4 @@
-// PoC module IETF-M7 — standalone check. Run: node ietf/v2/poc/m7-check.mjs
+// PoC module IETF-M7 — standalone check. Run: node ietf/v3/poc/m7-check.mjs
 // Negatives first: every silent-widening path the spec identified is shown
 // being rejected before the happy paths. Same style/discipline as M3's
 // check (camara/v2/poc/m3-check.mjs): exact-reason assertions, not just

@@ -5,7 +5,7 @@
 > `repos.json`, so it is reproducible from those columns rather than
 > carried as a binary copy. The "this scratchpad directory" reference
 > below no longer applies; everything here now lives at
-> `ietf/v2/poc/spike-a/`.
+> `ietf/v3/poc/spike-a/`.
 >
 > **Caveat (recorded in `docs/logs/findings.md`).** The GET judgements
 > behind the R3 readout below were templated — every GET got the same

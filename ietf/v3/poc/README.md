@@ -1,13 +1,16 @@
-# ietf/v2/poc — actionClass floor axis spike
+# ietf/v3/poc — actionClass floor axis spike
 
 A SPIKE for `draft-hamr-oauth-agent-delegation` -01, not a conformance
 harness (see the repo's standing no-go on shipping conformance harnesses —
-this ships as prose + test vectors in the draft, not this code).
+this ships as prose + test vectors in the draft, not this code). This copy
+sits in the `-02` round, but the code itself has NOT been updated for
+`-02`: it still validates the rules `-01` states; `-02`'s changes so far
+are prose only.
 
-Copied from `ietf/v1/poc/` on 2026-09-01 when the -01 round opened
-(`ietf/v1/poc/` is now a frozen copy behind the -00 record and is never
+Copied from `ietf/v2/poc/` on 2026-09-04 when the `-02` round opened
+(`ietf/v2/poc/` is now a frozen copy behind the -01 record and is never
 edited); only the run-path comment in `m7-check.mjs` and this README's
-own text differ from that copy (2026-09-01).
+own text differ from that copy (2026-09-04).
 
 `spike-a/` is the catalogue survey (spike A): a read-only measurement of
 whether an `actionClass` method-default hides consequential operations
@@ -19,8 +22,8 @@ the `admit`/`classify` gate itself.
 
 ## Run
 
-    node ietf/v2/poc/m7-check.mjs
-    node ietf/v2/poc/m3-check.mjs   # the copied M3 gate, unchanged
+    node ietf/v3/poc/m7-check.mjs
+    node ietf/v3/poc/m3-check.mjs   # the copied M3 gate, unchanged
 
 `m3-floor.mjs`, `m3-check.mjs`, `check-harness.mjs`, `m1-jws.mjs` are
 byte-identical copies of `camara/v2/poc/`'s. `m1-attestation.mjs` was also
