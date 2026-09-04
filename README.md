@@ -162,18 +162,25 @@ ietf/v1/docs/       frozen record of draft-hamr-oauth-agent-delegation-00
                     prose proposal
 ietf/v1/poc/        the actionClass floor axis spike (M7) this -00 record
                     was validated against; copied unchanged into v2
-ietf/v2/docs/       -01 SUBMITTED and posted 2026-09-02, expires 2027-03-06:
-                    all four items and Appendix A direction 4 drafted; two
-                    review rounds run and their findings fixed; the PoC
-                    catch-up done
-ietf/v2/poc/        DIVERGED from the frozen v1 copy: m7-actionclass.mjs
-                    and m7-check.mjs now carry the -01 text's rules
-                    (verifier-derived chain identifier, path-template menu
+ietf/v2/docs/       FROZEN record of -01, SUBMITTED and posted 2026-09-02,
+                    expires 2027-03-06: all four items and Appendix A
+                    direction 4 drafted; two review rounds run and their
+                    findings fixed; the PoC catch-up done
+ietf/v2/poc/        FROZEN -01 record: DIVERGED from the frozen v1 copy at
+                    the time -01 was drafted (m7-actionclass.mjs and
+                    m7-check.mjs carry the -01 text's rules — verifier-
+                    derived chain identifier, path-template menu
                     matching, origin binding, the link-to-link omitted-axis
                     rule), 40 cases against v1's 24 — v1 stays frozen as
                     the -00 record; spike-a/ holds the catalogue-survey
                     dataset (specs/ omitted, reproducible from its SHA
-                    column), moved in 2026-09-01
+                    column), moved in 2026-09-01; copied unchanged into v3
+ietf/v3/docs/       the `-02` working copy, drafting the Verifier
+                    Placement rewrite (boundary as a role, per
+                    effect-capable path, plus the system-wide closure/
+                    anti-bypass invariant); not yet submitted
+ietf/v3/poc/        an unchanged copy of ietf/v2/poc/ — the -02 PoC
+                    catch-up has not started
 ```
 
 ## The two tracks
