@@ -4,8 +4,8 @@
 
 - **IETF -02 drafted: Verifier Placement rewritten as a role, layering
   correction, asor bumped to -01, not submitted** (2026-09-05). New file
-  `ietf/v3/docs/draft-hamr-oauth-agent-delegation-02.xml` (2552 lines),
-  merged via PR #30. Verifier Placement REPLACES -01's "upstream of the
+  `ietf/v3/docs/draft-hamr-oauth-agent-delegation-02.xml`, merged via
+  PR #30 at 2552 lines. Verifier Placement REPLACES -01's "upstream of the
   resource or credential boundary" wording: the enforcement boundary is
   now a ROLE, identified PER effect-capable path, plus a separate
   system-wide closure/anti-bypass invariant — text fully specified by
@@ -18,14 +18,20 @@
   wording had gone stale. A non-normative "Changes since -01" appendix
   was added. `-02` is a working draft only; it has not been submitted.
 - **`ietf/v2/` restored to the posted -01 bytes; `ietf/v3/poc/` opened
-  as an unchanged copy** (2026-09-04). Five earlier commits had edited
-  -02 content into `ietf/v2/` in place, breaking the one-directory-
-  per-posted-revision layout; `ietf/v2/docs/draft-hamr-oauth-agent-
-  delegation-01.xml` is restored byte-identical to the posted -01.
-  `ietf/v3/poc/` was opened as a copy of `ietf/v2/poc/` with
-  self-references corrected only — no executable logic changed: 12 of
-  13 code files are byte-identical, the sole difference is a run-path
-  comment on line 1 of `m7-check.mjs`.
+  as a copy, no executable logic changed** (2026-09-04). Five earlier
+  commits had edited -02 content into `ietf/v2/` in place, breaking the
+  one-directory-per-posted-revision layout; `ietf/v2/docs/draft-hamr-
+  oauth-agent-delegation-01.xml` is restored byte-identical to the
+  posted -01. `ietf/v3/poc/` was opened as a copy of `ietf/v2/poc/`.
+  Of its 13 code files (`.mjs`/`.py`/`.sh`/`.json`), only
+  `m7-check.mjs` differs from the `ietf/v2/poc/` original, and only by
+  a run-path comment on line 1 — no executable logic changed. Two
+  other files also differ: `spike-a/README.md` updates only its
+  self-reference, but the top-level `README.md` adds a new sentence
+  disclosing that the copied code has NOT been updated for `-02` and
+  still validates -01's rules — new prose, not a self-reference, so
+  "self-references corrected only" is not an accurate description of
+  the copy as a whole.
 - **`CLAUDE.md` stopped auto-importing `AGENT_RULES.md`** (2026-09-04).
   The `@`-prefixed import pulled the whole guide into every session's
   hot context; it is now a plain reference path, consulted rather than
@@ -36,14 +42,41 @@
   `ietf/v3/docs/emilia-layering-correction-received-2026-09-03.md` and
   `ietf/v3/docs/emilia-layering-reply-sent-2026-09-04.md`; a false
   provenance line was later found in both and dropped.
+- **EMILIA replied 2026-09-05: layering fix accepted, exact-action
+  matching kept, acknowledgment granted** (2026-09-05). Iman Schrock
+  replied to the 2026-09-04 layering reply, accepting the relabeled
+  layer (c) and the separation of the post-result detector. Of the two
+  clauses omitted from his original wording, he ruled exact-action
+  matching load-bearing — without it the AEB sentence reads as a
+  generic local authorization and atomicity model — and accepted
+  omitting "native verification" for length. The AEB sentence in the
+  `-02` body was corrected to his exact wording: the reference
+  "complements it with an executor-side model for exact-action
+  matching, local authorization, atomic consumption, and outcome
+  reconciliation at invocation, including a requirement to enumerate
+  every path that bypasses it." The "Changes since -01" appendix
+  description was updated to match, so the document does not state the
+  clause two ways — the XML is now 2565 lines, up from the 2552 PR #30
+  merged. He also confirmed the local-versus-system-wide bypass
+  distinction as correct, with no equivalence and no priority between
+  the two. A new Acknowledgments section was added to
+  `<back>` — none existed in `-02`, and none exists in the posted -01
+  — containing one entry, Iman's exact approved wording: "Iman Schrock
+  for clarifying the receipts/AEB execution boundary and bypass
+  relationship." Sangam Das and Jijie Wei are deliberately NOT in it
+  yet: their contribution is joint and Sangam has not given a
+  preferred name form, so both go in together once he answers. New
+  record `ietf/v3/docs/emilia-layering-reply-received-2026-09-05.md`,
+  plus a `findings.md` entry.
 - **Open items, stated plainly as open, not done.** `author-tools.ietf.org`
   has not run on the -02 bytes — idnits ran clean, but local
   well-formedness is not a schema validity check. The asor -01 section
   numbers 4.1/4.2/4.3 cited in -02 are unverified. The final layering
-  text has not been sent to Iman, despite the sent reply committing to
-  it. Iman has not answered on acknowledgment by name. Sangam Das gave
-  no preferred name form for -02 attribution. The -02 PoC catch-up has
-  not started — `ietf/v3/poc/` still validates -01's rules, not -02's.
+  text has not been sent to Iman — his reply says he will check that
+  exact version when it arrives, so it has not arrived. Sangam Das has
+  not given a preferred name form, so he and Jijie Wei are not yet in
+  the Acknowledgments section. The -02 PoC catch-up has not started —
+  `ietf/v3/poc/` still validates -01's rules, not -02's.
 
 ## 0.12.2 — 2026-09-03
 

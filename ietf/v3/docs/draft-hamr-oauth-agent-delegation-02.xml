@@ -256,9 +256,10 @@
         consumption evidence, without itself establishing that the
         action occurred.
         <xref target="I-D.schrock-action-evidence-boundary"/> complements
-        it with an executor-side model for local authorization, atomic
-        consumption, and outcome reconciliation at invocation, including
-        a requirement to enumerate every path that bypasses it. Read
+        it with an executor-side model for exact-action matching, local
+        authorization, atomic consumption, and outcome reconciliation at
+        invocation, including a requirement to enumerate every path that
+        bypasses it. Read
         together, the ordering runs: authorization
         detail is bound at grant time; floors of the kind this document
         specifies bound the space in between as a chain is attenuated
@@ -1856,6 +1857,17 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
       </reference>
     </references>
 
+    <section anchor="acknowledgments" numbered="false" toc="default">
+      <name>Acknowledgments</name>
+      <t>
+        The author thanks:
+      </t>
+      <t>
+        Iman Schrock for clarifying the receipts/AEB execution boundary
+        and bypass relationship.
+      </t>
+    </section>
+
     <section anchor="appendix-a" numbered="true" toc="default">
       <name>Non-Normative Instantiations</name>
       <t>
@@ -2332,8 +2344,9 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
             informative reference to
             <xref target="I-D.schrock-action-evidence-boundary"/>, which
             complements the receipts draft with an executor-side model
-            for local authorization, atomic consumption, and outcome
-            reconciliation at invocation, and placed it in the layering
+            for exact-action matching, local authorization, atomic
+            consumption, and outcome reconciliation at invocation, and
+            placed it in the layering
             alongside <xref target="RFC9396"/>,
             <xref target="I-D.das-agentic-tool-binding"/>, and
             <xref target="I-D.schrock-ep-authorization-receipts"/>.

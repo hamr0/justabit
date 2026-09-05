@@ -14,6 +14,56 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-09-05 — EMILIA replied to the layering reply: AEB sentence corrected, acknowledgment granted
+
+**EVIDENCE**
+
+1. Iman Schrock (EMILIA, AEB author) replied 2026-09-05 to the
+   2026-09-04 layering reply, verbatim in
+   `ietf/v3/docs/emilia-layering-reply-received-2026-09-05.md`. He
+   accepted the relabeled layer (c) ("what was approved and consumed,
+   once") and the removal of the post-result detector from Appendix
+   A's layer-(c) mapping.
+2. Of the two clauses cut from his original wording, he ruled
+   exact-action matching load-bearing ("[w]ithout it, the AEB sentence
+   can read like a generic local authorization and atomicity model")
+   and accepted omitting native verification for length, leaving it in
+   the reference only.
+3. He confirmed the local-versus-system-wide bypass distinction as
+   stated in the 2026-09-04 reply: "No equivalence and no priority is
+   the right posture."
+4. He granted acknowledgment by name in this exact narrow form: "Iman
+   Schrock for clarifying the receipts/AEB execution boundary and
+   bypass relationship."
+
+**DECISION**
+
+1. The -02 AEB sentence in `draft-hamr-oauth-agent-delegation-02.xml`
+   (§4, the layering paragraph) was changed to Iman's proposed wording
+   verbatim, substituting the document's own `xref` for the literal
+   "[AEB]": "... complements it with an executor-side model for
+   exact-action matching, local authorization, atomic consumption, and
+   outcome reconciliation at invocation, including a requirement to
+   enumerate every path that bypasses it." Exact-action matching was
+   added because its absence let the sentence read as a generic local
+   authorization and atomicity model, which is exactly the misreading
+   Iman flagged; native verification stays omitted, as he accepted.
+2. The acknowledgment-by-name question left open by the 2026-09-04
+   reply is now answered: Iman granted it, in the narrow form quoted
+   above. An unnumbered Acknowledgments section (none existed in -02,
+   nor in the posted -01) was added to `<back>`, before Appendix A,
+   containing Iman's line and nothing else.
+
+**OPEN, NOT DONE**
+
+- The final layering text has still not been sent to Iman before -02
+  is posted, despite the standing 2026-09-04 commitment to do so.
+- Sangam Das's and Jijie Wei's attribution is not yet in the
+  Acknowledgments section; their contribution is joint, so both are
+  added together once Sangam gives his preferred name form.
+
+---
+
 ## 2026-09-05 — IETF -02 drafted (Verifier Placement rewrite, layering correction, asor -01 bump), branch-reviewed ready, not yet submitted
 
 **EVIDENCE**
