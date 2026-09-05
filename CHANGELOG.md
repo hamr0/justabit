@@ -1,5 +1,50 @@
 # Changelog
 
+## 0.13.0 — 2026-09-05
+
+- **IETF -02 drafted: Verifier Placement rewritten as a role, layering
+  correction, asor bumped to -01, not submitted** (2026-09-05). New file
+  `ietf/v3/docs/draft-hamr-oauth-agent-delegation-02.xml` (2552 lines),
+  merged via PR #30. Verifier Placement REPLACES -01's "upstream of the
+  resource or credential boundary" wording: the enforcement boundary is
+  now a ROLE, identified PER effect-capable path, plus a separate
+  system-wide closure/anti-bypass invariant — text fully specified by
+  the closed OAuth WG thread with Sangam Das and Jijie Wei. The
+  AEB/receipts layering misdescription was corrected and a reference to
+  `draft-schrock-action-evidence-boundary-05` added alongside the
+  existing receipts citation. The asor citation was bumped from -00 to
+  -01, and the six stale claims that bump exposed were corrected — asor
+  -01 carries the `min` comparator, so -01's "min not yet present"
+  wording had gone stale. A non-normative "Changes since -01" appendix
+  was added. `-02` is a working draft only; it has not been submitted.
+- **`ietf/v2/` restored to the posted -01 bytes; `ietf/v3/poc/` opened
+  as an unchanged copy** (2026-09-04). Five earlier commits had edited
+  -02 content into `ietf/v2/` in place, breaking the one-directory-
+  per-posted-revision layout; `ietf/v2/docs/draft-hamr-oauth-agent-
+  delegation-01.xml` is restored byte-identical to the posted -01.
+  `ietf/v3/poc/` was opened as a copy of `ietf/v2/poc/` with
+  self-references corrected only — no executable logic changed: 12 of
+  13 code files are byte-identical, the sole difference is a run-path
+  comment on line 1 of `m7-check.mjs`.
+- **`CLAUDE.md` stopped auto-importing `AGENT_RULES.md`** (2026-09-04).
+  The `@`-prefixed import pulled the whole guide into every session's
+  hot context; it is now a plain reference path, consulted rather than
+  auto-loaded, matching what the file's own heading already says it is.
+- **Two EMILIA correspondence records added, then a false provenance
+  line removed from both** (2026-09-03/04). A layering correction
+  received from EMILIA was recorded and answered in
+  `ietf/v3/docs/emilia-layering-correction-received-2026-09-03.md` and
+  `ietf/v3/docs/emilia-layering-reply-sent-2026-09-04.md`; a false
+  provenance line was later found in both and dropped.
+- **Open items, stated plainly as open, not done.** `author-tools.ietf.org`
+  has not run on the -02 bytes — idnits ran clean, but local
+  well-formedness is not a schema validity check. The asor -01 section
+  numbers 4.1/4.2/4.3 cited in -02 are unverified. The final layering
+  text has not been sent to Iman, despite the sent reply committing to
+  it. Iman has not answered on acknowledgment by name. Sangam Das gave
+  no preferred name form for -02 attribution. The -02 PoC catch-up has
+  not started — `ietf/v3/poc/` still validates -01's rules, not -02's.
+
 ## 0.12.2 — 2026-09-03
 
 - **CAMARA TSC relay on PR #331 answered: sign-then-encrypt order stated,
