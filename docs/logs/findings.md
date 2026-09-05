@@ -14,6 +14,105 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-09-05 — IETF -02 drafted (Verifier Placement rewrite, layering correction, asor -01 bump), branch-reviewed ready, not yet submitted
+
+**EVIDENCE**
+
+1. `ietf/v3/docs/draft-hamr-oauth-agent-delegation-02.xml` (2552 lines)
+   passes, run directly against this tree: `python3 -c
+   "import xml.etree.ElementTree as ET; ET.parse(...)"` exit 0;
+   `xmllint --noout` exit 0; a whole-file (newline-insensitive) scan for
+   `</?[bi]>`, `</?code>`, `</?pre>`, `</?span>` returns 0 hits; a
+   whole-file non-ASCII byte scan returns 0 hits; a scan for BCP 14
+   capitals (`MUST`, `MUST NOT`, `SHOULD`, `SHOULD NOT`, `SHALL`, `SHALL
+   NOT`, `REQUIRED`, `RECOMMENDED`, `MAY`, `OPTIONAL`, `NOT RECOMMENDED`)
+   restricted to everything from `<back>` onward returns 0 hits. This is
+   well-formedness plus this repo's RFCXML v3 house constraints, NOT a
+   schema validity check — only `https://author-tools.ietf.org/` proves
+   that, and only the user can run it. It has not been run on the -02
+   bytes.
+2. `node ietf/v3/poc/m7-check.mjs` exit 0, `RESULT: 40/40`. `node
+   ietf/v3/poc/m3-check.mjs` exit 0, `RESULT: 26/26`. `node
+   ietf/v3/poc/check-harness.mjs` exit 0. `diff -r ietf/v2/poc
+   ietf/v3/poc` reports 9 changed lines across 3 files, all
+   self-locating (two `README.md` files' titles/provenance/run-paths,
+   `m7-check.mjs`'s line-1 run-path comment, `spike-a/README.md`'s
+   self-reference) — the test code and vectors themselves are
+   byte-identical; `ietf/v3/poc/` still validates -01's rules, not -02's
+   (the -02 content changes so far are prose only).
+3. `git diff 6400324 -- ietf/v2/docs/draft-hamr-oauth-agent-delegation-01.xml`
+   is empty: `ietf/v2/docs/`'s -01 file is byte-identical to the posted
+   -01 commit, restored after five earlier commits had edited -02
+   content into that path in place (net change to `ietf/v2/` across
+   `main..HEAD` is zero).
+4. `.claude/remember/last-review.md` records `/branch-review` at sha
+   `a6daa0c` (this branch's current HEAD), target `main..HEAD`, level
+   medium, verdict **ready**, coverage "stage1 ran, stage2 ran, stage3
+   ran", blockers: none.
+5. `git log main..HEAD` (14 commits) confirms the round's shape:
+   `1e40e9a` (AEB/receipts layering correction, AEB reference added),
+   `bd32aba` + `a58e215` (asor citation bumped -00 to -01, six stale
+   claims corrected, then author fields restored after a bare-fullname
+   copy from `bib.ietf.org` dropped them), `68163d0` (Verifier Placement
+   rewritten as a role plus three audit-blocker fixes) + `3d74f22`
+   (three placement sites a line-based grep had missed, found by a
+   newline-insensitive re-check), `7b13bb5` + `a6327ea` (Changes-since
+   -01 appendix added, then a local repo path stripped from it),
+   `198d971` (v2 restored to frozen -01 bytes, v3 opened as the -02
+   working copy), `52b435b` (ietf/v3/poc self-references corrected),
+   `8168afa` (repo pointers swept for the v3 layout), `174a493` (CLAUDE.md
+   stopped `@`-importing `AGENT_RULES.md` into every session), `5bcb633`
+   (docs-builder reorg run, 0 files moved), `8de530a` (two EMILIA
+   correspondence records added), `a6daa0c` (a false provenance line
+   removed from both).
+6. `git diff main..a6daa0c --stat` (the branch state before this
+   entry's own commit): 32 files changed, 6917 insertions(+),
+   17 deletions(-); the bulk is the new -02 XML (2552 lines) plus
+   `ietf/v3/poc/` (a full copy of `ietf/v2/poc/`, including `spike-a/`).
+
+**DECISION**
+
+1. Verifier Placement in -02 replaces -01's "upstream of the resource or
+   credential boundary" model with the enforcement boundary as a ROLE,
+   identified PER effect-capable path, plus a SEPARATE, system-wide
+   closure/anti-bypass invariant (can another path skip the boundary
+   role entirely?). Reasoned from -01's own Appendix A evidence
+   (bareguard/bareagent are harness-side components that actually
+   refuse or permit, contradicting the old "never in the harness"
+   claim) and from the 2026-09-02 OAuth WG thread with Sangam Das and
+   Jijie Wei recorded in the two 2026-09-02 entries above.
+2. The asor citation bump (-00 to -01) and the rewrite of the "min not
+   yet present in asor" sentence were done as one paired commit, not
+   two independent edits, per the DECISION already recorded in the
+   2026-09-03 "hamr-02 reference-bump-and-rewrite pair identified" entry
+   above — doing only one half would leave the document
+   self-contradictory.
+3. Freezing `ietf/v2/` back to the posted -01 bytes and opening
+   `ietf/v3/` for -02 restores the one-directory-per-posted-revision
+   pattern (`ietf/v1/` frozen -00, `ietf/v2/` now frozen -01) that five
+   earlier commits had broken by editing -02 content into `ietf/v2/` in
+   place. `ietf/v3/poc/` was opened as an unchanged copy of
+   `ietf/v2/poc/` rather than updated for -02 content, matching the
+   precedent set when v2 diverged from v1: the PoC catch-up is a
+   separate, later step, not part of drafting.
+4. `AGENT_RULES.md` was changed from an `@`-imported (always-loaded)
+   file to a consult-on-demand document, matching what the file's own
+   surrounding comment already said it was for.
+
+**OPEN, NOT DONE**
+
+- `author-tools.ietf.org` has not run on the -02 bytes; only the user
+  can run it.
+- The final layering text has not been sent to Iman (EMILIA), despite
+  the sent reply (`ietf/v3/docs/emilia-layering-reply-sent-2026-09-04.md`)
+  committing to do so.
+- Iman has not answered on acknowledgment by name.
+- Sangam Das gave no preferred name form yet for -02 attribution.
+- The -02 PoC catch-up has not started; `ietf/v3/poc/` is an unchanged
+  copy of `ietf/v2/poc/` and still validates -01's rules only.
+
+---
+
 ## 2026-09-03 — asor-01 posted, acknowledgment confirmed live against the bytes, hamr-02 reference-bump-and-rewrite pair identified
 
 **EVIDENCE**
