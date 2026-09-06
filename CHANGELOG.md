@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.13.2 — 2026-09-06
+
+- **`author-tools.ietf.org` run on the -02 bytes: an unnumbered-before-
+  numbered ordering error found and fixed** (2026-09-06). This closes
+  the previously open item that author-tools had not been run. idnits
+  2.17.1 passed. The XML validator reported five errors, all the same
+  message, e.g. `(1872) Did not expect a numbered section after an
+  unnumbered section (seen on line 1861)`, all caused by one misplaced
+  section: the Acknowledgments section (`numbered="false"`) sat
+  immediately after the references blocks and before all five numbered
+  appendices. RFCXML requires unnumbered sections in `<back>` to come
+  after the numbered ones.
+- **The fix was a move, not a rewording** (2026-09-06). The
+  Acknowledgments section was relocated to the end of `<back>`, after
+  `changes-since-00` and immediately before `</back>`; its content is
+  byte-identical at the old and new location. It stays unnumbered,
+  because that is the convention for an Internet-Draft's
+  Acknowledgments section — no anchor or numbering attribute changed.
+- **A local well-formedness parse could not have caught this**
+  (2026-09-06). Both `python3 xml.etree` and `xmllint --noout` exited 0
+  on the broken ordering, before and after the fix. Only author-tools
+  found the defect, and only the user can run author-tools. This is
+  concrete evidence for a rule this project already held, not new
+  advice.
+- **Open items, stated plainly as open, not done.** `author-tools.ietf.org`
+  has not been re-run on the corrected bytes. The five errors are
+  expected to be gone because their one common cause was removed, but
+  that is unconfirmed until the user runs it again. The final layering
+  text for Iman Schrock is drafted at
+  `ietf/v3/docs/emilia-final-text-to-send-2026-09-06.md` and has not
+  been sent.
+
 ## 0.13.1 — 2026-09-06
 
 - **IETF -02 PoC catch-up: 40 to 43 cases, closure and bypass test

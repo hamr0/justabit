@@ -14,6 +14,60 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-09-06 — author-tools run on -02: unnumbered-before-numbered ordering error found and fixed
+
+**EVIDENCE**
+
+1. The user ran `author-tools.ietf.org` on the -02 bytes
+   (`ietf/v3/docs/draft-hamr-oauth-agent-delegation-02.xml`). idnits
+   2.17.1 passed. The XML validator reported five errors, all the same
+   message, all pointing at line 1861:
+   ```
+   (1872) Did not expect a numbered section after an unnumbered section (seen on line 1861)
+   (2027) Did not expect a numbered section after an unnumbered section (seen on line 1861)
+   (2055) Did not expect a numbered section after an unnumbered section (seen on line 1861)
+   (2288) Did not expect a numbered section after an unnumbered section (seen on line 1861)
+   (2425) Did not expect a numbered section after an unnumbered section (seen on line 1861)
+   ```
+2. Line 1861 was `<section anchor="acknowledgments" numbered="false"
+   toc="default">`, placed immediately after the `</references>` block
+   and before every numbered appendix. The five flagged lines (1872,
+   2027, 2055, 2288, 2425) were exactly the five numbered sections that
+   followed it: `appendix-a`, `appendix-b`, `vectors`,
+   `changes-since-01`, `changes-since-00`. RFCXML requires unnumbered
+   sections in `<back>` to come after the numbered ones.
+3. Post-fix: `python3 -c "import xml.etree.ElementTree as ET;
+   ET.parse(...)"` exit 0; `xmllint --noout` exit 0; `<b>`/`<i>`/
+   `<code>`/`<pre>`/`<span>` count 0; non-ASCII byte count 0; BCP 14
+   capitals after `<back>` count 0; `wc -l` unchanged at 2583 (a move,
+   not an addition); a line-diff of the Acknowledgments section's text
+   at its old and new location is empty — Iman Schrock's line is
+   character-for-character identical.
+
+**DECISION**
+
+1. The `acknowledgments` section was moved to the end of `<back>`
+   (after `changes-since-00`, immediately before `</back>`), rather
+   than made numbered, because RFCXML requires unnumbered `<back>`
+   sections to come last, and an Acknowledgments section is
+   conventionally unnumbered in an Internet-Draft. No other section,
+   anchor, or numbering attribute was touched.
+
+**OPEN, NOT DONE — closed**
+
+- The prior entry's open item ("`author-tools.ietf.org` has not been
+  run on the -02 bytes") is now done, per the EVIDENCE above.
+
+This is also concrete proof of the standing rule that a local
+well-formedness parse cannot catch an RFCXML schema-validity defect:
+both `python3 xml.etree.ElementTree` and `xmllint --noout` exited 0 on
+the broken ordering, before and after — neither tool has any concept of
+the "unnumbered sections must come last in `<back>`" rule. Only
+`author-tools.ietf.org`'s XML validator found it, and only the user can
+run that tool.
+
+---
+
 ## 2026-09-06 — IETF -02 PoC catch-up: 40 to 43 cases, Verifier Placement mutation-proved, Implementation Status count corrected
 
 **EVIDENCE**
