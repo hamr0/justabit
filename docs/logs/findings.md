@@ -14,6 +14,50 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-09-06 — Final layering text sent to EMILIA; author-tools re-run clean on corrected bytes
+
+**EVIDENCE**
+
+1. The final layering text was sent to Iman Schrock on 2026-09-06 by
+   direct email, confirmed by the user. The record is now
+   `ietf/v3/docs/emilia-final-text-sent-2026-09-06.md`. This closes the
+   commitment made in the 2026-09-04 reply
+   (`ietf/v3/docs/emilia-layering-reply-sent-2026-09-04.md`) to send the
+   final text before -02 is posted.
+2. `author-tools.ietf.org` was run again on the corrected bytes and came
+   back clean: no errors of any kind. idnits reported no errors either.
+   The five ordering errors ("Did not expect a numbered section after
+   an unnumbered section") are fixed; the Acknowledgments move recorded
+   in the entry below worked.
+3. `author-tools.ietf.org` is a format CONVERSION service, not a
+   standalone validator: it converts an Internet-Draft between formats,
+   chaining id2xml, kramdown-rfc, mmark, rst2rfcxml and xml2rfc as
+   needed, and accepts `.xml` (RFC 7991 v3 / RFC 7749 v2), `.md`/`.mkd`,
+   `.rst`, and `.txt`. There is no separate XML-validate control on that
+   page — the user's exact words: "idnits ran clean", "i just pressed
+   validate idnits", "idnits and xml i think run together under idnits
+   as i don't see another xml validate, i don't see any other errors."
+4. The five ordering errors were surfaced by the xml2rfc conversion
+   step itself, not by a separate validator. idnits runs in the same
+   submission, on the converted output — that is why one run produces
+   both the error list and the idnits 2.17.1 banner together. A single
+   clean submission covers both.
+
+**DECISION**
+
+1. On the earlier 2026-09-06 run (recorded in the entry below), the same
+   single submission reported both the five ordering errors and an
+   idnits 2.17.1 result. The project read that as two independent
+   checks, one still outstanding — that was wrong about the tool's
+   actual behaviour, not just about the outcome. author-tools converts
+   the draft and runs idnits in one submission; xml2rfc, the conversion
+   step, is where structural RFCXML errors such as section ordering
+   surface. The tool behaved consistently on both runs; the project
+   misread one run's two outputs as two separate checks. Record this as
+   a durable fact about the tool so it is not re-derived.
+
+---
+
 ## 2026-09-06 — author-tools run on -02: unnumbered-before-numbered ordering error found and fixed
 
 **EVIDENCE**
