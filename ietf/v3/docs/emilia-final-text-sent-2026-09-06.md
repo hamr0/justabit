@@ -1,10 +1,9 @@
-> DRAFT — NOT SENT. Written 2026-09-06 for the user to review and send.
+> SENT 2026-09-06, direct email, confirmed sent by the user.
 > To: Iman Schrock, EMILIA Protocol, Inc.
 > Subject: final layering text for -02, as promised — see
 > `emilia-layering-reply-received-2026-09-05.md` (this same directory)
 > for the message this one answers.
-> This is a draft. No message has gone out yet. Do not treat this file
-> as a record of something sent.
+> Verbatim record of the user's own text — do not edit.
 
 Iman,
 
@@ -43,11 +42,3 @@ closure invariant, and no priority between the two.
 promised.
 
 Amr
-
----
-
-**Notes for the user, not part of the message:**
-
-- This draft is unstaged and untouched otherwise; nothing has been
-  committed or sent.
-- No posting date is promised in the draft text, since none is set.

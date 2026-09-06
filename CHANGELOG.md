@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.13.3 — 2026-09-06
+
+- **`author-tools.ietf.org` re-run on the corrected -02 bytes came back
+  clean** (2026-09-06). No errors of any kind were reported, which
+  confirms the Acknowledgments move recorded in 0.13.2 fixed all five
+  ordering errors.
+- **Corrects 0.13.2's framing of idnits and the XML checks as two
+  separate checks** (2026-09-06). `author-tools.ietf.org` is a format
+  conversion service (chaining id2xml, kramdown-rfc, mmark, rst2rfcxml,
+  xml2rfc as needed), not a standalone validator; there is no separate
+  XML-validate control on that page. The five ordering errors were
+  surfaced by the xml2rfc conversion step itself, and idnits runs in
+  the same submission on the converted output — one run reports both
+  together. The earlier run's single submission reported both the five
+  ordering errors and an idnits 2.17.1 result, which the project
+  misread as two independent checks, one still outstanding; that was
+  wrong about the tool's actual behaviour, not just about the outcome.
+  0.13.2's pending re-run item, "the XML validator has not been
+  re-run", is superseded by this entry.
+- **The final layering text was sent to Iman Schrock on 2026-09-06**,
+  closing the commitment made in the 2026-09-04 reply.
+- **Open items: none on the -02 round.** `author-tools.ietf.org` is
+  clean, the final layering text is sent, and -02 has still not been
+  submitted — a status, not a defect.
+
 ## 0.13.2 — 2026-09-06
 
 - **`author-tools.ietf.org` run on the -02 bytes: an unnumbered-before-
