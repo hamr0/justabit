@@ -1,5 +1,45 @@
 # Changelog
 
+## 0.13.4 — 2026-09-06
+
+- **AEB's complete-mediation condition is now stated in full in -02**
+  (2026-09-06). Iman Schrock (EMILIA) corrected the comparison:
+  describing AEB as only "single-executor bypass enumeration"
+  understated it, because section 9 of
+  `draft-schrock-action-evidence-boundary-05` also forbids a claim of
+  complete mediation unless the protected system rejects all material
+  alternate paths or subjects them to an equivalent boundary. Two
+  passages carried the understatement -- the Verifier Placement
+  closure text and the "Changes since -01" appendix -- and both were
+  rewritten. The word "narrower" is gone from both.
+- **The distinction between AEB and this document is PLACEMENT, not
+  scope** (2026-09-06). AEB conditions a conformance claim on closure;
+  this document states closure as an admission invariant over every
+  effect-capable path to a protected effect, checked by the bypass
+  test, independent of any conformance claim. The section 4 layering
+  sentence needed no change, by the counterparty's own words, and was
+  not touched.
+- **The correction was verified against the source before any edit**
+  (2026-09-06). `draft-schrock-action-evidence-boundary-05` was
+  fetched as plain text and section 9 read at lines 1098-1132; the
+  condition is there verbatim. A counterparty's correction is a
+  hypothesis until it is checked against the live text.
+- **`author-tools.ietf.org` run on the corrected bytes came back
+  clean** (2026-09-06), reported by the user as "idnits ran clean".
+  That one submission covers the conversion and idnits together.
+- **The actionClass classifier moved out of this repo to `rwxmap`**
+  (2026-09-06). The outline PRD was shaped into a five-part PRD in a
+  new repo of its own; `docs/product/prd-actionclass-classifier-outline.md`
+  here is now a dated pointer, kept so the path does not dangle. The
+  tool is not load-bearing for the CAMARA or IETF submissions, and
+  nothing in `docs/product/prd.md`, `camara/`, or `ietf/` depends on
+  it.
+- **`docs/index.md` regenerated** (2026-09-06) so it lists the pointer
+  file; the index is generated and must never be hand-edited.
+- **Open items: none on this round.** `author-tools.ietf.org` is
+  clean and -02 has still not been submitted — a status, not a
+  defect.
+
 ## 0.13.3 — 2026-09-06
 
 - **`author-tools.ietf.org` re-run on the corrected -02 bytes came back
