@@ -1858,17 +1858,6 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
       </reference>
     </references>
 
-    <section anchor="acknowledgments" numbered="false" toc="default">
-      <name>Acknowledgments</name>
-      <t>
-        The author thanks:
-      </t>
-      <t>
-        Iman Schrock for clarifying the receipts/AEB execution boundary
-        and bypass relationship.
-      </t>
-    </section>
-
     <section anchor="appendix-a" numbered="true" toc="default">
       <name>Non-Normative Instantiations</name>
       <t>
@@ -2578,6 +2567,17 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
           </t>
         </li>
       </ul>
+    </section>
+
+    <section anchor="acknowledgments" numbered="false" toc="default">
+      <name>Acknowledgments</name>
+      <t>
+        The author thanks:
+      </t>
+      <t>
+        Iman Schrock for clarifying the receipts/AEB execution boundary
+        and bypass relationship.
+      </t>
     </section>
   </back>
 </rfc>
