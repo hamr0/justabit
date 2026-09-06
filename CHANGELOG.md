@@ -1,5 +1,53 @@
 # Changelog
 
+## 0.13.1 — 2026-09-06
+
+- **IETF -02 PoC catch-up: 40 to 43 cases, closure and bypass test
+  covered, merged as PR #32** (2026-09-06). `ietf/v3/poc/` had been a
+  copy of `ietf/v2/poc/` that still validated -01's rules; it now covers
+  the mechanically decidable part of -02's Verifier Placement rewrite.
+  Case 41 is a positive control: a single guarded path refuses an
+  over-floor request and the protected effect never runs. Case 42 is the
+  negative control for the bypass test: a second path to the same effect
+  crosses no qualifying boundary and completes the request the guarded
+  path refused, so closure fails — it asserts the bypass path COMPLETES
+  the effect, not merely that it returns. Case 43 pins the
+  observes-versus-admits distinction: an advisory-only classifier
+  correctly labels an over-floor request without admitting or refusing
+  it, and the effect still completes. Each case was mutation-proved
+  twice, independently, by the author and by the reviewer, in copies
+  outside the repo so the tree was never dirtied; each mutation isolated
+  exactly one case — closing the bypass reddens only 42, removing
+  `admit()` from the guarded path reddens only 41, gating the advisory
+  path on its own classification reddens only 43, restoring gives 43/43
+  at exit 0.
+- **No generic boundary detector was built, by deliberate decision, not
+  as a gap** (2026-09-06). The general enforcement-boundary role needs
+  architectural judgement about an arbitrary deployment, so it is not
+  mechanically decidable, and a requirement that cannot be executed the
+  same way twice is worse than one that is absent. The -02 draft's
+  Implementation Status count for the actionClass classification rules
+  stays at 40, because cases 41-43 exercise the enforcement boundary and
+  closure, not classification; they are recorded as a separate bullet,
+  and the Changes-since-01 appendix says why.
+- **Every asor section number cited in -02 verified against the raw
+  posted text of both revisions** (2026-09-06). The unknown-constraint-
+  type fail-closed rule is at Section 4.1 in -00 and 4.2 in -01; the
+  subsumption rules are at 4.2 in -00 and 4.3 in -01; Section 9.1
+  mitigations and Section 10 registry were also checked; -00 carried
+  neither the `min` comparator nor the floor comparator. This closes a
+  previously open item.
+- **Final layering text for Iman Schrock drafted, not sent** (2026-09-06).
+  The text is drafted at `ietf/v3/docs/emilia-final-text-to-send-
+  2026-09-06.md`. It has not been sent. The -02 XML is now 2583 lines.
+- **Open items, stated plainly as open, not done.** `author-tools.ietf.org`
+  has not run on the -02 bytes — idnits ran clean, but local
+  well-formedness is not a schema validity check; only the user can run
+  it. The final layering text is drafted but not sent to Iman. The
+  general enforcement-boundary role is not mechanically decidable, so
+  the suite covers the bypass test and the observes-versus-admits
+  distinction only.
+
 ## 0.13.0 — 2026-09-05
 
 - **IETF -02 drafted: Verifier Placement rewritten as a role, layering
