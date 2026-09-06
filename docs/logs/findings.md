@@ -14,6 +14,86 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-09-06 — EMILIA comparison note: AEB understatement corrected in -02, verified against AEB -05 section 9
+
+**EVIDENCE**
+
+1. Iman Schrock replied by direct email on 2026-09-06, answering the
+   final layering text sent the same day. Record:
+   `ietf/v3/docs/emilia-comparison-note-received-2026-09-06.md`. He
+   accepted the section 4 wording, the change note and the
+   acknowledgment, and raised one correction: AEB section 9 also makes
+   complete mediation conditional on rejecting all material alternate
+   paths or bringing them under an equivalent boundary, so describing
+   AEB as only "single-executor bypass enumeration" understates it.
+2. The claim was verified against the source before any edit.
+   `draft-schrock-action-evidence-boundary-05` was fetched as plain text
+   from https://www.ietf.org/archive/id/draft-schrock-action-evidence-boundary-05.txt
+   and section 9 read at lines 1098-1132. Verbatim: "An implementation
+   placed beside a write path is not complete mediation. A deployment
+   MUST NOT claim complete mediation unless the protected system
+   rejects all material alternate paths or subjects them to an
+   equivalent boundary." Section 9 also requires a deployment to
+   document "all direct, break-glass, administrator, alternate-protocol,
+   and system-of-record paths that bypass the AEB implementation." The
+   correction is CONFIRMED; the -02 wording was an understatement.
+3. A repo sweep for the understated wording found it in exactly two live
+   places, both in
+   `ietf/v3/docs/draft-hamr-oauth-agent-delegation-02.xml`: the Verifier
+   Placement closure text (XML lines 958-966) and the "Changes since
+   -01" appendix (XML lines 2301-2307). Three other hits are in dated
+   correspondence records (`emilia-final-text-sent-2026-09-06.md`,
+   `emilia-layering-reply-received-2026-09-05.md`, and the new note) and
+   are left unchanged as history. The section 4 layering sentence (XML
+   line 258) was not affected and was not touched.
+4. Both passages were replaced with user-approved text. The word
+   "narrower" is gone from both. Both now state AEB's condition in full
+   and draw the distinction as PLACEMENT, not scope: AEB conditions a
+   conformance claim on closure; this document states closure as an
+   admission invariant over every effect-capable path to a protected
+   effect, checked by the bypass test, independent of any conformance
+   claim.
+5. Verification run by the main session after the edit: `xmllint
+   --noout` on the XML exited 0; a `grep -P "[^\x00-\x7F]"` ASCII check
+   returned no hits; a grep for "narrower", "single executor" and
+   "bypass-enumeration" returned only two pre-existing, unrelated hits
+   at XML lines 127 and 273, both describing delegation attenuation.
+   The full diff was read by the main session.
+6. `author-tools.ietf.org` was run by the user on the corrected bytes
+   the same day and came back CLEAN — the user's words: "idnits ran
+   clean". That single submission covers both halves: author-tools
+   chains the conversion (id2xml, kramdown-rfc, mmark, rst2rfcxml,
+   xml2rfc) and runs idnits on the converted output, so a structural
+   RFCXML fault would have surfaced in the same run. This is the only
+   check that proves RFCXML schema validity, and only the user can run
+   it; the main session's `xmllint --noout` pass proves well-formedness
+   and nothing more.
+7. The reply was sent by the user the same day and recorded verbatim at
+   `ietf/v3/docs/emilia-comparison-reply-sent-2026-09-06.md`.
+
+**DECISION**
+
+1. The difference between AEB and this document is PLACEMENT, not
+   scope, and the text now says so. Calling another draft's requirement
+   "narrower" was wrong on the facts and would have read as a claim of
+   superiority; the corrected text states AEB's condition in full and
+   locates the distinction where it actually is. -02 remains NOT
+   submitted. The round with EMILIA is closed on this point; the
+   layering passages needed no further change, by the counterparty's
+   own words.
+
+**LESSON**
+
+A characterisation of someone else's draft is a claim about a source,
+and it decays the same way a citation does: AEB -05 section 9 carried a
+condition the summary in -02 dropped, and only reading the section
+verbatim surfaced it. A counterparty's correction is a hypothesis until
+it is checked against the live text -- this one checked out, and the
+check is what makes the correction citable in the record rather than
+merely accepted.
+
+---
+
 ## 2026-09-06 — Final layering text sent to EMILIA; author-tools re-run clean on corrected bytes
 
 **EVIDENCE**

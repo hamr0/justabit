@@ -44,3 +44,4 @@
 ## [2026-09-04] index-flat | 4 row(s) (2 product, 1 logs, 1 archive)
 ## [2026-09-04] apply-reorg | moved 0, skipped 0, 0 oversized split candidate(s), 0 link(s) rewritten, 0 sync failure(s), 0 empty dir(s) removed, CLAUDE.md updated: true
 ## [2026-09-04] reorg | discover+apply-reorg+lint over 4 doc(s), due reported
+## [2026-09-06] index-flat | 5 row(s) (3 product, 1 logs, 1 archive)
