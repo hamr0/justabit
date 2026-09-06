@@ -649,4 +649,107 @@ check('38 parent writeBudget:0 (falsy), child omits it, chain still rejected', f
     { label: 'Object.prototype left clean after the case', ok: !Object.prototype.hasOwnProperty(pollutedKey) });
 }
 
-conclude(40);
+// ---------------------------------------------------------------------------
+// Cases 41-43: -02's Verifier Placement (action-class-verifier-placement) —
+// the enforcement boundary as a role identified separately for each
+// effect-capable path, the system-wide closure requirement, and the bypass
+// test. -02 defines a role and a property over an arbitrary deployment's
+// admission paths; it gives no computable procedure for discovering which
+// component occupies that role in an arbitrary system (see README.md's
+// dated note), so these cases do NOT attempt that. What they pin instead is
+// the shape of the invariant itself, using this module's own admit() as a
+// real, load-bearing qualifying boundary on one path, contrasted with a path
+// built to cross none at all — exactly the construction -02's bypass test
+// names.
+// ---------------------------------------------------------------------------
+
+// A toy protected effect shared by cases 41-43: booking a slot. Each "path"
+// below is a plain function representing one effect-capable route to it.
+function makeProtectedEffect() {
+  let count = 0;
+  return { performEffect: () => { count += 1; }, count: () => count };
+}
+
+// 41 — closure holds on a single-path system: the only path to the effect
+// calls admit() and is the qualifying boundary; an over-floor request is
+// refused there and the effect never runs. Sanity check for case 42 below —
+// if a guarded path did not actually block the effect, case 42's contrast
+// would prove nothing.
+{
+  const effect = makeProtectedEffect();
+  const link = { actionClass: 'r', classSource: 'method' };
+  const req = { method: 'POST', path: '/bookings', rootSignature: 'c41sig' };
+  function pathA(request, state) {
+    const r = admit(link, request, state);
+    if (r.ok) effect.performEffect();
+    return r;
+  }
+  const r = pathA(req, new Map());
+  check('41 single guarded path refuses an over-floor request, effect never runs', false, adaptAdmit(r),
+    'classified x exceeds actionClass floor r',
+    { label: `effect.count()=${effect.count()}`, ok: effect.count() === 0 });
+}
+
+// 42 — THE NEGATIVE CONTROL for the bypass test. A second path to the SAME
+// protected effect exists that never calls admit() at all: it performs the
+// effect directly, crossing no qualifying enforcement boundary by
+// construction. Per -02's bypass test (action-class-verifier-placement):
+// closure fails for a protected effect if ANY path capable of producing it
+// can do so without crossing a qualifying boundary, regardless of how many
+// OTHER paths to it are correctly guarded. Path A here (same shape as case
+// 41) is correctly guarded and refuses the request; path B still completes
+// the identical over-floor effect. If path B were refused too, or the
+// effect did not run, this case would prove nothing about the bypass test —
+// and this is also the demonstration of boundary identification being
+// performed separately per path: path A having a qualifying boundary says
+// nothing about path B, which has none.
+{
+  const effect = makeProtectedEffect();
+  const link = { actionClass: 'r', classSource: 'method' };
+  const req = { method: 'POST', path: '/bookings', rootSignature: 'c42sig' };
+  function pathA(request, state) {
+    const r = admit(link, request, state);
+    if (r.ok) effect.performEffect();
+    return r;
+  }
+  function pathB(request) {
+    void request; // no admit() call anywhere on this path
+    effect.performEffect();
+    return { ok: true, reason: 'ok' };
+  }
+  const resultA = pathA(req, new Map());
+  const resultB = pathB(req);
+  check('42 NEGATIVE CONTROL: bypass path completes the effect the guarded path refused, closure fails', true,
+    resultB, 'ok',
+    {
+      label: `pathA refused=${resultA.ok === false}, effect.count()=${effect.count()} (bypass path completed it anyway)`,
+      ok: resultA.ok === false && effect.count() === 1,
+    });
+}
+
+// 43 — an advisory-only component does not occupy the enforcement-boundary
+// role, per action-class-verifier-placement's own text: "a component that
+// only coordinates or advises does not classify or admit, whatever else it
+// does." Path C below calls classify() — it genuinely inspects and
+// classifies the request — but never calls admit() to actually refuse or
+// permit it; the effect completes regardless of the classification result.
+// This distinguishes "observes/advises" from "admits": classify() alone,
+// however accurately it labels the request, crosses no qualifying boundary.
+{
+  const effect = makeProtectedEffect();
+  const req = { method: 'POST', path: '/bookings', rootSignature: 'c43sig' };
+  function pathC(request) {
+    const cls = classify(request.method, request.path, undefined, 'method'); // observes only
+    void cls; // never consulted to refuse or permit — advisory only
+    effect.performEffect();
+    return { ok: true, reason: 'ok' };
+  }
+  const observedClass = classify(req.method, req.path, undefined, 'method');
+  const resultC = pathC(req);
+  check('43 advisory-only classify() does not admit; effect completes despite an x-classified request', true,
+    resultC, 'ok',
+    { label: `observed classification=${observedClass} (x, would exceed any r/w floor), effect.count()=${effect.count()}`,
+      ok: observedClass === 'x' && effect.count() === 1 });
+}
+
+conclude(43);
