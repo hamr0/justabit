@@ -14,6 +14,70 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-09-06 — IETF -02 PoC catch-up: 40 to 43 cases, Verifier Placement mutation-proved, Implementation Status count corrected
+
+**EVIDENCE**
+
+1. `node ietf/v3/poc/m7-check.mjs` exit 0, `RESULT: 43/43`. `node
+   ietf/v3/poc/m3-check.mjs` exit 0, `RESULT: 26/26`. The suite grew
+   from 40 to 43 cases: three new cases (41-43) exercise -02's
+   Verifier Placement rewrite (`ietf/v3/docs/draft-hamr-oauth-agent-delegation-02.xml`,
+   `action-class-verifier-placement`), not the actionClass/classSource
+   classification rules the prior 40 cases cover. `m7-actionclass.mjs`
+   is unchanged.
+2. The orchestrator independently mutation-proved all three new cases,
+   each in a copy of the tree outside this repository so the working
+   tree was never dirtied: closing the bypass path turned only case 42
+   red; removing `admit()` from path A turned only case 41 red; gating
+   path C on `classify()` turned only case 43 red; restoring all three
+   gave `43/43` at exit 0 again.
+3. Every asor `-01` and `-00` section number cited in -02 was verified
+   this session against the raw posted `.txt` from the IETF archive:
+   the unknown-constraint-type fail-closed rule at Section 4.1 in -00
+   and Section 4.2 in -01; the subsumption rules at Section 4.2 in -00
+   and Section 4.3 in -01; Section 9.1's mitigations; Section 10's
+   registry; and that -00 as posted had neither a `min` constraint
+   type nor a floor comparator. Not re-fetched this round; recorded as
+   already verified.
+
+**DECISION**
+
+1. The Implementation Status bullet at
+   `ietf/v3/docs/draft-hamr-oauth-agent-delegation-02.xml` (the
+   actionClass/classSource classification bullet, anchor
+   `implementation-status`) keeps its "40 automated cases" figure
+   rather than being bumped to 43: that bullet's claim is specifically
+   about the classification and admission rules of
+   `action-class`, and cases 41-43 test the separate Verifier
+   Placement rewrite, not that behavior. Widening the bullet's claim to
+   cover tests that do not exercise it would misstate what those 40
+   cases were shown to do. A new, separate bullet was added recording
+   the 3 new cases against `action-class-verifier-placement` instead.
+   The "Changes since -01" appendix already recorded a PoC case-count
+   correction (27 to 40); a further entry was added there for the
+   40-to-43 growth, for the same reason kept as its own entry rather
+   than folded into the earlier one.
+2. No generic, mechanically-decidable boundary-detector was built for
+   the general enforcement-boundary role, and none is planned: the role
+   is defined per effect-capable path and depends on which component
+   in a given deployment actually admits or refuses versus merely
+   observes or advises, a distinction this document deliberately leaves
+   to deployment-specific judgment rather than an algorithm. A
+   requirement that cannot be executed the same way twice is worse than
+   one that is absent, so only the two properties that ARE mechanically
+   testable were made testable in the proof-of-concept: the bypass test
+   (case 42) and the observes-versus-admits distinction (case 43).
+
+**OPEN, NOT DONE**
+
+- `author-tools.ietf.org` has not been run on the -02 bytes; only the
+  user can run it.
+- The final text for Iman (EMILIA) has been drafted, at
+  `ietf/v3/docs/emilia-final-text-to-send-2026-09-06.md`, but has NOT
+  been sent.
+
+---
+
 ## 2026-09-05 — EMILIA replied to the layering reply: AEB sentence corrected, acknowledgment granted
 
 **EVIDENCE**

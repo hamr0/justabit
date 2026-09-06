@@ -1,11 +1,44 @@
 # ietf/v3/poc — actionClass floor axis spike
 
-A SPIKE for `draft-hamr-oauth-agent-delegation` -01, not a conformance
+A SPIKE for `draft-hamr-oauth-agent-delegation` -02, not a conformance
 harness (see the repo's standing no-go on shipping conformance harnesses —
-this ships as prose + test vectors in the draft, not this code). This copy
-sits in the `-02` round, but the code itself has NOT been updated for
-`-02`: it still validates the rules `-01` states; `-02`'s changes so far
-are prose only.
+this ships as prose + test vectors in the draft, not this code). As of
+2026-09-06 the code covers the mechanically decidable part of -02's
+Verifier Placement rewrite (cases 41-43, below), on top of everything -01
+already validated (cases 1-40, unchanged). -02's other changes this round
+(the corrected asor-01 citation, the layers/receipts correction, the
+Implementation Status count) are prose-only and have no PoC-testable
+surface.
+
+**What -02 added that this suite now covers, and what it does not.**
+`action-class-verifier-placement` redefines the enforcement boundary as a
+ROLE in an effect-capable path (the first admission point whose successful
+admission is necessary for the effect to complete) rather than a component
+fixed at the resource or credential boundary, identified SEPARATELY for
+each path, plus a system-wide closure requirement checked by the bypass
+test: closure fails for a protected effect if any path to it can complete
+without crossing a qualifying boundary, however many other paths are
+correctly guarded. The general form of that definition is NOT mechanically
+decidable — deciding which component is "the first admission point...
+necessary for the effect to complete" in an arbitrary real deployment is an
+architectural judgement call, not a computable predicate, and this suite
+does not attempt one. What IS decidable, and what cases 41-43 pin, is the
+SHAPE of the invariant against a concrete, constructed system: case 41 is a
+single-path sanity check (the only path calls `admit()` and is correctly
+guarded); case 42 is the REQUIRED negative control for the bypass test — a
+second path to the same protected effect that never calls `admit()` at all
+completes the effect on the exact same over-floor request that the guarded
+path refused, proving closure fails despite the other path being correct;
+case 43 pins the text's "observes/advises is not admits" distinction — a
+path that calls `classify()` (genuinely inspects the request) but never
+calls `admit()` to actually refuse or permit it lets the effect complete
+regardless of the classification. Step 9 of the Verification Procedure's
+re-attribution of classification/menu-consultation/writeBudget admission
+to "whichever component occupies the enforcement-boundary role" is a
+role-attribution statement, not a new computation: it does not change
+`classify()`'s or `admit()`'s contract, so it adds no new case beyond
+41-43 above, which already exercise `admit()` and `classify()` as the
+components that do or do not occupy that role.
 
 Copied from `ietf/v2/poc/` on 2026-09-04 when the `-02` round opened
 (`ietf/v2/poc/` is now a frozen copy behind the -01 record and is never
@@ -227,3 +260,70 @@ each restore diffed byte-identical to the fixed file):
 | 3 | Remove the canonical round-trip check | 1 | 35 | 0 |
 | 4 | `hasOwn`: `Object.prototype.hasOwnProperty.call` -> `!!obj[key]` (truthiness) | 1 | 38, 39, 40 | 0 |
 | 5 | `hasOwn`: `Object.prototype.hasOwnProperty.call` -> `key in obj` | 1 | 39, 40 | 0 |
+
+### 2026-09-06 — -02 catch-up: Verifier Placement cases 41-43 added; 40 -> 43 cases
+
+The `-02` PoC catch-up ordered by the orchestrator. Scope decision first
+(binding, not an afterthought): `action-class-verifier-placement`'s
+definition of the enforcement-boundary role is not mechanically decidable
+in general — "the first admission point... whose successful admission is
+necessary for the effect to complete" requires architectural judgement
+about an arbitrary real deployment, which no test oracle can compute — so
+no generic boundary-detector or closure-checker was built, and none should
+be. What the section also states, separately from that general definition,
+is the SHAPE of two invariants over a concrete, constructed system: the
+bypass test (closure fails for an effect if any path to it crosses no
+qualifying boundary, regardless of how many other paths are correctly
+guarded) and the "observes/advises is not admits" distinction. Both are
+decidable given a fixed toy system, and are what cases 41-43 pin, using
+this module's own `admit()` and `classify()` as the real components
+occupying (or not occupying) the role.
+
+- **Case 41** (positive, sanity check) — a single-path system: the only
+  path to a toy protected effect calls `admit()` and is correctly guarded;
+  an over-floor request is refused there and the effect never runs. Exists
+  so case 42's contrast is meaningful — if a guarded path did not actually
+  block the effect, the negative control below would prove nothing.
+- **Case 42** (the REQUIRED negative control for the bypass test) — a
+  second path to the SAME protected effect that never calls `admit()` at
+  all completes the effect on the identical over-floor request that the
+  guarded path (case 41's shape) refused. This is also the demonstration of
+  per-path boundary identification: a qualifying boundary on one path says
+  nothing about another, which must be checked on its own.
+- **Case 43** (positive) — the "observes/advises is not admits" text: a
+  path that calls `classify()` (genuinely inspects and labels the request
+  as `x`) but never calls `admit()` to actually refuse or permit it lets
+  the effect complete regardless of the classification, because it crosses
+  no qualifying boundary.
+
+Step 9 of the Verification Procedure's re-attribution of classification,
+declared-menu consultation, and writeBudget admission to "whichever
+component occupies the enforcement-boundary role" was read and found to
+add no new computable rule beyond `action-class-verifier-placement`
+itself: it does not change what `classify()` or `admit()` compute, only
+who is understood to be running them, which cases 41-43 already exercise.
+No case was added for it beyond those three.
+
+The suite grew from 40 to 43 cases; all 43 pass, `node
+ietf/v3/poc/m3-check.mjs` (untouched) still passes its 26 unchanged.
+
+Mutation table (revert guard -> confirm red -> restore -> confirm green;
+each restore diffed byte-identical to the fixed file):
+
+| # | Mutation | Mutant exit | Cases red | Restored exit |
+|---|---|---|---|---|
+| 1 | `m7-actionclass.mjs`: neuter the `clsRank > normalized.actionClassRank` check (`if (false && ...)`) | 1 | 41 (case 42 stayed green: path A still fell through to a budget-exhausted refusal via a different code path, so this mutation does not isolate case 42 — see mutation 2) | 0 |
+| 2 | `m7-actionclass.mjs`: `admit()` short-circuits to always return `{ ok: true, ... }` | 1 | 41, 42 | 0 |
+| 3 | `m7-check.mjs`: case 43's `pathC` gates on `classify()`'s result (`if (cls === 'x') return { ok: false, ... }`) instead of ignoring it | 1 | 43 | 0 |
+
+Mutation 1 is reported alongside mutation 2 rather than dropped, per this
+project's "debug a degenerate or too-convenient result before believing
+it" rule: it looked at first like a case 42 mutation-proof, but a closer
+read shows case 42's `extra` check only asserts `resultA.ok === false`,
+which stayed true under mutation 1 for the wrong reason (budget
+exhaustion, not the actionClass check), so it does not isolate case 42 on
+its own — mutation 2 (a full `admit()` bypass) does, and is the one relied
+on. Mutation 3 targets this test file's own synthetic `pathC`, not
+`m7-actionclass.mjs`: -02's advisory-only distinction is a definitional
+property of a constructed system, not a defect in the module under test,
+so there is no equivalent guard in `m7-actionclass.mjs` to mutate for it.

@@ -1577,6 +1577,7 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         <li>the closed floor axis set of <xref target="floors"/>, the duration grammar of <xref target="duration-grammar"/>, and the monotone tightening comparison of <xref target="monotone"/>;</li>
         <li>the actionClass and classSource classification and admission rules of <xref target="action-class"/>, exercised by 40 automated cases in the proof-of-concept: the classification procedure; the deterministic path-template rule for matching menu operation keys, per <xref target="declared-menu"/>; and the binding of a menu's issuer to the request's target origin that <xref target="declared-menu"/> requires.</li>
         <li>the writeBudget ledger of <xref target="write-budget"/>: reserve-then-decrement admission against a stateful, per-chain count, and an actionClass r request never spending against it. This shares the same proof-of-concept and the same case count as the previous bullet, and includes the chain identifier derived by the verifier as the SHA-256 digest of L(0)'s signature value, per <xref target="write-budget-chain-identifier"/>, rather than taken from a caller-supplied request field.</li>
+        <li>the enforcement-boundary role, per-path boundary identification, and closure/bypass-test requirements of <xref target="action-class-verifier-placement"/>, exercised by three further cases added to the same proof-of-concept: a positive control in which a single guarded path refuses an over-floor request and the protected effect never runs; a negative control in which an unguarded bypass path completes the same effect a guarded path refused, demonstrating a closure failure; and a case in which an advisory-only classifier observes and correctly identifies an over-floor request without admitting or refusing it, so the effect still completes, distinguishing observation from admission.</li>
       </ul>
       <t>
         The following elements of this profile are NOT implemented in the
@@ -2399,6 +2400,23 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
             detector fits none of the three layers, since it observes
             after execution rather than recording what was approved and
             consumed.
+          </t>
+        </li>
+        <li>
+          <t>
+            Grew the proof-of-concept case count further, from 40 to 43,
+            adding three cases for the Verifier Placement rewrite of
+            <xref target="action-class-verifier-placement"/>: a positive
+            control, the closure/bypass-test negative control, and a
+            case distinguishing an advisory-only classifier from an
+            enforcement boundary. These three cases exercise the
+            enforcement-boundary role and closure requirement, not the
+            actionClass and classSource classification rules of
+            <xref target="action-class"/>; the Implementation Status
+            case count for that classification bullet
+            (<xref target="implementation-status"/>) therefore remains
+            40, and the three new cases are recorded there as a
+            separate bullet rather than folded into that count.
           </t>
         </li>
       </ul>
