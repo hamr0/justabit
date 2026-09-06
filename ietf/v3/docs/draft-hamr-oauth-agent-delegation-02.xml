@@ -955,15 +955,21 @@
           that effect can do so without crossing a qualifying
           enforcement boundary, closure fails for that effect,
           regardless of how many other paths to it are correctly
-          guarded. This closure requirement is distinct from the
-          bypass-enumeration requirement of
-          <xref target="I-D.schrock-action-evidence-boundary"/>: that
-          requirement asks a single executor to enumerate the paths
-          that bypass its own local enforcement within one deployment,
-          while this document's closure requirement governs the
-          complete set of effect-capable admission paths to a given
-          protected effect, however many components realize the
-          enforcement-boundary role across them.
+          guarded. This closure requirement is consistent with, and
+          distinct from, the complete-mediation condition of
+          <xref target="I-D.schrock-action-evidence-boundary"/>. That
+          document requires a deployment to document every direct,
+          break-glass, administrator, alternate-protocol, and
+          system-of-record path that bypasses its implementation, and
+          forbids a claim of complete mediation unless the protected
+          system rejects all material alternate paths or subjects them
+          to an equivalent boundary. That condition governs what one
+          deployment may claim about the system it protects. This
+          document's closure requirement governs admission itself: it
+          is an invariant over the complete set of effect-capable paths
+          to a given protected effect, checked by the bypass test,
+          however many components realize the enforcement-boundary
+          role across them, and independent of any conformance claim.
         </t>
         <t>
           An agent that declines to attempt an action it expects to be
@@ -2299,12 +2305,15 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
             "verifier," as used throughout this document, to the
             enforcement-boundary role, and a sentence distinguishing
             this closure and bypass-test requirement from the
-            bypass-enumeration requirement of
+            complete-mediation condition of
             <xref target="I-D.schrock-action-evidence-boundary"/>, which
-            asks a single executor to enumerate the paths that bypass
-            its own local enforcement within one deployment, a narrower
-            scope than this document's closure requirement across the
-            complete set of admission paths to a given protected effect.
+            requires a deployment to document every path that bypasses
+            its implementation and forbids a claim of complete
+            mediation unless the protected system rejects all material
+            alternate paths or subjects them to an equivalent boundary;
+            this document states the same closure property as an
+            admission invariant over every effect-capable path to a
+            protected effect, independent of any conformance claim.
             This replaces the -01 wording, which placed the verifier at
             "the resource or credential boundary" and cited
             <xref target="layers"/> for a boundary that section never
