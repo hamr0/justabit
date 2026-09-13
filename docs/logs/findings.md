@@ -14,6 +14,146 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-09-13 — IETF -02 reduction planned after the OAuth WG AI-contribution notice: registry cut to asor, 25-page ceiling, per-class budgets, x redefined by effect, CAMARA "unreviewed" claim retracted
+
+**EVIDENCE**
+
+1. The OAuth WG chairs' notice, dated 2026-09-06, is filed verbatim at
+   `ietf/v3/docs/oauth-wg-ai-guidelines-received-2026-09-06.md`. It names
+   spelling and grammar checks, wording, clarity, and using AI as a
+   sounding board as legitimate uses. It draws the line at AI performing
+   "substantive technical thinking on your behalf". It names restricting
+   posting privileges as the action if the trend persists. It does not
+   say drafts are rejected.
+2. asor-01 Section 4.2 defines the comparators max, min, one_of,
+   not_one_of, prefix, rank; Section 4.3 gives subsumption rules that the
+   -02 "HAMR Floor Axis Registry" restates (child.max <= parent.max,
+   child.min >= parent.min, one_of subset, rank <=, a parent constraint
+   not droppable). As recorded in `docs/logs/findings.md`'s 2026-09-03
+   "asor-01 posted" entry and in `ietf/v3/docs/draft-hamr-oauth-agent-delegation-02.xml`'s
+   `related-work` section (lines 1519-1541, confirmed today).
+3. `ietf/v2/docs/draft-hamr-oauth-agent-delegation-01.xml`, as posted, is
+   2364 lines (`wc -l`, confirmed today). The posted -01 is 48 pages per
+   its Datatracker record, as recorded in the 2026-09-02 "SUBMITTED and
+   posted" entry below. `ietf/v3/docs/draft-hamr-oauth-agent-delegation-02.xml`
+   is 2592 lines (`wc -l`, confirmed today), about 53 pages at that
+   ratio. xml2rfc is not installed locally; the page count of record
+   comes only from author-tools.ietf.org, run by the user.
+4. -02's `related-work` section calls the CAMARA proposal "open,
+   unreviewed" at line 1544, and its `appendix-a` calls it "an open,
+   unreviewed API proposal that proposes a horizontal profile" at lines
+   1902-1903 (`grep -n`, confirmed today). Findings entries dated
+   2026-08-31 ("CAMARA feedback on #330/#331") and 2026-09-03 ("CAMARA
+   TSC relay answered") record that the proposal was reviewed and
+   answered. The author answered the change requests and filed the
+   signing layer as Commonalities issue #705; no response or feedback
+   since (the user, 2026-09-13).
+5. -02 defines w as "an idempotent write" (XML line 733) and x as "a
+   consequential, non-idempotent action" (XML line 738), confirmed
+   today by `grep -n`. rwxmap decision D16
+   (`/home/hamr/PycharmProjects/rwxmap/docs/wiki/decisions-log.md` line
+   30, decided 2026-09-06) reads x as consequence instead — reaching a
+   third party, moving money, acting on a live session, network path or
+   device, or being unable to be undone, even when repeating it is
+   equivalent — and calls itself a proposed correction to the -02 text.
+   rwxmap's labelled floor table (`rwxmap/docs/product/prd.md` lines
+   15-21, confirmed today) shows DELETE at 19% truth-x and PUT at 15%
+   truth-x, although RFC 9110 calls both idempotent methods.
+6. -02's write-budget-axis section states that an omitted writeBudget
+   inherits the issuer's published floor, "which is zero unless the
+   issuer's published floor for the chain states otherwise" (XML line
+   1042, confirmed today by `grep -n`).
+7. rwxmap's row-level run-proof
+   (`rwxmap/run-proof/rwxmap-runs.md`, run date 2026-09-12, corpus 5465
+   rows, 332 vendors, leave-one-vendor-out, truth labelled by blind
+   model readers) records wrong loosenings as 37 truth-x rows predicted
+   w plus 13 truth-x rows predicted r, 50 total. Confirmed today: 50 of
+   5465 rows is 0.9%; 50 of 936 truth-x rows is 5.3%. The same file
+   records wrong tightenings as 2727 false alarms plus 49 over-tight,
+   2776 total. rwxmap changed later the same day: D58 (commit `d4c9124`)
+   moved goal 1 to 2703, and D60 (commit `9218104`, 14:46 +0200) moved it
+   to 2650. Goal 2 (37) and goal 3 (49) are unchanged. The draft takes its
+   numbers from a fresh run on the day the section is written.
+8. `ietf/v3/docs/reduction-plan-02.md`'s agreements map (A1-A13) traces
+   13 agreements to the sections that survive the reduction; none is
+   dropped provided A4 (Iman Schrock's approval of the wording, change
+   note, and acknowledgment) is kept in the shortened Changes since -01.
+   -02's Acknowledgments section today names only Iman Schrock (XML
+   lines 2581-2589, confirmed today); Sangam Das and Jijie Wei (varwof)
+   were granted naming on 2026-09-02
+   (`ietf/v2/docs/oauth-wg-round3-received-2026-09-02.md`) and are not
+   yet named.
+9. rwxmap D20 (`decisions-log.md` line 35, decided 2026-09-07) refines D16
+   and states irreversibility is not the test. The labelling brief
+   (`data/exam4-2026-09-12/LABELLING-BRIEF.md` lines 31-53) gives the
+   current r, w, x definitions. D28 (line 43) keeps `destructive` as a
+   separate boolean, not built or measured. The rwx session confirmed
+   these against its own repo on 2026-09-13.
+
+**DECISION**
+
+1. Reduce -02 in place in `ietf/v3` to a 25-rendered-page ceiling per
+   the plan at `ietf/v3/docs/reduction-plan-02.md`, approved by the
+   user. The long version stays preserved at `52066e3` on `main`.
+2. Option A: cut the HAMR Floor Axis Registry. State the comparators in
+   one paragraph matching asor-01 Sections 4.2-4.3 as an informative
+   reference. Keep the eight axis names and the `effective` inheritance
+   case. IANA registers only the Agent-Delegation header field.
+3. One budget per class, w and x, each attenuating like max. No number
+   means no budget limit. A child dropping a budget its parent carried
+   is still rejected. An issuer may still publish a cap. The user: "if
+   we collapse them together then no point for rwxmap to split them at
+   the first place"; "if users want to add no limitations to either
+   they can simply add no numbers".
+4. r, w, x are defined by effect per rwxmap D20 and its labelling brief:
+   x reaches beyond the caller or is not repeatable; w changes only the
+   caller's own things, even permanently; r changes nothing. Irreversibility
+   and severity are not tests. The HTTP method stays only as a starting
+   floor, not the definition. The user first answered "option 2" (D16's
+   wording) from a summary that missed D20; corrected the same day; the
+   user: "yes to both".
+5. Keep the negative-control vectors V4, V6, V9, V11 in the draft. The
+   full V1-V11 set moves to the repo, cited by commit SHA. The user:
+   "keep vectors".
+6. RETRACTION: the -02 claim that the CAMARA proposal is unreviewed and
+   proposes a horizontal profile is false. New text states: reviewed,
+   changes requested and answered, signing layer filed in Commonalities
+   #705, awaiting response, not accepted or adopted.
+7. Acknowledgments add Sangam Das and Jijie Wei (varwof), using the text
+   the author proposed publicly in
+   `ietf/v2/docs/oauth-wg-reply-3-sent-2026-09-02.md`.
+8. No destructive axis in -02. The user: "yes to both".
+9. A2A: the sub-agent gets no new grant; it narrows the parent itself and
+   signs the narrower link with its own key. This is -02 today; the chain
+   model does not change. The user: "option 1".
+10. Scope and style: keep only what the author knows and uses — agent
+   delegation and auth; the principal layer instantiated by CAMARA
+   (telecom) and zkagent (passport/ID), with 8een as the ZK case; a
+   harness reading APIs to grade r/w/x and feed MCP hints with safe
+   defaults, accepting low leaks on the long tail; r/w/x with open limits
+   or budgets such as "rw+2x"; on A2A, a child is a subset of its parent,
+   never more. Plain IETF-style explanation, no ornate wording. The
+   user's words, verbatim: "goal is to stick to what i know, agentic auth
+   camara+zkagent (telecom, passport/id) harness to read apis feed
+   mcphints with safe defaults and possible low leaks on longtail, rwx
+   open limits or rw+2x and on A2A no reesigning but could be a subset of
+   the parent never more. any other fluff tough lang to seem
+   sophsiticated is prohibited, stick to ietf expetcations of flow and
+   way of explanation no problem just don't over sophsiticate to appear
+   smart and i look dumb".
+
+**OPEN, NOT DONE**
+
+- The XML rewrite has not started; it goes one section at a time, each
+  read by the user.
+- rwxmap numbers must be re-run on the day Implementation Status is
+  written; every cited I-D version re-verified live.
+- `docs/index.md` is generated and has no row for
+  `ietf/v3/docs/reduction-plan-02.md`; regenerate with /docs-builder or
+  /remember.
+
+---
+
 ## 2026-09-06 — EMILIA comparison note: AEB understatement corrected in -02, verified against AEB -05 section 9
 
 **EVIDENCE**
