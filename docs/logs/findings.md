@@ -14,6 +14,93 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-09-14 — Budgets and the API Provider round approved
+
+**DECISION**
+
+1. The user approved the Budgets section (rBudget, wBudget, xBudget; no
+   number means no limit; rBudget counts calls; "rw+2x" shorthand) and
+   the API Provider round (rename; a menu signed by the API Provider or
+   by the party that runs the agent, provider first; the Publication
+   story), as read in plain form on 2026-09-14. The user: "#2 approve".
+2. Three leftover words fixed at commit, following from that decision:
+   the API Provider definition no longer says only the provider's
+   signing key is constrained; "no key for the claimed owner" became "no
+   trusted key for the menu's signer"; "applies only to the resource
+   that issued it" became "applies only to the API it describes".
+3. Asked whether the verifier is the API harness, the main session
+   answered from Verifier Placement: the verifier is a role, the first
+   point on a path that refuses or allows the call; it can sit on the
+   API Provider's side or in the customer's agent harness; a
+   customer-signed menu applies only at the customer's own harness.
+
+Source: user message, 2026-09-14.
+
+## 2026-09-14 — API Provider rename; customer-signed menus now, provider-signed later
+
+**DECISION**
+
+1. "Resource Owner" is renamed "API Provider" throughout the draft
+   (outside the two dated Changes appendices, which stay as posted
+   history).
+2. The party that runs the agent (for example a customer that deploys
+   it) can sign its own menu now, without waiting for the API
+   Provider. It is responsible for the menu it signs, for its own
+   verifiers and for its own agent's tool hints.
+3. Later, when API Providers publish their own signed menus, a
+   verifier looks for the API Provider's menu first; the menu signed
+   by the party that runs the agent is used only as a fallback, and
+   only by the verifiers that party configures.
+4. This replaces the main session's earlier proposal (that only a
+   provider-signed menu could ever change a verifier's class). The
+   safety point that proposal was protecting is kept in the text a
+   different way: a menu signed by the party that runs the agent
+   never makes an API Provider's verifier admit more.
+
+The user, verbatim:
+
+"you are overcomplicating this. rename to API provider yes, customer
+is the one who runs it #2 the narrative simplified, rwxmap is a place
+to start a conversation without having to wait on API provider to get
+ready, they have their apis and never thought about rwx as the whole
+thing is new. Proposal: a tool that analyzed leaning and roughly gives
+you somehow safe defaults per methods, unknowns are clear, all done
+mechanically and even programatically, you can as customer/runner of
+the code to exclude leaks or get some grounding when you read json
+map, this is how it works The build, step by step, in plain words: 1.
+Step 1, r. GET is r. POST with a read verb is r. Unchanged. 2. Step 2,
+w. PUT/DELETE/PATCH start at w. Then, in order: - a live verb (send,
+cancel, pay) -> give up, x. - a 3p noun -> give up, x. - every noun
+yours -> keep, w, marked "evidence". - none of the above -> keep, w,
+marked "no evidence". This is the 1972. < leaks marker 3. Step 3, x.
+Only what step 2 gave up. No rules. 4. Output: one CSV, all 5465 rows:
+step that claimed it, class, flag, truth, verdict. 5. Ledger pins:
+step 1 49 / 0. Step 2 803 false alarms / 211 leaks, with 175 of the
+211 in the flagged pile. #3 customer doesn't need to wait for api
+provider to sign their list, i have something i want to run now and i
+have some crude way of determining apis agent is about to use and i
+can sign it, can use it as mcphints for my agentic flow run, i am
+responsible for it, it's usually safe for top 80% usage that comes
+form 20% of apis, not perfect, but may have leaks, dangers at the long
+tail, either marked or overtight with some 1% leaks, acceptable #4
+when this becomes a known standard, easy to implement by api
+provider, they can use the tool to assign rwx to all their apis and
+they can review unknown list/leaks and can assign the correct rwx
+without having to process their whole list of apis and can sign it
+themselves, when that happens, customer change and ask for signed api
+map list and if not found (smaller api providers) create your own and
+sign it, that's the whole story"
+
+**EVIDENCE**
+
+- The figures in the user's message above (step 2 no-evidence pile
+  1972 rows, the leak marker; step 1 ledger 49 over-tight / 0 leaks;
+  step 2 803 false alarms / 211 leaks, 175 of the 211 in the flagged
+  pile) are user-supplied 2026-09-14 and not yet independently
+  verified against a rwxmap run.
+
+---
+
 ## 2026-09-14 — Action Class approved; rwxmap's role and measured results
 
 **DECISION**

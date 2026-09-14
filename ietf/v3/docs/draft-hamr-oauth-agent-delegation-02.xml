@@ -139,17 +139,13 @@
           The service that receives a request bearing a delegation chain
           and must decide whether to honor it.
         </dd>
-        <dt>Resource Owner:</dt>
+        <dt>API Provider:</dt>
         <dd>
-          The party that owns the resource named by a request's target
-          origin and that publishes and signs the declared menu
-          (<xref target="declared-menu"/>) governing that origin's
-          classSource declared value. A deployment commonly has the
-          Resource Owner and the Relying Service be the same operator,
+          The party that runs the API named by a request's target
+          origin. A deployment commonly has the
+          API Provider and the Relying Service be the same operator,
           but this document does not require it; the two are distinct
-          roles, and only the Resource Owner's signing key and the
-          menu's origin binding are constrained by this document, not
-          the roles' organizational identity.
+          roles.
         </dd>
         <dt>Scope:</dt>
         <dd>
@@ -658,8 +654,8 @@
           ranked method &lt; declared by the rank comparator of
           <xref target="floors"/>. With method, the verifier uses
           the HTTP method alone (<xref target="classification"/>).
-          With declared, the verifier also uses the Resource Owner's
-          signed menu (<xref target="declared-menu"/>); where the
+          With declared, the verifier also uses a signed menu
+          (<xref target="declared-menu"/>); where the
           menu verifies and names the call, its value is used
           instead of the method default. method trusts no one but
           the verifier, so it is the tighter value.
@@ -685,7 +681,7 @@
           some PUT, DELETE, or PATCH calls are really x, and some
           POST calls are really r or w. A GET that changes something
           breaks the safe-method rule of <xref target="RFC9110"/>.
-          The Resource Owner's declared menu, below, corrects a
+          The API Provider's declared menu, below, corrects a
           wrong starting class.
         </t>
         <t>
@@ -693,15 +689,15 @@
           menu declares, provided it verifies per
           <xref target="declared-menu"/> and names the call. If the
           menu is absent, its signature does not verify, the
-          verifier has no key for the claimed owner, or its iss does
+          verifier has no trusted key for the menu's signer, or its iss does
           not match the request's target, the verifier MUST use the
           method default. A verifier MUST NOT combine or take the
           greater of the two;
           a valid, matching menu entry replaces the method default,
           it is not compared against it. No menu at all is handled
           the same way as a menu that fails to verify. A verifier
-          MUST NOT construct or synthesize a menu, or a menu entry,
-          for a Resource Owner that has not published one.
+          MUST NOT build or change a menu while it admits a
+          request; a menu is created and signed before it is used.
         </t>
       </section>
       <section anchor="declared-menu" numbered="true" toc="default">
@@ -728,31 +724,49 @@
           only matches are tied, the method default applies.
         </t>
         <t>
-          A menu applies only to the resource that issued it: its iss
+          A menu applies only to the API it describes: its iss
           value is compared octet-for-octet against the request
           target's origin, and a mismatch fails the menu the same way
           an unverifiable signature does; the verifier MUST NOT
-          accept it. A menu MUST be verified against the Resource
-          Owner's public key, obtained out of band or from a
-          configured trust source, never from the menu itself, per
+          accept it. A menu is signed by the API Provider, or by
+          the party that runs the agent (for example, a customer
+          that deploys it). A verifier uses a menu only if it is
+          signed by a key the verifier is configured to trust for
+          that API; the key never comes from the menu itself, per
           the same rule <xref target="verification"/> states for the
-          root attestation's key. Its signature algorithm is EdDSA
-          using Ed25519, with no negotiation; any other algorithm
-          does not verify.
+          root attestation's key. A verifier that looks for a menu
+          uses one signed by the API Provider first. If there is
+          none, it may use one signed by the party that runs the
+          agent, if configured to trust that key. If there is
+          neither, the method default applies. A menu signed by the
+          party that runs the agent is that party's own choice and
+          responsibility. It limits only the verifiers that party
+          configures, such as its own harness; it never makes an
+          API Provider's verifier admit more. Its signature
+          algorithm is EdDSA using Ed25519, with no negotiation; any
+          other algorithm does not verify.
         </t>
       </section>
       <section anchor="menu-publication" numbered="true" toc="default">
         <name>Publication</name>
         <t>
-          This section is non-normative. A Resource Owner may
-          publish its menu through its API description, for example
-          as a per-operation extension in an OpenAPI document, with
-          a detached JWS at a well-known location; the format of
-          such a mechanism is out of scope for this document. A tool
-          that reads an API description, for example its HTTP
-          methods and the verbs and nouns in its operation names,
-          can help an owner write its menu; the owner signs the
-          menu. Such a tool's output is advice, not a class source.
+          This section is non-normative. An API Provider may publish
+          its menu in its API description, for example as a
+          per-operation extension in an OpenAPI document with a
+          detached JWS at a well-known location; the format of such
+          a mechanism is out of scope for this document. Until
+          providers do this, the party that runs the agent can build
+          its own menu, using a tool that reads API descriptions
+          mechanically: it gives each call a starting class from its
+          method and from the verbs and nouns in its name, and marks
+          calls it has no evidence for so a person can check them.
+          Such a tool is usually right for the most-used calls, picks
+          the tighter class when unsure, and can still miss some
+          calls in the long tail; the party that signs a menu is
+          responsible for the menu it signs. The same menu can also
+          give an agent tool hints. When API Providers take this up,
+          they can run the same kind of tool over their own APIs,
+          review only the calls it marked, and sign their own menu.
         </t>
       </section>
       <section anchor="action-class-verifier-placement" numbered="true" toc="default">
@@ -821,157 +835,119 @@
     </section>
 
     <section anchor="write-budget" numbered="true" toc="default">
-      <name>Write Budget</name>
+      <name>Budgets</name>
       <t>
-        This section specifies the semantics of the writeBudget axis
-        registered in <xref target="floors"/>. It answers three
-        separate questions: what value a link carries (<xref
-        target="write-budget-axis"/>); what a verifier holds as state
-        separately from that value, and how a request is admitted against
-        the two together (<xref target="write-budget-limit-count"/>); and
-        how a verifier derives the identifier that state is keyed by
-        (<xref target="write-budget-chain-identifier"/>).
+        This section defines rBudget, wBudget, and xBudget, the budget
+        axes of <xref target="floors"/>: what each limits (<xref
+        target="write-budget-axis"/>), the limit and count and how a
+        request is admitted (<xref
+        target="write-budget-limit-count"/>), how the count is keyed
+        (<xref target="write-budget-chain-identifier"/>), and the
+        scope of the limits (<xref target="write-budget-limits"/>).
       </t>
       <section anchor="write-budget-axis" numbered="true" toc="default">
-        <name>writeBudget</name>
+        <name>Budget Axes</name>
         <t>
-          writeBudget is a non-negative integer, compared with the max
-          comparator of <xref target="floors"/>: it is the total
-          number of w-class or x-class operations, per the actionClass
-          values of <xref target="action-class-values"/>, that the chain
-          carrying it may have admitted in aggregate. A child link MUST
-          NOT carry a writeBudget value greater than its parent's; per the
-          max comparator, tightening on this axis means lowering the
-          value, and a child that raises it violates rule 2 of
-          <xref target="attenuation"/>.
+          rBudget, wBudget, and xBudget are each a non-negative
+          integer, compared with the max comparator of <xref
+          target="floors"/>. Each limits one actionClass value, per
+          <xref target="classification"/>: rBudget bounds r-class
+          calls, wBudget bounds w-class calls, xBudget bounds x-class
+          calls, and a call never spends against the other two. A
+          child link MUST NOT carry a higher value than its parent's
+          for any of the three; raising one violates rule 2 of <xref
+          target="attenuation"/>.
         </t>
         <t>
-          Where no link in the chain constrains writeBudget, an omitting
-          link inherits the issuer's published floor for writeBudget,
-          which is zero unless the issuer's published floor for the
-          chain states otherwise; this is the link-to-published-floor
-          case of the omitted-axis rule of
-          <xref target="floors"/>, and omission is therefore never
-          a widening, only ever an inheritance of whatever floor already
-          applies. This is the same effective-zero outcome the
-          proof-of-concept's own handling of an omitted writeBudget
-          already produces. Where a parent link does constrain
-          writeBudget, a child link's omission of it is instead the
-          link-to-link case of that same rule, and the chain MUST be
-          rejected rather than defaulted, per rule 2 of
-          <xref target="attenuation"/>.
+          Where no link sets a given budget and the issuer's published
+          floor sets none either, that class has no count limit:
+          actionClass alone governs, so a link classed x with no
+          xBudget allows unlimited x-class calls. Where the published
+          floor does set a budget, that value applies (the
+          link-to-published-floor case of <xref target="floors"/>);
+          omission is inheritance, never widening. Where a parent
+          link sets a budget and a child omits it, the chain MUST be
+          rejected (the link-to-link case, rule 2 of <xref
+          target="attenuation"/>).
+        </t>
+        <t>
+          A short label such as "rw+2x" means actionClass x, xBudget
+          2, no rBudget or wBudget: no limit on r or w, at most 2 x
+          calls. The label is shorthand for talking about a link, not
+          a wire format.
         </t>
       </section>
       <section anchor="write-budget-limit-count" numbered="true" toc="default">
         <name>Limit and Count</name>
         <t>
-          Two distinct quantities are in play, and this document uses
-          "limit" and "count" to keep them apart. The LIMIT is the
-          writeBudget value carried in the chain, per
-          <xref target="write-budget-axis"/>: it rides on the wire, on
-          every link that carries the axis, and a verifier reads it the
-          same way it reads any other floor value. The COUNT is the
-          number already spent against that limit for a given chain; it
-          is state the verifier holds, keyed by the chain identifier of
-          <xref target="write-budget-chain-identifier"/>, and it is never
-          carried in a link. A link MUST NOT be interpreted as carrying
-          the count, and a verifier MUST NOT treat any field of a link as
-          the count merely because it varies between requests.
+          "Limit" and "count" are kept apart. The LIMIT is a budget
+          value carried in the chain (<xref
+          target="write-budget-axis"/>), carried on the wire like any
+          floor value. The COUNT is the number already spent for a
+          chain; it is verifier-held state, keyed by the chain
+          identifier of <xref target="write-budget-chain-identifier"/>,
+          one per budget per chain, never carried in a link. A verifier
+          MUST NOT treat any link field as the count.
         </t>
         <t>
-          Admission proceeds as follows. A request classed r, per
-          <xref target="classification"/>, never spends against
-          writeBudget: it is admitted or refused on the actionClass rule
-          of <xref target="action-class-values"/> alone, and the count is
-          left unchanged. A request classed w or x is admitted only if
-          the remaining count for the chain is at least one, and the
-          count MUST be decremented as part of the same admission
-          decision that admits the request, with no window in which two
-          concurrent requests against the same chain can both observe the
-          same remaining count before either decrement is applied; this
-          is a requirement on the outcome, not on any particular locking
-          or storage mechanism a verifier uses to achieve it. Where the
-          remaining count is zero, a request classed w or x MUST be
-          rejected, with the same uniform rejection outcome
-          <xref target="verification"/> requires for any other failed
-          check; the verifier does not disclose the remaining count in
-          the rejection. <xref target="binding-not-replay"/>
-          is why this count can only ever live in verifier-held state:
-          anything carried on the wire can be re-presented, and a count
-          that could be re-presented is not a count.
+          A request is classed per <xref target="classification"/> and
+          admitted only if the count remaining for that class is at
+          least one, where a limit applies; with no limit, the
+          actionClass rule of <xref target="action-class-values"/>
+          alone governs. Where a limit applies, the count MUST be
+          decremented in the same admission decision, with no window
+          in which two concurrent requests on the same chain both see
+          the same remaining count. At zero, the request MUST be
+          rejected with the uniform outcome <xref
+          target="verification"/> requires for any failed check,
+          without disclosing the remaining count. The count can only
+          live in verifier-held state because anything on the wire can
+          be sent again (<xref target="binding-not-replay"/>).
         </t>
       </section>
       <section anchor="write-budget-chain-identifier" numbered="true" toc="default">
         <name>Chain Identifier</name>
         <t>
-          The chain identifier that keys the count of
-          <xref target="write-budget-limit-count"/> MUST be derived by
-          the verifier itself from the chain being verified, and MUST NOT
-          be taken from a value the request supplies. A verifier that
-          accepts a caller-supplied chain identifier does not conform to
-          this section, regardless of what other checks it performs.
+          The chain identifier MUST be derived by the verifier itself
+          from the chain, and MUST NOT be taken from the request; a
+          verifier that accepts a caller-supplied identifier does not
+          conform, whatever else it checks. It is the SHA-256 <xref
+          target="RFC6234"/> digest of the signature value of L(0),
+          the root link, in the encoding the credential format uses on
+          the wire (<xref target="header"/>, <xref
+          target="attestation"/>): the same bytes a verifier already
+          extracts and verifies as L(0)'s signature under item 1 of
+          <xref target="attestation"/>.
         </t>
         <t>
-          The chain identifier is the SHA-256 <xref target="RFC6234"/>
-          digest of the octet string that is the signature value of
-          L(0), the root link of the chain, in whatever encoding that
-          signature value is carried on the wire by the credential format
-          in use, per <xref target="header"/> and <xref
-          target="attestation"/>. This document defines no signature
-          encoding of its own and needs none for this purpose: the digest
-          is computed over the same exact bytes a verifier already
-          extracts, and has already verified, as L(0)'s signature under
-          item 1 of <xref target="attestation"/>. This document does not
-          otherwise use a hash function; SHA-256 is adopted here as the
-          digest for this one purpose.
-        </t>
-        <t>
-          Every link in a chain, from L(0) to L(n), shares the single
-          chain identifier derived from L(0)'s signature. A
-          re-delegation, which produces a new child link L(i) with its
-          own signature, does not change L(0) and therefore does not
-          change the chain identifier; re-delegation MUST NOT mint a
-          fresh budget, and a verifier MUST NOT derive a chain identifier
-          from any link other than L(0).
-        </t>
-        <t>
-          This rule is what case 22 of the proof-of-concept accompanying
-          this document, recorded in <xref target="implementation-status"/>,
-          now exercises: the code derives the chain identifier itself and
-          pins that a caller-supplied identifier field has no effect,
-          rather than refilling the budget when one is presented with the
-          same chain.
+          Every link, from L(0) to L(n), shares the identifier derived
+          from L(0)'s signature. Re-delegation produces a new child
+          link L(i) with its own signature but does not change L(0),
+          so it does not change the chain identifier; re-delegation
+          MUST NOT create new budgets, and a verifier MUST NOT derive
+          the identifier from any link other than L(0).
         </t>
       </section>
       <section anchor="write-budget-limits" numbered="true" toc="default">
         <name>Limits</name>
         <t>
-          The count of <xref target="write-budget-limit-count"/> is held
-          per verifier, not shared across verifiers. Two verifiers
-          holding no shared state do not share a count, so a single chain
-          presented in parallel to N distinct verifiers can spend up to N
-          times its writeBudget limit in aggregate, one full budget at
-          each verifier, before any single verifier's own count reaches
-          zero. A mechanism for verifiers to share a count is out of
-          scope for this document; this limitation is stated here rather
-          than hidden.
+          Counts are held per verifier, not shared across verifiers: N
+          verifiers with no shared state can together admit up to N
+          times a budget before any one reaches zero. Sharing a count
+          across verifiers is out of scope; this limit is stated here,
+          not hidden.
         </t>
         <t>
-          The budget is cumulative per chain, counted across every
-          admitted w-class or x-class request regardless of which
-          operation each request invokes, and is deliberately not
-          allocated per action or per operation: a per-action cap is
-          defeated by splitting one action into many smaller ones, each
-          within its own separate cap, so this document defines only one
-          running count per chain.
+          Each budget is cumulative per chain and per class, not per
+          operation, because a per-operation cap is defeated by
+          splitting one action into many smaller ones, each under its
+          own cap. rBudget limits how many reads an agent makes, not
+          how much data one read returns; how much a read returns is
+          up to the API Provider, for example through page size.
         </t>
         <t>
-          This document makes no claim about how many real transactions a
-          given writeBudget value can accommodate. Economic scarcity is
-          not measured here, and no writeBudget size is described in this
-          document as practical, sufficient, or adequate for any
-          deployment; a deployment choosing a value does so without
-          guidance from this document beyond the mechanism itself.
+          This document makes no claim about what budget size is
+          practical; choosing a value is left to the deployment.
         </t>
       </section>
     </section>
@@ -1491,13 +1467,13 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
       </t>
       <t>
         <strong>A declared menu is an owner-signed downgrade surface.</strong>
-        classSource declared lets the Resource Owner's menu lower a
+        classSource declared lets the API Provider's menu lower a
         request's actionClass below its method default, for example
         declaring a POST as r. The origin-binding rule and the
         out-of-band key requirement of <xref target="declared-menu"/> are
         what keep a third party from supplying that downgrade for a
         resource it does not own: without both checks, a verifier that
-        resolves one key for more than one Resource Owner could be
+        resolves one key for more than one API Provider could be
         handed a validly-signed menu for the wrong resource and apply its
         declared classes to a request it was never meant to cover. A
         verifier that accepts a menu without checking both the
@@ -1967,7 +1943,7 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
       <t>
         V8 and V9 each present a request "POST /check" against a link
         whose actionClass is r. Both are accompanied by a menu, signed by
-        the Resource Owner's key, declaring "POST /check" as r. In V8 the
+        the API Provider's key, declaring "POST /check" as r. In V8 the
         menu's iss value is the origin of the request target,
         https://api.example.com, matching it exactly. In V9 the menu
         carries the same declared entry and the same valid signature, but
