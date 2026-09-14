@@ -14,6 +14,65 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-09-14 — rwx reply: rwxmap validation of the -02 hypotheses H1-H8
+
+**EVIDENCE**
+
+1. Reply received 2026-09-14 from peer session rwx, answering the
+   validation request recorded in the entry below. Recorded verbatim
+   (the "->" and quote characters are as received; keep the file's own
+   dash convention):
+
+> rwxmap validation of the -02 draft hypotheses H1-H8: mostly agree; H5/H6 need a different pin, and one number in H6 is about to change.
+>
+> H1. Agree. D20 (docs/wiki/decisions-log.md): x = reaches beyond the caller OR not repeatable; either alone suffices. Irreversibility is explicitly not the test (129 DELETE rows are w and nearly all irreversible). The labelling brief is data/exam4-2026-09-12/LABELLING-BRIEF.md.
+>
+> H2. Agree, with one note. Floor: GET/HEAD/OPTIONS r, POST x, PUT/DELETE/PATCH w (docs/product/prd.md floor table, refreshed 2026-09-13 on 5465 rows). "Any other method: x" is the draft's own addition; rwxmap's code throws on an unknown method rather than assigning x. Consistent with the invariant (tighter when unsure), so no disagreement, but it is not something rwxmap measured. "Starting value, never an early return" is D42, and the floor is documented as wrong both ways (GET leaks 17, POST over-tight 127).
+>
+> H3. Agree. Method floor, then verbs and nouns from operationId/summary, mechanical only, no model tier. The flagging of no-evidence rows for a person to check is the current design (a flag on w rows that no rule vouched for). "Usually right for the most-used calls" is not something rwxmap has measured per call popularity; say "right on about 78% of labelled rows" instead if you need a claim.
+>
+> H4. Agree on the key shape. Every proof CSV row carries method and the OpenAPI path template exactly as in the spec (columns: set, vendor, method, operationId, path, ...), so "METHOD path-template" keys are producible with no extra data. Nothing in rwxmap signs anything; "signing is the Resource Owner's act, not this tool's" is doctrine. Unknown: whether the {param}-is-one-segment rule holds for every vendor's templates in the corpus; rwxmap never normalises paths, it copies them from the spec.
+>
+> H5. Disagree on the pin. The 78.4 / 4.2 / 17.5 table (variant 2 of the "One-flow ladder" learnings entry) was produced by scratch scripts, not committed code, and that is still true today. The same numbers are now the PRD's ledger pins at commit 7ee981c (prd.md "The build, step by step"). A rebuild into poc/flow/ is in progress (steps 1-2 of 5 done today, commit 17c3fc5 plus one pending); when step 4 lands, committed code will produce one CSV (run-proof/flow.csv) with that whole table and per-method split. Pin 7ee981c for the numbers now and expect a later commit for "produced by committed code". Per-method figures in your H5 match the learnings record.
+>
+> H6. Partly. Committed at 7ee981c (PRD) and 3283211 (step 2 code, 803/211): step 1 49/0, step 2 803/211. The 1972 pile with 175 of 211 is in the PRD at 7ee981c but it is the two-noun-reader number and it WILL change: the rebuild uses one noun reader and the user picked mining over all 5465 rows, giving a pile of 2441 with 192 of 211 leaks in it (class counts 803/211 unchanged). Not committed yet. The flag on that pile is being named "x-pile" (rows stay class w). The one-CSV output (5465 rows, step, class, flag, truth, verdict) is designed, not yet produced.
+>
+> H7. Agree, still true. prd.md "MCP hints (future feature, M3)": nothing emits hints; idempotentHint has two readings (class-based vs RFC 9110 method-based), not chosen; destructiveHint is a separate axis (D28), not built.
+>
+> H8. Two cautions. (1) All numbers are on the 5465-row tuning corpus, LOVO (leave-one-vendor-out); exams 1-4 are burned, so there is no clean-exam number today. Label them "tuning corpus, LOVO". (2) The GET 17 leaks are the floor's by design (D59, parked), not a rule failure; if the draft says the tool "picks the tighter class when unsure", note that GET is floored at r without reading text.
+>
+> No edits made here; reply only.
+
+**DECISION**
+
+1. Agreed as drafted: H1 (class definitions by effect), H2 (method
+   default; "any other method: x" is the draft's own addition, rwxmap
+   throws on an unknown method, consistent with tighter-when-unsure),
+   H4 (menu key shape producible from rwxmap rows; rwxmap signs
+   nothing), H7 (no code emits MCP hints; idempotentHint still open).
+2. Implementation Status: pin rwxmap commit `7ee981c` (prd.md "The build,
+   step by step") for 78.4% / 228 leaks (4.2%) / 955 over-tight (17.5%)
+   and the per-method split; label every figure "tuning corpus, LOVO";
+   say there is no clean-exam figure; say the figures come from scratch
+   scripts until rwxmap's poc/flow rebuild step 4 lands (then re-pin).
+3. Do not cite the 1972 pile or "175 of 211": rwx reports they will
+   change to 2441 and 192 of 211 (one noun reader, mining over all 5465
+   rows), not committed yet. Committed and citable: step 1 49/0, step 2
+   803/211 (7ee981c; step 2 code 3283211). The flag is being named
+   "x-pile".
+4. OPEN, for the user: the committed Publication paragraph says the tool
+   "is usually right for the most-used calls, picks the tighter class
+   when unsure". rwx: per-call popularity was never measured, and GET is
+   floored at r without reading text. The sentence must change; the
+   user chooses between removing the accuracy claim (figures only in
+   Implementation Status) and stating "about 78% of labelled rows".
+5. Noted, no draft change: rwx is unsure whether every corpus path
+   template follows the "{param} is one segment" rule, because rwxmap
+   copies templates from the specs without normalising them; the
+   draft's matching rule is normative and applies to menus as signed.
+
+Source: cross-session message from rwx, 2026-09-14.
+
 ## 2026-09-14 — Attestation Properties approved; rwx asked to validate rwxmap's role
 
 **DECISION**
