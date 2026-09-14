@@ -57,23 +57,23 @@ lines were excluded.
 | Profile of RFC 9421 | rfc9421-profile | 68 | 40 | Keep all MUSTs; cut the RFC 9421 7.2.2 paraphrase to one sentence plus reference. | - |
 | Scope | scope | 52 | 30 | Keep exact-match rule and forbidden-matching list; tighten prose. | - |
 | Attenuation Rules | attenuation | 62 | 55 | Keep. Core. | - |
-| Floor Axes | floors (+axis-registry, duration-grammar, monotone) | 197 | 80 | One table of the eight axes (name, type, comparator). One paragraph: comparators match asor-01 Sections 4.2-4.3. Keep unknown-axis rejection, both omitted-axis cases, `effective`, duration grammar. Fold Monotone Tightening into the table text. Remove anchors `axis-registry`, `monotone`. | A10 A11 A13 |
-| Action Class Floors, without Verifier Placement | action-class | 244 | 115 | Keep r<w<x, classSource, method default, declared menu with path-template match and origin binding. Cut the PoC written-order note. Cut the Limits subsection (F2 below); remove anchor `action-class-limits`. Redefine r, w and x per F8 (wording pending Q3). | - |
+| Floor Axes | floors (+duration-grammar) | 197 | 80 (now 96) | DONE 2026-09-13. Removed accountClass and partialPolicy from the table and every sentence. subjectClass is enum/equals with two plain values, interactive and machine (telecom case as a short example only, no prepaid/postpaid). actionClass and classSource typed as ordered lists (r < w < x; method < declared), comparator rank. Three budget rows, rBudget/wBudget/xBudget, type non-negative integer, comparator max, semantics deferred to Write Budget. Kept the word "axis"; added one plain sentence defining it. Cut the sentence naming `effective` and its out-of-scope clause; kept the inheritance rule itself. Replaced "one_of (singleton)" with "equals"; asor sentence now says equals is asor-01's one_of with one value. Plain-language pass on the whole section; every MUST/rejection/refusal rule kept, nothing new added. Anchors `axis-registry` and `monotone` were already removed in the prior rewrite (xrefs repointed to `floors`). ageMin added (non-negative integer, years, min comparator; yes/no answer only; issuer publishes supported thresholds, off-list refused). | A10 A11 A13 |
+| Action Class Floors, without Verifier Placement | action-class | 244 | 115 | Keep r<w<x, classSource, method default, declared menu with path-template match and origin binding. Cut the PoC written-order note. Cut the Limits subsection (F2 below); remove anchor `action-class-limits`. Redefine r, w and x per F8 (Q3 decided: rwxmap D20 plus its labelling brief). | - |
 | Verifier Placement | action-class-verifier-placement | 63 | 62 | Verbatim. No change. | A3 A7 |
-| Write Budget | write-budget | 156 | 85 | Keep limit vs count, verifier-derived chain identifier, per-verifier limit, no-practical-size statement. Cut the case-22 paragraph. Split into one budget per class, w and x (Q1 decided). Notation example: "rw+2x" = no limit on r and w, 2 on x. Rewrite the omitted-budget rule per F9. Update vectors V10 and V11 to the split. | - |
-| Attestation Properties | attestation | 95 | 65 | Keep all five MUSTs, signed refusal, nonce-is-not-replay. | - |
+| Write Budget | write-budget | 156 | 85 | Keep limit vs count, verifier-derived chain identifier, per-verifier limit, no-practical-size statement. Cut the case-22 paragraph. Split into three budgets, rBudget, wBudget, and xBudget (Q1 decided as w/x; user added rBudget so an agent cannot over-read either). Notation example: "rw+2x" = no limit on r and w, 2 on x. Rewrite the omitted-budget rule per F9: no number means no limit; actionClass alone then governs. Update vectors V10 and V11 to the three-way split. NOTE, to confirm with the user: a read budget counts read calls, not how much data one read returns; the section must say so as the limit's shape. | - |
+| Attestation Properties | attestation | 95 | 65 | Keep all five MUSTs, signed refusal, nonce-is-not-replay. State plainly that an issuer with incomplete data refuses and never rounds (the rule partialPolicy carried, now that the axis itself is cut). State plainly that an issuer that cannot answer an axis in a floor refuses, and never skips it (no issuer answers every axis: a telecom issuer cannot answer ageMin; an identity-document issuer cannot answer tenureMin). | - |
 | Agent Identifier | agent-identifier | 21 | 25 | Absorb Appendix B as one paragraph; keep the klrc Section 6 tension stated as open. | - |
 | Verification Procedure | verification | 30 | 29 | Keep. | - |
 | A Worked Example | example | 101 | 0 | Cut. Scenario stays in the Introduction; negative-control vectors carry the rules. | - |
 | Privacy | privacy | 39 | 30 | Keep issuer query-log limit. Remove the header-field personal-data repeat (already in `header`). | - |
 | Relationship to Existing Work | related-work | 101 | 30 | Charter item in one sentence. klrc composition in one paragraph. Cut the revocation-light paragraph. Move CAMARA paragraph to Appendix A. asor paragraph shrinks — comparators now live in Floor Axes. | - |
-| Implementation Status | implementation-status | 47 | 45 | justabit PoC (re-run counts on the day) plus rwxmap as a trial of mechanical r/w/x classification from OpenAPI. rwxmap numbers only here, never in normative text. See F3. | - |
+| Implementation Status | implementation-status | 47 | 45 | justabit PoC (re-run counts on the day) plus rwxmap as a trial of mechanical r/w/x classification from OpenAPI. Describe rwxmap from its PoC: its approach and the shape of its results, with no pinned numbers, and say it is work in progress. Shape: it grades most operations, picks the tighter class when unsure, its output maps to MCP hints, it can miss on long-tail operations, and it is not perfect. rwxmap numbers only here, never in normative text. See F3. | - |
 | Security Considerations | security | 101 | 65 | Keep every honest limit: lazy verification, no uniqueness, no revocation, trust-source centralization, uniform rejection, query log, forgeable chain identifier, menu downgrade surface. Tighten; remove restatements. Add one limit: the method default grades every GET as r; in rwxmap's corpus 17 of 550 GET rows (3.1%) are really w or x, so an r-only link admits them. | - |
 | IANA | iana | 34 | 18 | Header field registration only. | - |
 | References | - | 124 | 125 | Add zkagent, 8een, rwxmap. Re-verify every I-D version (F4). | - |
-| Appendix A Instantiations | appendix-a | 155 | 55 | Direction 1 = CAMARA (current state, F1). Direction 2 = 8een (F5). Direction 3 = zkagent (F5). Direction 4 cut to one short paragraph, bullets removed. | A6 |
+| Appendix A Instantiations | appendix-a | 155 | 55 | Direction 1 = CAMARA (current state, F1); drop the accountClass/partialPolicy line from the network-observable-attributes mapping now that both axes are cut. Direction 2 = 8een (F5). Direction 3 = zkagent (F5). Direction 4 cut to one short paragraph, bullets removed. Directions 2 and 3 (identity document) map to subjectClass `interactive` and ageMin; tenureMin and credentialAgeMin do not apply to them. | A6 |
 | Appendix B | appendix-b | 28 | 0 | Folded into Agent Identifier. | - |
-| Test Vectors | vectors | 233 | 40 | Keep only the negative controls V4, V6, V9, V11 in one table. Full V1-V11 set lives in the repo, cited by commit SHA. | - |
+| Test Vectors | vectors | 233 | 40 | Keep only the negative controls V4, V6, V9, V11 in one table. Full V1-V11 set lives in the repo, cited by commit SHA. Drop the "accountClass and partialPolicy are not exercised and are omitted" note from the vector preambles now that both axes are cut. | - |
 | Changes since -01 | changes-since-01 | 140 | 20 | Rewrite short: the reduction, the registry cut, the AEB/Verifier Placement change keeping the substance Iman approved, the acknowledgments. | A4 |
 | Changes since -00 | changes-since-00 | 158 | 0 | Cut. -01 as posted already records it. | - |
 | Acknowledgments | acknowledgments | 10 | 16 | Iman Schrock line verbatim, plus the Sangam Das / Jijie Wei (varwof) text. | A5 A8 |
@@ -197,6 +197,13 @@ notice to anyone is needed.
   0. The `axis-registry` and `monotone` xrefs must be repointed to the new
   Floor Axes table before those anchors are removed. Sweep every other
   removed or renamed anchor the same way before the whole-document read.
+- **F10 - PoC catch-up, new 2026-09-13.** `ietf/v3/poc/m3-floor.mjs` still
+  uses `class` and `partialPolicy`, and the old CAMARA axis names; it has
+  not caught up to the Floor Axes rewrite (accountClass/partialPolicy cut,
+  subjectClass interactive/machine). The m7 budget ledger still carries
+  one shared budget and never spends on r; it has not caught up to the
+  rBudget/wBudget/xBudget split. Both need catch-up before the
+  whole-document read; this plan does not edit PoC code.
 
 ## 5. Open questions for the user
 
@@ -216,12 +223,27 @@ notice to anyone is needed.
   grant; it narrows the parent itself and signs the narrower link with its
   own key. This is -02 today; the chain model does not change. The user:
   "option 1".
+- **Section order - DECIDED 2026-09-13.** Rewrite Action Class Floors and
+  Write Budget next; Abstract and Introduction last. The user: "#3 option
+  1" (message 1), where option 1 is "Action Class and Write Budget next,
+  Abstract/Intro last".
+- **Submission of -02 - DECIDED 2026-09-13.** Decide whether to submit
+  only after the whole-document read, not before. The user: "#4 option 2"
+  (message 1), where option 2 is "decide on submission after the
+  whole-document read".
+- **OPEN, to confirm with the user.** Whether the Security Considerations
+  GET limit also drops the "17 of 550" number: rwxmap is work in
+  progress, per the user's own answer on Implementation Status, so its
+  numbers should not be cited as fixed.
 
 ## 6. Process after approval
 
 1. Dated `findings.md` entry for the plan decisions (Option A, 25 pages,
    plan approval, Q1 split, Q2 vectors kept, Q3 x wording, F8 and F9 rule
    changes, the F1 retraction).
-2. Rewrite one section at a time; the user reads each.
-3. Whole-document read; orphan sweep (F7 and repo-wide); the user runs
-   author-tools and reports the page count.
+2. Rewrite order: Action Class Floors and Write Budget next; Abstract and
+   Introduction last (Section order, decided 2026-09-13).
+3. Rewrite one section at a time; the user reads each.
+4. Whole-document read; orphan sweep (F7 and repo-wide); the user runs
+   author-tools and reports the page count. Decide whether to submit -02
+   only after this read (Submission of -02, decided 2026-09-13).

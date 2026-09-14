@@ -14,6 +14,126 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-09-14 — Floor Axes and IANA text approved
+
+**DECISION**
+
+1. The user approved the rewritten Floor Axes section (with ageMin,
+   rBudget/wBudget/xBudget, subjectClass interactive/machine, the
+   registry cut) and the reduced IANA section, as read in plain form on
+   2026-09-14. The user: "approv floor". This approves the text only; no
+   PoC run is claimed, and the PoC catch-up (F10 in the reduction plan)
+   is still open.
+
+Source: user message, 2026-09-14.
+
+## 2026-09-13 — Floor Axes section decisions
+
+**DECISION**
+
+1. accountClass and partialPolicy are removed from the Floor Axes table
+   and from every sentence in that section. The user, on option 1 for
+   this cut: "accountclass/partial policy option 1 remove, what matters
+   is gsm+data markers cause you could be a prepaid as well". What
+   matters is the voice-and-data marker, subjectClass, because a
+   prepaid subscriber can also qualify under it. The partialPolicy rule
+   itself is not dropped: an issuer with incomplete data refuses and
+   never rounds; that rule moves to Attestation Properties, to be
+   rewritten there. "gsm+data" is written in the draft as "voice and
+   data", because GSM names one network generation.
+2. subjectClass keeps two values, named plain and issuer-neutral:
+   interactive and machine. The user: "#3 option 1, interactive+machine".
+   A telecom line's voice-and-data service is kept only as a short
+   example under interactive, and an M2M line only as a short example
+   under machine; prepaid/postpaid is not mentioned.
+3. The word "axis" is kept. The user: "#4 keep word axis". A single
+   plain sentence defining what an axis is (one named condition a floor
+   can constrain) is added at the start of the section.
+4. The reviewer's three listed problems and proposals are agreed to in
+   full. The user: "#5 problems list agreed to all your prop". (a) The
+   table's Type column said "rank" for actionClass and classSource;
+   changed to ordered lists (r < w < x; method < declared), with rank
+   as the comparator, both pointing to `action-class` for semantics.
+   (b) Sentences in other sections still mention the removed axis
+   registry; these are removed when each of those sections is rewritten.
+   (c) The rule that a child link can only be as strict as, or stricter
+   than, its parent — previously stated only for the duration-typed
+   axes — now covers every ordered axis; kept, it is the user's "subset
+   of the parent, never more" rule.
+5. Two sentences in the section are simplified into plainer language;
+   the general plain-language instruction is to use words anyone can
+   understand unless IETF practice needs the term. The user: "#6 fix two
+   sentences, simplify use easier language that anyone can understand
+   unless ietf directive highly recommends it". Applied narrowly: BCP 14
+   keywords and the names min, max, and rank (tied to asor-01) are kept.
+   The two sentences: the sentence naming `effective` is cut, while the
+   inheritance rule itself (no link sets an axis -> the issuer's
+   published value applies) is kept; and "one_of (singleton)" is
+   replaced by "equals" throughout the section.
+6. Budgets split three ways: rBudget, wBudget, and xBudget, not the
+   previously planned two (w and x only). The user: "#8 xBudget/wBudget
+   agreed and rBudget, assume you also want to control that agent don't
+   over read what they don't". Semantics stay deferred to the Write
+   Budget section; the Floor Axes table only names type (non-negative
+   integer) and comparator (max) for all three. The reviewer noted that
+   a read budget counts read calls made, not how much data any one read
+   returns; whether to state that as the limit's shape in the Write
+   Budget section is to confirm with the user when that section is
+   rewritten.
+7. Not a Floor Axes decision, carried here for continuity: the user
+   separately flagged the Abstract and Introduction as still pending in
+   the author's own voice: "#7 still waiting on intro/body you wanted me
+   to write". No agent action is taken on those two sections; per the
+   reduction plan's Rule for the Rewrite, the agent does only a wording
+   pass on them once the user has drafted them.
+8. Section order: Action Class Floors and Write Budget are rewritten
+   next; Abstract and Introduction last. From the user's message
+   quoted verbatim: "#1 suggest names #2 rwx is in making, take pocs
+   shape results and the idea of how it works, its WIP can't
+   freeze/commit to something still shaping up, but you get the idea,
+   captures biggest portion, overtight, translates to mcphints, leaks
+   on long tail, it's not perfect #3 option 1 #4 option 2." #3 in that
+   message is this decision (option 1: Action Class and Write Budget
+   next, Abstract/Intro last).
+9. Submission of -02 is decided only after the whole-document read, not
+   before this round. From the same message, #4: option 2 (decide on
+   submission after the whole-document read).
+10. Implementation Status describes rwxmap from its PoC: its approach
+    and the shape of its results, with no pinned numbers, stating it is
+    work in progress. From the same message, #2: "rwx is in making,
+    take pocs shape results and the idea of how it works, its WIP can't
+    freeze/commit to something still shaping up, but you get the idea,
+    captures biggest portion, overtight, translates to mcphints, leaks
+    on long tail, it's not perfect." #1 in that message, "suggest
+    names", led to the rBudget/wBudget/xBudget names in item 6 above.
+11. ageMin is added as a new axis. The user, verbatim: "ageMin option 1.
+    age is usually boolean answer to a specific age > 18 so it depends
+    if agent auth requires specific age bracket and the answer will be
+    true/false so no need for P18Y as you wont get this answer". The
+    reason found that day: zkagent (Mode A) and 8een each answer one
+    bit, whether the holder is over an age threshold (zkagent README: a
+    fixed, published threshold list; 8een README: thresholds 15/16/18/
+    21); no -02 axis could express that, and Appendix A's
+    identity-document directions mapped to no axis. Value is whole
+    years, not the duration grammar, because the answer is a yes/no to
+    a threshold, never a duration; (reviewer's note) P18Y would also
+    count 18 x 365 days, a few days short of a real 18th birthday.
+    zkagent Mode C (document validity) is not built, so no
+    document-validity axis is added.
+    An issuer that cannot answer an axis refuses, never skips; to be
+    written in Attestation Properties.
+
+**OPEN**
+
+- Whether Security Considerations also drops the "17 of 550" GET number,
+  now that rwxmap is described as work in progress rather than cited
+  with fixed figures: to confirm with the user.
+
+Source: user messages, 2026-09-13, quoted verbatim above. Implements
+Part 1 of the same day's Floor Axes section rewrite in
+`ietf/v3/docs/draft-hamr-oauth-agent-delegation-02.xml` and the matching
+updates to `ietf/v3/docs/reduction-plan-02.md`.
+
 ## 2026-09-13 — IETF -02 reduction planned after the OAuth WG AI-contribution notice: registry cut to asor, 25-page ceiling, per-class budgets, x redefined by effect, CAMARA "unreviewed" claim retracted
 
 **EVIDENCE**

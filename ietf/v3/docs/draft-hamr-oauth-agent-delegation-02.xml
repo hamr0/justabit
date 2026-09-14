@@ -237,7 +237,7 @@
         This document occupies layer (a), plus floors. The chain model of
         <xref target="attenuation"/> and the floor axes of
         <xref target="floors"/>, including the extensible registry of
-        <xref target="axis-registry"/>, bound the space of what an agent
+        <xref target="floors"/>, bound the space of what an agent
         could invoke coarsely: an axis such as actionClass or writeBudget
         constrains a category of action or a cumulative budget across an
         entire chain, not the arguments of any single call. A floor is
@@ -510,196 +510,102 @@
     <section anchor="floors" numbered="true" toc="default">
       <name>Floor Axes</name>
       <t>
-        A floor is a set of axis/value pairs. This document defines a
-        closed set of axes for this version of the profile. Extending
-        the axis set beyond this closed set is no longer future work as
-        of this revision: <xref target="axis-registry"/> defines a
-        registry mechanism for it. The closed set defined directly by
-        this document is:
+        An axis is one named condition a floor can constrain, for
+        example how long a line has existed. A floor is a set of
+        axis/value pairs. This document defines a closed set of axes
+        for this version of the profile:
       </t>
       <table>
         <thead>
-          <tr><th>Axis</th><th>Type</th><th>Comparison</th></tr>
+          <tr><th>Axis</th><th>Type</th><th>Comparator</th></tr>
         </thead>
         <tbody>
-          <tr><td>subjectClass</td><td>enum</td><td>one_of (singleton)</td></tr>
+          <tr><td>subjectClass</td><td>enum</td><td>equals</td></tr>
           <tr><td>tenureMin</td><td>duration</td><td>min</td></tr>
           <tr><td>credentialAgeMin</td><td>duration</td><td>min</td></tr>
-          <tr><td>accountClass</td><td>enum</td><td>one_of (singleton)</td></tr>
-          <tr><td>partialPolicy</td><td>enum</td><td>one_of (singleton)</td></tr>
+          <tr><td>ageMin</td><td>non-negative integer (years)</td><td>min</td></tr>
+          <tr><td>actionClass</td><td>ordered list: r &lt; w &lt; x</td><td>rank; semantics in <xref target="action-class"/></td></tr>
+          <tr><td>classSource</td><td>ordered list: method &lt; declared</td><td>rank; semantics in <xref target="action-class"/></td></tr>
+          <tr><td>rBudget</td><td>non-negative integer</td><td>max; semantics in <xref target="write-budget"/></td></tr>
+          <tr><td>wBudget</td><td>non-negative integer</td><td>max; semantics in <xref target="write-budget"/></td></tr>
+          <tr><td>xBudget</td><td>non-negative integer</td><td>max; semantics in <xref target="write-budget"/></td></tr>
         </tbody>
       </table>
       <t>
-        An axis name that does not appear in this table MUST cause a
-        verifier to reject the floor, and therefore the link that carries
-        it, outright. An unknown or misspelled axis name MUST be treated
-        as a hard rejection; it MUST NOT be silently ignored or dropped
-        from the comparison. This applies equally to a published floor
-        and to a requested floor presented in a delegation link.
+        An axis name that is not in this table MUST cause a verifier to
+        reject the floor, and therefore the link that carries it. An
+        unknown or misspelled axis name is always a hard rejection; it
+        MUST NOT be silently ignored or dropped from the comparison.
+        This applies equally to a published floor and to a requested
+        floor presented in a delegation link.
       </t>
       <t>
-        For an enum-typed axis (subjectClass, accountClass,
-        partialPolicy), the comparison is equality only; these axes are
-        unordered and a value either matches the required value or it
-        does not. For a duration-typed axis (tenureMin,
-        credentialAgeMin), a larger value is strictly tighter than a
-        smaller one.
+        subjectClass has two values. <tt>interactive</tt> means the
+        subject is a service a person uses directly; for a telecom
+        issuer, a line with voice and data service. <tt>machine</tt>
+        means the subject is a device-only service; for a telecom
+        issuer, a machine-to-machine line. A child link's subjectClass
+        MUST equal its parent's.
       </t>
-      <section anchor="axis-registry" numbered="true" toc="default">
-        <name>Floor Axis Registry</name>
-        <t>
-          This document establishes a registry of floor axis names,
-          the "HAMR Floor Axis Registry" (<xref target="iana"/>). What is
-          registered is the axis NAME; a registration does not define new
-          comparator semantics of its own. Each registered name is bound
-          to exactly one comparator type, drawn from the following closed
-          set of four comparators:
-        </t>
-        <dl newline="false" spacing="normal">
-          <dt>min:</dt>
-          <dd>
-            an ordered value. A min constraint present on the parent
-            MUST be present on the child, with the child's value greater
-            than or equal to the parent's value: child.min &gt;=
-            parent.min. This is the comparator already used, without
-            this name, by every duration-typed axis in this section's
-            closed set, per <xref target="monotone"/>.
-          </dd>
-          <dt>max:</dt>
-          <dd>
-            an ordered value. A max constraint present on the parent
-            MUST be present on the child, with the child's value less
-            than or equal to the parent's value: child.max &lt;=
-            parent.max.
-          </dd>
-          <dt>rank:</dt>
-          <dd>
-            a position in a registered, totally ordered value list. A
-            rank constraint present on the parent MUST be present on the
-            child, with the child's rank less than or equal to the
-            parent's rank: child.rank &lt;= parent.rank. Tightening on a
-            rank axis therefore means lowering the rank, consistently
-            with how this document's proof-of-concept treats an ordered
-            axis whose values are r, w, and x with r &lt; w &lt; x, where
-            a child link may only lower the value, never raise it.
-          </dd>
-          <dt>one_of:</dt>
-          <dd>
-            a set of values. A one_of constraint present on the parent
-            MUST be present on the child, with the child's set a
-            non-empty subset of the parent's set.
-          </dd>
-        </dl>
-        <t>
-          For every comparator in the set above, the constraint is
-          non-droppable in the child: where the parent carries a
-          constraint on a registered axis, the child MUST also carry a
-          constraint on that axis, per the same non-relaxation-by-
-          omission rule <xref target="attenuation"/> already states for
-          rule 2. An axis name that is not registered, or a registration
-          that names a comparator outside the closed set of four above,
-          MUST be rejected by a verifier. This extends, to comparators,
-          the same hard-rejection rule this section already states for
-          an unregistered axis name: neither an unknown axis name nor an
-          unknown comparator is ever silently ignored or dropped from the
-          comparison.
-        </t>
-        <t>
-          A registration in the HAMR Floor Axis Registry carries the
-          following five fields:
-        </t>
-        <ol spacing="normal" type="1">
-          <li><t><strong>Name.</strong> The axis name, an opaque
-            registered string.</t></li>
-          <li><t><strong>Comparator.</strong> Exactly one of min, max,
-            rank, or one_of, as defined above.</t></li>
-          <li><t><strong>Value domain.</strong> The set or type of
-            values the axis may carry (for example, the duration grammar
-            of <xref target="duration-grammar"/>, a non-negative
-            integer, or a registered ordered value list).</t></li>
-          <li><t><strong>Tightening direction.</strong> Which change to
-            a value on this axis counts as tightening, per the
-            comparator's definition above.</t></li>
-          <li><t><strong>Omitted-axis rule.</strong> Two distinct cases
-            apply, and this field states both rather than one. First,
-            link-to-link within a chain: where the parent link L(i-1)
-            carries a constraint on a registered axis and the child link
-            L(i) omits it, that omission is non-relaxation-by-omission
-            and the chain MUST be rejected, per rule 2 of
-            <xref target="attenuation"/>. Second, link-to-published-floor:
-            where no link in the chain up to and including the link under
-            evaluation carries a constraint on a registered axis, the
-            issuer's published floor for that axis applies unchanged.
-            <tt>effective</tt> names the verifier's evaluated outcome for
-            an axis under this second case; how, or whether, a verifier
-            conveys that outcome to a caller is out of scope for this
-            document. The second case is inheritance, not relaxation, and
-            it is not a restatement of the first.</t></li>
-        </ol>
-        <t>
-          The initial contents of the registry, established by this
-          document, are:
-        </t>
-        <table>
-          <thead>
-            <tr><th>Name</th><th>Comparator</th><th>Value domain</th><th>Notes</th></tr>
-          </thead>
-          <tbody>
-            <tr><td>subjectClass</td><td>one_of</td><td>exactly one value from the closed set <xref target="floors"/> already defines for it, encoded as the bare value (a singleton set in one_of terms)</td><td>tightening from a singleton is identity only; behaviour identical to -00's equality-only rule</td></tr>
-            <tr><td>tenureMin</td><td>min</td><td>duration, <xref target="duration-grammar"/></td><td>larger is tighter</td></tr>
-            <tr><td>credentialAgeMin</td><td>min</td><td>duration, <xref target="duration-grammar"/></td><td>larger is tighter</td></tr>
-            <tr><td>accountClass</td><td>one_of</td><td>same singleton rule as subjectClass</td><td>same note</td></tr>
-            <tr><td>partialPolicy</td><td>one_of</td><td>same singleton rule as subjectClass</td><td>same note</td></tr>
-            <tr><td>actionClass</td><td>rank</td><td>ordered set r &lt; w &lt; x</td><td>semantics specified in <xref target="action-class"/></td></tr>
-            <tr><td>classSource</td><td>rank</td><td>ordered set method &lt; declared</td><td>semantics specified in <xref target="action-class"/></td></tr>
-            <tr><td>writeBudget</td><td>max</td><td>non-negative integer, cumulative per chain</td><td>semantics specified in <xref target="write-budget"/></td></tr>
-          </tbody>
-        </table>
-        <t>
-          For the three enum-typed axes (subjectClass, accountClass,
-          partialPolicy), a multi-valued (set) encoding is out of scope
-          for this revision; registering them as one_of records the
-          comparator their equality-only rule already is, and changes
-          nothing on the wire.
-        </t>
-        <t>
-          The semantics of writeBudget, including the distinction between
-          the limit carried in the chain and the count a verifier holds,
-          and the derivation of the chain identifier that count is keyed
-          by, are specified in <xref target="write-budget"/>. The
-          semantics of actionClass and classSource, and the method by
-          which each is assigned to a request, are specified in
-          <xref target="action-class"/>.
-        </t>
-      </section>
+      <t>
+        ageMin is an age threshold stated in whole years, for example
+        18. It asks one question: is the subject at least that age. An
+        Attestation Issuer answers only yes or no; it MUST NOT return
+        the subject's age or date of birth. ageMin does not use the
+        duration grammar of <xref target="duration-grammar"/>. An
+        Attestation Issuer publishes the thresholds it supports; if a
+        floor asks for a threshold that is not on that list, the
+        issuer MUST refuse, per <xref target="refusal"/>.
+      </t>
+      <t>
+        For a min-compared axis (tenureMin, credentialAgeMin, ageMin),
+        a larger value is tighter than a smaller one. For a
+        max-compared axis (rBudget, wBudget, xBudget), a smaller value
+        is tighter than a larger one. For a
+        rank-compared axis (actionClass, classSource), a lower position
+        in the axis's ordered list is tighter than a higher one.
+      </t>
+      <t>
+        min, max, and rank are the comparisons defined in
+        <xref target="I-D.asor-wimse-agent-delegation-chain"/> Section
+        4.2, with the same tightening rules as its Section 4.3. equals
+        is that draft's one_of with a single value. This document names
+        its own closed set of axes rather than a registry.
+      </t>
+      <t>
+        A link can leave an axis out in two different ways. First,
+        within a chain: if the parent link L(i-1) constrains an axis
+        and the child link L(i) leaves it out, that is a loosening;
+        the chain MUST be rejected, per rule 2 of
+        <xref target="attenuation"/>. Second, if no link in the chain up
+        to and including the link under evaluation constrains an axis,
+        the issuer's published floor for that axis applies unchanged.
+        This second case is inheritance, not loosening, and it is not
+        the same as the first case.
+      </t>
+      <t>
+        On every ordered axis, a requested floor value MUST be at least
+        as tight, by that axis's comparator, as the matching published
+        or parent floor value. If it is not, the request MUST be
+        refused. A floor value MUST NOT be widened implicitly, as a
+        side effect of anything this profile defines; as
+        <xref target="attenuation"/> states, widening is always a
+        separate, explicit, consent-visible operation, outside this
+        profile's scope.
+      </t>
       <section anchor="duration-grammar" numbered="true" toc="default">
         <name>Duration Grammar</name>
         <t>
-          A duration-typed axis value MUST match exactly one of the two
-          forms P&lt;n&gt;D or P&lt;n&gt;Y, where &lt;n&gt; is a
-          non-negative integer. The integer &lt;n&gt; MUST be in the
-          range 0 to 2^53 - 1 inclusive, and a value outside that range
-          MUST be rejected. No other ISO 8601 duration form is accepted.
-          In particular, a duration expressed in months MUST be
-          rejected, because a month is a calendar-dependent unit and its
-          length in days is ambiguous; accepting it would make the
-          tightening comparison in <xref target="monotone"/> ill-defined.
-          For the purpose of comparison, 1Y is defined as exactly 365D. A
-          value that falls outside the permitted range, or that does not
-          match either form, MUST be rejected.
-        </t>
-      </section>
-      <section anchor="monotone" numbered="true" toc="default">
-        <name>Monotone Tightening</name>
-        <t>
-          On every ordered (duration-typed) axis, a requested floor value
-          MUST be greater than or equal to the corresponding published or
-          parent floor value. If it is not, the request MUST be refused.
-          Widening a floor value on an ordered axis MUST NOT occur
-          implicitly as a side effect of any operation defined by this
-          profile. As stated in <xref target="attenuation"/>, any
-          widening is a distinct, explicit, consent-visible operation
-          outside this profile's scope.
+          A duration-typed axis value MUST match exactly one of two
+          forms, P&lt;n&gt;D or P&lt;n&gt;Y, where &lt;n&gt; is a
+          non-negative integer. &lt;n&gt; MUST be between 0 and 2^53 - 1
+          inclusive. No other ISO 8601 duration form is accepted. A
+          duration given in months MUST be rejected, because a month's
+          length in days depends on the calendar and is ambiguous;
+          accepting it would make the tightening comparison above
+          undefined. For comparison, 1Y equals exactly 365D. A value
+          outside the permitted range, or matching neither form, MUST
+          be rejected.
         </t>
       </section>
     </section>
@@ -708,7 +614,7 @@
       <name>Action Class Floors</name>
       <t>
         This section specifies the semantics of the actionClass and
-        classSource axes registered in <xref target="axis-registry"/>. It
+        classSource axes registered in <xref target="floors"/>. It
         answers two separate questions: what is the maximum class of
         operation a delegation link permits (actionClass), and where a
         verifier is permitted to obtain a given request's class from
@@ -719,7 +625,7 @@
         <t>
           actionClass is an ordered enumeration with three values, r, w,
           and x, ranked r &lt; w &lt; x per the rank comparator of
-          <xref target="axis-registry"/>. A link's actionClass value
+          <xref target="floors"/>. A link's actionClass value
           states the maximum class of operation the agent presenting that
           link MAY perform; it is not a statement about any single
           operation, but a ceiling on the whole link. The three values
@@ -753,11 +659,11 @@
         <t>
           classSource is an ordered enumeration with two values, ranked
           method &lt; declared per the rank comparator of
-          <xref target="axis-registry"/>, naming where a verifier is
+          <xref target="floors"/>, naming where a verifier is
           permitted to obtain a request's actionClass. Where no link in
           the chain constrains classSource, an omitting link's default
           value is method, per the link-to-published-floor case of the
-          omitted-axis rule of <xref target="axis-registry"/>; method is
+          omitted-axis rule of <xref target="floors"/>; method is
           also the lower-ranked, tighter value of the two, so the default
           and the tightest value coincide. Where a parent link does
           constrain classSource, a child link's omission of it is instead
@@ -784,7 +690,7 @@
           than the verifier itself, while declared extends that trust to
           whatever the Resource Owner's menu asserts; method is
           therefore the tighter of the two values, and is ranked lower
-          per <xref target="axis-registry"/>'s ordered set method &lt;
+          per <xref target="floors"/>'s ordered set method &lt;
           declared. Per the rank comparator, a child link's classSource
           rank MUST be less than or equal to its parent's: a parent that
           carries method MUST NOT be followed by a child that carries
@@ -1015,7 +921,7 @@
       <name>Write Budget</name>
       <t>
         This section specifies the semantics of the writeBudget axis
-        registered in <xref target="axis-registry"/>. It answers three
+        registered in <xref target="floors"/>. It answers three
         separate questions: what value a link carries (<xref
         target="write-budget-axis"/>); what a verifier holds as state
         separately from that value, and how a request is admitted against
@@ -1027,7 +933,7 @@
         <name>writeBudget</name>
         <t>
           writeBudget is a non-negative integer, compared with the max
-          comparator of <xref target="axis-registry"/>: it is the total
+          comparator of <xref target="floors"/>: it is the total
           number of w-class or x-class operations, per the actionClass
           values of <xref target="action-class-values"/>, that the chain
           carrying it may have admitted in aggregate. A child link MUST
@@ -1042,7 +948,7 @@
           which is zero unless the issuer's published floor for the
           chain states otherwise; this is the link-to-published-floor
           case of the omitted-axis rule of
-          <xref target="axis-registry"/>, and omission is therefore never
+          <xref target="floors"/>, and omission is therefore never
           a widening, only ever an inheritance of whatever floor already
           applies. This is the same effective-zero outcome the
           proof-of-concept's own handling of an omitted writeBudget
@@ -1528,12 +1434,12 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         in the same direction as this document's duration-typed axes. That
         draft's registry names comparator TYPES and leaves the constrained
         quantity to a profile-level naming agreement; the registry defined
-        in <xref target="axis-registry"/> takes the complementary approach
+        in <xref target="floors"/> takes the complementary approach
         of naming axes, each bound to one comparator from a closed set.
         The comparator vocabulary is therefore the bridge between the two
         registries, not a shared set of names: rank in that draft's
         registry and the rank comparator of
-        <xref target="axis-registry"/> are the same comparator, and
+        <xref target="floors"/> are the same comparator, and
         actionClass in this document's registry uses it. That draft's
         registry now also includes a min comparator matching this
         document's min, so the comparator vocabulary bridging the two
@@ -1580,7 +1486,7 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         <li>nonce binding, as distinct from replay protection;</li>
         <li>expiry enforcement, including the missing/non-numeric-expiry-is-expired rule;</li>
         <li>the signed-refusal shape of <xref target="refusal"/> and its independent verification path;</li>
-        <li>the closed floor axis set of <xref target="floors"/>, the duration grammar of <xref target="duration-grammar"/>, and the monotone tightening comparison of <xref target="monotone"/>;</li>
+        <li>the closed floor axis set of <xref target="floors"/>, the duration grammar of <xref target="duration-grammar"/>, and the monotone tightening comparison of <xref target="floors"/>;</li>
         <li>the actionClass and classSource classification and admission rules of <xref target="action-class"/>, exercised by 40 automated cases in the proof-of-concept: the classification procedure; the deterministic path-template rule for matching menu operation keys, per <xref target="declared-menu"/>; and the binding of a menu's issuer to the request's target origin that <xref target="declared-menu"/> requires.</li>
         <li>the writeBudget ledger of <xref target="write-budget"/>: reserve-then-decrement admission against a stateful, per-chain count, and an actionClass r request never spending against it. This shares the same proof-of-concept and the same case count as the previous bullet, and includes the chain identifier derived by the verifier as the SHA-256 digest of L(0)'s signature value, per <xref target="write-budget-chain-identifier"/>, rather than taken from a caller-supplied request field.</li>
         <li>the enforcement-boundary role, per-path boundary identification, and closure/bypass-test requirements of <xref target="action-class-verifier-placement"/>, exercised by three further cases added to the same proof-of-concept: a positive control in which a single guarded path refuses an over-floor request and the protected effect never runs; a negative control in which an unguarded bypass path completes the same effect a guarded path refused, demonstrating a closure failure; and a case in which an advisory-only classifier observes and correctly identifies an over-floor request without admitting or refusing it, so the effect still completes, distinguishing observation from admission.</li>
@@ -1718,21 +1624,6 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         </tbody>
       </table>
       <t>
-        This document requests IANA create the "HAMR Floor Axis
-        Registry", referenced from <xref target="axis-registry"/>.
-        Registration policy for this registry is Specification Required
-        <xref target="RFC8126"/>. The registration template is the five
-        fields defined in <xref target="axis-registry"/>: Name,
-        Comparator, Value Domain, Tightening Direction, and Omitted-Axis
-        Rule. The Comparator field of a registration MUST be exactly one
-        of min, max, rank, or one_of; a registration naming any other
-        comparator is not valid. The initial contents of the registry
-        are the eight entries given in the table in
-        <xref target="axis-registry"/>: subjectClass, tenureMin,
-        credentialAgeMin, accountClass, partialPolicy, actionClass,
-        classSource, and writeBudget.
-      </t>
-      <t>
         No other IANA actions are required by this document.
       </t>
     </section>
@@ -1747,7 +1638,6 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
       <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.8941.xml"/>
       <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.9421.xml"/>
       <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.9110.xml"/>
-      <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.8126.xml"/>
       <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.7515.xml"/>
       <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.6454.xml"/>
       <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.6234.xml"/>
@@ -2430,7 +2320,7 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         <li>
           <t>
             Added the Floor Axis Registry
-            (<xref target="axis-registry"/>): axis names are now
+            (<xref target="floors"/>): axis names are now
             extensible through an IANA registry, Specification Required,
             rather than fixed to the closed set this document defines
             directly. Each registered name is bound to exactly one
@@ -2548,7 +2438,7 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
             <xref target="implementation-status"/> recording that the
             proof-of-concept now derives the chain identifier as this
             section requires. Replaced the writeBudget row's deferred-semantics note in
-            <xref target="axis-registry"/>'s table, and the standalone
+            <xref target="floors"/>'s table, and the standalone
             marker comment for this item, with a cross-reference to the
             new section, and rewrote the paragraph after that table so it
             no longer describes writeBudget's semantics as unspecified.
@@ -2567,7 +2457,7 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
             admission after chain and attenuation validation and before
             the Relying Service's authorization-policy step. Restated the
             Floor Axis Registry's Omitted-axis rule
-            (<xref target="axis-registry"/>) as two distinct cases,
+            (<xref target="floors"/>) as two distinct cases,
             link-to-link omission of an axis the parent constrained
             (a rejection per rule 2 of <xref target="attenuation"/>) and
             link-to-published-floor inheritance where no link in the
