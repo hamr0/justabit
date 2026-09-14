@@ -25,19 +25,22 @@
     <keyword>authorization</keyword>
     <abstract>
       <t>
-        This document specifies a profile for delegating authorization to
-        automated agents across administrative domains. It defines an
+        This document builds on HTTP Message Signatures (RFC 9421) for
+        requests that automated agents send on behalf of people. RFC
+        9421 shows who signed a request. It does not show who the agent
+        acts for, or what the agent may do. This document defines an
         HTTP header field, Agent-Delegation, that carries a chain of
-        attenuated delegation links. Each link narrows the scope, tightens
-        or holds a set of floor conditions, and shortens or holds the
-        expiry of its parent. A verifier checks every link in the chain,
-        not only the last, and rejects the chain if any link violates
-        attenuation. The profile is deliberately agnostic to the
-        credential format and to the nature of the entity that issues
-        floor attestations; it specifies required properties, not a
-        specific encoding or a specific kind of issuer. It composes with,
-        and does not replace, existing work on agent credential
-        provisioning and posture.
+        delegation links. Each link can only narrow the scope, floors,
+        and expiry of the link before it, and a verifier checks every
+        link. Floors cover two things. The first is the person or
+        account behind the agent: an Attestation Issuer, such as a
+        mobile network operator or an identity-document check, answers
+        with a signed yes or no, bound to the verifier's nonce and to an
+        expiry, and never returns the value behind the answer. The
+        second is what the agent may do: each call has a class, r, w, or
+        x, with an optional count per class, and a signed menu gives the
+        class of each call. This document does not define a credential
+        format, an identity system, or revocation.
       </t>
     </abstract>
   </front>
@@ -46,59 +49,150 @@
     <section anchor="introduction" numbered="true" toc="default">
       <name>Introduction</name>
       <t>
-        A person asks an automated agent to arrange a car rental. That
-        agent does not do the work itself: it engages a second,
-        specialized agent operated by a different company, and that
-        second agent calls the rental service's API. The rental service
-        now receives a request from software that no human has ever
-        spoken to, two hops removed from the person who authorized
-        anything, and operated by an organization the person has no
-        relationship with.
+        Automated agents now act on the web for people: they search,
+        fill in forms, and call APIs. An API Provider that receives such
+        a request has two problems. It cannot tell whether an
+        accountable person stands behind the software, so today it
+        mostly tries to detect and block automation, or it asks a person
+        to finish the last step, for example with a CAPTCHA. And it
+        cannot rely on the agent to stay within what the person asked
+        for, because a language model is probabilistic: an instruction
+        such as "only search" is a request to the model, not a limit on
+        it.
       </t>
       <t>
-        The rental service needs three things it cannot currently get:
-        proof that the authority behind the request actually came from
-        that person; assurance that nothing along the way granted itself
-        more than it was given; and the ability to check both without
-        calling back to any of the parties involved.
+        A person asks an agent to search for a red-eye flight from SFO
+        to LAX under USD 400. The agent finds the airline's API,
+        searches, and then books the only seat at that price, reasoning
+        that the fare can be cancelled within 24 hours. The airline says
+        the fare cannot be refunded: the booking was made from the
+        person's own verified account. A model-based check was in place,
+        but it is probabilistic too, and it did not stop the booking.
+        The person asked for a search, a call that changes nothing. The
+        agent made a booking, a call that spends money.
       </t>
       <t>
-        Automated agents increasingly act as principals against network
-        and application APIs on behalf of a human or an organization.
-        Where such an agent's authorization is delegated from a human
-        principal, and potentially re-delegated agent-to-agent across
-        administrative domains, three properties are needed that existing
-        OAuth mechanisms do not by themselves guarantee end to end: that
-        each re-delegation can only narrow what came before it, that a
-        verifier can check the entire chain rather than trusting the last
-        hop, and that the conditions under which a delegation was granted
-        travel with it in a form a verifier can check offline.
+        <xref target="RFC9421"/> lets a receiver check who signed a
+        request. It does not carry who delegated the authority, whether
+        an accountable person or account is behind it, or what the agent
+        may do. When one agent passes work to another, often at another
+        company, existing OAuth mechanisms do not, by themselves, ensure
+        that each hop only narrows what it received. A limit that the
+        model enforces on itself is not a limit: the check has to sit
+        outside the model, at a point the model cannot change (<xref
+        target="action-class-verifier-placement"/>).
       </t>
       <t>
-        This document specifies a profile that supplies those three
-        properties. It does not define a new credential format, a new
-        signature scheme, or a new agent identity system. It defines:
+        This document adds four things:
       </t>
+      <ul spacing="normal">
+        <li>
+          <t>
+            <strong>A chain.</strong> One HTTP header field carries a
+            chain of delegation links (<xref target="header"/>, <xref
+            target="rfc9421-profile"/>). Each link can only narrow the
+            scope, floors, and expiry of the link before it (<xref
+            target="attenuation"/>). Widening is a separate,
+            consent-visible operation outside this profile. A verifier
+            checks every link, with keys from its own trust source
+            (<xref target="verification"/>).
+          </t>
+        </li>
+        <li>
+          <t>
+            <strong>A floor on who is behind the agent.</strong> An
+            Attestation Issuer answers each floor (<xref
+            target="floors"/>) with a signed yes, a signed no, or a
+            signed refusal, bound to the verifier's nonce and to an
+            expiry, and never returns the value behind it (<xref
+            target="attestation"/>). For example, a mobile network
+            operator can attest a voice-and-data line held for at least
+            two years with no SIM swap in the last 90 days. An
+            identity-document check can attest that the holder is at
+            least 18 (<xref target="appendix-a"/>). The expiry limits
+            how long a yes can be used.
+          </t>
+        </li>
+        <li>
+          <t>
+            <strong>A floor on what the agent may do.</strong> Each call
+            has a class: r changes nothing; w changes only the caller's
+            own things; x reaches beyond the caller, or cannot be
+            repeated (<xref target="action-class"/>). A link sets the
+            highest class it allows and, optionally, a count per class
+            (<xref target="write-budget"/>). For example, a link written
+            "rwx" allows every class with no count. A link it delegates
+            to can be "r+1w+1x": reads with no count, one w call, and
+            one x call. It can never be more. In the flight example, a
+            link that allows only r refuses the booking, whatever the
+            model decides.
+          </t>
+        </li>
+        <li>
+          <t>
+            <strong>Who says what class a call has.</strong> The API
+            Provider signs a menu that gives each call its class (<xref
+            target="declared-menu"/>). Until it does, the party that
+            runs the agent can build its own menu, sign it, and be
+            responsible for it. Without a trusted menu, the HTTP method
+            decides, so a flight search sent as POST is x. A mechanical
+            tool can draft a menu from API descriptions. One such tool,
+            rwxmap <xref target="RWXMAP"/>, was run over 5465 labelled
+            calls it was tuned on, with each vendor left out in turn. It
+            gave the right class for 78.4% of calls, a tighter class
+            than needed for 17.5%, and a looser class for 4.2% (<xref
+            target="implementation-status"/>). The same menu can later
+            give MCP tool annotations <xref target="MCP"/>, such as
+            readOnlyHint and destructiveHint. This document does not
+            define that mapping.
+          </t>
+        </li>
+      </ul>
       <t>
-        an HTTP header field for carrying a delegation chain
-        (<xref target="header"/>); a closed set of attenuation rules that
-        every link in the chain must satisfy relative to its parent
-        (<xref target="attenuation"/>); the required properties of a
-        floor attestation, independent of its encoding
-        (<xref target="attestation"/>); an ordered verification
-        procedure a verifier MUST follow (<xref target="verification"/>);
-        and a profile of the RFC 9421 signature parameters
-        (<xref target="rfc9421-profile"/>).
+        This document does not:
       </t>
-      <t>
-        The profile is a composition layer. It assumes an underlying
-        attestation issuer exists somewhere in the deployment and that a
-        trust source can resolve that issuer's key; it says nothing about
-        who or what that issuer is. <xref target="appendix-a"/> gives one
-        concrete, non-normative instantiation to make the abstract
-        properties concrete for a reader evaluating deployability; nothing
-        in that appendix is required to implement this profile.
-      </t>
+      <ul spacing="normal">
+        <li>
+          <t>
+            define a credential format, a signature scheme, or an agent
+            identity system. It works with related work and does not
+            replace it (<xref target="related-work"/>).
+          </t>
+        </li>
+        <li>
+          <t>
+            prove that a human is present, or that one person backs one
+            agent. A long-held line is costly to get, but it is not
+            unique. A genuine identity document limits identities to the
+            documents a holder has (<xref target="security"/>, <xref
+            target="appendix-a"/>).
+          </t>
+        </li>
+        <li>
+          <t>
+            define a unique identifier for the person. This is on
+            purpose, for privacy. A deployment that needs one site to
+            recognize a returning document can use a per-site tag, as
+            zkagent <xref target="ZKAGENT"/> does, and no other site can
+            link that tag. A deployment can also add its own limits on
+            how often one line or one document backs a chain.
+          </t>
+        </li>
+        <li>
+          <t>
+            revoke. A short expiry is the only limit on the life of a
+            link.
+          </t>
+        </li>
+        <li>
+          <t>
+            stop replay (<xref target="binding-not-replay"/>), share
+            counts across verifiers (<xref
+            target="write-budget-limits"/>), or hide queries from the
+            Attestation Issuer (<xref target="privacy"/>).
+          </t>
+        </li>
+      </ul>
     </section>
 
     <section anchor="conventions" numbered="true" toc="default">
@@ -168,35 +262,6 @@
           parent link.
         </dd>
       </dl>
-    </section>
-
-    <section anchor="motivation" numbered="true" toc="default">
-      <name>Motivation</name>
-      <t>
-        A delegation chain that is only checked at its endpoint is not a
-        chain; it is a single trust decision with extra steps. If an
-        intermediate Delegate can widen scope, loosen a floor, or extend
-        an expiry beyond what it was itself granted, then the guarantees
-        made at the root of the chain do not survive to the Relying
-        Service, regardless of how carefully the root delegation was
-        constructed. This document's primary technical contribution is to
-        make that failure structurally difficult: attenuation is defined
-        precisely enough that a verifier can check it mechanically at
-        every link, and <xref target="security"/> states plainly that a
-        verifier which checks only the final link defeats the entire
-        mechanism.
-      </t>
-      <t>
-        A second, related problem is that authorization conditions are
-        often expressed as raw attribute values (a date of birth, a
-        tenure in days, an account balance) which a Relying Service does
-        not need and should not receive. This document requires that
-        floor conditions be evaluated by the Attestation Issuer and
-        exposed to the chain only as a signed boolean result bound to a
-        verifier's nonce and to an expiry, never as the underlying value.
-        This is a disclosure-minimization requirement independent of the
-        chaining requirement, and both apply together.
-      </t>
     </section>
 
     <section anchor="layers" numbered="true" toc="default">
@@ -1621,6 +1686,27 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
           <date year="2021"/>
         </front>
       </reference>
+      <reference anchor="RWXMAP" target="https://github.com/hamr0/rwxmap">
+        <front>
+          <title>rwxmap: Mechanical r/w/x Classification of OpenAPI Operations</title>
+          <author initials="A." surname="Hassan"><organization>Independent</organization></author>
+          <date year="2026" month="September"/>
+        </front>
+      </reference>
+      <reference anchor="ZKAGENT" target="https://github.com/hamr0/zkagent">
+        <front>
+          <title>zkagent: One Yes/No Answer from a Passport or ID Card Chip</title>
+          <author initials="A." surname="Hassan"><organization>Independent</organization></author>
+          <date year="2026" month="September"/>
+        </front>
+      </reference>
+      <reference anchor="MCP" target="https://modelcontextprotocol.io/specification/2026-07-28">
+        <front>
+          <title>Model Context Protocol Specification, Version 2026-07-28</title>
+          <author><organization>Model Context Protocol</organization></author>
+          <date year="2026" month="July" day="28"/>
+        </front>
+      </reference>
     </references>
 
     <section anchor="appendix-a" numbered="true" toc="default">
@@ -2216,7 +2302,7 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         <li>
           <t>
             Added <xref target="layers"/>, a new, purely informational
-            section placed after <xref target="motivation"/> and before
+            section placed after the Motivation section and before
             <xref target="header"/>. It positions this document among
             three delegation layers (who may act, what exactly may be
             done per invocation, and what was approved and consumed

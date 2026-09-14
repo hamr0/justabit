@@ -49,8 +49,8 @@ lines were excluded.
 
 | Section | anchor | now | target | action | agreements |
 |---|---|---|---|---|---|
-| front + abstract | - | 41 | 40 | Keep structure. User rewrites abstract in own voice. | - |
-| Introduction + Motivation | introduction, motivation | 58+29 | 50 | Merge. User writes. Frame: RFC 9421 signs a message but carries no delegation, no accountable principal, no limit on what the agent may do; this profile adds the chain, the principal floor, the action floor. Keep the car-rental scenario in 2-3 sentences. | - |
+| front + abstract | - | 41 | 40 | APPROVED 2026-09-14 (abstract 20 lines). The user's notes, reworded by the main session: builds on RFC 9421; chain that only narrows; floors on who is behind the agent (signed yes/no, never the value) and on what it may do (r/w/x, optional counts, signed menu); no credential format, identity system, or revocation. See findings.md. | - |
+| Introduction + Motivation | introduction, motivation | 58+29 | 50 | APPROVED 2026-09-14 (148 lines). User's notes, reworded: problem, flight example (replaces car-rental, user's choice), gap, four things added, five things not done. Motivation cut; anchor removed; its one xref (changes-since-00) made plain text. References RWXMAP, ZKAGENT, MCP 2026-07-28 added. Points to Implementation Status for rwxmap figures (not there yet). See findings.md. | - |
 | Conventions and Terminology | conventions | 73 | 45 | Keep terms; shorten Resource Owner definition. Resource Owner renamed API Provider (user, 2026-09-14). | - |
 | Position Among Delegation Layers | layers | 85 | 55 | Cut the "informational" opener and the closing Appendix A pointer. Keep verbatim: layer (c) label, receipts sentence, AEB sentence, the "not the arguments of any single call" sentence, the asor 9.1 parent-stays-valid paragraph. | A1 A2 A9 A12 |
 | Agent-Delegation Header Field | header | 37 | 25 | Tighten. | - |

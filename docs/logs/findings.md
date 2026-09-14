@@ -14,6 +14,52 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-09-14 — Abstract and Introduction written from the user's notes; Motivation cut
+
+**EVIDENCE**
+
+1. The user wrote the Abstract and Introduction notes in their own voice (plan rule 1) and asked: "fix wrong claims, missing claims, reword to fit, reshape into paras or bullets as you see fit". The notes, verbatim:
+
+> hamr abstract>
+> this is a complementary to RFC9421 to give personhood to agents who need to take actions on the web on behalf of its humans, for digital accountability, and offering revokable paths and ways for API providers to trust agents.
+>
+> how: this comes with 2 layers, first personhood proof http header that carries a chain of links This can happen through telecom CAMARA emerging APIs assuming a voice+data line with tenue > 2 years and simswap false < 90 days is human or scan of nfc passport/national id that is ageMin > 18 or depending on the service. second is applying chmod to APIs by adding rwx layer to it through an external mechanical harness and a tool that detects APIs and assign a floor and detect what each rwx per API call with good accuracy towards most used APIs 78% and tighter assignment towards no evidence 16% and leaks of 4 percent that is already tighter and that is the long tail. tool is meant to accelerate API chmod adoption by giving a headstart of 78% to customers and API providers as explained in details
+>
+> each link can only narrow: scope, floors and expiry. there are two modes of rwx(open counts)/rw+2x+1(assigned w and x count) where in A2A the delegated agent can inherit tighter scope but not bigger i.e. original rwx > delegated rw+1x+1 as seen that delegated agent has been assigned w+1 and x+1
+>
+> floors about the personhood in either telecom/camara or id scan is PII protected by default that its boolean true/false and minAge can be sat by provider in case AV or age requirements are present and expiry to ensure that personhood isnt overused/misued
+>
+> hamr Introduction>
+>
+> problem we have now are two folds, accountability for dangerous operations by AI agents and personhood behind automation, what is happening most of the time now is complete anti-bot detection going against a torrent of the internet floor that is changing/moving under our feet and regulations/standards on how to fix it is not going fast enough or lagging behind, and what we have growing is agent does the 90% flow and humans bless the last 10% like captcha or js render that gets missed by automation web browsing, etc
+>
+> a person wants to SEARCH for a flight SFO > LAX red eye under $400 and it starts querying APIs it needs to use and assume it finds webmcp that it knows which apis are useable on this website and as llms are probalistic it may go and book the flight and come back with reasoning that it was proactive or read that it could be easily cancelled and was the only one at this pricepoint and can be cancelled within 24 hrs, and you call the airlines and then they say oh, we can't refund it was booked by you and you verified, even though you had a rubric judge as well but that didn't fire for some reason. goal is that a probalistic llm can't only be trusted to follow but should also be mechanically bound by rules hence the rwx that sits outside it based on bareloop experiment, llm can't author its own arbiter and it sits outside it. what we are solving is we are giving human personhood auth that is bound to expiry date and appling chmode to APIs so that there will be no more guesses and a tighter control over probalistic behavior of llms when given broader and growing body of autonomy online to govern and secure, and trace and audit its actions
+>
+> the rwxmap solves 78% of the problem right now and have 18% no evidence with 4% leaks that are tighter. a good promising shape replacing hand audit and choice paralaysis of how to assign rwx and how to decide each of average 220 APIs per API provider taking usual shape, safe at most used APIs 80% API usage comes from 20% of APIs and tight on traditional long tail problem no evidence+ leaks. that gives customers a mechanical checks and chmod that could be delegated to agents doing things on behalf of humans that they can sign/vouch for and for api providers a head start solving 78% of categorizing their apis until it becomes the norm to use which either way now or later could be used to feed mcphints 4 layers of control (destructive, readonly, complete the list)
+>
+> what is not
+> - chmode full proof if signed by customers
+> - not unique personhood but a definte proof of human behind, other controls limitations from camara/passport could further limit the probabiluty of over use or mandate expiry so both origin/destinatio can work to add more work to this to limit expontential N of using same id over many flows. no proof of one human per agent
+> - no unique identity scheme is intentional for privacy but there was a proposal thrugh zkagent to have partial generated id per unique passport/national id to give api providers ability to control, combat fraud and malicious activity as needed
+
+2. Checked live by the main session on 2026-09-14 before drafting: rwxmap corpus is 5465 calls from 332 vendors (`rwxmap/docs/product/prd.md`); "220" is the size of rwxmap's hold-out 2 test set (`rwxmap/docs/logs/gate-and-m0-results.md`), not an average per provider; rwxmap's learnings record (`docs/logs/learnings.md`, 2026-09-10) cites Treblle "Anatomy of an API 2023" (average 22 endpoints per API) and estimates the top 20% of endpoints at roughly 50-70% of calls, not 80%, from a borrowed web-traffic alpha; rwxmap figures 78.4 / 4.2 / 17.5 are now produced by committed code (rwxmap step 4 `4ace092`, `run-proof/flow.md`; head `c5b49f0`); rwxmap, zkagent and 8een repos are public (`gh api`); zkagent README: v1 is never zero-knowledge, Mode A anonymous, Mode B adds a per-site tag no other site can link; MCP latest specification is 2026-07-28 and its schema still defines readOnlyHint, destructiveHint, idempotentHint, openWorldHint, with annotations untrusted unless from trusted servers.
+
+**DECISION**
+
+1. The Abstract (20 lines) and the Introduction (148 lines) are the user's notes, reworded and reshaped by the main session, approved by the user ("approved") and committed on "commit". Introduction shape: problem, flight example, gap, "This document adds four things" (chain; floor on who is behind the agent; floor on what the agent may do; who says what class a call has), "This document does not" (five items).
+2. The flight example (SFO to LAX red-eye search that ends in a booking) replaces the car-rental example the plan said to keep; the user's choice.
+3. The Motivation section is cut (plan: merge into Introduction). Its two points, check every link and never return the raw value, are carried by the Introduction bullets. Its one xref, in the changes-since-00 appendix, became plain text "the Motivation section".
+4. Claims corrected from the notes, with reasons: "personhood" / "definite proof of human" -> an accountable person or account; a SIM line is not a principal root and a document does not bind the presenter (Security, Appendix A). "revokable paths" -> the draft defines no revocation. "78% towards most used APIs" and "long tail" -> not measured (rwx H3). "16%" / "18% no evidence" -> 17.5% tighter than needed ("no evidence" is a different flag). "leaks ... that are already tighter" -> leaks are the looser class. "220 APIs per provider" and "80% usage from 20% of APIs" -> not supported, dropped. "ageMin > 18" -> at least 18. "two modes", "rw+1x+1" -> counts are optional per class, written "r+1w+1x" to match the draft's "rw+2x". "expiry to ensure personhood isnt overused" -> expiry limits how long a yes can be used. zkagent is not called zero-knowledge.
+5. Dropped as unsourced or undefined in the draft: "trace and audit", "regulations lagging", "90% flow / 10%", "exponential N", "webmcp" (no reference). The bareloop point is kept as "the check has to sit outside the model" with a pointer to Verifier Placement; bareloop stays cited in Appendix A.
+6. Added because the draft requires them: signed refusal, nonce and expiry binding, the issuer query log, per-verifier counts, widening as a separate operation, POST defaulting to x.
+7. Three informative references added: RWXMAP (github.com/hamr0/rwxmap), ZKAGENT (github.com/hamr0/zkagent), MCP (specification 2026-07-28). 8een is not added here because this text does not cite it.
+8. rwxmap's shape is fixed. The user, verbatim: "session rwx has the shape fixated so, we got the core covered and won't change from what we said". The figures the Introduction and Publication cite stand.
+9. Open: Implementation Status is the Introduction's pointer for the rwxmap figures but does not carry them yet; it gets them, pinned to rwxmap's committed code, in its own rewrite. Two peer-repo metadata items were flagged to the user, not fixed here: rwxmap's GitHub description says "with a confidence" and "Emits MCP tool-annotation hints" (rwx: no confidence score, no hints emitted yet); zkagent's says "Pre-development" while its README describes v0.7.1.
+
+Source: user messages, 2026-09-14.
+
+---
+
 ## 2026-09-14 — Security Considerations rewritten: three budgets, two menu signers, GET limit
 
 **DECISION**
