@@ -14,6 +14,29 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-09-14 — Implementation Status rewritten: PoC suites, four gaps, rwxmap figures
+
+**EVIDENCE**
+
+1. PoC suites run by the main session on 2026-09-14 at `3c566e8`, all exit 0: `camara/v2/poc` m1 20/20 and m1-jws 94/94 (114 attestation cases); `ietf/v3/poc` m3-check 26/26 (floor comparison) and m7-check 43/43 (action classes). The old text said 40 action-class cases.
+2. rwxmap at commit `56b3310` (2026-09-14), re-run from `git archive 56b3310` into a scratch copy: exit 0, all pins hold, `flow.csv` byte-identical, `flow.md` identical except the run date. Over 5465 calls from 332 vendors, each vendor left out in turn: right class 4282 (78.4%), tighter 955 (17.5%), looser 228 (4.2%). Of the 228 looser calls, 17 are GET calls kept at r by the method default, and 179 are among the 1998 calls rwxmap marks for a person to check (rwxmap `dc01be0`). rwx had predicted 2441 / 192 before commit.
+3. rwxmap truth labels: hold-outs 1-5 read blind by five Sonnet agents; exams 1-3 by labelling agents; exam 4 by mid-tier model agents; the CAMARA set by agents' raw read plus orchestrator rulings. No truth label was written by a person. rwxmap's gate text says "hand-read"; flagged to the user, not fixed here (peer repo).
+4. The PoC code still carries -01 rules: `ietf/v3/poc` m3 uses the -01 axis names, including partialPolicy (case 25); m7 case 16 "omitted writeBudget -> effective 0" and case 14 "r never spends"; `m7-actionclass.mjs` classes PATCH as x.
+5. Main-session checks of the section before approval: all 17 elements match the approved text word for word (whitespace-normalised compare); xmllint exit 0; zero non-ASCII characters; every xref resolves (whitespace-tolerant parse); the file outside the section is identical to `3c566e8`; the section is 77 lines against a target of 45.
+
+**DECISION**
+
+1. Implementation Status is rewritten and approved by the user ("approve") and committed on "commit". Shape: RFC 7942 intro; the justabit PoC and the three areas its suites test; four ways the code has not caught up with -02 (-01 axis names, one shared writeBudget where no number means zero, PATCH at x, no end-to-end run of the Verification steps); what is not implemented (RFC 9421 and HTTP transport, the Agent-Delegation header, chains of more than two links, the agent identifier); rwxmap's three steps, that it signs nothing and emits no MCP tool annotations yet; the result table pinned to rwxmap `56b3310`; the limits.
+2. The figures carry three limits in the text: the rules were tuned on the same calls and there is no clean-test figure; the truth labels were written by language-model agents, not people; the goal (about 80% / 20% / 1-2%) is stated apart from the measured figures, and the measured 4.2% is above it.
+3. The section stays at 77 lines against a target of 45. The table and its limits take most of the extra lines. Length is left to the page-count check.
+4. "5465 labelled calls" stays as written in the Introduction and Publication (option 1, the user's choice). Reason: the Introduction points to Implementation Status, which now states that the labels came from models. Not chosen: option 2, "5465 model-labelled calls" in both.
+5. The plan row's earlier pin `7ee981c` and its "no pinned numbers" instruction are superseded: the user allowed the table, and the pin is now `56b3310`, where committed code produces the figures.
+6. Open: the PoC catch-up (axis names, three budgets, no number means no limit, PATCH at w, end-to-end Verification) is a separate module that needs a user go and a user validation run. Test Vectors V10/V11 still say writeBudget.
+
+Source: user message, 2026-09-14: "cont from here, approve, commit option 1".
+
+---
+
 ## 2026-09-14 — Abstract and Introduction written from the user's notes; Motivation cut
 
 **EVIDENCE**

@@ -1413,43 +1413,79 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
     <section anchor="implementation-status" numbered="true" toc="default">
       <name>Implementation Status</name>
       <t>
-        This section records the status of a known implementation of this
-        profile, in accordance with <xref target="RFC7942"/>. The
-        information provided is believed to be accurate at the time of
-        writing, has not been independently verified, and does not
-        constitute an endorsement of this profile by any party. The
-        provided implementation is a single-author, open-source
-        proof-of-concept, written in zero-dependency Node.js and
-        available at
-        <eref target="https://github.com/hamr0/justabit"/>. It has not
-        undergone external review and has not been adopted by any
-        organization; no Attestation Issuer has reviewed or validated
-        this profile.
+        This section records the status of known implementations of
+        this profile, per <xref target="RFC7942"/>. The information
+        is believed to be accurate at the time of writing, has not
+        been independently verified, and is not an endorsement of
+        this profile by any party. Both implementations below are
+        single-author and open source. Neither has had external
+        review or been adopted by any organization, and no
+        Attestation Issuer has reviewed or validated this profile.
       </t>
       <t>
-        The following elements of this profile are implemented and
-        exercised by automated tests in that proof-of-concept:
+        <strong>justabit proof-of-concept.</strong> A
+        zero-dependency Node.js proof-of-concept is available at
+        <eref target="https://github.com/hamr0/justabit"/>. Its
+        suites passed on 2026-09-14, checked by exit code. They
+        cover:
       </t>
       <ul spacing="normal">
-        <li>the attestation object and exact-bytes Ed25519 signature verification described in <xref target="attestation"/>;</li>
-        <li>duplicate-top-level-key rejection;</li>
-        <li>nonce binding, as distinct from replay protection;</li>
-        <li>expiry enforcement, including the missing/non-numeric-expiry-is-expired rule;</li>
-        <li>the signed-refusal shape of <xref target="refusal"/> and its independent verification path;</li>
-        <li>the closed floor axis set of <xref target="floors"/>, the duration grammar of <xref target="duration-grammar"/>, and the monotone tightening comparison of <xref target="floors"/>;</li>
-        <li>the actionClass and classSource classification and admission rules of <xref target="action-class"/>, exercised by 40 automated cases in the proof-of-concept: the classification procedure; the deterministic path-template rule for matching menu operation keys, per <xref target="declared-menu"/>; and the binding of a menu's issuer to the request's target origin that <xref target="declared-menu"/> requires.</li>
-        <li>the writeBudget ledger of <xref target="write-budget"/>: reserve-then-decrement admission against a stateful, per-chain count, and an actionClass r request never spending against it. This shares the same proof-of-concept and the same case count as the previous bullet, and includes the chain identifier derived by the verifier as the SHA-256 digest of L(0)'s signature value, per <xref target="write-budget-chain-identifier"/>, rather than taken from a caller-supplied request field.</li>
-        <li>the enforcement-boundary role, per-path boundary identification, and closure/bypass-test requirements of <xref target="action-class-verifier-placement"/>, exercised by three further cases added to the same proof-of-concept: a positive control in which a single guarded path refuses an over-floor request and the protected effect never runs; a negative control in which an unguarded bypass path completes the same effect a guarded path refused, demonstrating a closure failure; and a case in which an advisory-only classifier observes and correctly identifies an over-floor request without admitting or refusing it, so the effect still completes, distinguishing observation from admission.</li>
+        <li>the attestation core, in 114 cases in <tt>camara/v2/poc</tt>: Ed25519 signatures with a pinned algorithm, nonce binding, expiry, rejection of a raw value next to the result, duplicate top-level key rejection, and the signed refusal (<xref target="attestation"/>, <xref target="refusal"/>);</li>
+        <li>floor comparison, in 26 cases in <tt>ietf/v3/poc</tt>: a closed axis set, the duration grammar, and tightening only (<xref target="floors"/>);</li>
+        <li>action classes, in 43 cases in <tt>ietf/v3/poc</tt>: classification by method default or by a signed menu, path-template matching and origin binding of menus, tightening of actionClass and classSource, the two omitted-axis cases, a budget count keyed by the chain identifier the verifier derives, and three Verifier Placement cases, one of them a bypass path as a negative control (<xref target="action-class"/>, <xref target="write-budget-chain-identifier"/>).</li>
       </ul>
       <t>
-        The following elements of this profile are NOT implemented in the
-        proof-of-concept, and this is stated here without qualification:
+        The code has not caught up with this revision in four ways,
+        and these parts of the text are not tested:
       </t>
       <ul spacing="normal">
-        <li>RFC 9421 HTTP Message Signature presentment is not implemented; the proof-of-concept has no HTTP transport layer between the parties at all;</li>
-        <li>the multi-hop delegation chain of <xref target="attenuation"/> is not implemented; the proof-of-concept exercises only a two-party exchange between one Delegator and one Attestation Issuer;</li>
-        <li>the per-Relying-Service unlinkable agent identifier of <xref target="agent-identifier"/> is not implemented.</li>
+        <li>the floor code uses the -01 axis names, including partialPolicy, not the axes of <xref target="floors"/>;</li>
+        <li>it has one writeBudget shared by w and x calls, where no number means zero and r calls never count, not the three budgets of <xref target="write-budget"/>, where no number means no limit;</li>
+        <li>its method default classes PATCH as x, not w (<xref target="classification"/>);</li>
+        <li>it does not run the steps of <xref target="verification"/> end to end.</li>
       </ul>
+      <t>
+        It does not implement RFC 9421 message signatures or any
+        HTTP transport, the Agent-Delegation header, a delegation
+        chain of more than two links, or the agent identifier of
+        <xref target="agent-identifier"/>.
+      </t>
+      <t>
+        <strong>rwxmap.</strong> rwxmap <xref target="RWXMAP"/> is a
+        work-in-progress tool that drafts a menu from OpenAPI
+        descriptions with fixed rules and no language model. Step 1
+        classes GET, HEAD, and OPTIONS calls, and POST calls whose
+        lead verb is a read verb, as r. Step 2 starts PUT, DELETE,
+        and PATCH calls at w and raises a call to x when its verb
+        acts on something live or a noun names another party; it
+        marks a w call that no rule vouched for, so a person can
+        check it. Step 3 leaves every other POST call at x. rwxmap
+        signs nothing and does not yet produce MCP tool annotations.
+        At rwxmap commit 56b3310, run on 2026-09-14 and reproduced
+        from a clean copy, it gave these results over 5465 calls
+        from 332 vendors, with each vendor left out in turn:
+      </t>
+      <table>
+        <thead>
+          <tr><th>Result against the truth labels</th><th>Calls</th><th>Share</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>right class</td><td>4282</td><td>78.4%</td></tr>
+          <tr><td>tighter class than needed</td><td>955</td><td>17.5%</td></tr>
+          <tr><td>looser class than needed (leak)</td><td>228</td><td>4.2%</td></tr>
+        </tbody>
+      </table>
+      <t>
+        Of the 228 leaks, 17 are GET calls that the method default
+        keeps at r, and 179 are among the 1998 calls rwxmap marked
+        for a person to check. Three limits apply to these figures.
+        The rules were tuned on these same calls, so they are not a
+        clean test, and there is no clean-test figure today. The
+        truth labels were written by language-model agents that read
+        each call blind, not by people. The tool's goal is about 80%
+        right, 20% tighter, and 1-2% looser; the measured 4.2% is
+        above that goal.
+      </t>
     </section>
 
     <section anchor="security" numbered="true" toc="default">
