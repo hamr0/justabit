@@ -14,6 +14,20 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-09-14 — Security Considerations rewritten: three budgets, two menu signers, GET limit
+
+**DECISION**
+
+1. Security Considerations (anchor `security`) is rewritten as ten short paragraphs, 99 -> 89 source lines (plan target 65, missed by 24; every limit kept and one added). Kept: lazy verification, nonce binding is not replay protection, cost-based floors do not create uniqueness, no revocation, trust source is a central point (still cites step 5 of Verification), uniform rejection (MUST NOT kept), Attestation Issuer query log.
+2. The chain-identifier paragraph now names the three budgets (rBudget, wBudget, xBudget) instead of a single write budget; V11 is still cited because it tests that the verifier derives the chain identifier itself. Per-verifier counting stays a stated limit.
+3. The menu paragraph no longer says "owner-signed": a menu can be signed by the API Provider or by the party that runs the agent; the latter is that party's responsibility, limits only the verifiers that party configures, and never makes an API Provider's verifier admit more.
+4. New paragraph, the GET limit the plan asked for, with no number (the "17" was dropped on 2026-09-14): the method default classes every GET, HEAD and OPTIONS call as r; some GET calls change something, contrary to RFC 9110's safe-method rule; a link limited to r admits them unless a declared menu gives a higher class.
+5. The main session wrote the paragraph text; a Sonnet agent only chose line breaks; the main session compared all ten paragraphs word for word (whitespace-normalised) against the brief: all match; xmllint exit 0; no non-ASCII; no line over 72 columns. The Test Vectors text still says "writeBudget" for V10/V11; that is fixed in its own section. The user approved: "go" and then "approved".
+
+Source: user messages, 2026-09-14.
+
+---
+
 ## 2026-09-14 — Verification Procedure: three steps aligned with the rewritten sections
 
 **DECISION**

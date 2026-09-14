@@ -1390,101 +1390,90 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
     <section anchor="security" numbered="true" toc="default">
       <name>Security Considerations</name>
       <t>
-        <strong>Lazy verification is the primary risk this profile is designed
-        against.</strong> A verifier that checks only the final link of a
-        delegation chain, rather than every link per
-        <xref target="verification"/>, defeats the entire mechanism: an
-        intermediate Delegate can present a leaf link that is internally
-        well-formed while the chain that produced it silently widened
-        scope, loosened a floor, or extended an expiry at an earlier hop.
-        Conformance to this profile requires whole-chain verification;
-        there is no partial-conformance mode that checks only the leaf.
+        <strong>A verifier that checks only the last link defeats
+        this profile.</strong> A Delegate can present a well-formed
+        last link while an earlier link widened scope, loosened a
+        floor, or extended an expiry. Conformance requires every
+        step of <xref target="verification"/> for every link; there
+        is no mode that checks only the last link.
       </t>
       <t>
-        <strong>Nonce echo does not prevent replay.</strong> As stated in
-        <xref target="binding-not-replay"/>, a verifier that treats nonce
-        presence as sufficient replay protection can be presented with
-        the same attestation more than once within its expiry window. A
-        conforming deployment needs its own replay defense, such as
-        tracking consumed nonces within their validity window; this
-        document does not supply that defense.
+        <strong>Nonce binding does not stop replay.</strong> Per
+        <xref target="binding-not-replay"/>, the same attestation
+        verifies again until it expires. A deployment needs its own
+        replay defense, such as tracking used nonces; this document
+        does not supply one.
       </t>
       <t>
-        <strong>Cost-based floors price resets; they do not create
-        uniqueness.</strong> A floor expressed in terms of tenure or
-        credential age raises the cost of obtaining a fresh credential
-        that satisfies it, but it does not establish that the underlying
-        subscription or account is held by a unique human, or that one
-        subject cannot back multiple agents. A deployment that needs a
-        uniqueness guarantee needs a mechanism this profile does not
-        provide.
+        <strong>Cost-based floors do not create uniqueness.</strong>
+        A tenure or credential-age floor makes a fresh qualifying
+        credential slower and more costly to get. It does not show
+        that a unique person holds the account, or that one subject
+        does not back many agents. A deployment that needs
+        uniqueness needs a mechanism this profile does not provide.
       </t>
       <t>
-        <strong>This profile defines no revocation mechanism.</strong> Once an
-        attestation or a delegation link is issued, this profile provides
-        no way to invalidate it before its stated expiry. The only
-        mitigation this profile offers is short expiry; a deployment's
-        exposure window is bounded by how short its issuers set expiries,
-        not by any revocation capability.
+        <strong>This profile defines no revocation.</strong> Once
+        issued, an attestation or a link stays valid until its
+        expiry. The only mitigation this profile offers is a short
+        expiry.
       </t>
       <t>
-        <strong>Key distribution is a centralization point.</strong> Verification
-        of the root attestation depends on a trust source that resolves
-        an Attestation Issuer's public key, per step 5 of
-        <xref target="verification"/>. That trust source is, by
-        construction, a point every verifier in a deployment must trust
-        and a point whose compromise or unavailability affects every
-        verification that depends on it.
+        <strong>The trust source is a central point.</strong> Every
+        verifier depends on the trust source that gives it an
+        Attestation Issuer's public key, per step 5 of
+        <xref target="verification"/>. A compromise or outage of
+        that trust source affects every verification that depends
+        on it.
       </t>
       <t>
-        <strong>Rejection MUST be uniform.</strong> As stated in
+        <strong>Rejection MUST be uniform.</strong> Per
         <xref target="verification"/>, a verifier MUST NOT return
-        different, distinguishable outcomes for different verification
-        failures (an expired link versus a bad signature versus a
-        loosened floor versus a depth overflow). A verifier that leaks
-        which step failed hands an unauthenticated party an oracle it can
-        use to probe the boundaries of a valid chain without ever
-        constructing one.
+        outcomes that differ by which check failed, such as an
+        expired link, a bad signature, a loosened floor, or a chain
+        that is too deep. A verifier that shows which check failed
+        lets an unauthenticated party probe the edges of a valid
+        chain without ever holding one.
       </t>
       <t>
-        <strong>An Attestation Issuer's query log is a residual disclosure
-        channel even though the verifier learns only a boolean.</strong> This
-        is restated here as a security consideration, not only a privacy
-        one, because a party able to observe or compel disclosure of that
-        query log gains information the wire protocol itself was designed
-        to withhold.
+        <strong>The Attestation Issuer's query log is still a
+        disclosure channel.</strong> The verifier learns only a
+        yes, a no, or a refusal, but the issuer sees every query. A
+        party that can read or compel disclosure of that log learns
+        what the wire protocol withholds.
       </t>
       <t>
-        <strong>An unforgeable chain identifier is what makes a write
-        budget a cap rather than a suggestion.</strong> The derivation of
-        <xref target="write-budget-chain-identifier"/>, from L(0)'s own
-        signature rather than from any value the request supplies, is
-        what prevents the presenter of a chain from choosing its own
-        identifier and thereby choosing its own remaining count. A
-        verifier that accepts a presenter-supplied chain identifier
-        converts the hard cap of <xref target="write-budget"/> into
-        something the presenter can reset at will, simply by supplying a
-        different value on the next request; <xref target="vectors"/>'s
-        V11 exists to catch exactly that failure. Per-verifier counting,
-        by contrast, per <xref target="write-budget-limits"/>, is a
-        stated limitation of this document, not a defect to be concealed:
-        a deployment that needs a single shared count across verifiers
+        <strong>Budgets hold only if the verifier derives the chain
+        identifier.</strong> Per
+        <xref target="write-budget-chain-identifier"/>, the
+        verifier derives the chain identifier from L(0)'s
+        signature. A verifier that takes the identifier from the
+        request lets the presenter reset rBudget, wBudget, or
+        xBudget by sending a new value on the next request; V11 in
+        <xref target="vectors"/> tests this failure. Counts are
+        held per verifier, per <xref target="write-budget-limits"/>;
+        a deployment that needs one shared count across verifiers
         needs a mechanism this document does not supply.
       </t>
       <t>
-        <strong>A declared menu is an owner-signed downgrade surface.</strong>
-        classSource declared lets the API Provider's menu lower a
-        request's actionClass below its method default, for example
-        declaring a POST as r. The origin-binding rule and the
-        out-of-band key requirement of <xref target="declared-menu"/> are
-        what keep a third party from supplying that downgrade for a
-        resource it does not own: without both checks, a verifier that
-        resolves one key for more than one API Provider could be
-        handed a validly-signed menu for the wrong resource and apply its
-        declared classes to a request it was never meant to cover. A
-        verifier that accepts a menu without checking both the
-        signature and the origin match does not conform to this
-        document.
+        <strong>A declared menu can lower a class.</strong> A menu
+        can declare a call below its method default, for example a
+        POST as r. The origin match and the configured-key rule of
+        <xref target="declared-menu"/> stop a menu signed for one
+        API from being applied to another; a verifier that skips
+        either check does not conform to this document. A menu
+        signed by the party that runs the agent is that party's
+        responsibility: it limits only the verifiers that party
+        configures, and it never makes an API Provider's verifier
+        admit more.
+      </t>
+      <t>
+        <strong>The method default can be too loose for
+        GET.</strong> The method default classes every GET, HEAD,
+        and OPTIONS call as r. Some GET calls change something,
+        contrary to the safe-method rule of
+        <xref target="RFC9110"/>; a link limited to r admits them
+        unless a declared menu gives them a higher class.
       </t>
     </section>
 
