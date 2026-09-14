@@ -955,94 +955,93 @@
     <section anchor="attestation" numbered="true" toc="default">
       <name>Attestation Properties</name>
       <t>
-        This document does not mandate a specific credential format for
-        a floor attestation. A JSON Web Token, a CBOR Object Signing and
-        Encryption (COSE) structure, or another signed data structure MAY
-        be used, provided the resulting object satisfies every property
-        in this section. A conforming attestation, regardless of its
-        encoding, MUST:
+        This document does not mandate a specific credential format. A
+        JSON Web Token, a CBOR Object Signing and Encryption (COSE)
+        structure, or another signed structure MAY be used, if it meets
+        every property in this section. A conforming attestation MUST:
       </t>
       <ol spacing="normal" type="1">
         <li>
           <t>
             be signed by the Attestation Issuer over the exact bytes
-            presented to the verifier. A verifier MUST verify the
+            presented to the verifier. The verifier MUST verify the
             signature over those exact bytes and MUST NOT re-serialize
-            the object before or in place of that verification;
+            the object first, or instead;
           </t>
         </li>
         <li>
           <t>
-            carry the verifier's nonce, echoed back exactly as the
-            verifier supplied it;
+            carry the verifier's nonce, echoed back exactly;
           </t>
         </li>
         <li>
           <t>
-            carry an expiry. A missing expiry, or an expiry that is not a
-            well-formed numeric timestamp, MUST be treated by the
-            verifier as already expired; it MUST NOT be treated as "no
+            carry an expiry. A missing or non-numeric expiry MUST be
+            treated as already expired; it MUST NOT be treated as "no
             deadline";
           </t>
         </li>
         <li>
           <t>
-            carry a boolean result of the floor evaluation and MUST NOT
-            carry the underlying value that produced that result. An
-            attestation that discloses a raw date of birth, a raw tenure
-            count, a raw account balance, or any other unrounded
-            attribute in place of, or in addition to, the boolean result
-            does not conform to this profile;
+            carry only a yes/no result of the floor evaluation, and MUST
+            NOT carry the value behind that result. An attestation that
+            carries a raw value, such as a date of birth or a tenure
+            count, instead of or next to the result, does not conform to
+            this profile;
           </t>
         </li>
         <li>
           <t>
-            be rejected by the verifier if its serialization contains a
-            duplicate top-level key. A parser that resolves duplicate
-            keys by a first-wins or last-wins rule is exposed to an
-            ambiguity where the issuer and the verifier can disagree
-            about which value was signed; this profile closes that
-            ambiguity by requiring detection and rejection rather than a
-            resolution rule.
+            be rejected by the verifier if its serialization has a
+            duplicate top-level key. A first-wins or last-wins rule for
+            duplicate keys lets the issuer and the verifier disagree
+            about which value was signed; this profile requires
+            rejection instead of a resolution rule.
           </t>
         </li>
       </ol>
       <section anchor="refusal" numbered="true" toc="default">
         <name>Signed Refusal</name>
         <t>
-          Where an Attestation Issuer declines to attest that a subject
-          meets a floor, it MUST return a signed refusal rather than
-          silence, an unsigned error, or a bare protocol-level failure. A
-          signed refusal MUST itself be signed by the Attestation Issuer,
-          MUST carry the same nonce the verifier supplied for the
-          corresponding request, and MUST carry an expiry, using the same
-          rules as an accepted attestation. This prevents a refusal from
-          being forged in the Attestation Issuer's name and prevents a
-          genuine refusal from being stripped from the response without
-          detection.
+          Where an Attestation Issuer cannot or will not answer a floor,
+          it MUST return a signed refusal, not silence,
+          an unsigned error, or a bare protocol failure. The refusal
+          MUST be signed by the Attestation Issuer, MUST carry the
+          verifier's nonce, and MUST carry an expiry, under the same
+          rules as an attestation, so it cannot be forged in the
+          issuer's name or stripped without detection. A verifier MUST
+          verify a refusal along a path independent of the one it uses
+          for an accepted attestation, so a defect in one path does not
+          admit a forged instance of the other.
         </t>
         <t>
-          A verifier MUST verify a signed refusal along a verification
-          path independent of the path used to verify an accepted
-          attestation, so that a defect in one path does not silently
-          admit a forged instance of the other.
+          If a floor names an axis the Attestation Issuer cannot
+          answer, the issuer MUST return a signed refusal and MUST NOT
+          skip that axis and answer on the rest; for example, a telecom
+          issuer cannot answer ageMin, and an identity-document issuer
+          cannot answer tenureMin. If the issuer holds incomplete data
+          for an axis, it MUST return a signed refusal and MUST NOT
+          round the answer to yes or no.
+        </t>
+        <t>
+          A signed yes, a signed no, and a signed refusal are three
+          different results: a signed no is an attestation, under item
+          4 above, whose result is false; a signed refusal means the
+          issuer cannot or will not answer at all. A verifier MUST NOT
+          read a signed refusal as a signed no.
         </t>
       </section>
       <section anchor="binding-not-replay" numbered="true" toc="default">
         <name>Nonce Binding Is Not Replay Protection</name>
         <t>
-          Echoing the verifier's nonce in a signed attestation or refusal
-          binds that response to the specific request that carried the
-          nonce; it does not, by itself, prevent that same response from
-          being presented again. The same response, re-presented against
-          the same expected nonce, verifies again for as long as the
-          response's own expiry has not passed. Preventing such a
-          replay (for example, by tracking nonces already consumed within
-          their validity window) is a separate responsibility that falls
-          to the verifier and is outside the scope of this document. This
-          document does not claim that nonce binding, by itself, provides
-          replay protection, and implementers MUST NOT assume that it
-          does.
+          The nonce ties a signed response to the request that carried
+          it; it does not, by itself, stop that same response from being
+          presented again. The same response verifies again for as long
+          as it has not expired. Stopping replay, for example by
+          tracking nonces already used within their validity window, is
+          the verifier's own job and is outside the scope of this
+          document. Implementers MUST NOT assume that nonce binding, by
+          itself, gives replay protection.
         </t>
       </section>
     </section>

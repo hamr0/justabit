@@ -14,6 +14,38 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-09-14 — Attestation Properties approved; rwx asked to validate rwxmap's role
+
+**DECISION**
+
+1. The user agreed to the rewritten Attestation Properties section (the
+   five MUSTs kept; two refusal rules added: an issuer that cannot answer
+   an axis refuses and never skips it, and an issuer with incomplete data
+   refuses and never rounds; a signed yes, a signed no and a signed
+   refusal are three different results). The user: "agree in
+   principle". The main session committed it, because the section does
+   not depend on the rwx check below.
+2. One wording fix at commit: "does not attest that a subject meets a
+   floor" became "cannot or will not answer a floor". The rewrite had
+   changed the posted -01 wording "declines to attest", which contradicted
+   the section's own rule that a signed no is an attestation with a false
+   result. The fix restores the -01 meaning. The main session checked the
+   posted -01 text (`ietf/v2/docs/draft-hamr-oauth-agent-delegation-01.xml`,
+   Signed Refusal and item 4) before deciding this needed no user choice.
+3. The user asked the main session to "talk to session rwx that it has
+   the same understanding of it's deliverables downstream". A validation
+   request was sent to the peer session rwx on 2026-09-14 with eight
+   hypotheses (H1 class definitions by effect; H2 method default equals
+   rwxmap's floor, plus "any other method: x"; H3 the generic tool
+   description; H4 the declared-menu format and who signs it, with the
+   question whether rwxmap rows carry method and OpenAPI path template;
+   H5 the one-flow table to cite and which commit to pin; H6 the
+   user-supplied figures 1972 / 49-0 / 803-211 / 175 of 211; H7 MCP hint
+   status; H8 any over-claim). Validation only, no edits requested.
+   Awaiting the reply; record it as a dated entry when it arrives.
+
+Source: user message, 2026-09-14.
+
 ## 2026-09-14 — Budgets and the API Provider round approved
 
 **DECISION**
