@@ -14,6 +14,109 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-09-14 — Action Class approved; rwxmap's role and measured results
+
+**DECISION**
+
+1. The user approved the rewritten Action Class Floors section, with
+   Verifier Placement unchanged. The user: "approve, x is fine as is".
+   This confirms "POST, and any other method, default to x".
+2. rwxmap's role, in the user's words: "on the menu owner signing or
+   checking as optional, the goal is to use rwxmap to quickly classify
+   certain apis with good confidence on most used 80% 20% overtight when
+   it doesn't know and 1-2% leaks towards the long tail. rwxmap is a
+   place to start the conversation with what's possible with adoption
+   this could be a standard fetch operation for agentic automation where
+   owners pubish their own list using rwxmap to get a headstart and
+   manually correct wrong records and publish it either for mcp/mcphints
+   production and use for agentic automation".
+3. The "17 of 550" GET number is dropped from Security Considerations;
+   the limit itself (the method default grades every GET as r, and some
+   GET calls change something) stays. The user: "#2 GET number 17 are
+   the leaks? drop it". The 17 are leaks: GET calls that the r starting
+   class admits although they are really w or x (rwxmap learnings, by
+   method: GET 17 leaks, 0 over-tight).
+4. Implementation Status may use the one-flow table below, dated and
+   labelled work in progress. The user: "you can use this B". This
+   replaces the earlier "no pinned numbers" instruction for that
+   section only. The measured figures and the user's goal (about 80%
+   right, 20% over-tight, 1-2% leaks) must be stated separately; the
+   goal is never presented as a result. Today the measured leak rate
+   (4.2%) is above the goal (1-2%).
+
+**OPEN**
+
+- Owner signing. The draft's declared classSource requires a menu the
+  Resource Owner signs; without a valid signature the verifier uses the
+  method default. The user called owner signing or checking "optional".
+  The main session's proposed reading, to confirm with the user: an
+  unsigned list is fine as advice (for example MCP hints for an agent),
+  but only a signed menu can change the class a verifier uses, because
+  an unsigned list lets anyone lower a class. Until confirmed, the
+  Publication paragraph stays as approved.
+
+**EVIDENCE**
+
+- The table the user supplied, verbatim:
+  step 1 said r: claims 614, right 597, wrong 4 are w, 13 are x.
+  step 2 said w: claims 3209, right 2973, wrong 25 are r, 211 are x (leaks).
+  step 3 left as x: claims 1642, right 712, wrong 24 are r, 906 are w (false alarms).
+  Final: exact 78.4%. Leaks 228 (4.2%). Over-tight 955 (17.5%).
+- Source located by the main session: rwxmap `docs/logs/learnings.md`,
+  "One-flow ladder and the \"POST that is w\" step measured (2026-09-13)",
+  variant (2), at rwxmap commit `a298aa2` (file unchanged against that
+  commit). Same figures; by method GET 17/0, POST 0/127, PUT 93/305,
+  DELETE 76/424, PATCH 42/99 (leaks/over-tight). That record says the
+  run used scratch scripts and "no code changed", so the figures are
+  not yet produced by rwxmap's committed pipeline.
+- Arithmetic checked by the main session: 614 + 3209 + 1642 = 5465 rows;
+  597 + 2973 + 712 = 4282 right (78.4%); leaks 4 + 13 + 211 = 228 (4.2%);
+  over-tight 25 + 24 + 906 = 955 (17.5%).
+
+Source: user message, 2026-09-14.
+
+## 2026-09-14 — Action Class rewrite: method default taken from rwxmap's floor
+
+**DECISION**
+
+1. Method default from rwxmap's floor: GET/HEAD/OPTIONS r, PUT/DELETE/PATCH
+   w, POST x. PATCH was x in -01 and the -02 working text; it moves to w.
+   The user, verbatim: "well, on methods they vary, but these are our
+   assumptions for rwxmap and how we drew the floor so you can reword this
+   and/or infer from it 1. **Step 1, r.** Start every GET / HEAD / OPTIONS
+   row at r. Then look at POST: a POST whose lead verb is a read verb is r
+   too. 2. **Step 2, w.** Start every PUT / DELETE / PATCH row at w. Then
+   look at the POST rows step 1 left behind: a POST with a modify verb
+   plus a yours noun is w. (Measured 2026-09-13: 10 right, 4 wrong on 14
+   rows; the verb alone is a coin flip, 77 to 69. Not adopted today — POST
+   leftover stays x. See learnings, "One-flow ladder".) 3. **Step 3, x.**
+   Not a step of its own — x is the byproduct: every POST / PUT / DELETE /
+   PATCH row that step 1 and step 2 did not claim. Step 2 gives a w row up
+   (a live verb or a not-yours noun fires) and it lands here. #2 rBudget
+   count calls"
+2. The verb and noun steps read operation text, which a verifier does not
+   have; so they stay outside the verifier. INFERRED by the main session
+   from the message above, not stated by the user: a classifier's output
+   helps an owner write a menu and is advice, not a class source (the
+   draft already forbids a verifier from synthesizing a menu). To confirm
+   when the user reads the section.
+3. "Any other method: x" added as tighter-on-unknown; to confirm with the
+   user.
+4. rBudget counts calls, not data. The user: "#2 rBudget count calls".
+5. The Implementation Status paragraph pointing at the catalogue survey
+   behind the cut Limits subsection is removed. Not a user decision: it
+   follows from F2 (the survey figure is removed), and the paragraph had
+   no other purpose. The rewrite agent correctly stopped instead of
+   rewording it, because its brief both said not to reword it and
+   required zero references to the removed anchor.
+
+**EVIDENCE**
+
+- rwxmap `docs/product/prd.md` at commit `a298aa2` gives the floor table
+  (PUT 85% w / 15% x, DELETE 87% w / 13% x, PATCH 85% w / 14% x, POST 62%
+  x); numbers are not placed in the draft (user decision, rwxmap is work
+  in progress).
+
 ## 2026-09-14 — Floor Axes and IANA text approved
 
 **DECISION**

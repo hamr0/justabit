@@ -613,216 +613,146 @@
     <section anchor="action-class" numbered="true" toc="default">
       <name>Action Class Floors</name>
       <t>
-        This section specifies the semantics of the actionClass and
-        classSource axes registered in <xref target="floors"/>. It
-        answers two separate questions: what is the maximum class of
-        operation a delegation link permits (actionClass), and where a
-        verifier is permitted to obtain a given request's class from
-        (classSource).
+        This section defines actionClass, the highest class of call a
+        link allows, and classSource, where a verifier gets a call's
+        class from.
       </t>
       <section anchor="action-class-values" numbered="true" toc="default">
         <name>actionClass</name>
         <t>
-          actionClass is an ordered enumeration with three values, r, w,
-          and x, ranked r &lt; w &lt; x per the rank comparator of
-          <xref target="floors"/>. A link's actionClass value
-          states the maximum class of operation the agent presenting that
-          link MAY perform; it is not a statement about any single
-          operation, but a ceiling on the whole link. The three values
-          are:
+          actionClass is an ordered list, r, w, and x, ranked
+          r &lt; w &lt; x by the rank comparator of
+          <xref target="floors"/>. A link's actionClass is a ceiling
+          on the whole link, not a statement about one call. The
+          values are defined by effect:
         </t>
         <dl newline="false" spacing="normal">
           <dt>r:</dt>
-          <dd>a read-only operation: one that does not modify state.</dd>
+          <dd>the call changes nothing.</dd>
           <dt>w:</dt>
           <dd>
-            an idempotent write: an operation that modifies state but
-            whose repetition has the same effect as performing it once.
+            the call changes only the caller's own things, such as
+            its own records, settings, or files. Deleting the
+            caller's own thing is w, even if it cannot be undone.
           </dd>
           <dt>x:</dt>
           <dd>
-            a consequential, non-idempotent action: an operation whose
-            repetition is not guaranteed to have the same effect as
-            performing it once.
+            Either of two things is enough. The call reaches beyond
+            the caller: it affects another party or their resource,
+            money, a live session or call, a network path or a
+            device; it sends or publishes to others; or it changes
+            who has access to something shared. Or the call is not
+            repeatable: doing it twice is not the same as doing it
+            once.
           </dd>
         </dl>
         <t>
-          Per the rank comparator, a child link's actionClass rank MUST
-          be less than or equal to its parent's: a child link MUST NOT
-          carry a higher actionClass value than its parent, and
-          tightening on this axis means lowering the value (x to w, w to
-          r, or x to r).
+          Whether a call can be undone is not the test. A child link's
+          actionClass MUST NOT be higher than its parent's.
         </t>
       </section>
       <section anchor="class-source" numbered="true" toc="default">
         <name>classSource</name>
         <t>
-          classSource is an ordered enumeration with two values, ranked
-          method &lt; declared per the rank comparator of
-          <xref target="floors"/>, naming where a verifier is
-          permitted to obtain a request's actionClass. Where no link in
-          the chain constrains classSource, an omitting link's default
-          value is method, per the link-to-published-floor case of the
-          omitted-axis rule of <xref target="floors"/>; method is
-          also the lower-ranked, tighter value of the two, so the default
-          and the tightest value coincide. Where a parent link does
-          constrain classSource, a child link's omission of it is instead
-          the link-to-link case of that same rule, and the chain MUST be
-          rejected rather than defaulted.
-        </t>
-        <dl newline="false" spacing="normal">
-          <dt>method:</dt>
-          <dd>
-            the verifier classifies a request from its HTTP method alone,
-            per <xref target="classification"/>, and does not consult a
-            menu.
-          </dd>
-          <dt>declared:</dt>
-          <dd>
-            the verifier additionally consults the Resource Owner's
-            signed menu (<xref target="declared-menu"/>) and, where that
-            menu verifies and names the operation, uses the menu's
-            declared value in place of the method default.
-          </dd>
-        </dl>
-        <t>
-          method never extends trust to a value asserted by a party other
-          than the verifier itself, while declared extends that trust to
-          whatever the Resource Owner's menu asserts; method is
-          therefore the tighter of the two values, and is ranked lower
-          per <xref target="floors"/>'s ordered set method &lt;
-          declared. Per the rank comparator, a child link's classSource
-          rank MUST be less than or equal to its parent's: a parent that
-          carries method MUST NOT be followed by a child that carries
-          declared, and the only permitted change on this axis is from
-          declared down to method. This is the same comparator, applied
-          in the same direction, as the actionClass axis of
-          <xref target="action-class-values"/>: on both rank axes,
-          tightening lowers the value, with no per-axis exception.
+          classSource is an ordered list, method and declared,
+          ranked method &lt; declared by the rank comparator of
+          <xref target="floors"/>. With method, the verifier uses
+          the HTTP method alone (<xref target="classification"/>).
+          With declared, the verifier also uses the Resource Owner's
+          signed menu (<xref target="declared-menu"/>); where the
+          menu verifies and names the call, its value is used
+          instead of the method default. method trusts no one but
+          the verifier, so it is the tighter value.
         </t>
         <t>
-          The proof-of-concept accompanying this document names these
-          same two values in the opposite written order internally
-          (declared before method in a source-code table), with
-          identical admission semantics to this section; a reader
-          comparing the code against this text should not read that
-          ordering as a disagreement about which value is tighter.
+          A child link's classSource MUST NOT go from method to
+          declared; the only permitted move is declared down to
+          method. Where no link in the chain sets classSource,
+          method applies, the second omitted-axis case of
+          <xref target="floors"/>; where a parent sets it and a
+          child omits it, the chain MUST be rejected, the first
+          case.
         </t>
       </section>
       <section anchor="classification" numbered="true" toc="default">
         <name>Classification</name>
         <t>
-          Where a request's classSource is method, its actionClass is the
-          default associated with its HTTP method: GET, HEAD, and OPTIONS
-          default to r; PUT and DELETE default to w; POST and PATCH
-          default to x. This default tracks the safe and idempotent
-          method properties defined by <xref target="RFC9110"/>: GET,
-          HEAD, and OPTIONS are safe methods, and PUT and DELETE are
-          idempotent methods, in the terms <xref target="RFC9110"/> uses;
-          POST and PATCH are neither.
+          Where classSource is method, the method gives a starting
+          class, not the definition of the class: GET, HEAD, and
+          OPTIONS default to r; PUT, DELETE, and PATCH default to w;
+          POST, and any other method, default to x. This matches how
+          most APIs use HTTP methods, and it can be wrong either way:
+          some PUT, DELETE, or PATCH calls are really x, and some
+          POST calls are really r or w. A GET that changes something
+          breaks the safe-method rule of <xref target="RFC9110"/>.
+          The Resource Owner's declared menu, below, corrects a
+          wrong starting class.
         </t>
         <t>
-          Where a request's classSource is declared, its actionClass is
-          the value the Resource Owner's menu declares for that
-          operation, provided the menu verifies per
-          <xref target="declared-menu"/> and names the operation. On any
-          failure of the menu: the menu is absent, its signature does
-          not verify, the verifier has no key for the claimed owner, or
-          the menu's issuer does not match the request's target as
-          required by <xref target="declared-menu"/>; the verifier MUST
-          fall back to the method default given above. A verifier MUST
-          NOT compute the greater of, or otherwise combine, the method
-          default and a declared value; where a valid, matching menu
-          entry exists, the declared value alone governs, replacing the
-          method default rather than being compared against it.
-        </t>
-        <t>
-          The absence of any menu at all is a defined state, not a fault
-          condition distinct from the failures listed above: it is
-          handled identically to a menu that fails to verify, and the
-          method default applies. A verifier MUST NOT construct or
-          synthesize a menu entry, or a menu, on behalf of a resource
-          owner that has not published one.
+          Where classSource is declared, the class is the value the
+          menu declares, provided it verifies per
+          <xref target="declared-menu"/> and names the call. If the
+          menu is absent, its signature does not verify, the
+          verifier has no key for the claimed owner, or its iss does
+          not match the request's target, the verifier MUST use the
+          method default. A verifier MUST NOT combine or take the
+          greater of the two;
+          a valid, matching menu entry replaces the method default,
+          it is not compared against it. No menu at all is handled
+          the same way as a menu that fails to verify. A verifier
+          MUST NOT construct or synthesize a menu, or a menu entry,
+          for a Resource Owner that has not published one.
         </t>
       </section>
       <section anchor="declared-menu" numbered="true" toc="default">
         <name>The Declared Menu</name>
         <t>
           A declared menu is a JSON Web Signature (JWS)
-          <xref target="RFC7515"/> whose payload is a JSON object with
-          two members:
-        </t>
-        <dl newline="false" spacing="normal">
-          <dt>iss:</dt>
-          <dd>
-            a string carrying the origin of the resource the menu
-            applies to, serialized per <xref target="RFC6454"/>.
-          </dd>
-          <dt>menu:</dt>
-          <dd>
-            a JSON object mapping an operation key to an actionClass
-            value (r, w, or x). An operation key has the form "METHOD
-            path-template", an HTTP method in upper case, one space, and
-            a path using OpenAPI path-template syntax, in which a
-            brace-delimited segment such as {callId} stands for exactly
-            one path segment supplied at request time.
-          </dd>
-        </dl>
-        <t>
-          A verifier matches a concrete request against the operation
-          keys of a menu by the following rule, applied deterministically
-          and without exception: the request's method matches the key's
-          method exactly; the request's path and the key's path-template
-          are split into slash-separated segments and are considered a
-          match only where both have the same number of segments and,
-          for every segment position, either the template segment is a
-          literal that equals the request's segment exactly, or the
-          template segment is a brace-delimited parameter that matches
-          any single non-empty request segment. Where more than one
-          operation key matches the same request under this rule, the key
-          with the greater number of literal (non-parameter) segments
-          governs. A menu MUST NOT contain two operation keys under the
-          same method whose templates both match the same concrete
-          request path with an equal number of literal segments; a
-          verifier that encounters such a tie MUST treat the lookup as a
-          miss rather than choosing between the tied keys by any other
-          means, such as the order the keys happen to appear in the
-          menu's JSON serialization. Where no operation key matches,
-          including where the only matches available are tied in this
-          way, the menu is treated, for that request, the same as a menu
-          that does not name the operation, per
-          <xref target="classification"/>, and the method default
-          applies.
+          <xref target="RFC7515"/> whose payload has two members:
+          iss, the resource's origin, serialized per
+          <xref target="RFC6454"/>; and menu, a JSON object mapping
+          an operation key to r, w, or x. An operation key has the
+          form "METHOD path-template", where a brace-delimited
+          segment such as {callId} stands for exactly one non-empty
+          path segment.
         </t>
         <t>
-          A menu applies only to the resource that issued it. The menu's
-          iss value is compared, octet-for-octet after serialization per
-          <xref target="RFC6454"/>, against the origin of the request
-          target; where the two do not match, the menu fails, exactly as
-          if its signature had not verified, and the verifier MUST fall
-          back to the method default. A verifier MUST NOT accept a menu
-          whose iss value does not match the request target's origin,
-          regardless of whether the menu's signature is otherwise valid.
+          A verifier matches a request against a menu's keys
+          deterministically: the method matches exactly, and the
+          path matches only where both have the same number of
+          segments and each segment either equals the template's
+          literal segment or fills a parameter. Where more than one
+          key matches, the one with the most literal segments wins.
+          A tie MUST be treated as a miss, and MUST NOT be broken by
+          the keys' order in the menu. If no key matches, or the
+          only matches are tied, the method default applies.
         </t>
         <t>
-          A menu MUST be verified against the Resource Owner's public
-          key, obtained out of band or from a configured trust source; a
-          verifier MUST NOT obtain that key from the menu itself,
-          following the same rule <xref target="verification"/> already
-          states for the root attestation's key. The menu's signature
-          algorithm is EdDSA, using the Ed25519 curve; this document
-          defines no algorithm negotiation or agility for the menu, and a
-          menu using any other algorithm does not verify.
+          A menu applies only to the resource that issued it: its iss
+          value is compared octet-for-octet against the request
+          target's origin, and a mismatch fails the menu the same way
+          an unverifiable signature does; the verifier MUST NOT
+          accept it. A menu MUST be verified against the Resource
+          Owner's public key, obtained out of band or from a
+          configured trust source, never from the menu itself, per
+          the same rule <xref target="verification"/> states for the
+          root attestation's key. Its signature algorithm is EdDSA
+          using Ed25519, with no negotiation; any other algorithm
+          does not verify.
         </t>
       </section>
       <section anchor="menu-publication" numbered="true" toc="default">
         <name>Publication</name>
         <t>
-          This section is non-normative. A Resource Owner may publish its
-          menu through its API description; one way to do so is a
-          per-operation extension in an OpenAPI document, accompanied by
-          a detached JWS at a well-known location. The format of such a
-          publication mechanism is out of scope for this document.
+          This section is non-normative. A Resource Owner may
+          publish its menu through its API description, for example
+          as a per-operation extension in an OpenAPI document, with
+          a detached JWS at a well-known location; the format of
+          such a mechanism is out of scope for this document. A tool
+          that reads an API description, for example its HTTP
+          methods and the verbs and nouns in its operation names,
+          can help an owner write its menu; the owner signs the
+          menu. Such a tool's output is advice, not a class source.
         </t>
       </section>
       <section anchor="action-class-verifier-placement" numbered="true" toc="default">
@@ -886,33 +816,6 @@
           boundary refusing or permitting a request, not an act of a
           harness or an agent abiding by a floor it was merely told
           about.
-        </t>
-      </section>
-      <section anchor="action-class-limits" numbered="true" toc="default">
-        <name>Limits</name>
-        <t>
-          The method default of <xref target="classification"/> is a
-          reliable floor in one direction and a lossy signal in the
-          other: a GET is never admitted as a write or a consequential
-          action, but a POST is not always a consequential action either.
-          In a survey of the CAMARA API catalogue conducted 2026-09-01
-          (292 operations across 60 repositories, recorded in this
-          repository's own proof-of-concept data), 57 of 138 POST
-          operations are named as reads (retrieve-, check-, verify-, or
-          status-prefixed operation identifiers) and are classed x under
-          classSource method, notwithstanding their read-shaped names.
-        </t>
-        <t>
-          The same survey's judgement of GET operations, by contrast, was
-          templated rather than read per operation, so the absence of any
-          GET classed x in that survey rests on a general design
-          convention rather than on an individual reading of each GET
-          operation; and the cost of the 57 read-named POST operations
-          above defaulting to x was not itself reviewed for whether a
-          Resource Owner would actually want to declare them down to r.
-          Neither limitation is corrected by this document; a deployment
-          relying on the survey's numbers should treat them as directional,
-          not as an audited count.
         </t>
       </section>
     </section>
@@ -1500,11 +1403,6 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         <li>the multi-hop delegation chain of <xref target="attenuation"/> is not implemented; the proof-of-concept exercises only a two-party exchange between one Delegator and one Attestation Issuer;</li>
         <li>the per-Relying-Service unlinkable agent identifier of <xref target="agent-identifier"/> is not implemented.</li>
       </ul>
-      <t>
-        The catalogue survey behind the honest-limit paragraph of
-        <xref target="action-class-limits"/> is included in this same
-        repository, alongside its underlying data.
-      </t>
     </section>
 
     <section anchor="security" numbered="true" toc="default">
