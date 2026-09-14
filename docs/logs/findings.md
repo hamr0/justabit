@@ -14,6 +14,20 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-09-14 — Verification Procedure: three steps aligned with the rewritten sections
+
+**DECISION**
+
+1. The Verification Procedure (anchor `verification`) now has 12 steps, up from 10. Steps 1-6, the nonce and expiry steps (now 8 and 9) and the final authorization-policy step (now 12) are unchanged. "step 5 of Verification" in Security Considerations still names the trust-source key step.
+2. New step 7: verify L(0) against the root Attestation Issuer's published floor and the Delegator's own authority; reject any floor, published or in a link, that names an axis not in Floor Axes; where no link up to L(n) constrains an axis, apply the published floor. Reason: Attenuation Rules and Floor Axes already state these MUSTs, but no step carried them.
+3. New step 10: every floor attestation must have a yes result; reject on a signed no or a signed refusal. Reason: Signed Refusal separates yes, no and refusal, but no step checked the result.
+4. Step 9 became step 11 and no longer names the "writeBudget ledger": the request's class must not be higher than the actionClass that applies to L(n), and where a budget applies to that class the count must be at least one, decremented in the same admission decision. The Verifier Placement clause is kept word for word.
+5. No new rule was added; each new or changed step restates a MUST from another section. The user approved: "approve".
+
+Source: user message, 2026-09-14.
+
+---
+
 ## 2026-09-14 — Publication sentence: measured rwxmap figures replace the accuracy claim
 
 **DECISION**
