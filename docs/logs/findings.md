@@ -14,6 +14,19 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-09-14 — Publication sentence: measured rwxmap figures replace the accuracy claim
+
+**DECISION**
+
+1. The Publication paragraph (anchor `menu-publication`) no longer says the tool "is usually right for the most-used calls, picks the tighter class when unsure, and can still miss some calls in the long tail". This closes OPEN item 4 of the rwx reply entry below. The user chose option 1 (remove the accuracy claim) but asked for actual numbers, verbatim: "i would go for option 1 but rephrase about, it's mostly right on most used apis, unsure about tail end and some leaks 1%, some actual numbers help, option 1 proposed is too loose", then "78.4% exact, 4.2% leaks, 17.5% over-tight".
+2. The new text states the measured figures (5465 labelled calls, tuning corpus, each vendor left out in turn: 78.4% right, 17.5% tighter than needed, 4.2% looser than needed), says the tool picks the tighter class when unsure except for GET, HEAD and OPTIONS, which stay at r without reading their names (rwx H8, D59), and keeps "the party that signs a menu is responsible for the menu it signs".
+3. Not carried from the user's wording, with reasons: "most-used" and "tail end" (rwx H3: accuracy by call popularity was never measured, and where leaks fall was not measured); "1%" (the measured leak rate is 4.2%; 1-2% is the goal, never a result, per the 2026-09-14 entry recording the one-flow table). The user supplied the measured figures and approved the text: "approve, commit and go to verification".
+4. The reduction plan said rwxmap numbers appear only in Implementation Status. Publication is non-normative, so the figures are allowed there; Implementation Status still carries the full table, pin and labels.
+
+Source: user messages, 2026-09-14.
+
+---
+
 ## 2026-09-14 — rwx reply: rwxmap validation of the -02 hypotheses H1-H8
 
 **EVIDENCE**

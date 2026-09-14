@@ -760,10 +760,15 @@
           mechanically: it gives each call a starting class from its
           method and from the verbs and nouns in its name, and marks
           calls it has no evidence for so a person can check them.
-          Such a tool is usually right for the most-used calls, picks
-          the tighter class when unsure, and can still miss some
-          calls in the long tail; the party that signs a menu is
-          responsible for the menu it signs. The same menu can also
+          Such a tool picks the tighter class when its reading is
+          unsure, except that it keeps GET, HEAD and OPTIONS calls at
+          r without reading their names. One such tool, run over 5465
+          labelled calls it was tuned on (each vendor left out in
+          turn), gave the right class for 78.4% of calls, a tighter
+          class than needed for 17.5%, and a looser class than needed
+          for 4.2%; a looser class lets through a call that a floor
+          should refuse. The party that signs a menu is responsible
+          for the menu it signs. The same menu can also
           give an agent tool hints. When API Providers take this up,
           they can run the same kind of tool over their own APIs,
           review only the calls it marked, and sign their own menu.
