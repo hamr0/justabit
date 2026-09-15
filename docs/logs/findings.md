@@ -14,6 +14,32 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-09-15 — Appendix A rewritten: no direction meets the Attestation section today; "open, unreviewed" retracted
+
+**EVIDENCE**
+
+1. -02 `attestation` requires a conforming attestation to be signed by the Attestation Issuer over the exact bytes presented, to carry the verifier's nonce, to carry an expiry, and to carry only a yes/no result. -02 `verification` requires the root attestation key to be "obtained from a configured trust source" and never from the message itself.
+2. CAMARA, checked live with `gh` on 2026-09-15: APIBacklog #330 OPEN, label "API Proposal", 1 comment, updated 2026-09-01. APIBacklog PR #331 OPEN, reviewDecision REVIEW_REQUIRED, 9 comments, last comment by hamr0 on 2026-09-03. Commonalities #705 OPEN, 0 comments, no labels, created 2026-09-01, title "[Enhancement] Attested responses for CAMARA APIs — signed, nonce-bound, expiring answers; floor menu; range on open responses". The reviewer comments on PR #331 (2026-08-31, 2026-09-01) and the TSC questions (2026-09-03) are recorded in the entries of those dates.
+3. 8een, read in the local clone `/home/hamr/PycharmProjects/8een` at `8d00d09` (`package.json` version 0.5.0; tag `v0.5.0` dated 2026-07-20). README: the Holder "generates a fresh ZK proof" "bound to the site's fresh nonce"; the Verifier is "proof + issuer trust anchor + nonce in, one bit out"; "The bare `Verifier` does not stop replay"; milestone M4 "Owns freshness, both halves: per-session single-use nonce, and credential expiry"; "No proof from a real phone has ever reached this verifier." The README names no party that signs the one-bit result.
+4. zkagent, read in the local clone `/home/hamr/PycharmProjects/zkagent` at `d7ad1c9` (peer repo, read only). `docs/product/customer-guide.md`: "What the phone sends" is "Bare answer, no signature, no key" for tier A and "Signed answer + zktag, from a device key" for tier B; the "Key binding" row reads "Trust-on-first-sight: the first presentation for a given (site, zktag) pair binds its key"; the trust list "needs a future attestation plug" (D78). `README.md`: 'v1 is never "zero-knowledge"'; "At most k tags per human, where k is the number of documents they hold"; "Clone replay is a real, disclosed gap where a document lacks chip authentication."
+5. Before this change, -02 Appendix A said "All three directions satisfy the same abstract Attestation Issuer role" (line 1842), and both Appendix A (line 1783) and Related Work (line 1400) called CAMARA-PROPOSAL "open, unreviewed". Items 1 to 4 show that no direction meets item 1 today: CAMARA responses are not signed; 8een has no issuer-signed result; zkagent tier A is unsigned and its tier B key is bound on first sight, not taken from a configured trust source.
+6. Main-session checks of the splice (script `verify-appendix-a.sh`, scratchpad): the whole file is byte-identical to an expected file built independently from `4a0aa57` with `sed`/`cat` (Related Work lines 1398-1410 deleted, CAMARA-SIGNING inserted after line 1694, ZK8EEN after line 1738, lines 1748-1901 replaced by the approved section); the section is byte-identical to the approved text; the retracted wording is absent; xmllint exit 0; zero non-ASCII characters; every xref resolves; every local reference is cited. The script exits 0 on the expected file and 1 on two real mutants (an xref renamed inside the section; one word changed at line 1315, outside it), each confirmed by `cmp` to differ. A first outside mutant was void (its `sed` pattern did not match line 1500) and was redone.
+7. Appendix A is 69 lines, down from 154, against a target of 55. The file is 2200 lines, down from 2284.
+
+**DECISION**
+
+1. Appendix A keeps three directions that could fill the Attestation Issuer role (Direction 1 a mobile network operator, Direction 2 8een, Direction 3 zkagent) and states for each what it does today and what it lacks against `attestation`. The sentence "All three directions satisfy the same abstract Attestation Issuer role" is removed as false. User: "dec 1 option 1". Rejected option: keep only Direction 1 and reduce 8een and zkagent to one sentence each.
+2. RETRACTED: "open, unreviewed" (and "nothing about it has been ... reviewed") for CAMARA-PROPOSAL. PR #331 was reviewed on 2026-08-31, and a TSC round followed on 2026-09-03. Direction 1 now says CAMARA reviewed the proposal and asked for changes, the author answered them, the signing part is a separate proposal (Commonalities #705), and on 2026-09-15 both are open and neither is accepted or adopted. The Related Work CAMARA paragraph is deleted in the same commit; its "meet only at the header" point moves to Direction 1. User: "dec 2 option 1".
+3. Direction 1 gets no number-portability clause. User: "dec 3 no". -02 still does not state the number-portability tenure limit anywhere.
+4. Direction 4 is one paragraph; its bullets are gone, and plan agreement A6 goes with them. The "Direction 4" label and its role-model conclusion stay, because Changes since -01 still names "Direction 4's closing sentence".
+5. Two references added: CAMARA-SIGNING (Commonalities #705; the title's long dash is replaced by a colon and the "[Enhancement]" prefix is dropped, to keep the XML ASCII) and ZK8EEN (github.com/hamr0/8een, July 2026).
+6. Recorded here, decided earlier on 2026-09-15 and not yet in this log: (a) the page gap follows option 1: finish the remaining sections at target, re-run author-tools, then cut approved sections only by what is still needed, starting with the Introduction (user: "option 1"); (b) the `ietf/02-reduction` branch ends with `/branch-review`, which does the docs sweep, and no `/release` (user: "then branch-review should do the docs-sweet and not release").
+7. Not changed, left for later rows: the Introduction says "An identity-document check can attest that the holder is at least 18", which Appendix A no longer supports as a present fact; fix it when the Introduction is cut for pages.
+
+Source: user messages, 2026-09-15.
+
+---
+
 ## 2026-09-15 — First author-tools run on -02: 43 text pages, idnits 2 errors and 2 warnings
 
 **EVIDENCE**

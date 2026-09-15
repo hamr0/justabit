@@ -1395,19 +1395,6 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         document's min, so the comparator vocabulary bridging the two
         registries now spans both the ceiling and floor direction.
       </t>
-      <t>
-        A companion document, <xref target="CAMARA-PROPOSAL"/>, is an
-        open, unreviewed API proposal filed to a separate standards
-        body's API backlog; it has not been reviewed, accepted, or
-        adopted by that body. It proposes the operator/attestation side
-        of the same overall design, on the premise that an Attestation
-        Issuer of the kind this document treats abstractly can, in one
-        concrete instantiation, be a telecommunications operator. The
-        two documents meet only at the RFC 9421 header defined in
-        <xref target="header"/>; neither depends on the other's
-        approval, and this document remains fully specified without the
-        companion proposal existing at all.
-      </t>
     </section>
 
     <section anchor="implementation-status" numbered="true" toc="default">
@@ -1692,6 +1679,13 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
           <date year="2026" month="August" day="28"/>
         </front>
       </reference>
+      <reference anchor="CAMARA-SIGNING" target="https://github.com/camaraproject/Commonalities/issues/705">
+        <front>
+          <title>Attested responses for CAMARA APIs: signed, nonce-bound, expiring answers; floor menu; range on open responses</title>
+          <author initials="A." surname="Hassan"><organization>Independent</organization></author>
+          <date year="2026" month="September" day="1"/>
+        </front>
+      </reference>
       <reference anchor="OAUTH-CHARTER" target="https://datatracker.ietf.org/wg/oauth/about/">
         <front>
           <title>Web Authorization Protocol (oauth) Working Group Charter</title>
@@ -1736,6 +1730,13 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
           <date year="2026" month="September"/>
         </front>
       </reference>
+      <reference anchor="ZK8EEN" target="https://github.com/hamr0/8een">
+        <front>
+          <title>8een: Stateless, One-Bit, Unlinkable Age Verification</title>
+          <author initials="A." surname="Hassan"><organization>Independent</organization></author>
+          <date year="2026" month="July"/>
+        </front>
+      </reference>
       <reference anchor="MCP" target="https://modelcontextprotocol.io/specification/2026-07-28">
         <front>
           <title>Model Context Protocol Specification, Version 2026-07-28</title>
@@ -1748,155 +1749,70 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
     <section anchor="appendix-a" numbered="true" toc="default">
       <name>Non-Normative Instantiations</name>
       <t>
-        This appendix is entirely non-normative. It describes concrete
-        ways to satisfy the abstract requirements of the body of this
-        document, to help a reader evaluate the profile's deployability.
-        Nothing in this appendix constrains a conforming implementation;
-        a deployment satisfying the normative sections above by any other
-        means is equally conforming.
+        This appendix is non-normative. Directions 1 to 3 could fill the
+        Attestation Issuer role. None of them makes an attestation that
+        meets <xref target="attestation"/> today, so each one states what
+        it lacks. Direction 4 is harness experience. This profile does
+        not require, prefer, or depend on any of them.
       </t>
       <t>
-        Three directions are sketched below. They differ in what makes
-        the underlying credential scarce; none is required, preferred, or
-        assumed by this profile.
+        <strong>Direction 1: a mobile network operator.</strong> The
+        operator answers floors about a line: subjectClass is the service
+        type (voice and data, or machine to machine), tenureMin is the
+        subscription tenure, and credentialAgeMin is the time since the
+        last SIM swap. Many qualifying lines cost money over time, but
+        cost does not make a line unique. CAMARA reviewed a companion
+        proposal <xref target="CAMARA-PROPOSAL"/> in August and September
+        2026 and asked for changes; the author answered them. The signing
+        part is now a separate proposal <xref target="CAMARA-SIGNING"/>.
+        On 2026-09-15 both are open, and neither is accepted or adopted.
+        The two documents meet only at the header of
+        <xref target="header"/>. Lacks: CAMARA API responses are not
+        signed.
       </t>
       <t>
-        <strong>Direction 1: subscription attestation.</strong> A mobile
-        network operator can act as the Attestation Issuer described in
-        <xref target="attestation"/>. In such an instantiation, a
-        subscriber identity module credential grounds the Delegator's
-        identity, and the operator attests floor conditions about the
-        line associated with that credential without disclosing the
-        line's underlying attributes. The floor axes named abstractly in
-        <xref target="floors"/> map, in this instantiation, to concrete
-        network-observable attributes as follows: subjectClass maps to
-        the line's service type (for example, voice-and-data versus
-        machine-to-machine); tenureMin maps to the line's subscription
-        tenure; credentialAgeMin maps to the elapsed time since the
-        credential (for example, the SIM) was last swapped; accountClass
-        maps to a billing relationship category (for example, postpaid
-        versus prepaid); partialPolicy maps to how the operator's
-        attestation service handles a query for which it holds incomplete
-        data. This direction's scarcity is economic: obtaining many
-        qualifying credentials costs money over time. Economic cost does
-        not establish uniqueness. A companion document,
-        <xref target="CAMARA-PROPOSAL"/>, is an open, unreviewed API
-        proposal that proposes a horizontal profile to a
-        telecommunications standards body along these lines,
-        independently of this document and without either document
-        depending on the other's adoption; nothing about it has been
-        approved, accepted, endorsed, reviewed, or adopted.
+        <strong>Direction 2: 8een.</strong> The holder's wallet makes a
+        zero-knowledge age proof over an ISO/IEC 18013-5
+        <xref target="ISO18013-5"/> mobile document, bound to the site's
+        nonce, with the scheme of <xref target="I-D.google-cfrg-libzk"/>.
+        8een <xref target="ZK8EEN"/> checks the proof against an issuer
+        trust list and returns one bit. A one-time nonce and the
+        credential expiry limit its use. Its own limit: "No proof from a
+        real phone has ever reached this verifier." Lacks: no issuer
+        signs the result, because the verifier checks the proof itself.
+        This document does not define that model.
       </t>
       <t>
-        <strong>Direction 2: a government-issued document credential
-        proved in zero knowledge.</strong> A credential in the ISO/IEC
-        18013-5 <xref target="ISO18013-5"/> mobile document (mdoc) format,
-        held in a wallet, can be used to prove a predicate over the
-        credential in zero knowledge, rather than to disclose the
-        credential's contents. The verifier learns one bit and learns
-        nothing else, and separate presentations are unlinkable. This
-        direction's scarcity is cryptographic: it is rooted in a document
-        issued by a government authority rather than in a purchasable
-        subscription. Work on this class of scheme is in progress in the
-        IETF; see <xref target="I-D.google-cfrg-libzk"/>. This appendix
-        does not state that any particular implementation of this
-        direction exists or has been demonstrated.
+        <strong>Direction 3: zkagent.</strong> zkagent
+        <xref target="ZKAGENT"/> reads a passport or ID card chip on the
+        holder's phone, checks the chip signature (passive
+        authentication, <xref target="ICAO9303"/>), and returns one bit.
+        It is not zero-knowledge. Tier A sends the bit with no signature.
+        Tier B signs the bit with a phone key and adds a per-site tag; the
+        site binds that key the first time it sees it. Passive
+        authentication does not bind the person who presents the
+        document, and a chip without chip authentication can be cloned.
+        Lacks: tier A has no signature, and the tier B key does not come
+        from a configured trust source (<xref target="verification"/>).
       </t>
       <t>
-        <strong>Direction 3: a document chip signature with accompanying
-        evidence.</strong> A holder's device can read the signature on a
-        government-issued document's chip and verify it against the
-        issuing authority's public-key infrastructure, a process known as
-        passive authentication and specified in ICAO Doc 9303
-        <xref target="ICAO9303"/>. This establishes that the document is
-        genuine and unaltered. On its own, the chip-signature check says
-        nothing about who presented the document or about the software
-        that performed the read, so deployments of this class pair it
-        with additional evidence, and what that evidence is varies: an
-        attestation from the device platform that unmodified software
-        performed the read; a signature from a party the verifier
-        trusts, vouching for the value reported; a zero-knowledge proof
-        of the predicate itself; or no accompanying evidence at all.
+        For Directions 2 and 3, subjectClass is interactive and ageMin
+        applies; tenureMin and credentialAgeMin do not. They limit
+        identities to the documents a holder has. They do not give one
+        identity per person.
       </t>
       <t>
-        The trust model differs by evidence type, and it matters which
-        one a deployment picks. Where the accompanying evidence is an
-        attestation, the verifier does not check a proof; it checks that
-        trustworthy code ran, and then relies on the value that code
-        reported, so breaking the attestation collapses the claim. Where
-        the accompanying evidence is a zero-knowledge proof, the verifier
-        checks the proof itself, and breaking a platform attestation buys
-        an attacker nothing, because the mathematics still has to hold.
-        Where there is no accompanying evidence, the claim rests on the
-        chip signature alone. A deployment describing this direction
-        needs to state which evidence it uses, because the strength of
-        the claim is not a property of the document root. One limit does
-        not change regardless of which evidence is paired with it:
-        passive authentication proves the document is genuine and
-        unaltered; it does NOT bind the presenter to the document. This
-        direction therefore bounds the number of identities a holder can
-        obtain to the number of documents held; it does NOT establish one
-        identity per human, and must not be described as doing so.
-      </t>
-      <t>
-        All three directions satisfy the same abstract Attestation Issuer
-        role defined in the body of this document; they differ in what
-        makes a credential scarce. A deployment may use any of them, or
-        another mechanism entirely. This profile does not require,
-        prefer, or depend on any of them.
-      </t>
-      <t>
-        <strong>Direction 4: harness-side experience.</strong> These are
-        three open-source, single-author experiments, available at
-        <eref target="https://github.com/hamr0/bareguard"/>,
-        <eref target="https://github.com/hamr0/bareloop"/>, and
-        <eref target="https://github.com/hamr0/bareagent"/>, that exercise
-        the enforcement-boundary role of
-        <xref target="action-class-verifier-placement"/>; they are not
-        implementations of this profile, which is why they are not listed
-        in <xref target="implementation-status"/>. Non-normative, like the
-        rest of this appendix.
-      </t>
-      <t>
-        <strong>bareguard</strong> is one chokepoint between an agent and
-        the world: every action passes through a single gate and comes
-        back allow, deny, or ask a human.
-      </t>
-      <ul spacing="normal">
-        <li>a floor gate decides before the action runs, plus a separate detector after the result that annotates and never blocks alone; the floor gate maps onto layer (a) of <xref target="layers"/>, but the after-the-result detector fits none of the three layers there: it observes after execution rather than recording what was approved and consumed, and this document does not claim otherwise;</li>
-        <li>capability presets may only narrow the floor, never widen it, so a wrong preset is not a safety hole;</li>
-        <li>quantitative limits are enforced as a running cumulative total, because a per-action cap is defeated by splitting one action into many; only two comparator kinds were needed in practice, set membership and an ordered-enum threshold.</li>
-      </ul>
-      <t>
-        <strong>bareloop</strong> has an agent author its own workflow
-        scaffolding as a constrained, validated config, with every run
-        executing under an outer gate the agent cannot reach or argue
-        with.
-      </t>
-      <ul spacing="normal">
-        <li>the agent authors its workflow and never its arbiter; closes, budgets, and caps live outside the authored part;</li>
-        <li>a predicate decides a pass, a judge never renders the verdict, and a judged verdict class needs a pre-scored calibration set before it may gate anything;</li>
-        <li>an omitted cap reads as an explicit choice, never a silent default, because a defaulted cap is an unadvertised second ceiling.</li>
-      </ul>
-      <t>
-        <strong>bareagent</strong> is the think, act, observe loop: a goal
-        goes in and coordinated actions come out.
-      </t>
-      <ul spacing="normal">
-        <li>a policy chokepoint inside the loop forwards every action to an external gate that decides and never runs it;</li>
-        <li>a lock on a check's code does not protect the check's semantics; a stateful function defeated an unsatisfiable check across repeated invocations;</li>
-        <li>an incomplete result is returned honestly rather than as a faked pass.</li>
-      </ul>
-      <t>
-        In each case, the point of control occupied the
-        enforcement-boundary role of
-        <xref target="action-class-verifier-placement"/>, realized at a
-        different component in each experiment: a single gate, an outer
-        arbiter, and a policy chokepoint respectively. This is evidence
-        for the role model, not for any one component being the
-        placement: what these three prior implementations have in
-        common is a component that actually refuses or permits, not a
-        shared location.
+        <strong>Direction 4: harness experience.</strong> bareguard
+        <eref target="https://github.com/hamr0/bareguard"/>, bareloop
+        <eref target="https://github.com/hamr0/bareloop"/>, and bareagent
+        <eref target="https://github.com/hamr0/bareagent"/> are
+        single-author, open-source experiments. They do not implement this
+        profile, so <xref target="implementation-status"/> does not list
+        them. Each puts the point of control at a different component: a
+        single gate, an outer arbiter, and a policy chokepoint. What they
+        share is a component that refuses or permits, not a location. This
+        supports the role model of
+        <xref target="action-class-verifier-placement"/>.
       </t>
     </section>
 
