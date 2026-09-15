@@ -27,18 +27,28 @@ draft-hamr-oauth-agent-delegation-02.txt:
 
   Checking boilerplate required by RFC 5378 and the IETF Trust (see
   https://trustee.ietf.org/license-info):
+  ----------------------------------------------------------------------------
+
      No issues found here.
 
   Checking nits according to https://www.ietf.org/id-info/1id-guidelines.txt:
+  ----------------------------------------------------------------------------
+
      No issues found here.
 
   Checking nits according to https://www.ietf.org/id-info/checklist :
+  ----------------------------------------------------------------------------
+
      No issues found here.
 
   Miscellaneous warnings:
+  ----------------------------------------------------------------------------
+
      No issues found here.
 
   Checking references for intended status: Proposed Standard
+  ----------------------------------------------------------------------------
+
      (See RFCs 3967 and 4897 for information about using normative references
      to lower-maturity documents in RFCs)
 
@@ -52,11 +62,15 @@ draft-hamr-oauth-agent-delegation-02.txt:
   == Outdated reference: A later version (-13) exists of
      draft-schrock-ep-authorization-receipts-12
 
+
      Summary: 2 errors (**), 0 flaws (~~), 2 warnings (==), 0 comments (--).
+
+     Run idnits with the --verbose option for more detailed information about
+     the items above.
 ```
 
 2. The posted -01 is 48 text pages: Datatracker API `pages` 48, and the last footer of `https://www.ietf.org/archive/id/draft-hamr-oauth-agent-delegation-01.txt` is `[Page 48]` (both fetched 2026-09-15). At 2364 lines, about 49 lines per page. The -01 PDF could not be fetched (Datatracker returned HTTP 403), so no PDF-to-PDF comparison exists. xml2rfc is not installed locally.
-3. RFC 8941: RFC 9651 (fetched from rfc-editor.org, 2026-09-15) obsoletes it; its Appendix D lists the changes: Date type, Display String type, ABNF moved to an informative appendix, refined parse failure handling, a "Structured Type" column in the HTTP Field Name Registry. -02 uses only a List of Byte Sequences; its IANA table already has a Structured Type column (List). -02 cites RFC 8941 by xref three times (lines 358 and 1233; 1232 names it in prose) and includes its bibxml at line 1608.
+3. RFC 8941: RFC 9651 (fetched from rfc-editor.org, 2026-09-15) obsoletes it; its Appendix D lists the changes: Date type, Display String type, ABNF moved to an informative appendix, refined parse failure handling, a "Structured Type" column in the HTTP Field Name Registry. -02 uses only a List of Byte Sequences; its IANA table already has a Structured Type column (List). -02 cites RFC 8941 by xref twice (lines 358 and 1233), names it in prose once (line 1232), and includes its bibxml at line 1608.
 4. RFC 6234 is listed in the IETF downref registry (`https://datatracker.ietf.org/doc/downref/`, fetched 2026-09-15). idnits does not read that registry.
 5. Datatracker API (2026-09-15): draft-das-agentic-tool-binding is at -03, posted 2026-09-05; draft-schrock-ep-authorization-receipts is at -13, posted 2026-09-12. -02 cites -02 and -12.
 6. The posted -01 carried the same RFC 8941 and RFC 6234 normative references. The 2026-09-02 records call -01's idnits result clean from the user's words, not from pasted output; whether these two errors appeared then cannot be determined now.
