@@ -1931,233 +1931,44 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
     <section anchor="vectors" numbered="true" toc="default">
       <name>Test Vectors</name>
       <t>
-        This appendix is non-normative. The vectors below are an aid to
-        implementers checking their own understanding of the attenuation
-        rules in <xref target="attenuation"/> against a common set of
-        examples; they are not an additional requirement, and they do not
-        modify or extend the normative requirements stated in the body of
-        this document. Where a vector appears to conflict with a normative
-        section, the normative section governs.
+        This appendix is non-normative. Where a vector and a normative
+        section differ, the normative section governs. Each vector below
+        is a negative control: a verifier that skips one check accepts a
+        chain or admits a request that a conforming verifier rejects or
+        refuses. A suite of only accepted cases cannot tell a conforming
+        verifier from one that accepts everything.
       </t>
       <t>
-        Each vector is a delegation chain: an ordered sequence of links,
-        each carrying a scope (<xref target="scope"/>), a floor, and an
-        expiry, together with the outcome a conforming verifier is expected
-        to reach and, where that outcome is rejection, which rule of
-        <xref target="attenuation"/> the chain violates. An implementation
-        checking itself against this appendix is expected to reproduce
-        every expected outcome listed below, using the scope and floor
-        values shown.
-      </t>
-      <t>
-        In every vector, subjectClass is interactive on every link, and
-        accountClass and partialPolicy are not exercised and are omitted
-        from every link; a floor is a set of axis/value pairs and is not
-        required to name every axis in <xref target="floors"/>. Only
-        scope, tenureMin, credentialAgeMin, and expiry vary below, and
-        those are what the tables show.
+        In V4 and V6, every link has subjectClass interactive, and each
+        link's expiry is earlier than its parent's, so rule 3 of
+        <xref target="attenuation"/> holds.
       </t>
       <table>
         <thead>
-          <tr><th>Link</th><th>Scope</th></tr>
+          <tr><th>Vector</th><th>Input</th><th>Expected outcome</th><th>A verifier that gets it wrong</th></tr>
         </thead>
         <tbody>
-          <tr><td>V1 L(0)</td><td>booking:read, booking:create, payment:authorize</td></tr>
-          <tr><td>V1 L(1)</td><td>booking:read, booking:create</td></tr>
-          <tr><td>V2 L(0)</td><td>booking:read</td></tr>
-          <tr><td>V2 L(1)</td><td>booking:read, booking:create</td></tr>
-          <tr><td>V3 L(0)</td><td>booking:read</td></tr>
-          <tr><td>V3 L(1)</td><td>booking:read</td></tr>
-          <tr><td>V4 L(0)</td><td>booking:read</td></tr>
-          <tr><td>V4 L(1)</td><td>booking:read</td></tr>
-          <tr><td>V5 L(0)</td><td>booking:read</td></tr>
-          <tr><td>V5 L(1)</td><td>booking:read</td></tr>
-          <tr><td>V6 L(0)</td><td>booking:read</td></tr>
-          <tr><td>V6 L(1)</td><td>booking:read, booking:create</td></tr>
-          <tr><td>V6 L(2)</td><td>booking:read</td></tr>
+          <tr><td>V4</td><td>L(0): scope booking:read, tenureMin P2Y, credentialAgeMin P180D. L(1): scope booking:read, tenureMin P2Y, no credentialAgeMin.</td><td>reject: L(1) leaves out an axis its parent set (rule 2 of <xref target="attenuation"/>)</td><td>compares only the axes both links carry, or treats the omission as inheritance from the published floor</td></tr>
+          <tr><td>V6</td><td>L(0): scope booking:read. L(1): scope booking:read, booking:create. L(2): scope booking:read. The floors are the same on every link.</td><td>reject: L(1) names booking:create, which L(0) did not hold (rule 1)</td><td>checks only the last pair of links, not every pair as step 6 of <xref target="verification"/> requires</td></tr>
+          <tr><td>V9</td><td>One link: actionClass r, classSource declared. Request: POST /check to https://api.example.com. Menu: signed by a key the verifier trusts for that API, declares "POST /check" as r, iss https://attacker.example.com.</td><td>refuse: the iss does not match the request target's origin, so the menu fails; the method default for POST is x, which is higher than r (<xref target="declared-menu"/>)</td><td>checks the menu's signature but does not compare iss with the request target's origin</td></tr>
+          <tr><td>V11</td><td>One link: actionClass x, xBudget 2. Four x-class requests on this chain; the fourth carries a chain identifier the caller chose.</td><td>admit, admit, refuse, refuse: the verifier derives the chain identifier from L(0), so the fourth request spends from the same count, which is 0 (<xref target="write-budget-chain-identifier"/>)</td><td>takes the chain identifier from the request, so the fourth request gets a new count of 2 and is admitted</td></tr>
         </tbody>
       </table>
       <t>
-        The floor and expiry for the same links follow.
-      </t>
-      <table>
-        <thead>
-          <tr><th>Link</th><th>tenureMin</th><th>credentialAgeMin</th><th>Expiry</th></tr>
-        </thead>
-        <tbody>
-          <tr><td>V1 L(0)</td><td>P1Y</td><td>P90D</td><td>2026-12-01T00:00:00Z</td></tr>
-          <tr><td>V1 L(1)</td><td>P1Y</td><td>P180D</td><td>2026-11-30T00:00:00Z</td></tr>
-          <tr><td>V2 L(0)</td><td>P1Y</td><td>P90D</td><td>2026-12-01T00:00:00Z</td></tr>
-          <tr><td>V2 L(1)</td><td>P1Y</td><td>P90D</td><td>2026-11-30T00:00:00Z</td></tr>
-          <tr><td>V3 L(0)</td><td>P2Y</td><td>P180D</td><td>2026-12-01T00:00:00Z</td></tr>
-          <tr><td>V3 L(1)</td><td>P1Y</td><td>P180D</td><td>2026-11-30T00:00:00Z</td></tr>
-          <tr><td>V4 L(0)</td><td>P2Y</td><td>P180D</td><td>2026-12-01T00:00:00Z</td></tr>
-          <tr><td>V4 L(1)</td><td>P2Y</td><td>(omitted)</td><td>2026-11-30T00:00:00Z</td></tr>
-          <tr><td>V5 L(0)</td><td>P1Y</td><td>P90D</td><td>2026-11-01T12:00:00Z</td></tr>
-          <tr><td>V5 L(1)</td><td>P1Y</td><td>P90D</td><td>2026-11-01T13:00:00Z</td></tr>
-          <tr><td>V6 L(0)</td><td>P2Y</td><td>P180D</td><td>2026-12-01T00:00:00Z</td></tr>
-          <tr><td>V6 L(1)</td><td>P2Y</td><td>P180D</td><td>2026-11-30T00:00:00Z</td></tr>
-          <tr><td>V6 L(2)</td><td>P2Y</td><td>P180D</td><td>2026-11-29T00:00:00Z</td></tr>
-        </tbody>
-      </table>
-      <table>
-        <thead>
-          <tr><th>Vector</th><th>Expected outcome</th><th>Rule violated</th></tr>
-        </thead>
-        <tbody>
-          <tr><td>V1</td><td>accept</td><td>n/a - chain tightens correctly on all three rules</td></tr>
-          <tr><td>V2</td><td>reject</td><td>Rule 1 (scope containment): L(1) names booking:create, which L(0) did not hold</td></tr>
-          <tr><td>V3</td><td>reject</td><td>Rule 2 (floor non-relaxation): L(1)'s tenureMin of P1Y is looser than L(0)'s P2Y</td></tr>
-          <tr><td>V4</td><td>reject</td><td>Rule 2 (floor non-relaxation): L(1) omits credentialAgeMin, an axis L(0) constrained</td></tr>
-          <tr><td>V5</td><td>reject</td><td>Rule 3 (expiry non-extension): L(1)'s expiry is later than L(0)'s</td></tr>
-          <tr><td>V6</td><td>reject</td><td>Rule 1 (scope containment), violated at the interior pair (L(0), L(1)); the pair (L(1), L(2)) is correctly attenuated</td></tr>
-        </tbody>
-      </table>
-      <t>
-        V4 is a distinct and easily missed failure mode from V3: a floor
-        can be relaxed either by widening a value already present on an
-        axis, as in V3, or by dropping the axis from the link entirely, as
-        in V4. Rule 2 in <xref target="attenuation"/> treats both as the
-        same violation, and an implementation that checks only for a
-        looser value on an axis both links carry, without also checking
-        for an axis the parent link carried and the child link dropped,
-        does not detect V4.
+        The full set, V1 to V11, with the accepted cases, is in the
+        Test Vectors appendix of draft-hamr-oauth-agent-delegation-01
+        (<eref target="https://datatracker.ietf.org/doc/html/draft-hamr-oauth-agent-delegation-01"/>).
+        There, V10 and V11 use writeBudget 2; in this document that is
+        xBudget 2.
       </t>
       <t>
-        V6 is the negative control. The violation is not at the leaf link:
-        the pair (L(1), L(2)) attenuates correctly by every rule, and only
-        the interior pair (L(0), L(1)) violates rule 1. A verifier that
-        checks only the final link, or only the pair adjacent to the leaf,
-        accepts this chain; such a verifier does not conform to
-        <xref target="verification"/>, which requires every adjacent pair
-        in the chain to be checked. This vector exists specifically to
-        detect that failure.
-      </t>
-      <t>
-        Vectors V7 through V9 below extend this appendix to the
-        actionClass and classSource axes of <xref target="action-class"/>.
-        In all three, subjectClass is interactive, and scope, tenureMin,
-        and credentialAgeMin are omitted and not exercised, following the
-        same convention stated above for V1 through V6. V7 is a
-        two-link delegation chain, checked the same way as V1 through V6.
-        V8 and V9 each involve a single link and one incoming request,
-        together with, where noted, one menu; they exercise
-        <xref target="classification"/> and
-        <xref target="declared-menu"/> rather than the three attenuation
-        rules, so no parent link is shown for them.
-      </t>
-      <table>
-        <thead>
-          <tr><th>Link</th><th>actionClass</th><th>classSource</th></tr>
-        </thead>
-        <tbody>
-          <tr><td>V7 L(0)</td><td>x</td><td>method</td></tr>
-          <tr><td>V7 L(1)</td><td>w</td><td>method</td></tr>
-          <tr><td>V8 L(0)</td><td>r</td><td>declared</td></tr>
-          <tr><td>V9 L(0)</td><td>r</td><td>declared</td></tr>
-        </tbody>
-      </table>
-      <t>
-        V8 and V9 each present a request "POST /check" against a link
-        whose actionClass is r. Both are accompanied by a menu, signed by
-        the API Provider's key, declaring "POST /check" as r. In V8 the
-        menu's iss value is the origin of the request target,
-        https://api.example.com, matching it exactly. In V9 the menu
-        carries the same declared entry and the same valid signature, but
-        its iss value is https://attacker.example.com, an origin
-        different from the request target.
-      </t>
-      <table>
-        <thead>
-          <tr><th>Vector</th><th>Expected outcome</th><th>Basis</th></tr>
-        </thead>
-        <tbody>
-          <tr><td>V7</td><td>accept; effective actionClass is w</td><td>n/a - actionClass lowered from x to w, the direction <xref target="action-class-values"/> permits</td></tr>
-          <tr><td>V8</td><td>the request classifies as r; admitted against the actionClass r floor</td><td><xref target="declared-menu"/>: the menu verifies and its iss matches the request target, so the declared value governs</td></tr>
-          <tr><td>V9</td><td>the request classifies as x, exceeding the actionClass r floor; refused</td><td><xref target="declared-menu"/>: the menu's iss does not match the request target, so the menu fails and the method default for POST, x, applies instead of the menu's declared r</td></tr>
-        </tbody>
-      </table>
-      <t>
-        V9 is the negative control for the origin-binding rule of
-        <xref target="declared-menu"/>. A verifier that checks the menu's
-        signature but skips the comparison between iss and the request
-        target's origin reaches the same outcome as V8 - it accepts the
-        declared value r - and so admits a request that a verifier
-        applying the origin-binding rule correctly refuses. The two
-        vectors present an identical menu and an identical requested
-        actionClass floor and differ only in the menu's iss value, so any
-        difference in outcome between an implementation and this table is
-        attributable to that one comparison.
-      </t>
-      <t>
-        More generally, a suite composed only of chains expected to be
-        accepted cannot distinguish a verifier that correctly implements
-        the rules of <xref target="attenuation"/> from one that accepts
-        every chain unconditionally; both pass such a suite identically.
-        At least one vector expected to be rejected is therefore required
-        for a suite to have any diagnostic value at all, and V6 in
-        particular is required to detect a verifier that checks only the
-        leaf of the chain.
-      </t>
-      <t>
-        Vectors V10 and V11 below extend this appendix to the writeBudget
-        axis of <xref target="write-budget"/>. Both present the same
-        single-link chain, L(0) with actionClass x and writeBudget 2,
-        against a series of x-class requests; the chain identifier is
-        whatever <xref target="write-budget-chain-identifier"/> derives
-        from L(0)'s signature, and is the same value across every request
-        in both vectors, since both present the same L(0).
-      </t>
-      <table>
-        <thead>
-          <tr><th>Step</th><th>Request</th><th>Vector</th><th>Expected outcome</th><th>Remaining count after step</th></tr>
-        </thead>
-        <tbody>
-          <tr><td>1</td><td>x-class request 1</td><td>V10</td><td>admitted</td><td>1</td></tr>
-          <tr><td>2</td><td>x-class request 2</td><td>V10</td><td>admitted</td><td>0</td></tr>
-          <tr><td>3</td><td>x-class request 3</td><td>V10</td><td>refused, budget exhausted</td><td>0</td></tr>
-          <tr><td>4</td><td>x-class request 4, presented with a different, caller-supplied chain identifier value</td><td>V11</td><td>refused, budget exhausted</td><td>0</td></tr>
-        </tbody>
-      </table>
-      <t>
-        V10 is the positive case: two successive x-class requests against
-        the chain are admitted, dropping the remaining count from 2 to 1
-        to 0, and a third is refused because the remaining count is
-        already 0, per the admission rule of
-        <xref target="write-budget-limit-count"/>.
-      </t>
-      <t>
-        V11 is the negative control. It re-presents the identical chain
-        used in V10, after its budget is already exhausted, but the
-        fourth request carries a different chain identifier value of the
-        caller's own choosing rather than one the verifier derived from
-        L(0). Because <xref target="write-budget-chain-identifier"/>
-        requires the verifier to derive the chain identifier itself and
-        forbids taking one from the request, the count is not refilled
-        and step 4 is refused on the same exhausted count as step 3. A
-        verifier that instead took the chain identifier from the request
-        would treat the fourth request as belonging to a fresh chain with
-        a full budget of 2, and would wrongly admit it; V11 exists
-        specifically to detect that failure.
-      </t>
-      <t>
-        These vectors are illustrative and not exhaustive. Passing them
-        does not establish conformance to this document as a whole: V1
-        through V6 cover the three attenuation rules of
-        <xref target="attenuation"/>, V7 through V9 cover the
-        actionClass tightening rule, the declared-value substitution
-        rule, and the menu origin-binding rule of
-        <xref target="action-class"/>, and V10 through V11 cover the
-        writeBudget admission rule and the chain-identifier-derivation
-        rule of <xref target="write-budget"/>; together they do not
-        exercise signature verification of a delegation link itself,
-        nonce binding, expiry evaluation against wall-clock time, or the
-        header field encoding described in <xref target="header"/> and
-        <xref target="rfc9421-profile"/>. These vectors have not been
-        executed against any implementation by anyone, including the
-        author; they were derived by hand from the rules in
-        <xref target="attenuation"/>, <xref target="action-class"/>, and
-        <xref target="write-budget"/>.
+        These vectors do not test link signatures, nonce binding, expiry
+        against the clock, or the header encoding. The author derived
+        them by hand from the rules. The justabit proof-of-concept
+        (<xref target="implementation-status"/>) runs V9 as written, a
+        two-request form of V11 with the single writeBudget of -01, and
+        the V4 rule on classSource and writeBudget but not on
+        credentialAgeMin. No code runs V6.
       </t>
     </section>
 

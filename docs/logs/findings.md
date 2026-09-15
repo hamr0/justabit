@@ -14,6 +14,26 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-09-15 — Test Vectors cut to the four negative controls; full set cited in posted -01
+
+**EVIDENCE**
+
+1. Checked by the main session on 2026-09-14 in `ietf/v3/poc/m7-check.mjs`: case 24 is V9 as written (menu declares "POST /check" as r with a valid signature, iss https://attacker.example.com, target origin https://api.example.com, link actionClass r and classSource declared; refused). Case 22 is a two-request form of V11 with the -01 single writeBudget (writeBudget 1; the second request carries a caller-supplied chainId and is refused on the exhausted budget). Case 25 is V10 with writeBudget 2. Cases 31 and 32 test the V4 rule (link-to-link omission rejected) on classSource and writeBudget, not on credentialAgeMin. No PoC code checks scope containment or a chain of three links, so no code runs V6. The old appendix sentence "These vectors have not been executed against any implementation by anyone" was therefore no longer true for V9, V10, and V11 in their -01 form.
+2. The frozen posted -01 (`ietf/v2/docs/draft-hamr-oauth-agent-delegation-01.xml`) has all of V1 to V11 in its Test Vectors appendix; its V10 and V11 use "writeBudget 2", and its preamble names accountClass and partialPolicy.
+3. Main-session checks of the spliced section: the section is byte-identical to the approved text; everything outside it is identical to `8eeac40`; xmllint exit 0; zero non-ASCII characters; every xref resolves (local anchors plus xi:include references). The check script exits 1 on two real mutants (one word changed inside the section, one outside) and 0 on the real file. A first mutant test was void: the sed pattern did not match, so the "mutant" was identical to the real file; caught because diff printed nothing, and redone with a cmp check that the files differ.
+4. The section is 43 lines, down from 232, against a target of 40.
+
+**DECISION**
+
+1. The Test Vectors section keeps only the four negative controls, V4, V6, V9, and V11, in one table with the columns Vector, Input, Expected outcome, and "A verifier that gets it wrong". Approved by the user ("approve").
+2. V11 now uses xBudget 2 and states the whole sequence (admit, admit, refuse, refuse), so V10 is not needed as a separate vector. The accountClass and partialPolicy note is gone. The old "not executed by anyone" sentence is replaced by what the PoC runs: V9 as written, a two-request V11 with the -01 single writeBudget, the V4 rule on classSource and writeBudget; no code runs V6.
+3. The full set, V1 to V11, is cited in the Test Vectors appendix of the posted draft-hamr-oauth-agent-delegation-01, by its datatracker URL, with one sentence that its V10 and V11 use writeBudget 2, which is xBudget 2 in -02. The user chose this (option 2) over a new repo file cited by commit SHA (option 1, the plan's wording): "option 2, why file, no need, unless you have a point". The main session had no point against it: the posted -01 already carries the full set. The citation sentence was approved ("approved").
+4. Security still cites V11, which stays. The Changes since -00 appendix still names V7 to V11; it records -01's changes and is cut later per the plan, so it is left unchanged.
+
+Source: user messages, 2026-09-14 and 2026-09-15.
+
+---
+
 ## 2026-09-14 — Implementation Status rewritten: PoC suites, four gaps, rwxmap figures
 
 **EVIDENCE**
