@@ -14,6 +14,64 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-09-15 — First author-tools run on -02: 43 text pages, idnits 2 errors and 2 warnings
+
+**EVIDENCE**
+
+1. The user ran author-tools.ietf.org on `ietf/v3/docs/draft-hamr-oauth-agent-delegation-02.xml` at `688f9a4` (clean tree) and reported: 43 pages in the text output, 34 pages in the PDF output. At 2284 lines (`wc -l`), that is about 53 lines per text page. The user first reported the result as "idnits pass clean"; the full output, pasted by the user, shows 2 errors and 2 warnings:
+
+```
+idnits 2.17.1
+
+draft-hamr-oauth-agent-delegation-02.txt:
+
+  Checking boilerplate required by RFC 5378 and the IETF Trust (see
+  https://trustee.ietf.org/license-info):
+     No issues found here.
+
+  Checking nits according to https://www.ietf.org/id-info/1id-guidelines.txt:
+     No issues found here.
+
+  Checking nits according to https://www.ietf.org/id-info/checklist :
+     No issues found here.
+
+  Miscellaneous warnings:
+     No issues found here.
+
+  Checking references for intended status: Proposed Standard
+     (See RFCs 3967 and 4897 for information about using normative references
+     to lower-maturity documents in RFCs)
+
+  ** Obsolete normative reference: RFC 8941 (Obsoleted by RFC 9651)
+
+  ** Downref: Normative reference to an Informational RFC: RFC 6234
+
+  == Outdated reference: A later version (-03) exists of
+     draft-das-agentic-tool-binding-02
+
+  == Outdated reference: A later version (-13) exists of
+     draft-schrock-ep-authorization-receipts-12
+
+     Summary: 2 errors (**), 0 flaws (~~), 2 warnings (==), 0 comments (--).
+```
+
+2. The posted -01 is 48 text pages: Datatracker API `pages` 48, and the last footer of `https://www.ietf.org/archive/id/draft-hamr-oauth-agent-delegation-01.txt` is `[Page 48]` (both fetched 2026-09-15). At 2364 lines, about 49 lines per page. The -01 PDF could not be fetched (Datatracker returned HTTP 403), so no PDF-to-PDF comparison exists. xml2rfc is not installed locally.
+3. RFC 8941: RFC 9651 (fetched from rfc-editor.org, 2026-09-15) obsoletes it; its Appendix D lists the changes: Date type, Display String type, ABNF moved to an informative appendix, refined parse failure handling, a "Structured Type" column in the HTTP Field Name Registry. -02 uses only a List of Byte Sequences; its IANA table already has a Structured Type column (List). -02 cites RFC 8941 by xref three times (lines 358 and 1233; 1232 names it in prose) and includes its bibxml at line 1608.
+4. RFC 6234 is listed in the IETF downref registry (`https://datatracker.ietf.org/doc/downref/`, fetched 2026-09-15). idnits does not read that registry.
+5. Datatracker API (2026-09-15): draft-das-agentic-tool-binding is at -03, posted 2026-09-05; draft-schrock-ep-authorization-receipts is at -13, posted 2026-09-12. -02 cites -02 and -12.
+6. The posted -01 carried the same RFC 8941 and RFC 6234 normative references. The 2026-09-02 records call -01's idnits result clean from the user's words, not from pasted output; whether these two errors appeared then cannot be determined now.
+
+**DECISION**
+
+1. The 25-page ceiling is in text pages, the unit Datatracker records. At the measured ratio, 25 pages is about 1330 lines, not the plan's 1230-line proxy.
+2. Finishing every remaining section at its plan target cuts about 710 lines, to about 1576 lines, about 30 pages: about 250 lines over the ceiling. The approved sections are over their targets by about 215 lines (Introduction 98, Implementation Status 32, Budgets 32, Attestation 28, Security 24, Test Vectors 3). How to close the gap is pending the user's choice.
+3. RFC 8941 is to be replaced by RFC 9651 in the References rewrite. RFC 6234 stays: it is in the downref registry. The two I-D bumps wait until -03 and -13 are read against every claim -02 makes about them (F4); bumping without that read is not done.
+4. From now on the full idnits output is recorded, not a summary of it.
+
+Source: user messages, 2026-09-15: "idnits pass clean", the pasted idnits output, "34 pages pdf", "43 in txt".
+
+---
+
 ## 2026-09-15 — Test Vectors cut to the four negative controls; full set cited in posted -01
 
 **EVIDENCE**

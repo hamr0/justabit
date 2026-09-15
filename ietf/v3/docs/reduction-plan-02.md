@@ -82,6 +82,8 @@ Target sum is about 1250 lines, a little over the 1230 proxy (25 pages at the
 -01 ratio of 48 pages / 2364 lines). If the author-tools page count is over
 25, the next cut is the vector table — move it all to the repo.
 
+Measured 2026-09-15 at `688f9a4` (author-tools, run by the user): 2284 lines render as 43 text pages (34 PDF), about 53 lines per page, so 25 pages is about 1330 lines, not 1230. Finishing every remaining row at its target gives about 1576 lines, about 30 pages; the approved rows are about 215 lines over their targets. idnits: 2 errors (RFC 8941 obsolete, use RFC 9651; RFC 6234 downref, in the downref registry) and 2 warnings (das-agentic-tool-binding -03 and schrock-ep-authorization-receipts -13 exist; F4). See findings.md.
+
 ## 3. Agreements map
 
 Every row below was read from its own source record, not from this plan.
