@@ -1188,87 +1188,38 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
     <section anchor="related-work" numbered="true" toc="default">
       <name>Relationship to Existing Work</name>
       <t>
-        The OAuth Working Group charter <xref target="OAUTH-CHARTER"/>, as updated 2026-06-04, includes
-        the following work item, quoted in full: "Developing new
-        mechanisms or/and extensions for authorization of automated
-        agents working on behalf of users, including addressing scenarios
-        where automated agents act across multiple administrative
-        domains." This document targets that work item directly: it
-        addresses cross-administrative-domain agent authorization with an
-        attenuation mechanism a verifier can check at every hop.
+        The OAuth Working Group charter <xref target="OAUTH-CHARTER"/>,
+        as updated 2026-06-04, carries a work item for "authorization of
+        automated agents working on behalf of users, including addressing
+        scenarios where automated agents act across multiple
+        administrative domains". This document targets that work item
+        directly: it defines an attenuated chain that a verifier can
+        check at every hop across administrative domains.
       </t>
       <t>
-        <xref target="I-D.klrc-aiagent-auth"/>, submitted 6 July 2026 and
-        expiring 7 January 2027 (version -03 is the latest published
-        version; this document was current as of 2026-08-28), is an
-        individual submission and has not been adopted by the Working
-        Group. Its Section 8 describes a credential-provisioning and
-        posture-attestation stack for agents, and its Section 10.6
-        defines an Identity Assertion JWT Authorization Grant. This
-        document composes with that draft at both points: the attenuated
-        chain this document specifies can carry, at any link, a floor
-        attestation produced by a provisioning and posture stack of the
-        kind that draft describes, and this document's chain can be
-        presented alongside, or as an input to, the grant type that draft
-        defines. This document does not compete with or attempt to
-        replace <xref target="I-D.klrc-aiagent-auth"/>; it fills two
-        extension points that draft leaves open.
-      </t>
-      <t>
-        <xref target="I-D.klrc-aiagent-auth"/>'s Section 11 states that a
-        participant MAY subscribe to change notifications using
-        mechanisms such as the OpenID Shared Signals Framework; it does
-        not require such a subscription. This document specifies no
-        revocation-notification mechanism at all and instead relies on
-        short-lived expiry, per <xref target="attestation"/> and
-        <xref target="security"/>. Both documents are, in this sense,
-        revocation-light: one permits an optional richer revocation path
-        that this document does not require or preclude, and this
-        document specifies none. Neither position is presented here as
-        superior to the other.
-      </t>
-      <t>
-        <xref target="I-D.klrc-aiagent-auth"/>'s Section 6 wants an
-        identifier that remains stable for the lifetime of a workload
-        identity, to support audit. This document's
-        <xref target="agent-identifier"/> wants an identifier unlinkable
-        across Relying Services. These two goals pull in opposite
-        directions, and this document does not resolve that tension.
+        <xref target="I-D.klrc-aiagent-auth"/> is an individual
+        submission and has not been adopted by the Working Group; version
+        -03 is current as of 2026-09-17. Its Section 8 describes a
+        credential-provisioning and posture-attestation stack for agents,
+        and its Section 10.6 defines an Identity Assertion JWT
+        Authorization Grant. This document fills both extension points
+        rather than competing with that draft: any link in the chain can
+        carry a floor attestation produced by a stack of that kind, and
+        the chain can be presented alongside, or as an input to, that
+        grant type. The two documents do pull against each other on agent
+        identifiers; <xref target="agent-identifier"/> states that
+        tension and leaves it open.
       </t>
       <t>
         Three further individual Internet-Drafts entered adjacent space
         recently and are cited here so that this document does not appear
-        unaware of its neighbors: <xref target="I-D.asor-wimse-agent-delegation-chain"/>,
+        unaware of its neighbors:
+        <xref target="I-D.asor-wimse-agent-delegation-chain"/>,
         <xref target="I-D.reece-wimse-cross-org-delegation"/>, and
         <xref target="I-D.sweeney-wimse-credential-delegation"/>. This
-        document does not attempt a detailed comparison against each; it
-        notes their existence as evidence of active, converging interest
-        in attenuated agent delegation across administrative domains, a
-        problem this document addresses from the OAuth Working Group
-        side.
-      </t>
-      <t>
-        <xref target="I-D.asor-wimse-agent-delegation-chain"/> Section 10
-        requests a new "Agent Delegation Constraint Types" registry, with
-        initial entries max, min, one_of, not_one_of, prefix, and rank, and
-        its Section 4.2 requires a verifier that encounters an unknown
-        constraint type to deny the action, never to treat it as
-        unconstrained. That draft's Section 4.3 subsumption rules include
-        both ceiling and floor comparators (e.g. child.max &lt;= parent.max
-        alongside child.min &gt;= parent.min), the latter tightened upward
-        in the same direction as this document's duration-typed axes. That
-        draft's registry names comparator TYPES and leaves the constrained
-        quantity to a profile-level naming agreement; the registry defined
-        in <xref target="floors"/> takes the complementary approach
-        of naming axes, each bound to one comparator from a closed set.
-        The comparator vocabulary is therefore the bridge between the two
-        registries, not a shared set of names: rank in that draft's
-        registry and the rank comparator of
-        <xref target="floors"/> are the same comparator, and
-        actionClass in this document's registry uses it. That draft's
-        registry now also includes a min comparator matching this
-        document's min, so the comparator vocabulary bridging the two
-        registries now spans both the ceiling and floor direction.
+        document does not compare itself against each in detail. It takes
+        its comparators from the first of the three;
+        <xref target="floors"/> states how the two registries relate.
       </t>
     </section>
 

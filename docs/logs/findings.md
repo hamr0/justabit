@@ -14,6 +14,29 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-09-17 — -02: Relationship to Existing Work reduced; every cited Internet-Draft version re-verified live
+
+**EVIDENCE**
+
+1. Plan item F4 was executed against the Datatracker API on 2026-09-17, one query per draft, reading `rev` from `/api/v1/doc/document/`. Six of the eight cited drafts match the version in the draft: klrc-aiagent-auth -03, asor-wimse-agent-delegation-chain -01, reece-wimse-cross-org-delegation -02, sweeney-wimse-credential-delegation -00, schrock-action-evidence-boundary -05, google-cfrg-libzk -02. Two are stale: the draft cites das-agentic-tool-binding -02 while -03 is current, and schrock-ep-authorization-receipts -12 while -13 is current. These are the two idnits warnings recorded at `688f9a4`. Neither draft is cited in Relationship to Existing Work, so both stay with the References row.
+2. Section sizes: Relationship to Existing Work goes from 86 lines to 37, against a target of 30. The file goes from 1776 to 1727 lines.
+3. Three paragraphs were cut. The klrc Section 11 revocation-light paragraph: Security Considerations already states that this document specifies no revocation. The klrc Section 6 identifier paragraph: Agent Identifier already states the same tension in full, in its own second paragraph, so the new text cross-references `agent-identifier` instead of repeating it. The asor Section 10 registry paragraph, 15 lines: Floor Axes already carries the comparator bridge in the paragraph beginning "min, max, and rank are the comparisons defined in".
+4. Agreements A10 and A11 were checked and are untouched. Both live in Floor Axes, not in this section: A10 in the duration-typed `tenureMin` axis, A11 in the comparator paragraph that names asor-01's Section 4.2 and 4.3.
+5. Anchor state after the change: `related-work` is still the target of one xref, so the anchor stays; `I-D.klrc-aiagent-auth` is still cited twice, in this section and in Agent Identifier, so its reference stays cited. Both counts were taken from a whitespace-flattened copy of the file, not line by line.
+6. Main-session checks of the splice (script `check.sh`, scratchpad): the whole file is byte-identical to an expected file built independently from `6af8395`; line count 1727; zero non-ASCII characters; `xmllint --noout` exit 0; every xref target resolves to an anchor; every reference is cited. The script exits 1 on five real mutants, each first confirmed by `cmp` to differ from the live file: a word changed inside the new section, a line deleted far outside it, a broken XML tag, a non-ASCII character, and an xref pointed at a missing anchor. It exits 0 on the unmutated file.
+7. Two of the first mutants were void: the `sed` patterns matched no line, so the mutant file was identical to the original and "passed". The `cmp` guard caught both, and they were rebuilt against real line numbers. This is the third occurrence of lesson L1 in this reduction.
+8. The first version of the check script produced two false failures, both from line-based matching. It reported nine unresolved xrefs because RFC references arrive by `xi:include`, not by a local `anchor=` attribute; and it reported RFC6234 as uncited because that xref is split across two lines. Flattening the file with `tr` before matching removed both.
+
+**DECISION**
+
+1. Relationship to Existing Work keeps three paragraphs: the charter work item, composition with klrc-aiagent-auth, and the three adjacent Internet-Drafts. The charter quotation is cut from the full work item to its operative clause. User: "approve option 1" (2026-09-17).
+2. The asor Section 4.2 note that a verifier must deny an unknown constraint type is not restated anywhere. The rule itself survives in Floor Axes as the unknown-axis rejection, which is agreement A13; what is dropped is only the sentence saying asor takes the same position. The main session recommended adding one sentence to Floor Axes to keep that alignment visible. User chose not to: "approve option 1" (2026-09-17).
+3. The two stale Internet-Draft versions are not bumped here. A bump is not a version-string swap: it requires re-reading both drafts and re-checking every claim -02 makes about them. That work belongs to the References row.
+
+Source: user messages, 2026-09-17.
+
+---
+
 ## 2026-09-17 — -02: Changes since -01 rewritten, Acknowledgments completed (agreement A8 closed)
 
 **EVIDENCE**
