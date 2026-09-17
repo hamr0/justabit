@@ -14,6 +14,32 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-09-17 — -02 cuts: A Worked Example, Appendix B folded into Agent Identifier, Changes since -00
+
+**EVIDENCE**
+
+1. Section bounds confirmed on 2026-09-17 at `cfe0ff1` (clean tree, file 2200 lines): `example` 1172-1271, `appendix-b` 1819-1845, `changes-since-00` 2031-2187, each followed by one blank line.
+2. No reference becomes uncited by the cuts. Every xref target inside the three ranges was counted against the rest of the file; only three section anchors (`introduction`, `conventions`, `iana`) were cited from inside them alone, and a section anchor needs no citation. RFC 8941 stays cited from `header`.
+3. Xrefs pointing into the cut sections: `example` 0, `changes-since-00` 0, `appendix-b` 2 (Agent Identifier line 1133, Related Work line 1361). These match the counts in plan item F7.
+4. Two statements exist only in A Worked Example: the one-line wire form of the header (`Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:`; the file has no other `<artwork>` element), and the sentence separating a link's expiry, a floor attestation's expiry, and the RFC 9421 `expires` signature parameter. The RFC 9421 profile states the `expires` rule but not that distinction.
+5. A Worked Example used the car-rental scenario. The Introduction now uses the flight example, so the cut also removes that mismatch.
+6. -02's Changes since -00 is not identical to the same section in posted -01 (`ietf/v2/docs/draft-hamr-oauth-agent-delegation-01.xml`): `diff` reports 61 lines. Every difference is an -02 edit that kept the history consistent with the new body: anchor repoints (`axis-registry` to `floors`, `motivation` to plain text), Iman Schrock's AEB layering wording, the Direction 4 wording, and "verifier placement, then stated as sitting at the resource boundary or the credential boundary". No plan agreement is mapped to this section; agreement A4's substance stays in Changes since -01.
+7. klrc, whose Section 6 claim moves into Agent Identifier: the Datatracker API on 2026-09-17 gives rev 03 and expiry 2027-01-07, the same as the draft text states.
+8. Main-session checks of the cut (script `verify-cuts.sh`, scratchpad): the whole file is byte-identical to an expected file built independently from `cfe0ff1` with `sed`/`cat`; the anchors `example`, `appendix-b` and `changes-since-00` are gone and no xref points at them; xmllint exit 0; zero non-ASCII characters; every xref resolves; every local reference is cited. The script exits 1 on the pre-cut file and on two real mutants (one word changed inside the new Agent Identifier paragraph, one word changed at line 400, far from every edit), each confirmed by `cmp` to differ, and 0 on the expected file. A first mutant was void (line 1132 is `<t>`, so its `sed` pattern did not match) and was redone on the right line; the same void-mutant fault occurred in the Appendix A round.
+9. Sizes: the file goes from 2200 to 1916 lines. A Worked Example 101 to 0, Appendix B 28 to 0, Changes since -00 158 to 0, all against a target of 0. Agent Identifier goes from 20 to 24 lines, against a target of 25.
+
+**DECISION**
+
+1. The three sections are cut, as the plan states. User: "option 1" (2026-09-15) and "approve" (2026-09-17).
+2. Appendix B is folded into Agent Identifier as one paragraph: klrc Section 6 wants a stable identifier; an identifier stable enough for that audit at one Relying Service is also a strong link across Relying Services if reused there, or derivable in a reused form; this document does not resolve the tension and records it as an open item for the Working Group. The old second paragraph of Agent Identifier, which only pointed at Appendix B, is replaced by it.
+3. Related Work loses the clause "; see <xref target="appendix-b"/>". The sentence now ends "does not resolve that tension." The rest of that paragraph waits for the Related Work rewrite.
+4. Two follow-ups, recorded so the cut does not lose them: (a) the one-line wire form goes into the Header rewrite; (b) one sentence separating the three expiries goes into the RFC 9421 profile rewrite.
+5. Cutting -02's own edits inside Changes since -00 is accepted. The posted -01 records that history in the wording that was true for -01, and the corrected substance is in the body and in Changes since -01.
+
+Source: user messages, 2026-09-15 and 2026-09-17.
+
+---
+
 ## 2026-09-15 — Appendix A rewritten: no direction meets the Attestation section today; "open, unreviewed" retracted
 
 **EVIDENCE**

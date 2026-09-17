@@ -1130,10 +1130,14 @@
         the identifier.
       </t>
       <t>
-        <xref target="appendix-b"/> records that this unlinkability
-        requirement pulls in a different direction from a stability
-        requirement found in related work, and treats that tension as an
-        open, unresolved item rather than as settled by this document.
+        This requirement pulls against related work.
+        <xref target="I-D.klrc-aiagent-auth"/>, Section 6, wants an agent
+        identifier that is stable for the life of a workload identity, so
+        that audit records can be linked over time. An identifier stable
+        enough for that audit at one Relying Service is also a strong link
+        across Relying Services if it is reused there, or can be derived
+        in a reused form. This document does not resolve this tension. It
+        is an open item for the Working Group.
       </t>
     </section>
 
@@ -1166,107 +1170,6 @@
         A verifier that implements only a subset of these steps, or that
         implements them out of order such that a later step's success can
         mask an earlier step's failure, does not conform to this profile.
-      </t>
-    </section>
-
-    <section anchor="example" numbered="true" toc="default">
-      <name>A Worked Example</name>
-      <t>
-        This section is non-normative. It illustrates the rules of the
-        preceding sections using a single chain that is built and then
-        verified; where it appears to conflict with a normative section,
-        the normative section governs.
-      </t>
-      <t>
-        Recall the scenario from <xref target="introduction"/>: a person
-        asks an automated agent to arrange a car rental. The parties in
-        this example are the person, who is the root Delegator; Agent A,
-        a general assistant; Agent B, a specialized booking agent operated
-        by a different company; and the rental service, which is both the
-        Relying Service and the verifier.
-      </t>
-      <t>
-        Link L(0) is the root delegation, created on the person's device:
-      </t>
-      <table>
-        <thead>
-          <tr><th>Field</th><th>Value</th></tr>
-        </thead>
-        <tbody>
-          <tr><td>scope</td><td>booking:read, booking:create, payment:authorize</td></tr>
-          <tr><td>floor: subjectClass</td><td>interactive</td></tr>
-          <tr><td>floor: tenureMin</td><td>P2Y</td></tr>
-          <tr><td>floor: credentialAgeMin</td><td>P90D</td></tr>
-          <tr><td>expiry</td><td>2026-11-01T12:00:00Z</td></tr>
-        </tbody>
-      </table>
-      <t>
-        Link L(1) is Agent A's re-delegation to Agent B:
-      </t>
-      <table>
-        <thead>
-          <tr><th>Field</th><th>Value</th></tr>
-        </thead>
-        <tbody>
-          <tr><td>scope</td><td>booking:read, booking:create</td></tr>
-          <tr><td>floor: subjectClass</td><td>interactive</td></tr>
-          <tr><td>floor: tenureMin</td><td>P2Y</td></tr>
-          <tr><td>floor: credentialAgeMin</td><td>P180D</td></tr>
-          <tr><td>expiry</td><td>2026-11-01T11:00:00Z</td></tr>
-        </tbody>
-      </table>
-      <t>
-        Agent A drops payment:authorize from the scope it grants to
-        Agent B. Dropping a capability is always permitted, because rule 1
-        of <xref target="attenuation"/> requires only that the child's
-        scope be a subset of the parent's.
-      </t>
-      <t>
-        On the wire, Agent B presents both links to the rental service as
-        an Agent-Delegation Structured Field List:
-      </t>
-      <artwork>
-Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
-      </artwork>
-      <t>
-        Each member of the list is a Byte Sequence per RFC 8941
-        <xref target="RFC8941"/>. The base64 content is elided here for
-        readability; the decoded fields are shown in the tables above.
-      </t>
-      <t>
-        The expiry values in the tables above are written in a
-        human-readable form for readability only. The on-the-wire
-        encoding of a link is determined by the credential format in
-        use, as stated in <xref target="header"/>, and this document
-        does not mandate one. A link's expiry is distinct from the
-        expiry of a floor attestation carried by the chain
-        (<xref target="attestation"/>), and both are distinct from the
-        RFC 9421 <tt>expires</tt> signature parameter profiled in
-        <xref target="rfc9421-profile"/>, which covers the HTTP message
-        rather than the delegation.
-      </t>
-      <t>
-        The rental service verifies the chain following
-        <xref target="verification"/>. For the adjacent pair (L(0), L(1)),
-        the three attenuation rules of <xref target="attenuation"/> are
-        checked as follows:
-      </t>
-      <ul spacing="normal">
-        <li><t>Rule 1, scope containment: {booking:read, booking:create} is a subset of {booking:read, booking:create, payment:authorize}. Holds.</t></li>
-        <li><t>Rule 2, floor non-relaxation: subjectClass is equal on both links, so the equality axis holds. For tenureMin, P2Y is not less than P2Y, so it holds. For credentialAgeMin, P180D is 180 days and P90D is 90 days; 180 is greater than 90, so L(1) is tighter. Holds.</t></li>
-        <li><t>Rule 3, expiry non-extension: 2026-11-01T11:00:00Z is earlier than 2026-11-01T12:00:00Z. Holds.</t></li>
-      </ul>
-      <t>
-        Every link in the chain verifies, so the chain is accepted, and
-        the rental service applies its own authorization policy to a
-        scope of booking:read and booking:create only. It will not honor
-        a payment request on this chain, because no link in it carries
-        that capability.
-      </t>
-      <t>
-        Had L(1) instead carried credentialAgeMin="P30D", that value would
-        be looser than the parent's P90D, and rule 2 would require the
-        verifier to reject the entire chain.
       </t>
     </section>
 
@@ -1357,8 +1260,7 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         identity, to support audit. This document's
         <xref target="agent-identifier"/> wants an identifier unlinkable
         across Relying Services. These two goals pull in opposite
-        directions, and this document does not resolve that tension; see
-        <xref target="appendix-b"/>.
+        directions, and this document does not resolve that tension.
       </t>
       <t>
         Three further individual Internet-Drafts entered adjacent space
@@ -1816,34 +1718,6 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
       </t>
     </section>
 
-    <section anchor="appendix-b" numbered="true" toc="default">
-      <name>Open Reconciliation Item: Identifier Stability Versus Unlinkability</name>
-      <t>
-        This appendix records an unresolved tension rather than a
-        solution. <xref target="I-D.klrc-aiagent-auth"/>'s Section 6
-        wants an agent identifier that is stable for the lifetime of a
-        workload identity, so that audit records can be correlated over
-        time. This document's <xref target="agent-identifier"/> wants an
-        identifier that is unlinkable across distinct Relying Services,
-        so that no two Relying Services can correlate requests from the
-        same underlying agent by identifier alone.
-      </t>
-      <t>
-        These two properties are in tension: an identifier stable enough
-        to support long-lived audit correlation at one Relying Service is,
-        by that same stability, a stronger correlation handle if it is
-        reused, or is derivable in a reused form, across Relying Services.
-        A per-Relying-Service unlinkable identifier, taken to its logical
-        conclusion, complicates the kind of long-lived, cross-request
-        audit trail Section 6 of that draft wants.
-      </t>
-      <t>
-        This document does not resolve this tension. It is recorded here
-        as an open item for the Working Group's consideration, not
-        presented as solved by either document.
-      </t>
-    </section>
-
     <section anchor="vectors" numbered="true" toc="default">
       <name>Test Vectors</name>
       <t>
@@ -2023,164 +1897,6 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
             (<xref target="implementation-status"/>) therefore remains
             40, and the three new cases are recorded there as a
             separate bullet rather than folded into that count.
-          </t>
-        </li>
-      </ul>
-    </section>
-
-    <section anchor="changes-since-00" numbered="true" toc="default">
-      <name>Changes since -00</name>
-      <t>
-        This section is non-normative and is expected to be removed
-        before this document leaves individual submission status.
-      </t>
-      <ul spacing="normal">
-        <li>
-          <t>
-            Added the Floor Axis Registry
-            (<xref target="floors"/>): axis names are now
-            extensible through an IANA registry, Specification Required,
-            rather than fixed to the closed set this document defines
-            directly. Each registered name is bound to exactly one
-            comparator from a closed set of four (min, max, rank,
-            one_of); an unregistered axis name or an unregistered
-            comparator is a hard rejection, extending the -00 rule that
-            already applied to axis names alone. Eight initial entries
-            are registered: the five axes <xref target="floors"/> already
-            defines (subjectClass, tenureMin, credentialAgeMin,
-            accountClass, partialPolicy) are now registered with explicit
-            comparators (one_of for the three enum axes, treating -00's
-            equality-only rule as a singleton set; min for the two
-            duration axes); and three new names, actionClass, classSource,
-            and writeBudget, are registered with their comparators, but
-            their full semantics are reserved for a later item of this
-            revision and are not yet specified. Added the
-            corresponding IANA Considerations request
-            (<xref target="iana"/>) and a paragraph in
-            <xref target="related-work"/> comparing this registry's
-            approach against the constraint-type registry of
-            <xref target="I-D.asor-wimse-agent-delegation-chain"/>.
-          </t>
-        </li>
-        <li>
-          <t>
-            Added <xref target="layers"/>, a new, purely informational
-            section placed after the Motivation section and before
-            <xref target="header"/>. It positions this document among
-            three delegation layers (who may act, what exactly may be
-            done per invocation, and what was approved and consumed
-            once), states that
-            this document occupies layer (a) plus floors, and
-            distinguishes it from <xref target="RFC9396"/> (grant-time
-            binding), <xref target="I-D.das-agentic-tool-binding"/>
-            (per-call tool-name-and-argument binding),
-            <xref target="I-D.schrock-ep-authorization-receipts"/>
-            (layer (c) pre-execution approval and terminal consumption
-            evidence, not itself proof of execution), and
-            <xref target="I-D.schrock-action-evidence-boundary"/>
-            (executor-side verification, consumption, and
-            reconciliation at invocation). It also names, non-normatively,
-            the shared structural problem that a parent credential
-            remains valid after attenuation, citing
-            <xref target="I-D.asor-wimse-agent-delegation-chain"/>
-            Section 9.1 for mitigations this document does not itself
-            supply.
-          </t>
-        </li>
-        <li>
-          <t>
-            Added Direction 4 to <xref target="appendix-a"/>: three
-            single-author, open-source harness experiments (bareguard,
-            bareloop, bareagent) that exercise the enforcement-boundary
-            role of <xref target="action-class-verifier-placement"/>
-            without implementing this profile, and are therefore not
-            listed in
-            <xref target="implementation-status"/>.
-          </t>
-        </li>
-        <li>
-          <t>
-            Added <xref target="action-class"/>, a new normative section
-            placed after <xref target="floors"/>, specifying the
-            actionClass and classSource axes reserved but not yet
-            specified by the Floor Axis Registry addition above: the
-            actionClass values r, w, and x and their rank tightening
-            rule; the classSource values method and declared, ranked
-            method &lt; declared with method the tighter, default value,
-            and the rule that a child link moves only from declared to
-            method; the classification procedure
-            (HTTP-method default per <xref target="RFC9110"/>, or a
-            verified, resource-bound menu when classSource is declared,
-            falling back to the method default on any menu failure and
-            never combining the two); the declared menu itself, a JWS
-            (<xref target="RFC7515"/>) whose payload names the resource's
-            origin (<xref target="RFC6454"/>) and a map from
-            operation key to actionClass value, including a deterministic
-            path-template matching rule and an origin-binding requirement
-            on the menu's issuer; verifier placement, then stated as
-            sitting at the resource boundary or the credential boundary;
-            and an honest-limits paragraph, backed by a committed
-            catalogue survey, that a POST is not always classed
-            correctly by method alone. Added a corresponding paragraph
-            to <xref target="security"/>, three test vectors (V7
-            through V9, the last a negative control for the
-            origin-binding rule) to <xref target="vectors"/>, and a bullet
-            to <xref target="implementation-status"/> recording the
-            proof-of-concept's case count against this section's
-            requirements. Replaced the two Floor Axis
-            Registry table cells that deferred actionClass's and
-            classSource's semantics, and the standalone marker comment
-            for this item, with a cross-reference to the new section.
-          </t>
-        </li>
-        <li>
-          <t>
-            Added <xref target="write-budget"/>, a new normative section
-            placed after <xref target="action-class"/>, specifying the
-            writeBudget axis reserved but not yet specified by the Floor
-            Axis Registry addition above: the axis as a non-negative,
-            max-comparator, cumulative-per-chain integer with an
-            omitted-axis floor of zero; the distinction between the
-            limit carried in the chain and the count a verifier holds as
-            its own state, keyed by a chain identifier and never carried
-            in a link, with reserve-then-decrement admission and an
-            actionClass r request never spending; and the chain
-            identifier itself, derived by the verifier as the SHA-256
-            digest of the root link L(0)'s signature value, never taken
-            from the request, which resolves case 22 of the
-            proof-of-concept. Added a corresponding paragraph to
-            <xref target="security"/>, two test vectors (V10, a positive
-            three-request sequence, and V11, a negative control re-using
-            an exhausted chain under a caller-supplied identifier) to
-            <xref target="vectors"/>, and a bullet to
-            <xref target="implementation-status"/> recording that the
-            proof-of-concept now derives the chain identifier as this
-            section requires. Replaced the writeBudget row's deferred-semantics note in
-            <xref target="floors"/>'s table, and the standalone
-            marker comment for this item, with a cross-reference to the
-            new section, and rewrote the paragraph after that table so it
-            no longer describes writeBudget's semantics as unspecified.
-          </t>
-        </li>
-        <li>
-          <t>
-            Updated three sections that already existed in -00. Added a
-            Resource Owner entry to the Conventions and Terminology list
-            (<xref target="conventions"/>), and a clause to the Floor
-            definition in that same list making explicit that a floor is
-            the aggregate of its per-axis constraints, at most one per
-            axis. Added a step to the ordered Verification Procedure
-            (<xref target="verification"/>) placing actionClass
-            classification, declared-menu consultation, and writeBudget
-            admission after chain and attenuation validation and before
-            the Relying Service's authorization-policy step. Restated the
-            Floor Axis Registry's Omitted-axis rule
-            (<xref target="floors"/>) as two distinct cases,
-            link-to-link omission of an axis the parent constrained
-            (a rejection per rule 2 of <xref target="attenuation"/>) and
-            link-to-published-floor inheritance where no link in the
-            chain constrains the axis, replacing an earlier statement
-            that conflated the two.
           </t>
         </li>
       </ul>
