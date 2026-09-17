@@ -14,6 +14,29 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-09-17 — -02: Changes since -01 rewritten, Acknowledgments completed (agreement A8 closed)
+
+**EVIDENCE**
+
+1. The old Changes since -01 (139 lines at `81059fa`) predates this reduction. It listed only the -02 drafting round of early September: the Verifier Placement rewrite, the receipts/AEB layering correction, the asor version bump, two Implementation Status counts, and two Appendix A corrections. It named Appendix A's bareguard bullets, which the 2026-09-17 Appendix A rewrite removed.
+2. Each claim in the new list was checked against the draft at `81059fa`: "Resource Owner" appears 0 times and "API Provider" 11 times; `ageMin` is present; `accountClass` and `partialPolicy` survive only in the Implementation Status gap list, which describes the PoC, not the draft; PATCH defaults to w (`classification`); the three budgets are in `write-budget`, and `writeBudget` survives only in the gap list, the vector note citing -01, and the old changes list itself.
+3. Acknowledgments before this change named only Iman Schrock. Plan agreement A8 records that gap: naming was granted by Sangam Das and Jijie Wei (varwof), and the author proposed acknowledgment text on the OAuth and WIMSE lists on 2026-09-02, with no objection recorded.
+4. The added paragraph is that proposed text, copied from `ietf/v2/docs/oauth-wg-reply-3-sent-2026-09-02.md` word for word. The Iman Schrock line is unchanged, as agreement A5 requires it verbatim.
+5. Main-session checks of the splice (script `verify-changes-acks.sh`, scratchpad): the whole file is byte-identical to an expected file built independently from `81059fa` with `sed`/`cat`; each section is byte-identical to its approved text; everything before the two sections is identical to `81059fa`; the A5 line and both A8 names are present; xmllint exit 0; zero non-ASCII characters; every xref resolves; every local reference is cited. The script exits 1 on the base file and on three real mutants (one word changed inside the changes list, one inside the Acknowledgments paragraph, one on line 2 far outside both), each confirmed by `cmp` to differ, and 0 on the expected file.
+6. Sizes: Changes since -01 goes from 139 to 18 lines, against a target of 20. Acknowledgments goes from 10 to 18 lines, against a target of 16. The file goes from 1889 to 1776 lines.
+7. Found outside this row, not fixed: line 302 of the draft still calls `writeBudget` an axis, although the draft now defines three budgets. It is recorded in the Layers plan row.
+
+**DECISION**
+
+1. Changes since -01 now lists what -02 actually changes, in nine bullets: the reduction itself, the Verifier Placement rewrite with closure and the bypass test, the receipts/AEB layering correction, the registry and axis changes, r/w/x by effect with the three budgets, the API Provider rename, the Appendix A rewrite, the measured classifier figures, and the two new acknowledgments. User: "approve" (2026-09-17).
+2. Agreement A4 is satisfied. It required the AEB substance that Iman Schrock approved to survive the shrink from 139 to about 20 lines. Bullets 2 and 3 carry it: the complete-mediation distinction, and the correction that the receipts draft does not itself establish that the action occurred.
+3. The Acknowledgments section is rewritten in the same commit, because the new changes list states that both people are named. A list bullet that named them while the section did not would be false.
+4. Agreement A8 is closed. Sangam Das gave no preferred name form when asked, so "Sangam Das" stands, as the proposed text used it.
+
+Source: user messages, 2026-09-17.
+
+---
+
 ## 2026-09-17 — -02 rewritten: the Agent-Delegation header field and the RFC 9421 profile
 
 **EVIDENCE**

@@ -1738,140 +1738,19 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
     <section anchor="changes-since-01" numbered="true" toc="default">
       <name>Changes since -01</name>
       <t>
-        This section is non-normative and is expected to be removed
-        before this document leaves individual submission status.
+        This section is non-normative. It will be removed before this
+        document leaves individual submission status.
       </t>
       <ul spacing="normal">
-        <li>
-          <t>
-            Rewrote <xref target="action-class-verifier-placement"/>.
-            An enforcement boundary is now defined as a role in an
-            effect-capable path, the first admission point on that path
-            whose successful admission is necessary for the protected
-            effect to complete, rather than as a component fixed at the
-            resource or credential boundary. Boundary identification is
-            now performed separately for each effect-capable path. Added
-            closure, a separate, system-wide requirement that every
-            effect-capable path to a protected effect cross a qualifying
-            enforcement boundary, together with the bypass test: closure
-            fails for an effect if any path to it can complete without
-            crossing a qualifying boundary, however many other paths are
-            correctly guarded. Added a sentence tying the term
-            "verifier," as used throughout this document, to the
-            enforcement-boundary role, and a sentence distinguishing
-            this closure and bypass-test requirement from the
-            complete-mediation condition of
-            <xref target="I-D.schrock-action-evidence-boundary"/>, which
-            requires a deployment to document every path that bypasses
-            its implementation and forbids a claim of complete
-            mediation unless the protected system rejects all material
-            alternate paths or subjects them to an equivalent boundary;
-            this document states the same closure property as an
-            admission invariant over every effect-capable path to a
-            protected effect, independent of any conformance claim.
-            This replaces the -01 wording, which placed the verifier at
-            "the resource or credential boundary" and cited
-            <xref target="layers"/> for a boundary that section never
-            drew.
-          </t>
-        </li>
-        <li>
-          <t>
-            Updated step 9 of the Verification Procedure
-            (<xref target="verification"/>) to match: actionClass
-            classification, declared-menu consultation, and writeBudget
-            admission are now stated as performed by whichever component
-            occupies the enforcement-boundary role for the request's
-            effect-capable path, rather than by "the verifier at the
-            resource or credential boundary."
-          </t>
-        </li>
-        <li>
-          <t>
-            Corrected the description of
-            <xref target="I-D.schrock-ep-authorization-receipts"/> in
-            <xref target="layers"/>: that draft addresses layer (c) with
-            a pre-execution approval bundle and terminal consumption
-            evidence, and does not itself establish that the action
-            occurred. Relabeled layer (c) from "what happened, once" to
-            "what was approved and consumed, once" accordingly. Added an
-            informative reference to
-            <xref target="I-D.schrock-action-evidence-boundary"/>, which
-            complements the receipts draft with an executor-side model
-            for exact-action matching, local authorization, atomic
-            consumption, and outcome reconciliation at invocation, and
-            placed it in the layering
-            alongside <xref target="RFC9396"/>,
-            <xref target="I-D.das-agentic-tool-binding"/>, and
-            <xref target="I-D.schrock-ep-authorization-receipts"/>.
-          </t>
-        </li>
-        <li>
-          <t>
-            Bumped the citation of
-            <xref target="I-D.asor-wimse-agent-delegation-chain"/> from
-            -00 to -01 and corrected five claims about that draft that
-            the version bump left stale. The registry's initial entries
-            now include min alongside max, one_of, not_one_of, prefix,
-            and rank. The unknown-constraint-type fail-closed rule is
-            now in that draft's Section 4.2, not 4.1. The subsumption
-            rules are now in Section 4.3, not 4.2. Replaced the former
-            contrast, that every constraint in that draft's registry
-            narrows a ceiling while this document's duration-typed axes
-            are floors tightened upward, because that draft's Section
-            4.3 subsumption rules now include a floor comparator,
-            child.min &gt;= parent.min, tightened upward in the same
-            direction as this document's axes; the argument was rewritten
-            rather than patched around the now-false premise. Removed the
-            closing sentence stating that a mirrored min comparator was
-            not present in that draft as posted, since that draft's
-            registry now includes one matching this document's min.
-          </t>
-        </li>
-        <li>
-          <t>
-            Corrected the Implementation Status case count
-            (<xref target="implementation-status"/>) from 27 to 40, the count the
-            proof-of-concept accompanying this document actually reports; the
-            earlier figure was arithmetic rather than a suite run.
-          </t>
-        </li>
-        <li>
-          <t>
-            Corrected two sites in Appendix A
-            (<xref target="appendix-a"/>). Direction 4's closing
-            sentence no longer claims the point of control "sat at the
-            credential boundary or the resource, never in the harness";
-            it now reads the three prior implementations (bareguard,
-            bareloop, bareagent) as evidence for the enforcement-boundary
-            role model of
-            <xref target="action-class-verifier-placement"/>, realized
-            at a different component in each experiment, rather than as
-            evidence that the point of control never sits in a harness.
-            The bareguard bullet's layer mapping was corrected: the
-            floor gate maps onto layer (a), but the after-the-result
-            detector fits none of the three layers, since it observes
-            after execution rather than recording what was approved and
-            consumed.
-          </t>
-        </li>
-        <li>
-          <t>
-            Grew the proof-of-concept case count further, from 40 to 43,
-            adding three cases for the Verifier Placement rewrite of
-            <xref target="action-class-verifier-placement"/>: a positive
-            control, the closure/bypass-test negative control, and a
-            case distinguishing an advisory-only classifier from an
-            enforcement boundary. These three cases exercise the
-            enforcement-boundary role and closure requirement, not the
-            actionClass and classSource classification rules of
-            <xref target="action-class"/>; the Implementation Status
-            case count for that classification bullet
-            (<xref target="implementation-status"/>) therefore remains
-            40, and the three new cases are recorded there as a
-            separate bullet rather than folded into that count.
-          </t>
-        </li>
+        <li><t>Shortened the whole document. Cut the worked example and the changes since -00, folded the open reconciliation item into <xref target="agent-identifier"/>, and cut <xref target="vectors"/> to four negative controls, citing the full set in -01.</t></li>
+        <li><t>Rewrote <xref target="action-class-verifier-placement"/>. An enforcement boundary is now a role on an effect-capable path, identified for each path, rather than a component fixed at the resource or credential boundary. Added closure, a system-wide requirement that every effect-capable path cross a qualifying boundary, with its bypass test, and stated how that differs from the complete-mediation condition of <xref target="I-D.schrock-action-evidence-boundary"/>. <xref target="verification"/> follows the same model.</t></li>
+        <li><t>Corrected the layering of <xref target="I-D.schrock-ep-authorization-receipts"/> in <xref target="layers"/>: that draft gives a pre-execution approval bundle and terminal consumption evidence, and does not itself establish that the action occurred. Layer (c) is relabelled "what was approved and consumed, once". Added <xref target="I-D.schrock-action-evidence-boundary"/> alongside it.</t></li>
+        <li><t>Dropped the floor axis registry, which the registry of <xref target="I-D.asor-wimse-agent-delegation-chain"/> already covers, and dropped the axes accountClass and partialPolicy. Added ageMin (<xref target="floors"/>).</t></li>
+        <li><t>Defined r, w, and x by effect (<xref target="action-class"/>); PATCH now defaults to w. Replaced the single writeBudget with one budget per class (<xref target="write-budget"/>), where no number means no limit.</t></li>
+        <li><t>Renamed the Resource Owner role API Provider, and stated that the party running the agent may sign its own menu (<xref target="declared-menu"/>).</t></li>
+        <li><t>Rewrote <xref target="appendix-a"/>. Each direction now states what it does today and what it lacks against <xref target="attestation"/>; the earlier claim that all of them fill the Attestation Issuer role was wrong.</t></li>
+        <li><t>Added measured figures from a mechanical classifier trial to <xref target="implementation-status"/>, in place of an unsupported accuracy claim.</t></li>
+        <li><t>Named Sangam Das and Jijie Wei (varwof) in the Acknowledgments.</t></li>
       </ul>
     </section>
 
@@ -1883,6 +1762,14 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
       <t>
         Iman Schrock for clarifying the receipts/AEB execution boundary
         and bypass relationship.
+      </t>
+      <t>
+        The in-process enforcement-placement case was raised by Jijie Wei
+        (varwof). The enforcement-boundary definition and the bypass
+        formulation are due to Sangam Das. The per-path identification and
+        system-wide closure split, and the framing of the boundary as a
+        role rather than a component, were settled with both on the WIMSE
+        and OAuth lists in September 2026.
       </t>
     </section>
   </back>
