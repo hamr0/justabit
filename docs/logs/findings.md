@@ -14,6 +14,27 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-09-17 — -02 rewritten: the Agent-Delegation header field and the RFC 9421 profile
+
+**EVIDENCE**
+
+1. Both sections were read in full at `93df3e7` before any edit: `header` 352-387 (36 lines), `rfc9421-profile` 389-455 (67 lines).
+2. Normative counts, before and after: `header` holds 2 MUST statements (the verifier MUST be able to parse each Byte Sequence; a link MUST NOT carry personal data). `rfc9421-profile` holds 6 MUST or SHOULD statements (MUST include five parameters; MUST cover the field; MUST set `tag`; MUST reject an expired signature; SHOULD use Accept-Signature; MUST NOT treat the two nonces as one). Both counts are the same after the rewrite.
+3. The two items that A Worked Example alone carried, recorded when it was cut, are back: the one-line wire form is now an `<artwork>` element in `header`, and one sentence in `rfc9421-profile` separates the three expiry values.
+4. Main-session checks of the splice (script `verify-header-rfc9421.sh`, scratchpad): the whole file is byte-identical to an expected file built independently from `93df3e7` with `sed`/`cat`; each section is byte-identical to its approved text; everything outside the two sections is identical to `93df3e7`; the MUST count in `header` is 2 and the MUST or SHOULD count in `rfc9421-profile` is 6; xmllint exit 0; zero non-ASCII characters; every xref resolves; every local reference is cited. The script exits 1 on the base file and on three real mutants (one word changed inside `header`, one inside `rfc9421-profile`, one at line 1129 far outside both), each confirmed by `cmp` to differ, and 0 on the expected file.
+5. Sizes: `header` 36 to 30 lines, against a target of 25, of which 3 lines are the new wire-form example. `rfc9421-profile` 67 to 46 lines, against a target of 40. The file goes from 1916 to 1889 lines.
+
+**DECISION**
+
+1. Both sections are rewritten in plain wording, and the user approved the text ("approve", 2026-09-17). Every MUST and SHOULD is kept.
+2. Cut from `rfc9421-profile`: the long quotations from RFC 9421 for `tag`, `expires` and `nonce`. The rules stay, and each keeps its RFC 9421 section reference. This follows the plan row, which asked for the Section 7.2.2 paraphrase to become one sentence plus a reference.
+3. One wording change: "implementers MUST NOT conflate them" now reads "implementers MUST NOT treat them as one". The rule does not change.
+4. `header` still cites RFC 8941, which RFC 9651 obsoletes and which idnits reports as an error. The change stays in the References row, because it also needs the new bibxml entry. The main session offered to do it now; the user left it in the References row.
+
+Source: user messages, 2026-09-17.
+
+---
+
 ## 2026-09-17 — -02 cuts: A Worked Example, Appendix B folded into Agent Identifier, Changes since -00
 
 **EVIDENCE**

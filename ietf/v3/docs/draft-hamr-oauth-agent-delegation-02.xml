@@ -352,105 +352,78 @@
     <section anchor="header" numbered="true" toc="default">
       <name>The Agent-Delegation Header Field</name>
       <t>
-        This document defines a new HTTP field, Agent-Delegation, that
-        carries a delegation chain from a Delegate to a Relying Service or
-        to the next Delegate in the chain. Agent-Delegation is a
-        Structured Field <xref target="RFC8941"/>, specifically a List
-        whose members are Byte Sequences, each Byte Sequence carrying one
-        opaque, encoded delegation link, ordered from the root link
-        (index zero) to the leaf link presented by the immediate sender.
+        This document defines an HTTP field, Agent-Delegation. It carries a
+        delegation chain from a Delegate to a Relying Service, or to the next
+        Delegate in the chain. It is a Structured Field
+        <xref target="RFC8941"/>: a List whose members are Byte Sequences,
+        each member one opaque, encoded link, ordered from the root link
+        (index zero) to the leaf link the immediate sender presents.
+      </t>
+      <artwork>
+Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
+      </artwork>
+      <t>
+        The credential format in use sets the encoding inside each link
+        (<xref target="attestation"/>); this document does not mandate one. A
+        verifier MUST be able to parse each Byte Sequence into the fields that
+        <xref target="attenuation"/> and <xref target="attestation"/> require,
+        before it evaluates the chain. The immediate sender covers
+        Agent-Delegation with an RFC 9421 <xref target="RFC9421"/> signature,
+        which binds the field to the request it accompanies. This document
+        defines no new signature mechanism.
       </t>
       <t>
-        The internal encoding of each link is determined by the
-        credential format in use (<xref target="attestation"/>); this
-        document does not mandate one. A verifier MUST be able to parse
-        each Byte Sequence member into the fields required by
-        <xref target="attenuation"/> and <xref target="attestation"/>
-        before it can evaluate the chain.
-      </t>
-      <t>
-        Agent-Delegation is intended to be covered by an RFC 9421
-        <xref target="RFC9421"/> HTTP Message Signature applied by the
-        immediate sender, binding the header's content to the request it
-        accompanies. This document specifies the header field and its
-        semantics; it does not define a new signature mechanism, relying
-        on RFC 9421 for message-level signing of the request the header
-        is attached to.
-      </t>
-      <t>
-        Because Agent-Delegation is visible to any intermediary that can
-        read HTTP headers, and is not encrypted by this profile, links
-        MUST NOT carry personal data of the Delegator, the Delegate, or
-        any subject the floor condition concerns. See
-        <xref target="privacy"/>.
+        Any intermediary that can read HTTP headers can read
+        Agent-Delegation, and this profile does not encrypt it. A link MUST
+        NOT carry personal data of the Delegator, the Delegate, or any subject
+        the floor condition concerns. See <xref target="privacy"/>.
       </t>
     </section>
 
     <section anchor="rfc9421-profile" numbered="true" toc="default">
       <name>Profile of RFC 9421 Signature Parameters</name>
       <t>
-        RFC 9421 <xref target="RFC9421"/> Section 2.3 defines a set of
-        signature parameters, including <tt>created</tt>, <tt>expires</tt>,
-        <tt>nonce</tt>, <tt>alg</tt>, <tt>keyid</tt>, and <tt>tag</tt>.
-        This section profiles the use of those parameters for a signature
-        applied over a request carrying an Agent-Delegation field; it does
-        not define a new signature mechanism.
+        This section profiles the RFC 9421 <xref target="RFC9421"/> signature
+        parameters of its Section 2.3 for a request that carries an
+        Agent-Delegation field. It defines no new signature mechanism.
       </t>
       <t>
-        A sender applying this profile MUST include the <tt>keyid</tt>,
-        <tt>alg</tt>, <tt>created</tt>, <tt>expires</tt>, and <tt>nonce</tt>
-        signature parameters, and MUST include the Agent-Delegation field
-        among the signature's covered components.
+        A sender MUST include the <tt>keyid</tt>, <tt>alg</tt>,
+        <tt>created</tt>, <tt>expires</tt>, and <tt>nonce</tt> parameters, and
+        MUST include the Agent-Delegation field among the signature's covered
+        components.
       </t>
       <t>
-        A sender MUST set the <tt>tag</tt> signature parameter to the
-        string "agent-delegation", so a verifier can identify signatures
-        made under this profile. RFC 9421 defines <tt>tag</tt> as "an
-        application-specific tag for the signature as a String value" used
-        "to help identify signatures relevant for specific applications or
-        protocols," and tag values are application-specific strings
-        requiring no registry. RFC 9421 Section 7.2.7 discusses the risk
-        of tag collision between unrelated applications; this profile does
-        not add any mechanism beyond that discussion.
+        A sender MUST set the <tt>tag</tt> parameter to the string
+        "agent-delegation", so that a verifier can identify a signature made
+        under this profile. Tag values are application-specific and need no
+        registry. RFC 9421 Section 7.2.7 states the risk that unrelated
+        applications pick the same tag; this profile adds nothing to it.
       </t>
       <t>
-        RFC 9421 defines the <tt>expires</tt> parameter, "expiration time
-        as a UNIX timestamp value of type Integer," but leaves its
-        enforcement to the application. This profile therefore requires
-        it: a verifier MUST reject a request whose signature
-        <tt>expires</tt> value is earlier than the time of verification.
-        This is a requirement this profile adds; RFC 9421 itself does not
-        impose it.
+        RFC 9421 leaves enforcement of <tt>expires</tt> to the application.
+        This profile requires it: a verifier MUST reject a request whose
+        signature <tt>expires</tt> value is earlier than the time of
+        verification. Three expiry values stay separate. A link carries its
+        own expiry. A floor attestation carries its own expiry
+        (<xref target="attestation"/>). The <tt>expires</tt> parameter covers
+        the HTTP message alone.
       </t>
       <t>
-        RFC 9421 Section 7.2.2 describes the <tt>nonce</tt> parameter,
-        "a random unique value generated for this signature as a String
-        value," as allowing a verifier to detect replay of the signature
-        itself, and describes a signer providing a creation timestamp and
-        an expiration time to limit the utility of a captured signature
-        value. It further states that a verifier wanting to trigger a new
-        signature from a signer can send the Accept-Signature header field
-        with a new nonce parameter, and that an attacker simply replaying
-        a signature would not be able to generate a new signature with the
-        chosen nonce value. A verifier under this profile that needs a
-        fresh signature bound to a value of its own choosing SHOULD use
-        the Accept-Signature header field carrying a <tt>nonce</tt>
-        parameter, as described in RFC 9421 Section 7.2.2. This profile
-        does not define a separate nonce-delivery mechanism, because
-        RFC 9421 already provides one.
+        A verifier that needs a fresh signature bound to a value of its own
+        choosing SHOULD send the Accept-Signature field with a <tt>nonce</tt>
+        parameter, as RFC 9421 Section 7.2.2 describes. This profile defines
+        no other way to deliver a nonce. The <tt>nonce</tt> parameter binds
+        one HTTP message. The nonce inside a floor attestation
+        (<xref target="attestation"/>) binds one attestation to one verifier's
+        question. They are two nonces at two layers, and implementers MUST NOT
+        treat them as one.
       </t>
       <t>
-        RFC 9421's <tt>nonce</tt> signature parameter binds one HTTP
-        message. The nonce carried inside a floor attestation
-        (<xref target="attestation"/>) binds one attestation to one
-        verifier's question. These are two distinct nonces at two distinct
-        layers, and implementers MUST NOT conflate them.
-      </t>
-      <t>
-        RFC 9421 defines message-level signing and provides no notion of
-        delegated authority, sub-principals, or attenuation of scope. The
-        chain model of <xref target="attenuation"/> therefore extends
-        RFC 9421 rather than restating it.
+        RFC 9421 signs a message. It has no notion of delegated authority,
+        sub-principals, or attenuation of scope. The chain model of
+        <xref target="attenuation"/> therefore extends RFC 9421 rather than
+        restating it.
       </t>
     </section>
 
