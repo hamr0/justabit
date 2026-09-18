@@ -336,7 +336,7 @@
         This document defines an HTTP field, Agent-Delegation. It carries a
         delegation chain from a Delegate to a Relying Service, or to the next
         Delegate in the chain. It is a Structured Field
-        <xref target="RFC8941"/>: a List whose members are Byte Sequences,
+        <xref target="RFC9651"/>: a List whose members are Byte Sequences,
         each member one opaque, encoded link, ordered from the root link
         (index zero) to the leaf link the immediate sender presents.
       </t>
@@ -1150,13 +1150,6 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         corrected by better protocol design; deployments that need to
         eliminate it need a mechanism outside this document's scope.
       </t>
-      <t>
-        Because the Agent-Delegation field is visible to any intermediary
-        able to read HTTP headers, and this document defines no
-        confidentiality mechanism for it, links in the chain MUST NOT
-        carry personal data belonging to the Delegator, any intermediate
-        Delegate, or any subject the floor condition concerns.
-      </t>
     </section>
 
     <section anchor="related-work" numbered="true" toc="default">
@@ -1392,7 +1385,7 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
       <name>Normative References</name>
       <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.2119.xml"/>
       <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.8174.xml"/>
-      <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.8941.xml"/>
+      <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.9651.xml"/>
       <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.9421.xml"/>
       <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.9110.xml"/>
       <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.7515.xml"/>
@@ -1403,25 +1396,25 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
       <name>Informative References</name>
       <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.7942.xml"/>
       <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.9396.xml"/>
-      <reference anchor="I-D.das-agentic-tool-binding" target="https://datatracker.ietf.org/doc/html/draft-das-agentic-tool-binding-02">
+      <reference anchor="I-D.das-agentic-tool-binding" target="https://datatracker.ietf.org/doc/html/draft-das-agentic-tool-binding-03">
         <front>
           <title>tool_use Is Not invoke(): Binding Execution-Finality to Agentic Tool-Call Interfaces and MCP</title>
           <author fullname="Sangam Das" initials="S." surname="Das">
             <organization>Independent Inventor</organization>
           </author>
-          <date day="31" month="August" year="2026"/>
+          <date day="5" month="September" year="2026"/>
         </front>
-        <seriesInfo name="Internet-Draft" value="draft-das-agentic-tool-binding-02"/>
+        <seriesInfo name="Internet-Draft" value="draft-das-agentic-tool-binding-03"/>
       </reference>
-      <reference anchor="I-D.schrock-ep-authorization-receipts" target="https://datatracker.ietf.org/doc/html/draft-schrock-ep-authorization-receipts-12">
+      <reference anchor="I-D.schrock-ep-authorization-receipts" target="https://datatracker.ietf.org/doc/html/draft-schrock-ep-authorization-receipts-13">
         <front>
           <title>Authorization Receipts for High-Risk Agent Actions</title>
           <author fullname="Iman Schrock" initials="I." surname="Schrock">
             <organization>EMILIA Protocol, Inc.</organization>
           </author>
-          <date day="16" month="August" year="2026"/>
+          <date day="11" month="September" year="2026"/>
         </front>
-        <seriesInfo name="Internet-Draft" value="draft-schrock-ep-authorization-receipts-12"/>
+        <seriesInfo name="Internet-Draft" value="draft-schrock-ep-authorization-receipts-13"/>
       </reference>
       <reference anchor="I-D.schrock-action-evidence-boundary" target="https://datatracker.ietf.org/doc/html/draft-schrock-action-evidence-boundary-05">
         <front>

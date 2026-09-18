@@ -14,6 +14,30 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-09-18 — -02: the last three rows closed in one batch; the 25-page ceiling relaxed to a goal
+
+**EVIDENCE**
+
+1. IANA needed no edit. The plan row said 34 lines against a target of 18. The section is 19 lines and has been since an earlier round; the row was never updated. Nothing was changed there.
+2. Privacy carried the same rule twice. Its fourth paragraph said links "MUST NOT carry personal data belonging to the Delegator, any intermediate Delegate, or any subject the floor condition concerns". The Agent-Delegation Header Field section already says "A link MUST NOT carry personal data of the Delegator, the Delegate, or any subject the floor condition concerns", and already cross-references Privacy. The header rule binds every link, so it covers intermediate Delegates too and no coverage is lost. The Privacy paragraph was deleted; the header rule and the `privacy` anchor both stay.
+3. Both stale Internet-Draft revisions were fetched in full from ietf.org and read before either was bumped, because bumping a cited revision and re-checking every claim about it are one unit of work. das-agentic-tool-binding -03 (5 September 2026) still binds the tool name and arguments per call, after the model has chosen what to invoke; the draft's claim about it holds. schrock-ep-authorization-receipts -13 (11 September 2026) still defines a Pre-Execution Authorization Bundle (Section 6) and terminal consumption (Section 7), and still distinguishes itself from formats that assert an event occurred. Agreement A2's sentence, which Iman Schrock approved against -12, remains accurate against -13 and was not touched. Both titles are unchanged in the new revisions, so only the version string, the URL and the date moved.
+4. One trap was avoided by construction. Line 1432 carried the same date string as the das reference, `day="31" month="August" year="2026"`, but belongs to the AEB -05 reference, which is current. Every edit was anchored to one line number; no global search-and-replace was used. The check counts `schrock-action-evidence-boundary-05` at 2 and that date at 1, and fails if either moves.
+5. Sizes: the file goes from 1701 to 1694 lines. Privacy goes from 38 lines to 31, against a target of 30.
+6. Main-session checks of the batch (script `check-batch.sh`, scratchpad): the whole file is byte-identical to an expected file rebuilt independently from `9667b32` by applying the same nine edits; line count 1694; zero non-ASCII characters; `xmllint --noout` exit 0; `RFC8941` absent and `RFC9651` present once in the text and once in bibxml; both das strings at -03 and both receipts strings at -13; the AEB reference and its date untouched; the Privacy repeat gone and the header rule present; the issuer query-log limit present; agreement A2's sentence present word for word; every xref resolves; every reference is cited. The script exits 1 on seven real mutants, each first confirmed by `cmp` to differ from the live file: the obsolete RFC put back, only one of the two das strings bumped, the AEB reference dragged to -06, the surviving header rule deleted, A2's sentence reworded, the issuer query-log limit deleted, and a broken XML tag. It exits 0 on the unmutated file.
+7. Two of the first mutants were void, from `sed` patterns that matched no line: A2's sentence wraps across lines, and the line number used for the XML mutant no longer held a `<t>` after the deletion. The `cmp` guard caught both. That guard has now caught five void mutants in this reduction.
+8. idnits state after this batch, by construction rather than by a run: the RFC 8941 obsolescence error is cleared, and both newer-revision warnings are cleared. The RFC 6234 downref warning stays and is correct, because RFC 6234 is in the downref registry. Only an author-tools run by the user can confirm this.
+
+**DECISION**
+
+1. The three remaining rows were done as one batch rather than three cycles. Four rows on 2026-09-17 and 2026-09-18 had taken the file from 1776 to 1701 lines, about 1.4 text pages, while the three remaining rows were worth about 15 lines between them. Running three more spike, splice, verify and commit cycles for under a third of a page was not justified. The verification itself was not reduced: one rebuilt-from-git byte check and one seven-mutant proof covered all three rows. User: "batch" (2026-09-18).
+2. The 25-page ceiling is relaxed from a gate to a goal. It was the author's own target, set after the OAuth WG AI notice, not an IETF requirement; there is no page limit on an Internet-Draft. Four consecutive rows missed their line targets because the targets were set on 2026-09-13, before agreements were mapped to sections and before term and keyword usage was counted. The user's instruction: "the cut to 25 pages doesn't necessarily needs to be exact ... i don't want to cut at the expense of losing context/meaning" (2026-09-18).
+3. The Introduction cut is therefore dropped from the plan. It existed only to reach 25 pages. If the author-tools page count still reads too long for the user, the next cut is moving the vector table to the repo, which loses no argument.
+4. Remaining work, in order: a whole-document read; the anchor and orphan sweep (plan item F7); `/branch-review`, which also does the docs sweep; and one author-tools run by the user, now a measurement rather than a gate. No `/release`, per the user's decision of 2026-09-15. Submission is decided after the read.
+
+Source: user messages, 2026-09-18.
+
+---
+
 ## 2026-09-18 — -02: Scope tightened; normative content held constant and proven so
 
 **EVIDENCE**
