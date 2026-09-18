@@ -267,26 +267,20 @@
     <section anchor="layers" numbered="true" toc="default">
       <name>Position Among Delegation Layers</name>
       <t>
-        This section is informational. It introduces no new requirement
-        beyond those stated elsewhere in this document; it exists to
-        place this document among neighboring work so a reader does not
-        mistake the boundary this document draws for an oversight.
-      </t>
-      <t>
         Delegated agent authorization, read across the drafts active in
         this space, separates into three distinct layers:
       </t>
       <dl newline="false" spacing="normal">
         <dt>(a) Who may act on whose behalf:</dt>
         <dd>
-          the delegation chain and the floor conditions that bound it, as
-          it narrows from an originating principal down to the agent
+          the delegation chain and the floor conditions that bound it,
+          as it narrows from an originating principal to the agent
           making a request.
         </dd>
         <dt>(b) What exactly may be done, per invocation:</dt>
         <dd>
           binding a specific action, tool name, or argument set to a
-          grant, at the moment the action is about to occur.
+          grant, as the action is about to occur.
         </dd>
         <dt>(c) What was approved and consumed, once:</dt>
         <dd>
@@ -297,10 +291,9 @@
       <t>
         This document occupies layer (a), plus floors. The chain model of
         <xref target="attenuation"/> and the floor axes of
-        <xref target="floors"/>, including the extensible registry of
-        <xref target="floors"/>, bound the space of what an agent
-        could invoke coarsely: an axis such as actionClass or writeBudget
-        constrains a category of action or a cumulative budget across an
+        <xref target="floors"/> bound the space of what an agent could
+        invoke coarsely: an axis such as actionClass or xBudget
+        constrains a category of action or a count of calls across an
         entire chain, not the arguments of any single call. A floor is
         evaluated once, when a link is issued or verified, and it does
         not change per invocation.
@@ -310,8 +303,8 @@
         does not produce a receipt. <xref target="RFC9396"/> defines Rich
         Authorization Requests, which bind authorization detail at grant
         time. <xref target="I-D.das-agentic-tool-binding"/> binds a tool
-        name and its arguments per call, at the moment a request is
-        dispatched, after a model has already chosen what to invoke.
+        name and its arguments per call, after a model has already chosen
+        what to invoke.
         <xref target="I-D.schrock-ep-authorization-receipts"/> addresses
         layer (c) with a pre-execution approval bundle and terminal
         consumption evidence, without itself establishing that the
@@ -320,13 +313,10 @@
         it with an executor-side model for exact-action matching, local
         authorization, atomic consumption, and outcome reconciliation at
         invocation, including a requirement to enumerate every path that
-        bypasses it. Read
-        together, the ordering runs: authorization
-        detail is bound at grant time; floors of the kind this document
-        specifies bound the space in between as a chain is attenuated
-        hop to hop; and a per-call digest is bound after a specific
-        choice has been made, with a receipt evidencing pre-execution
-        approval rather than post-execution occurrence.
+        bypasses it. The ordering runs: authorization detail is bound at
+        grant time; floors of the kind this document specifies bound the
+        space in between as a chain is attenuated hop to hop; and a
+        per-call digest is bound after a specific choice has been made.
       </t>
       <t>
         One structural problem is shared across this layering and is not
@@ -341,11 +331,6 @@
         offers no token-profile fix for it either; a deployment that
         needs to close it needs a mechanism this document does not
         supply.
-      </t>
-      <t>
-        Implementation experience that informed where this document draws
-        its boundary is summarized, non-normatively, in
-        <xref target="appendix-a"/>.
       </t>
     </section>
 

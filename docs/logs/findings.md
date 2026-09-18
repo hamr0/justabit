@@ -14,6 +14,26 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-09-18 — -02: Position Among Delegation Layers reduced; two stale claims fixed in one paragraph
+
+**EVIDENCE**
+
+1. All four agreements this row protects were read from their own source records before any text was written, not from the plan's summary of them. A1: `ietf/v3/docs/emilia-final-text-sent-2026-09-06.md` lines 12-17, confirmed by `ietf/v3/docs/emilia-layering-reply-received-2026-09-05.md` lines 21-24. A2: `ietf/v3/docs/emilia-layering-reply-sent-2026-09-04.md` lines 16 and 22, which carry both the receipts sentence and the corrected layer (c) label. A9: `ietf/v2/docs/oauth-wg-reply-2-sent-2026-09-02.md` line 33. A12: `ietf/v2/docs/emilia-preflight-reply-2-sent-2026-09-01.md` lines 54-59. Each agreed passage was present in the draft before the change and is present after it, unchanged.
+2. Two stale claims sat in the same paragraph, lines 300-302 of the draft at `8595004`. First, line 302 named `writeBudget` as an axis; that axis no longer exists, because the draft now defines rBudget, wBudget and xBudget. This one was already recorded in the Layers plan row on 2026-09-17. Second, lines 300-301 described the floor axes as "including the extensible registry of" Floor Axes. The registry was dropped in this reduction and Floor Axes is now a closed set, so the phrase was false; it was also a second cross-reference to `floors` inside a sentence that had already cross-referenced it. This second defect was found while reading for the first, was outside the named row scope, and was raised rather than fixed silently.
+3. "extensible registry" occurred exactly once in the file. After the change it occurs zero times.
+4. `writeBudget` still occurs five times after the change, and each was checked individually. Line 1241 is the Implementation Status gap list, which describes the proof-of-concept code, not the draft. Lines 1660, 1668 and 1669 are the vector note, which describes the posted -01. Line 1685 is the Changes since -01 bullet, which states what -02 replaced. All five are correct as history or as descriptions of other artefacts.
+5. Sizes: the section goes from 84 lines to 69, against a target of 55. The file goes from 1727 to 1712 lines.
+6. Main-session checks of the splice (script `check-layers.sh`, scratchpad): the whole file is byte-identical to an expected file built independently from `8595004`; line count 1712; zero non-ASCII characters; `xmllint --noout` exit 0; each of the five agreed passages present, matched with `grep -F` on a whitespace-flattened copy of the file so a line break inside a sentence cannot hide it; "extensible registry" absent; every xref target resolves to an anchor; every reference is cited. The script exits 1 on six real mutants, each first confirmed by `cmp` to differ from the live file: the A1 sentence stripped of "exact-action matching", the A2 layer (c) label reverted to "What happened, once", the A9 phrase reworded, a line deleted far outside the section, the stale "extensible registry" phrase reinstated, and a broken XML tag inside the section. It exits 0 on the unmutated file.
+
+**DECISION**
+
+1. The section keeps the three-layer list, the layer (a) placement paragraph, the layering paragraph and the asor Section 9.1 paragraph. Cut: the "This section is informational" opener, and the closing pointer to Appendix A. From the layering paragraph, two phrases were cut: "at the moment a request is dispatched" from the das-agentic-tool-binding sentence, and the tail clause "with a receipt evidencing pre-execution approval rather than post-execution occurrence", which restates agreement A2's own sentence four lines above it. User: "approve" (2026-09-18).
+2. The target of 55 is missed by 14, and the main session said so before the user approved rather than after. The section is 69 lines, of which the three-layer list is 18 and the asor paragraph is 15; both are protected by agreements. Reaching 55 would mean cutting agreed text. The difference is taken later, from the Introduction, in the page-count cut the user already chose.
+
+Source: user messages, 2026-09-18.
+
+---
+
 ## 2026-09-17 — -02: Relationship to Existing Work reduced; every cited Internet-Draft version re-verified live
 
 **EVIDENCE**
