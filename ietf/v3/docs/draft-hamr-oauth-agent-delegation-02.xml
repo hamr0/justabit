@@ -419,10 +419,9 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         interpreted by a verifier implementing this profile.
       </t>
       <t>
-        Comparison is by exact set containment over case-sensitive,
-        octet-for-octet string equality. A scope S1 is contained in a
-        scope S2 if and only if every member of S1 is octet-for-octet
-        identical to some member of S2.
+        Comparison is by exact set containment. A scope S1 is contained
+        in a scope S2 if and only if every member of S1 is
+        octet-for-octet identical to some member of S2.
       </t>
       <t>
         A verifier MUST NOT apply any of the following when comparing
@@ -431,10 +430,9 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
       <ul spacing="normal">
         <li>wildcard or prefix matching;</li>
         <li>
-          hierarchical or namespace containment (a verifier MUST NOT
+          hierarchical or namespace containment: a verifier MUST NOT
           treat one capability string as containing another because of
-          any shared prefix, separator, or apparent parent/child
-          relation);
+          a shared prefix, separator, or apparent parent/child relation;
         </li>
         <li>case folding;</li>
         <li>Unicode normalisation;</li>
@@ -445,18 +443,13 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         The presented bytes are compared as presented. A verifier that
         applies a matching rule this profile does not define can accept
         a chain another conforming verifier rejects, which makes
-        attenuation unverifiable in exactly the way this profile exists
-        to prevent.
+        attenuation unverifiable.
       </t>
       <t>
-        The empty set is a valid scope and is contained in every scope;
-        a link granting the empty scope grants no capability and is not,
-        by itself, an error.
-      </t>
-      <t>
-        Wildcard, hierarchical, and pattern-based scope semantics are
-        OUT OF SCOPE for this version of the profile and are future
-        work; they are not defined here.
+        The empty set is a valid scope, is contained in every scope, and
+        is not by itself an error. Wildcard, hierarchical, and
+        pattern-based scope semantics are out of scope for this version
+        of the profile and are future work.
       </t>
     </section>
 

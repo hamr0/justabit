@@ -14,6 +14,25 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-09-18 — -02: Scope tightened; normative content held constant and proven so
+
+**EVIDENCE**
+
+1. The section carried three `MUST NOT` statements and no other normative keyword before the change, counted on a whitespace-flattened copy. It carries three `MUST NOT` and no other normative keyword after it. The check script fails if the count changes, if a keyword is weakened, or if any other normative keyword appears.
+2. All six items of the forbidden-matching list survive: wildcard or prefix matching, hierarchical or namespace containment, case folding, Unicode normalisation, whitespace trimming, and any other canonicalisation. The exact-containment rule survives word for word: "if and only if every member of S1 is octet-for-octet identical to some member of S2".
+3. Sizes: the section goes from 51 lines to 44, against a target of 30. The file goes from 1708 to 1701 lines.
+4. Main-session checks of the splice (script `check-scope.sh`, scratchpad): the whole file is byte-identical to an expected file built independently from `33d05c7`; line count 1701; zero non-ASCII characters; `xmllint --noout` exit 0; three `MUST NOT` and zero other normative keywords inside the section; all six list items present; the containment rule unaltered; every xref resolves; every reference is cited. The script exits 1 on six real mutants, each first confirmed by `cmp` to differ from the live file: a `MUST NOT` weakened to `SHOULD NOT`, a list item deleted, the containment rule loosened from "octet-for-octet identical" to "equal", a line deleted far outside the section, a broken XML tag inside the section, and an extra `SHOULD` added inside the section. It exits 0 on the unmutated file.
+
+**DECISION**
+
+1. The cuts are wording only. "Comparison is by exact set containment over case-sensitive, octet-for-octet string equality" loses its second clause, which the following sentence already states. The hierarchical bullet's parenthesis becomes a colon clause. The rationale paragraph loses the tail "in exactly the way this profile exists to prevent", because the same sentence already states the harm. The empty-set paragraph and the future-work paragraph are merged. "OUT OF SCOPE" in capitals is lowercased, because it is not a BCP 14 keyword and capitals there invite a misreading. User: "approve" (2026-09-18).
+2. The target of 30 is missed by 14. The forbidden-matching list alone is 11 lines and is the normative core of the section. It was not cut to reach a number.
+3. Row-by-row reduction has largely stopped paying. Four rows on 2026-09-17 and 2026-09-18 took the file from 1776 to 1701 lines, about 75 lines, which is about 1.4 text pages at the measured 53 lines per page. The three remaining rows are worth about 15 lines between them, under a third of a page. The gap to the 25-page ceiling is about 370 lines. The remaining rows cannot close it; the Introduction cut and, if needed, moving the vector table to the repo are the instruments that can.
+
+Source: user messages, 2026-09-18.
+
+---
+
 ## 2026-09-18 — -02: Conventions and Terminology tightened; the line targets restated as a page proxy
 
 **EVIDENCE**
