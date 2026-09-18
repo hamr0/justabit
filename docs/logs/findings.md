@@ -14,6 +14,26 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-09-18 — -02: Conventions and Terminology tightened; the line targets restated as a page proxy
+
+**EVIDENCE**
+
+1. Every one of the eight defined terms was counted in the draft before any text was written, on a whitespace-flattened copy: Attestation Issuer 21, Relying Service 13, API Provider 13, Delegate 10, Delegator 6, Floor 5, Scope 3, Link 1. No term is unused, so no definition could be cut as dead weight. The capitalized forms Scope, Floor and Link are rare because the working prose uses the lowercase words, but each definition states what the term contains and is load-bearing.
+2. The BCP 14 paragraph is unchanged, and the check script fails if it is altered.
+3. Sizes: the section goes from 68 lines to 64, against a target of 45. The file goes from 1712 to 1708 lines.
+4. Main-session checks of the splice (script `check-conv.sh`, scratchpad): the whole file is byte-identical to an expected file built independently from `ed07abd`; line count 1708; zero non-ASCII characters; `xmllint --noout` exit 0; the BCP 14 boilerplate present unaltered; all eight `<dt>` terms present; "Resource Owner" present exactly once and only on the Changes since -01 bullet that records the rename; every xref resolves; every reference is cited. The script exits 1 on six real mutants, each first confirmed by `cmp` to differ from the live file: a defined term renamed, the BCP 14 boilerplate altered, "Resource Owner" reintroduced into the body, a line deleted far outside the section, a broken XML tag inside the section, and an xref pointed at a missing anchor. It exits 0 on the unmutated file.
+5. The check script's first version was wrong, not the file. It banned "Resource Owner" outright and so failed on line 1682, the Changes since -01 bullet that states the rename. That bullet is required. The rule now demands exactly one occurrence, on that bullet.
+
+**DECISION**
+
+1. All eight terms are kept and none is renamed. The cuts are wording only: "can produce" to "produces" and a shorter abstract-role sentence for Attestation Issuer; "to the next link in the chain" to "to the next link" for Delegator; "and must decide" to "and decides" for Relying Service; "A deployment commonly has the API Provider and the Relying Service be the same operator" to "It is commonly the same operator as the Relying Service"; and a shorter Floor definition that states the same rule of at most one constraint per axis. User: "approve" (2026-09-18).
+2. The plan's line targets are a proxy for rendered text pages, and a line carrying only an XML tag renders nothing. The target of 45 was reachable by collapsing `<dd>` tags onto their text lines, which would have cut zero pages while making the number look right. That was rejected. Only prose was cut, and the row is recorded as missing its target by 19.
+3. Three rows in a row have now missed their targets: Relationship to Existing Work by 7, Position Among Delegation Layers by 14, and this one by 19. The targets were set on 2026-09-13, before the agreements were mapped to sections and before term usage was counted. The remaining rows are not expected to close the gap to 25 text pages on their own. The instrument for that stays the one the user already chose: run author-tools once the last row lands, then cut the Introduction by what is still needed.
+
+Source: user messages, 2026-09-18.
+
+---
+
 ## 2026-09-18 — -02: Position Among Delegation Layers reduced; two stale claims fixed in one paragraph
 
 **EVIDENCE**

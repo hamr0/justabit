@@ -210,36 +210,34 @@
       <dl newline="false" spacing="normal">
         <dt>Attestation Issuer:</dt>
         <dd>
-          An entity that can produce a signed, boolean, expiring statement
+          An entity that produces a signed, boolean, expiring statement
           about whether a subject satisfies a floor condition, without
-          disclosing the underlying value that produced the answer. This
-          document treats the Attestation Issuer abstractly; it may be
-          any party a deployment trusts to make such a statement.
+          disclosing the value behind the answer. This document treats
+          the role abstractly: any party a deployment trusts to make
+          such a statement.
         </dd>
         <dt>Delegator:</dt>
         <dd>
-          The principal that holds a delegation and grants a narrower one
-          to the next link in the chain. The first Delegator in a chain
-          is the human or organizational principal that originates the
-          delegation.
+          The principal that holds a delegation and grants a narrower
+          one to the next link. The first Delegator in a chain is the
+          human or organizational principal that originates it.
         </dd>
         <dt>Delegate:</dt>
         <dd>
-          The principal that receives a delegation link, whether it is an
+          The principal that receives a delegation link, whether an
           automated agent or a sub-agent.
         </dd>
         <dt>Relying Service:</dt>
         <dd>
           The service that receives a request bearing a delegation chain
-          and must decide whether to honor it.
+          and decides whether to honor it.
         </dd>
         <dt>API Provider:</dt>
         <dd>
           The party that runs the API named by a request's target
-          origin. A deployment commonly has the
-          API Provider and the Relying Service be the same operator,
-          but this document does not require it; the two are distinct
-          roles.
+          origin. It is commonly the same operator as the Relying
+          Service, but this document does not require that; the two are
+          distinct roles.
         </dd>
         <dt>Scope:</dt>
         <dd>
@@ -248,18 +246,16 @@
         </dd>
         <dt>Floor:</dt>
         <dd>
-          A named set of conditions a subject must satisfy, expressed as
-          axis/value pairs, that a Relying Service or an intermediate
-          Delegate requires before it will act. See
-          <xref target="floors"/>. Each axis/value pair within that set
-          is a constraint; a floor is the aggregate of the constraints
-          it carries, at most one per axis.
+          A named set of axis/value pairs a subject must satisfy before
+          a Relying Service or an intermediate Delegate will act. See
+          <xref target="floors"/>. Each pair is a constraint, and a
+          floor carries at most one per axis.
         </dd>
         <dt>Link:</dt>
         <dd>
-          One element of a delegation chain: a scope, a floor, an expiry,
-          and the signature that binds them to their issuer and to their
-          parent link.
+          One element of a delegation chain: a scope, a floor, an
+          expiry, and the signature that binds them to their issuer and
+          to their parent link.
         </dd>
       </dl>
     </section>
