@@ -14,6 +14,31 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-09-18 — -02: whole-document read and anchor sweep; one contradiction found and fixed
+
+**EVIDENCE**
+
+1. A whole-document read of all 1694 lines was run by the main session in one pass, after every rewrite row was closed. It found one defect that six section-by-section passes could not see, because the two halves of it live 600 lines apart.
+2. The defect: Relationship to Existing Work said "`floors` states how the two registries relate", while Floor Axes says "This document names its own closed set of axes rather than a registry" and the Changes since -01 bullet says "Dropped the floor axis registry, which the registry of [asor] already covers". This document has no registry, so "the two registries" contradicted both other statements. It was introduced on 2026-09-17, in this reduction, when the asor paragraph was compressed to one sentence.
+3. Anchor and orphan sweep, plan item F7, run on a whitespace-flattened copy so a line-split xref cannot hide: xrefs to the cut anchors `example`, `appendix-b`, `changes-since-00`, `axis-registry`, `monotone` and `action-class-limits` are 0 each. "extensible registry" and "Worked Example" are absent. `accountClass` appears once and `partialPolicy` twice, only in the Implementation Status gap list and the Changes bullet, which describe the proof-of-concept and the history, not the draft. "Resource Owner" appears once, only on the Changes bullet recording the rename. Seven anchors are defined without an inbound xref (`acknowledgments`, `changes-since-01`, `class-source`, `conventions`, `iana`, `introduction`, `menu-publication`); all are top-level sections, which need none.
+4. Repo-wide sweep outside the draft found two hits, both correct as dated history and left alone: `docs/index.md` line 35 and `CHANGELOG.md` line 82 both name the sections cut on 2026-09-17.
+5. Every case count cited in Implementation Status was re-run today, not taken from the text. camara/v2/poc m1-check 20/20 and m1-jws-check 94/94 make the cited 114; ietf/v3/poc m3-check 26/26 and m7-check 43/43 match the cited 26 and 43. All exit 0. camara/v2/poc/m5-check-live exits 2 for missing credentials, which is its documented no-mock-fallback behaviour and is not one of the cited suites.
+6. The rwxmap table's arithmetic checks out: 4282 + 955 + 228 = 5465, and 78.4%, 17.5% and 4.2% are each correct to one decimal. The leak breakdown, 17 GET calls and 179 of the 1998 marked calls, does not sum to 228, but the sentence does not claim it does; it says "17 are" and "179 are among", which is faithful to the source.
+7. Agreements re-checked in place during the read: A1, A2, A5, A7, A9 and A12 all present word for word; A8's two names in the Acknowledgments; A4's substance in Changes bullets 2 and 3. No `MUST` was weakened anywhere in this reduction, and the personal-data rule survives in the header field section after the Privacy repeat was cut.
+8. Main-session checks of the fix (script `check-fix.sh`, scratchpad): the whole file is byte-identical to an expected file built independently from `8a8aa08`; line count 1695; zero non-ASCII characters; `xmllint --noout` exit 0; "the two registries" absent; the new sentence present; Floor Axes still says "rather than a registry"; the Changes bullet still says the registry was dropped; every xref resolves; every reference is cited. The script exits 1 on six real mutants, each first confirmed by `cmp` to differ: the contradiction restored, Floor Axes made to claim a registry, the Changes bullet deleted, a line deleted far outside the section, a broken XML tag, and an xref pointed at a missing anchor. It exits 0 on the unmutated file.
+
+**DECISION**
+
+1. The one-sentence fix was applied and nothing else was changed. The sentence now reads "It takes its comparators from the first of the three, and `floors` states how its axes relate to that draft's registry." User: "fix the one registry line" (2026-09-18).
+2. The author block keeps `avoidaccess@msn.com`, the address -01 was posted with. User: "keep whichever email we used" (2026-09-18).
+3. Two dated claims are left standing because each names its own date and each was true on it. Implementation Status says the suites passed on 2026-09-14; they also pass today, so the claim is not stale. Appendix A says "On 2026-09-15 both are open" for the two CAMARA filings; CAMARA state can move, so this one MUST be re-verified live on the day of submission.
+4. What this read could not check: `xmllint` proves the file is well-formed XML, not that it is valid RFCXML. Only an author-tools run by the user gives the schema check, the idnits pass and the real text-page count. That run stays outstanding.
+5. Next: `/branch-review`, which also does the docs sweep. No `/release`, per the user's decision of 2026-09-15. Submission is decided after the review.
+
+Source: user messages, 2026-09-18.
+
+---
+
 ## 2026-09-18 — -02: the last three rows closed in one batch; the 25-page ceiling relaxed to a goal
 
 **EVIDENCE**

@@ -1185,8 +1185,9 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         <xref target="I-D.reece-wimse-cross-org-delegation"/>, and
         <xref target="I-D.sweeney-wimse-credential-delegation"/>. This
         document does not compare itself against each in detail. It takes
-        its comparators from the first of the three;
-        <xref target="floors"/> states how the two registries relate.
+        its comparators from the first of the three, and
+        <xref target="floors"/> states how its axes relate to that
+        draft's registry.
       </t>
     </section>
 
