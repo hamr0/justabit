@@ -145,10 +145,12 @@ ietf/v2/poc/       FROZEN -01 record: DIVERGED from the frozen v1 copy at
                    record; spike-a/ holds the catalogue-survey dataset
                    (specs/ omitted, reproducible from its SHA column),
                    moved in 2026-09-01; copied unchanged into v3
-ietf/v3/docs/      the `-02` working copy, drafting the Verifier Placement
-                   rewrite (boundary as a role, per effect-capable path,
-                   plus the system-wide closure/anti-bypass invariant); not
-                   yet submitted
+ietf/v3/docs/      the `-02` working copy: Verifier Placement rewrite
+                   (boundary as a role, per effect-capable path, plus
+                   the system-wide closure/anti-bypass invariant) done,
+                   then reduced 2592 -> 1695 lines per
+                   reduction-plan-02.md, all 28 plan rows closed
+                   2026-09-18; not yet submitted
 ietf/v3/poc/       an unchanged copy of ietf/v2/poc/ — the -02 PoC
                    catch-up has not started
 .claude/           local session context (gitignored — never publish)
