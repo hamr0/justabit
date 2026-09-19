@@ -14,6 +14,29 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-09-19 — -02: first idnits3 run; both items traced to their rule source and fixed
+
+**EVIDENCE**
+
+1. The user ran author-tools on `ietf/v3/docs/draft-hamr-oauth-agent-delegation-02.xml` and pasted the output verbatim. idnits 3.1.0 (submission mode): 1 error, 1 warning, 0 comments. The error is `SUBMISSION_TYPE_UNEXPECTED`, path `rfc.submissionType`, "A document stream is specified in the rfc tag but the existing version has no stream on Datatracker. Is this intentional?". The warning is `MISSING_DOC_DATE`, "The document date could not be determined.". The run's own header states "These results do not affect this submission. Errors reported here are expected to prevent submission once idnits3 becomes a required check."
+2. Datatracker was queried live on 2026-09-19, not inferred: `https://datatracker.ietf.org/api/v1/doc/document/draft-hamr-oauth-agent-delegation/?format=json` returns `rev: 01` and `stream: None`. The document has no stream because it has not been adopted. That is the exact condition the error names.
+3. The idnits3 rule was read at its source rather than guessed, from `ietf-tools/idnits`, `lib/modules/xml.mjs`, function `validateSubmissionType`. The error fires on one condition only: `if (!existingStream && ['ietf', 'iab', 'irtf'].includes(submissionType))`. With no stream on Datatracker, any of those three values raises it. Omitting the attribute leaves `submissionType` undefined, which is not in that list, so the check does not fire.
+4. The date rule was read the same way, from `lib/modules/metadata.mjs`, function `validateDate`. For an XML document it reads `rfc.front.date._attr`. The draft carried a bare `<date/>` with no attributes, so the value is undefined and the warning fires. The same function applies a `DATE_THRESHOLD` of 3 days: a date more than 3 days old raises `DOC_DATE_IN_PAST`, and more than 3 days ahead raises `DOC_DATE_IN_FUTURE`.
+5. Both `-00` (posted 2026-08-31) and `-01` (posted 2026-09-02) carry the identical header, `submissionType="IETF" consensus="true"` with a bare `<date/>`, and both posted without objection. idnits3 is new; this is the first run that has judged this header.
+6. Neither `xml2rfc` nor `idnits` is installed on this machine, so no local A/B of the fix is possible. Only the user's author-tools run can confirm that the two items are cleared and that the rendered boilerplate is unchanged.
+
+**DECISION**
+
+1. `submissionType="IETF"` is removed from the `<rfc>` tag. RFC 7991 makes `IETF` the default for that attribute, so the rendered document should be unchanged, while the explicit assertion that idnits3 compares against Datatracker is gone. `consensus="true"` is left in place; idnits3 does not test it, and removing it would be an unforced change.
+2. The alternative, setting `submissionType` to `independent`, was rejected. That names the Independent Submission Stream, a different publication path. This draft targets the OAuth Working Group, so the value would be factually wrong in order to silence a check.
+3. The bare `<date/>` is replaced with `<date year="2026" month="September" day="19"/>`. This clears `MISSING_DOC_DATE`.
+4. This creates a standing obligation, recorded here so it is not discovered late: **the date must be re-set to within 3 days of the actual submission date.** A bare `<date/>` lets xml2rfc stamp the render date and can never go stale; a hard date can, and at more than 3 days it trades `MISSING_DOC_DATE` for `DOC_DATE_IN_PAST`. The hard date is only correct while submission is imminent.
+5. What this change could not verify: that the two items are actually cleared, and that removing `submissionType` leaves the rendered boilerplate identical. Both need a fresh author-tools run by the user on the edited file. `xmllint` proves well-formedness only.
+
+Source: user message pasting the author-tools output, 2026-09-19; Datatracker API; `ietf-tools/idnits` source.
+
+---
+
 ## 2026-09-18 — -02: whole-document read and anchor sweep; one contradiction found and fixed
 
 **EVIDENCE**
