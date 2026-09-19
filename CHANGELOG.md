@@ -1,5 +1,62 @@
 # Changelog
 
+## 0.14.0 — 2026-09-19
+
+- **IETF `-02` reduced from 2592 to 1695 lines, all 28 reduction-plan
+  rows closed** (2026-09-13 through 2026-09-18), tracked in
+  `ietf/v3/docs/reduction-plan-02.md`. The reduction was triggered by
+  the OAuth WG chairs' AI-contribution notice received 2026-09-06,
+  filed verbatim at
+  `ietf/v3/docs/oauth-wg-ai-guidelines-received-2026-09-06.md` before
+  any reaction to a paraphrase of it. Every section was rewritten one
+  at a time — Floor Axes and IANA, Action Class Floors, Budgets (Write
+  Budget renamed), API Provider (renamed from Resource Owner),
+  Attestation Properties, Publication, Verification Procedure,
+  Security Considerations, Abstract and Introduction, Conventions and
+  Terminology, Position Among Delegation Layers, the Agent-Delegation
+  header field and RFC 9421 profile, Scope, Agent Identifier, A
+  Worked Example (cut, its two load-bearing items folded into Header
+  and the RFC 9421 profile), Appendix B (folded into Agent
+  Identifier), Privacy, Relationship to Existing Work, References,
+  Changes since -00/-01, and Acknowledgments — each checked against
+  its own PoC suite or agreement record before commit.
+- **The HAMR Floor Axis Registry is dropped**, replaced by a
+  cross-reference to `draft-asor-wimse-agent-delegation-chain-01`
+  Sections 4.2–4.3 for the `min`/`max`/`rank` comparators, verified
+  live against the posted -01 text; the RFC 8126 IANA-registry
+  citation is removed with it, since nothing else in the document
+  still cites it.
+- **RFC 8941 swapped for RFC 9651** throughout (bibxml entry and the
+  one in-text citation), clearing an idnits error (8941 is obsoleted
+  by 9651).
+- **Two stale citations bumped after reading each draft's full new
+  text**, not just its date: `das-agentic-tool-binding` to -03
+  (5 September 2026, still binds tool name and arguments per call)
+  and `schrock-ep-authorization-receipts` to -13 (11 September 2026,
+  still Pre-Execution Authorization Bundle plus terminal consumption,
+  so agreement A2's sentence stays accurate).
+- **Sangam Das and Jijie Wei (varwof) added to the Acknowledgments**,
+  next to the existing Iman Schrock line, using the list text
+  proposed on 2026-09-02 word for word.
+- **A whole-document read (not just the section-by-section passes)
+  found and fixed one registry contradiction**: Related Work still
+  called this document's axes a registry after Floor Axes and the
+  Changes appendix both stated the registry was dropped. Fixed in one
+  sentence. The same read confirmed a clean anchor and orphan sweep
+  (no xref to a cut anchor, no stale term outside history bullets)
+  and re-ran every cited PoC count by exit code (114, 26, 43).
+- **Two docs sweeps corrected stale `ietf/v3/` descriptions** in
+  `CLAUDE.md` and `README.md`: both files had described `ietf/v3/poc/`
+  as an unchanged copy of `ietf/v2/poc/`, which `diff -rq` showed was
+  false (`m7-check.mjs` and its README diverged on 2026-09-06, 40 ->
+  43 cases, for -02's Verifier Placement); and both files described
+  `ietf/v3/docs/` as still-in-progress drafting after the reduction
+  had already completed. `prd.md` §9 and `docs/index.md` were also
+  brought current.
+- **`-02` is NOT submitted.** This release closes the reduction round
+  only; the user's own author-tools/idnits run on the final XML and
+  submission are still pending, in that order.
+
 ## 0.13.4 — 2026-09-06
 
 - **AEB's complete-mediation condition is now stated in full in -02**
