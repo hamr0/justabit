@@ -14,6 +14,976 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-09-18 — -02: whole-document read and anchor sweep; one contradiction found and fixed
+
+**EVIDENCE**
+
+1. A whole-document read of all 1694 lines was run by the main session in one pass, after every rewrite row was closed. It found one defect that six section-by-section passes could not see, because the two halves of it live 600 lines apart.
+2. The defect: Relationship to Existing Work said "`floors` states how the two registries relate", while Floor Axes says "This document names its own closed set of axes rather than a registry" and the Changes since -01 bullet says "Dropped the floor axis registry, which the registry of [asor] already covers". This document has no registry, so "the two registries" contradicted both other statements. It was introduced on 2026-09-17, in this reduction, when the asor paragraph was compressed to one sentence.
+3. Anchor and orphan sweep, plan item F7, run on a whitespace-flattened copy so a line-split xref cannot hide: xrefs to the cut anchors `example`, `appendix-b`, `changes-since-00`, `axis-registry`, `monotone` and `action-class-limits` are 0 each. "extensible registry" and "Worked Example" are absent. `accountClass` appears once and `partialPolicy` twice, only in the Implementation Status gap list and the Changes bullet, which describe the proof-of-concept and the history, not the draft. "Resource Owner" appears once, only on the Changes bullet recording the rename. Seven anchors are defined without an inbound xref (`acknowledgments`, `changes-since-01`, `class-source`, `conventions`, `iana`, `introduction`, `menu-publication`); all are top-level sections, which need none.
+4. Repo-wide sweep outside the draft found two hits, both correct as dated history and left alone: `docs/index.md` line 35 and `CHANGELOG.md` line 82 both name the sections cut on 2026-09-17.
+5. Every case count cited in Implementation Status was re-run today, not taken from the text. camara/v2/poc m1-check 20/20 and m1-jws-check 94/94 make the cited 114; ietf/v3/poc m3-check 26/26 and m7-check 43/43 match the cited 26 and 43. All exit 0. camara/v2/poc/m5-check-live exits 2 for missing credentials, which is its documented no-mock-fallback behaviour and is not one of the cited suites.
+6. The rwxmap table's arithmetic checks out: 4282 + 955 + 228 = 5465, and 78.4%, 17.5% and 4.2% are each correct to one decimal. The leak breakdown, 17 GET calls and 179 of the 1998 marked calls, does not sum to 228, but the sentence does not claim it does; it says "17 are" and "179 are among", which is faithful to the source.
+7. Agreements re-checked in place during the read: A1, A2, A5, A7, A9 and A12 all present word for word; A8's two names in the Acknowledgments; A4's substance in Changes bullets 2 and 3. No `MUST` was weakened anywhere in this reduction, and the personal-data rule survives in the header field section after the Privacy repeat was cut.
+8. Main-session checks of the fix (script `check-fix.sh`, scratchpad): the whole file is byte-identical to an expected file built independently from `8a8aa08`; line count 1695; zero non-ASCII characters; `xmllint --noout` exit 0; "the two registries" absent; the new sentence present; Floor Axes still says "rather than a registry"; the Changes bullet still says the registry was dropped; every xref resolves; every reference is cited. The script exits 1 on six real mutants, each first confirmed by `cmp` to differ: the contradiction restored, Floor Axes made to claim a registry, the Changes bullet deleted, a line deleted far outside the section, a broken XML tag, and an xref pointed at a missing anchor. It exits 0 on the unmutated file.
+
+**DECISION**
+
+1. The one-sentence fix was applied and nothing else was changed. The sentence now reads "It takes its comparators from the first of the three, and `floors` states how its axes relate to that draft's registry." User: "fix the one registry line" (2026-09-18).
+2. The author block keeps `avoidaccess@msn.com`, the address -01 was posted with. User: "keep whichever email we used" (2026-09-18).
+3. Two dated claims are left standing because each names its own date and each was true on it. Implementation Status says the suites passed on 2026-09-14; they also pass today, so the claim is not stale. Appendix A says "On 2026-09-15 both are open" for the two CAMARA filings; CAMARA state can move, so this one MUST be re-verified live on the day of submission.
+4. What this read could not check: `xmllint` proves the file is well-formed XML, not that it is valid RFCXML. Only an author-tools run by the user gives the schema check, the idnits pass and the real text-page count. That run stays outstanding.
+5. Next: `/branch-review`, which also does the docs sweep. No `/release`, per the user's decision of 2026-09-15. Submission is decided after the review.
+
+Source: user messages, 2026-09-18.
+
+---
+
+## 2026-09-18 — -02: the last three rows closed in one batch; the 25-page ceiling relaxed to a goal
+
+**EVIDENCE**
+
+1. IANA needed no edit. The plan row said 34 lines against a target of 18. The section is 19 lines and has been since an earlier round; the row was never updated. Nothing was changed there.
+2. Privacy carried the same rule twice. Its fourth paragraph said links "MUST NOT carry personal data belonging to the Delegator, any intermediate Delegate, or any subject the floor condition concerns". The Agent-Delegation Header Field section already says "A link MUST NOT carry personal data of the Delegator, the Delegate, or any subject the floor condition concerns", and already cross-references Privacy. The header rule binds every link, so it covers intermediate Delegates too and no coverage is lost. The Privacy paragraph was deleted; the header rule and the `privacy` anchor both stay.
+3. Both stale Internet-Draft revisions were fetched in full from ietf.org and read before either was bumped, because bumping a cited revision and re-checking every claim about it are one unit of work. das-agentic-tool-binding -03 (5 September 2026) still binds the tool name and arguments per call, after the model has chosen what to invoke; the draft's claim about it holds. schrock-ep-authorization-receipts -13 (11 September 2026) still defines a Pre-Execution Authorization Bundle (Section 6) and terminal consumption (Section 7), and still distinguishes itself from formats that assert an event occurred. Agreement A2's sentence, which Iman Schrock approved against -12, remains accurate against -13 and was not touched. Both titles are unchanged in the new revisions, so only the version string, the URL and the date moved.
+4. One trap was avoided by construction. Line 1432 carried the same date string as the das reference, `day="31" month="August" year="2026"`, but belongs to the AEB -05 reference, which is current. Every edit was anchored to one line number; no global search-and-replace was used. The check counts `schrock-action-evidence-boundary-05` at 2 and that date at 1, and fails if either moves.
+5. Sizes: the file goes from 1701 to 1694 lines. Privacy goes from 38 lines to 31, against a target of 30.
+6. Main-session checks of the batch (script `check-batch.sh`, scratchpad): the whole file is byte-identical to an expected file rebuilt independently from `9667b32` by applying the same nine edits; line count 1694; zero non-ASCII characters; `xmllint --noout` exit 0; `RFC8941` absent and `RFC9651` present once in the text and once in bibxml; both das strings at -03 and both receipts strings at -13; the AEB reference and its date untouched; the Privacy repeat gone and the header rule present; the issuer query-log limit present; agreement A2's sentence present word for word; every xref resolves; every reference is cited. The script exits 1 on seven real mutants, each first confirmed by `cmp` to differ from the live file: the obsolete RFC put back, only one of the two das strings bumped, the AEB reference dragged to -06, the surviving header rule deleted, A2's sentence reworded, the issuer query-log limit deleted, and a broken XML tag. It exits 0 on the unmutated file.
+7. Two of the first mutants were void, from `sed` patterns that matched no line: A2's sentence wraps across lines, and the line number used for the XML mutant no longer held a `<t>` after the deletion. The `cmp` guard caught both. That guard has now caught five void mutants in this reduction.
+8. idnits state after this batch, by construction rather than by a run: the RFC 8941 obsolescence error is cleared, and both newer-revision warnings are cleared. The RFC 6234 downref warning stays and is correct, because RFC 6234 is in the downref registry. Only an author-tools run by the user can confirm this.
+
+**DECISION**
+
+1. The three remaining rows were done as one batch rather than three cycles. Four rows on 2026-09-17 and 2026-09-18 had taken the file from 1776 to 1701 lines, about 1.4 text pages, while the three remaining rows were worth about 15 lines between them. Running three more spike, splice, verify and commit cycles for under a third of a page was not justified. The verification itself was not reduced: one rebuilt-from-git byte check and one seven-mutant proof covered all three rows. User: "batch" (2026-09-18).
+2. The 25-page ceiling is relaxed from a gate to a goal. It was the author's own target, set after the OAuth WG AI notice, not an IETF requirement; there is no page limit on an Internet-Draft. Four consecutive rows missed their line targets because the targets were set on 2026-09-13, before agreements were mapped to sections and before term and keyword usage was counted. The user's instruction: "the cut to 25 pages doesn't necessarily needs to be exact ... i don't want to cut at the expense of losing context/meaning" (2026-09-18).
+3. The Introduction cut is therefore dropped from the plan. It existed only to reach 25 pages. If the author-tools page count still reads too long for the user, the next cut is moving the vector table to the repo, which loses no argument.
+4. Remaining work, in order: a whole-document read; the anchor and orphan sweep (plan item F7); `/branch-review`, which also does the docs sweep; and one author-tools run by the user, now a measurement rather than a gate. No `/release`, per the user's decision of 2026-09-15. Submission is decided after the read.
+
+Source: user messages, 2026-09-18.
+
+---
+
+## 2026-09-18 — -02: Scope tightened; normative content held constant and proven so
+
+**EVIDENCE**
+
+1. The section carried three `MUST NOT` statements and no other normative keyword before the change, counted on a whitespace-flattened copy. It carries three `MUST NOT` and no other normative keyword after it. The check script fails if the count changes, if a keyword is weakened, or if any other normative keyword appears.
+2. All six items of the forbidden-matching list survive: wildcard or prefix matching, hierarchical or namespace containment, case folding, Unicode normalisation, whitespace trimming, and any other canonicalisation. The exact-containment rule survives word for word: "if and only if every member of S1 is octet-for-octet identical to some member of S2".
+3. Sizes: the section goes from 51 lines to 44, against a target of 30. The file goes from 1708 to 1701 lines.
+4. Main-session checks of the splice (script `check-scope.sh`, scratchpad): the whole file is byte-identical to an expected file built independently from `33d05c7`; line count 1701; zero non-ASCII characters; `xmllint --noout` exit 0; three `MUST NOT` and zero other normative keywords inside the section; all six list items present; the containment rule unaltered; every xref resolves; every reference is cited. The script exits 1 on six real mutants, each first confirmed by `cmp` to differ from the live file: a `MUST NOT` weakened to `SHOULD NOT`, a list item deleted, the containment rule loosened from "octet-for-octet identical" to "equal", a line deleted far outside the section, a broken XML tag inside the section, and an extra `SHOULD` added inside the section. It exits 0 on the unmutated file.
+
+**DECISION**
+
+1. The cuts are wording only. "Comparison is by exact set containment over case-sensitive, octet-for-octet string equality" loses its second clause, which the following sentence already states. The hierarchical bullet's parenthesis becomes a colon clause. The rationale paragraph loses the tail "in exactly the way this profile exists to prevent", because the same sentence already states the harm. The empty-set paragraph and the future-work paragraph are merged. "OUT OF SCOPE" in capitals is lowercased, because it is not a BCP 14 keyword and capitals there invite a misreading. User: "approve" (2026-09-18).
+2. The target of 30 is missed by 14. The forbidden-matching list alone is 11 lines and is the normative core of the section. It was not cut to reach a number.
+3. Row-by-row reduction has largely stopped paying. Four rows on 2026-09-17 and 2026-09-18 took the file from 1776 to 1701 lines, about 75 lines, which is about 1.4 text pages at the measured 53 lines per page. The three remaining rows are worth about 15 lines between them, under a third of a page. The gap to the 25-page ceiling is about 370 lines. The remaining rows cannot close it; the Introduction cut and, if needed, moving the vector table to the repo are the instruments that can.
+
+Source: user messages, 2026-09-18.
+
+---
+
+## 2026-09-18 — -02: Conventions and Terminology tightened; the line targets restated as a page proxy
+
+**EVIDENCE**
+
+1. Every one of the eight defined terms was counted in the draft before any text was written, on a whitespace-flattened copy: Attestation Issuer 21, Relying Service 13, API Provider 13, Delegate 10, Delegator 6, Floor 5, Scope 3, Link 1. No term is unused, so no definition could be cut as dead weight. The capitalized forms Scope, Floor and Link are rare because the working prose uses the lowercase words, but each definition states what the term contains and is load-bearing.
+2. The BCP 14 paragraph is unchanged, and the check script fails if it is altered.
+3. Sizes: the section goes from 68 lines to 64, against a target of 45. The file goes from 1712 to 1708 lines.
+4. Main-session checks of the splice (script `check-conv.sh`, scratchpad): the whole file is byte-identical to an expected file built independently from `ed07abd`; line count 1708; zero non-ASCII characters; `xmllint --noout` exit 0; the BCP 14 boilerplate present unaltered; all eight `<dt>` terms present; "Resource Owner" present exactly once and only on the Changes since -01 bullet that records the rename; every xref resolves; every reference is cited. The script exits 1 on six real mutants, each first confirmed by `cmp` to differ from the live file: a defined term renamed, the BCP 14 boilerplate altered, "Resource Owner" reintroduced into the body, a line deleted far outside the section, a broken XML tag inside the section, and an xref pointed at a missing anchor. It exits 0 on the unmutated file.
+5. The check script's first version was wrong, not the file. It banned "Resource Owner" outright and so failed on line 1682, the Changes since -01 bullet that states the rename. That bullet is required. The rule now demands exactly one occurrence, on that bullet.
+
+**DECISION**
+
+1. All eight terms are kept and none is renamed. The cuts are wording only: "can produce" to "produces" and a shorter abstract-role sentence for Attestation Issuer; "to the next link in the chain" to "to the next link" for Delegator; "and must decide" to "and decides" for Relying Service; "A deployment commonly has the API Provider and the Relying Service be the same operator" to "It is commonly the same operator as the Relying Service"; and a shorter Floor definition that states the same rule of at most one constraint per axis. User: "approve" (2026-09-18).
+2. The plan's line targets are a proxy for rendered text pages, and a line carrying only an XML tag renders nothing. The target of 45 was reachable by collapsing `<dd>` tags onto their text lines, which would have cut zero pages while making the number look right. That was rejected. Only prose was cut, and the row is recorded as missing its target by 19.
+3. Three rows in a row have now missed their targets: Relationship to Existing Work by 7, Position Among Delegation Layers by 14, and this one by 19. The targets were set on 2026-09-13, before the agreements were mapped to sections and before term usage was counted. The remaining rows are not expected to close the gap to 25 text pages on their own. The instrument for that stays the one the user already chose: run author-tools once the last row lands, then cut the Introduction by what is still needed.
+
+Source: user messages, 2026-09-18.
+
+---
+
+## 2026-09-18 — -02: Position Among Delegation Layers reduced; two stale claims fixed in one paragraph
+
+**EVIDENCE**
+
+1. All four agreements this row protects were read from their own source records before any text was written, not from the plan's summary of them. A1: `ietf/v3/docs/emilia-final-text-sent-2026-09-06.md` lines 12-17, confirmed by `ietf/v3/docs/emilia-layering-reply-received-2026-09-05.md` lines 21-24. A2: `ietf/v3/docs/emilia-layering-reply-sent-2026-09-04.md` lines 16 and 22, which carry both the receipts sentence and the corrected layer (c) label. A9: `ietf/v2/docs/oauth-wg-reply-2-sent-2026-09-02.md` line 33. A12: `ietf/v2/docs/emilia-preflight-reply-2-sent-2026-09-01.md` lines 54-59. Each agreed passage was present in the draft before the change and is present after it, unchanged.
+2. Two stale claims sat in the same paragraph, lines 300-302 of the draft at `8595004`. First, line 302 named `writeBudget` as an axis; that axis no longer exists, because the draft now defines rBudget, wBudget and xBudget. This one was already recorded in the Layers plan row on 2026-09-17. Second, lines 300-301 described the floor axes as "including the extensible registry of" Floor Axes. The registry was dropped in this reduction and Floor Axes is now a closed set, so the phrase was false; it was also a second cross-reference to `floors` inside a sentence that had already cross-referenced it. This second defect was found while reading for the first, was outside the named row scope, and was raised rather than fixed silently.
+3. "extensible registry" occurred exactly once in the file. After the change it occurs zero times.
+4. `writeBudget` still occurs five times after the change, and each was checked individually. Line 1241 is the Implementation Status gap list, which describes the proof-of-concept code, not the draft. Lines 1660, 1668 and 1669 are the vector note, which describes the posted -01. Line 1685 is the Changes since -01 bullet, which states what -02 replaced. All five are correct as history or as descriptions of other artefacts.
+5. Sizes: the section goes from 84 lines to 69, against a target of 55. The file goes from 1727 to 1712 lines.
+6. Main-session checks of the splice (script `check-layers.sh`, scratchpad): the whole file is byte-identical to an expected file built independently from `8595004`; line count 1712; zero non-ASCII characters; `xmllint --noout` exit 0; each of the five agreed passages present, matched with `grep -F` on a whitespace-flattened copy of the file so a line break inside a sentence cannot hide it; "extensible registry" absent; every xref target resolves to an anchor; every reference is cited. The script exits 1 on six real mutants, each first confirmed by `cmp` to differ from the live file: the A1 sentence stripped of "exact-action matching", the A2 layer (c) label reverted to "What happened, once", the A9 phrase reworded, a line deleted far outside the section, the stale "extensible registry" phrase reinstated, and a broken XML tag inside the section. It exits 0 on the unmutated file.
+
+**DECISION**
+
+1. The section keeps the three-layer list, the layer (a) placement paragraph, the layering paragraph and the asor Section 9.1 paragraph. Cut: the "This section is informational" opener, and the closing pointer to Appendix A. From the layering paragraph, two phrases were cut: "at the moment a request is dispatched" from the das-agentic-tool-binding sentence, and the tail clause "with a receipt evidencing pre-execution approval rather than post-execution occurrence", which restates agreement A2's own sentence four lines above it. User: "approve" (2026-09-18).
+2. The target of 55 is missed by 14, and the main session said so before the user approved rather than after. The section is 69 lines, of which the three-layer list is 18 and the asor paragraph is 15; both are protected by agreements. Reaching 55 would mean cutting agreed text. The difference is taken later, from the Introduction, in the page-count cut the user already chose.
+
+Source: user messages, 2026-09-18.
+
+---
+
+## 2026-09-17 — -02: Relationship to Existing Work reduced; every cited Internet-Draft version re-verified live
+
+**EVIDENCE**
+
+1. Plan item F4 was executed against the Datatracker API on 2026-09-17, one query per draft, reading `rev` from `/api/v1/doc/document/`. Six of the eight cited drafts match the version in the draft: klrc-aiagent-auth -03, asor-wimse-agent-delegation-chain -01, reece-wimse-cross-org-delegation -02, sweeney-wimse-credential-delegation -00, schrock-action-evidence-boundary -05, google-cfrg-libzk -02. Two are stale: the draft cites das-agentic-tool-binding -02 while -03 is current, and schrock-ep-authorization-receipts -12 while -13 is current. These are the two idnits warnings recorded at `688f9a4`. Neither draft is cited in Relationship to Existing Work, so both stay with the References row.
+2. Section sizes: Relationship to Existing Work goes from 86 lines to 37, against a target of 30. The file goes from 1776 to 1727 lines.
+3. Three paragraphs were cut. The klrc Section 11 revocation-light paragraph: Security Considerations already states that this document specifies no revocation. The klrc Section 6 identifier paragraph: Agent Identifier already states the same tension in full, in its own second paragraph, so the new text cross-references `agent-identifier` instead of repeating it. The asor Section 10 registry paragraph, 15 lines: Floor Axes already carries the comparator bridge in the paragraph beginning "min, max, and rank are the comparisons defined in".
+4. Agreements A10 and A11 were checked and are untouched. Both live in Floor Axes, not in this section: A10 in the duration-typed `tenureMin` axis, A11 in the comparator paragraph that names asor-01's Section 4.2 and 4.3.
+5. Anchor state after the change: `related-work` is still the target of one xref, so the anchor stays; `I-D.klrc-aiagent-auth` is still cited twice, in this section and in Agent Identifier, so its reference stays cited. Both counts were taken from a whitespace-flattened copy of the file, not line by line.
+6. Main-session checks of the splice (script `check.sh`, scratchpad): the whole file is byte-identical to an expected file built independently from `6af8395`; line count 1727; zero non-ASCII characters; `xmllint --noout` exit 0; every xref target resolves to an anchor; every reference is cited. The script exits 1 on five real mutants, each first confirmed by `cmp` to differ from the live file: a word changed inside the new section, a line deleted far outside it, a broken XML tag, a non-ASCII character, and an xref pointed at a missing anchor. It exits 0 on the unmutated file.
+7. Two of the first mutants were void: the `sed` patterns matched no line, so the mutant file was identical to the original and "passed". The `cmp` guard caught both, and they were rebuilt against real line numbers. This is the third occurrence of lesson L1 in this reduction.
+8. The first version of the check script produced two false failures, both from line-based matching. It reported nine unresolved xrefs because RFC references arrive by `xi:include`, not by a local `anchor=` attribute; and it reported RFC6234 as uncited because that xref is split across two lines. Flattening the file with `tr` before matching removed both.
+
+**DECISION**
+
+1. Relationship to Existing Work keeps three paragraphs: the charter work item, composition with klrc-aiagent-auth, and the three adjacent Internet-Drafts. The charter quotation is cut from the full work item to its operative clause. User: "approve option 1" (2026-09-17).
+2. The asor Section 4.2 note that a verifier must deny an unknown constraint type is not restated anywhere. The rule itself survives in Floor Axes as the unknown-axis rejection, which is agreement A13; what is dropped is only the sentence saying asor takes the same position. The main session recommended adding one sentence to Floor Axes to keep that alignment visible. User chose not to: "approve option 1" (2026-09-17).
+3. The two stale Internet-Draft versions are not bumped here. A bump is not a version-string swap: it requires re-reading both drafts and re-checking every claim -02 makes about them. That work belongs to the References row.
+
+Source: user messages, 2026-09-17.
+
+---
+
+## 2026-09-17 — -02: Changes since -01 rewritten, Acknowledgments completed (agreement A8 closed)
+
+**EVIDENCE**
+
+1. The old Changes since -01 (139 lines at `81059fa`) predates this reduction. It listed only the -02 drafting round of early September: the Verifier Placement rewrite, the receipts/AEB layering correction, the asor version bump, two Implementation Status counts, and two Appendix A corrections. It named Appendix A's bareguard bullets, which the 2026-09-17 Appendix A rewrite removed.
+2. Each claim in the new list was checked against the draft at `81059fa`: "Resource Owner" appears 0 times and "API Provider" 11 times; `ageMin` is present; `accountClass` and `partialPolicy` survive only in the Implementation Status gap list, which describes the PoC, not the draft; PATCH defaults to w (`classification`); the three budgets are in `write-budget`, and `writeBudget` survives only in the gap list, the vector note citing -01, and the old changes list itself.
+3. Acknowledgments before this change named only Iman Schrock. Plan agreement A8 records that gap: naming was granted by Sangam Das and Jijie Wei (varwof), and the author proposed acknowledgment text on the OAuth and WIMSE lists on 2026-09-02, with no objection recorded.
+4. The added paragraph is that proposed text, copied from `ietf/v2/docs/oauth-wg-reply-3-sent-2026-09-02.md` word for word. The Iman Schrock line is unchanged, as agreement A5 requires it verbatim.
+5. Main-session checks of the splice (script `verify-changes-acks.sh`, scratchpad): the whole file is byte-identical to an expected file built independently from `81059fa` with `sed`/`cat`; each section is byte-identical to its approved text; everything before the two sections is identical to `81059fa`; the A5 line and both A8 names are present; xmllint exit 0; zero non-ASCII characters; every xref resolves; every local reference is cited. The script exits 1 on the base file and on three real mutants (one word changed inside the changes list, one inside the Acknowledgments paragraph, one on line 2 far outside both), each confirmed by `cmp` to differ, and 0 on the expected file.
+6. Sizes: Changes since -01 goes from 139 to 18 lines, against a target of 20. Acknowledgments goes from 10 to 18 lines, against a target of 16. The file goes from 1889 to 1776 lines.
+7. Found outside this row, not fixed: line 302 of the draft still calls `writeBudget` an axis, although the draft now defines three budgets. It is recorded in the Layers plan row.
+
+**DECISION**
+
+1. Changes since -01 now lists what -02 actually changes, in nine bullets: the reduction itself, the Verifier Placement rewrite with closure and the bypass test, the receipts/AEB layering correction, the registry and axis changes, r/w/x by effect with the three budgets, the API Provider rename, the Appendix A rewrite, the measured classifier figures, and the two new acknowledgments. User: "approve" (2026-09-17).
+2. Agreement A4 is satisfied. It required the AEB substance that Iman Schrock approved to survive the shrink from 139 to about 20 lines. Bullets 2 and 3 carry it: the complete-mediation distinction, and the correction that the receipts draft does not itself establish that the action occurred.
+3. The Acknowledgments section is rewritten in the same commit, because the new changes list states that both people are named. A list bullet that named them while the section did not would be false.
+4. Agreement A8 is closed. Sangam Das gave no preferred name form when asked, so "Sangam Das" stands, as the proposed text used it.
+
+Source: user messages, 2026-09-17.
+
+---
+
+## 2026-09-17 — -02 rewritten: the Agent-Delegation header field and the RFC 9421 profile
+
+**EVIDENCE**
+
+1. Both sections were read in full at `93df3e7` before any edit: `header` 352-387 (36 lines), `rfc9421-profile` 389-455 (67 lines).
+2. Normative counts, before and after: `header` holds 2 MUST statements (the verifier MUST be able to parse each Byte Sequence; a link MUST NOT carry personal data). `rfc9421-profile` holds 6 MUST or SHOULD statements (MUST include five parameters; MUST cover the field; MUST set `tag`; MUST reject an expired signature; SHOULD use Accept-Signature; MUST NOT treat the two nonces as one). Both counts are the same after the rewrite.
+3. The two items that A Worked Example alone carried, recorded when it was cut, are back: the one-line wire form is now an `<artwork>` element in `header`, and one sentence in `rfc9421-profile` separates the three expiry values.
+4. Main-session checks of the splice (script `verify-header-rfc9421.sh`, scratchpad): the whole file is byte-identical to an expected file built independently from `93df3e7` with `sed`/`cat`; each section is byte-identical to its approved text; everything outside the two sections is identical to `93df3e7`; the MUST count in `header` is 2 and the MUST or SHOULD count in `rfc9421-profile` is 6; xmllint exit 0; zero non-ASCII characters; every xref resolves; every local reference is cited. The script exits 1 on the base file and on three real mutants (one word changed inside `header`, one inside `rfc9421-profile`, one at line 1129 far outside both), each confirmed by `cmp` to differ, and 0 on the expected file.
+5. Sizes: `header` 36 to 30 lines, against a target of 25, of which 3 lines are the new wire-form example. `rfc9421-profile` 67 to 46 lines, against a target of 40. The file goes from 1916 to 1889 lines.
+
+**DECISION**
+
+1. Both sections are rewritten in plain wording, and the user approved the text ("approve", 2026-09-17). Every MUST and SHOULD is kept.
+2. Cut from `rfc9421-profile`: the long quotations from RFC 9421 for `tag`, `expires` and `nonce`. The rules stay, and each keeps its RFC 9421 section reference. This follows the plan row, which asked for the Section 7.2.2 paraphrase to become one sentence plus a reference.
+3. One wording change: "implementers MUST NOT conflate them" now reads "implementers MUST NOT treat them as one". The rule does not change.
+4. `header` still cites RFC 8941, which RFC 9651 obsoletes and which idnits reports as an error. The change stays in the References row, because it also needs the new bibxml entry. The main session offered to do it now; the user left it in the References row.
+
+Source: user messages, 2026-09-17.
+
+---
+
+## 2026-09-17 — -02 cuts: A Worked Example, Appendix B folded into Agent Identifier, Changes since -00
+
+**EVIDENCE**
+
+1. Section bounds confirmed on 2026-09-17 at `cfe0ff1` (clean tree, file 2200 lines): `example` 1172-1271, `appendix-b` 1819-1845, `changes-since-00` 2031-2187, each followed by one blank line.
+2. No reference becomes uncited by the cuts. Every xref target inside the three ranges was counted against the rest of the file; only three section anchors (`introduction`, `conventions`, `iana`) were cited from inside them alone, and a section anchor needs no citation. RFC 8941 stays cited from `header`.
+3. Xrefs pointing into the cut sections: `example` 0, `changes-since-00` 0, `appendix-b` 2 (Agent Identifier line 1133, Related Work line 1361). These match the counts in plan item F7.
+4. Two statements exist only in A Worked Example: the one-line wire form of the header (`Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:`; the file has no other `<artwork>` element), and the sentence separating a link's expiry, a floor attestation's expiry, and the RFC 9421 `expires` signature parameter. The RFC 9421 profile states the `expires` rule but not that distinction.
+5. A Worked Example used the car-rental scenario. The Introduction now uses the flight example, so the cut also removes that mismatch.
+6. -02's Changes since -00 is not identical to the same section in posted -01 (`ietf/v2/docs/draft-hamr-oauth-agent-delegation-01.xml`): `diff` reports 61 lines. Every difference is an -02 edit that kept the history consistent with the new body: anchor repoints (`axis-registry` to `floors`, `motivation` to plain text), Iman Schrock's AEB layering wording, the Direction 4 wording, and "verifier placement, then stated as sitting at the resource boundary or the credential boundary". No plan agreement is mapped to this section; agreement A4's substance stays in Changes since -01.
+7. klrc, whose Section 6 claim moves into Agent Identifier: the Datatracker API on 2026-09-17 gives rev 03 and expiry 2027-01-07, the same as the draft text states.
+8. Main-session checks of the cut (script `verify-cuts.sh`, scratchpad): the whole file is byte-identical to an expected file built independently from `cfe0ff1` with `sed`/`cat`; the anchors `example`, `appendix-b` and `changes-since-00` are gone and no xref points at them; xmllint exit 0; zero non-ASCII characters; every xref resolves; every local reference is cited. The script exits 1 on the pre-cut file and on two real mutants (one word changed inside the new Agent Identifier paragraph, one word changed at line 400, far from every edit), each confirmed by `cmp` to differ, and 0 on the expected file. A first mutant was void (line 1132 is `<t>`, so its `sed` pattern did not match) and was redone on the right line; the same void-mutant fault occurred in the Appendix A round.
+9. Sizes: the file goes from 2200 to 1916 lines. A Worked Example 101 to 0, Appendix B 28 to 0, Changes since -00 158 to 0, all against a target of 0. Agent Identifier goes from 20 to 24 lines, against a target of 25.
+
+**DECISION**
+
+1. The three sections are cut, as the plan states. User: "option 1" (2026-09-15) and "approve" (2026-09-17).
+2. Appendix B is folded into Agent Identifier as one paragraph: klrc Section 6 wants a stable identifier; an identifier stable enough for that audit at one Relying Service is also a strong link across Relying Services if reused there, or derivable in a reused form; this document does not resolve the tension and records it as an open item for the Working Group. The old second paragraph of Agent Identifier, which only pointed at Appendix B, is replaced by it.
+3. Related Work loses the clause "; see <xref target="appendix-b"/>". The sentence now ends "does not resolve that tension." The rest of that paragraph waits for the Related Work rewrite.
+4. Two follow-ups, recorded so the cut does not lose them: (a) the one-line wire form goes into the Header rewrite; (b) one sentence separating the three expiries goes into the RFC 9421 profile rewrite.
+5. Cutting -02's own edits inside Changes since -00 is accepted. The posted -01 records that history in the wording that was true for -01, and the corrected substance is in the body and in Changes since -01.
+
+Source: user messages, 2026-09-15 and 2026-09-17.
+
+---
+
+## 2026-09-15 — Appendix A rewritten: no direction meets the Attestation section today; "open, unreviewed" retracted
+
+**EVIDENCE**
+
+1. -02 `attestation` requires a conforming attestation to be signed by the Attestation Issuer over the exact bytes presented, to carry the verifier's nonce, to carry an expiry, and to carry only a yes/no result. -02 `verification` requires the root attestation key to be "obtained from a configured trust source" and never from the message itself.
+2. CAMARA, checked live with `gh` on 2026-09-15: APIBacklog #330 OPEN, label "API Proposal", 1 comment, updated 2026-09-01. APIBacklog PR #331 OPEN, reviewDecision REVIEW_REQUIRED, 9 comments, last comment by hamr0 on 2026-09-03. Commonalities #705 OPEN, 0 comments, no labels, created 2026-09-01, title "[Enhancement] Attested responses for CAMARA APIs — signed, nonce-bound, expiring answers; floor menu; range on open responses". The reviewer comments on PR #331 (2026-08-31, 2026-09-01) and the TSC questions (2026-09-03) are recorded in the entries of those dates.
+3. 8een, read in the local clone `/home/hamr/PycharmProjects/8een` at `8d00d09` (`package.json` version 0.5.0; tag `v0.5.0` dated 2026-07-20). README: the Holder "generates a fresh ZK proof" "bound to the site's fresh nonce"; the Verifier is "proof + issuer trust anchor + nonce in, one bit out"; "The bare `Verifier` does not stop replay"; milestone M4 "Owns freshness, both halves: per-session single-use nonce, and credential expiry"; "No proof from a real phone has ever reached this verifier." The README names no party that signs the one-bit result.
+4. zkagent, read in the local clone `/home/hamr/PycharmProjects/zkagent` at `d7ad1c9` (peer repo, read only). `docs/product/customer-guide.md`: "What the phone sends" is "Bare answer, no signature, no key" for tier A and "Signed answer + zktag, from a device key" for tier B; the "Key binding" row reads "Trust-on-first-sight: the first presentation for a given (site, zktag) pair binds its key"; the trust list "needs a future attestation plug" (D78). `README.md`: 'v1 is never "zero-knowledge"'; "At most k tags per human, where k is the number of documents they hold"; "Clone replay is a real, disclosed gap where a document lacks chip authentication."
+5. Before this change, -02 Appendix A said "All three directions satisfy the same abstract Attestation Issuer role" (line 1842), and both Appendix A (line 1783) and Related Work (line 1400) called CAMARA-PROPOSAL "open, unreviewed". Items 1 to 4 show that no direction meets item 1 today: CAMARA responses are not signed; 8een has no issuer-signed result; zkagent tier A is unsigned and its tier B key is bound on first sight, not taken from a configured trust source.
+6. Main-session checks of the splice (script `verify-appendix-a.sh`, scratchpad): the whole file is byte-identical to an expected file built independently from `4a0aa57` with `sed`/`cat` (Related Work lines 1398-1410 deleted, CAMARA-SIGNING inserted after line 1694, ZK8EEN after line 1738, lines 1748-1901 replaced by the approved section); the section is byte-identical to the approved text; the retracted wording is absent; xmllint exit 0; zero non-ASCII characters; every xref resolves; every local reference is cited. The script exits 0 on the expected file and 1 on two real mutants (an xref renamed inside the section; one word changed at line 1315, outside it), each confirmed by `cmp` to differ. A first outside mutant was void (its `sed` pattern did not match line 1500) and was redone.
+7. Appendix A is 69 lines, down from 154, against a target of 55. The file is 2200 lines, down from 2284.
+
+**DECISION**
+
+1. Appendix A keeps three directions that could fill the Attestation Issuer role (Direction 1 a mobile network operator, Direction 2 8een, Direction 3 zkagent) and states for each what it does today and what it lacks against `attestation`. The sentence "All three directions satisfy the same abstract Attestation Issuer role" is removed as false. User: "dec 1 option 1". Rejected option: keep only Direction 1 and reduce 8een and zkagent to one sentence each.
+2. RETRACTED: "open, unreviewed" (and "nothing about it has been ... reviewed") for CAMARA-PROPOSAL. PR #331 was reviewed on 2026-08-31, and a TSC round followed on 2026-09-03. Direction 1 now says CAMARA reviewed the proposal and asked for changes, the author answered them, the signing part is a separate proposal (Commonalities #705), and on 2026-09-15 both are open and neither is accepted or adopted. The Related Work CAMARA paragraph is deleted in the same commit; its "meet only at the header" point moves to Direction 1. User: "dec 2 option 1".
+3. Direction 1 gets no number-portability clause. User: "dec 3 no". -02 still does not state the number-portability tenure limit anywhere.
+4. Direction 4 is one paragraph; its bullets are gone, and plan agreement A6 goes with them. The "Direction 4" label and its role-model conclusion stay, because Changes since -01 still names "Direction 4's closing sentence".
+5. Two references added: CAMARA-SIGNING (Commonalities #705; the title's long dash is replaced by a colon and the "[Enhancement]" prefix is dropped, to keep the XML ASCII) and ZK8EEN (github.com/hamr0/8een, July 2026).
+6. Recorded here, decided earlier on 2026-09-15 and not yet in this log: (a) the page gap follows option 1: finish the remaining sections at target, re-run author-tools, then cut approved sections only by what is still needed, starting with the Introduction (user: "option 1"); (b) the `ietf/02-reduction` branch ends with `/branch-review`, which does the docs sweep, and no `/release` (user: "then branch-review should do the docs-sweet and not release").
+7. Not changed, left for later rows: the Introduction says "An identity-document check can attest that the holder is at least 18", which Appendix A no longer supports as a present fact; fix it when the Introduction is cut for pages.
+
+Source: user messages, 2026-09-15.
+
+---
+
+## 2026-09-15 — First author-tools run on -02: 43 text pages, idnits 2 errors and 2 warnings
+
+**EVIDENCE**
+
+1. The user ran author-tools.ietf.org on `ietf/v3/docs/draft-hamr-oauth-agent-delegation-02.xml` at `688f9a4` (clean tree) and reported: 43 pages in the text output, 34 pages in the PDF output. At 2284 lines (`wc -l`), that is about 53 lines per text page. The user first reported the result as "idnits pass clean"; the full output, pasted by the user, shows 2 errors and 2 warnings:
+
+```
+idnits 2.17.1
+
+draft-hamr-oauth-agent-delegation-02.txt:
+
+  Checking boilerplate required by RFC 5378 and the IETF Trust (see
+  https://trustee.ietf.org/license-info):
+  ----------------------------------------------------------------------------
+
+     No issues found here.
+
+  Checking nits according to https://www.ietf.org/id-info/1id-guidelines.txt:
+  ----------------------------------------------------------------------------
+
+     No issues found here.
+
+  Checking nits according to https://www.ietf.org/id-info/checklist :
+  ----------------------------------------------------------------------------
+
+     No issues found here.
+
+  Miscellaneous warnings:
+  ----------------------------------------------------------------------------
+
+     No issues found here.
+
+  Checking references for intended status: Proposed Standard
+  ----------------------------------------------------------------------------
+
+     (See RFCs 3967 and 4897 for information about using normative references
+     to lower-maturity documents in RFCs)
+
+  ** Obsolete normative reference: RFC 8941 (Obsoleted by RFC 9651)
+
+  ** Downref: Normative reference to an Informational RFC: RFC 6234
+
+  == Outdated reference: A later version (-03) exists of
+     draft-das-agentic-tool-binding-02
+
+  == Outdated reference: A later version (-13) exists of
+     draft-schrock-ep-authorization-receipts-12
+
+
+     Summary: 2 errors (**), 0 flaws (~~), 2 warnings (==), 0 comments (--).
+
+     Run idnits with the --verbose option for more detailed information about
+     the items above.
+```
+
+2. The posted -01 is 48 text pages: Datatracker API `pages` 48, and the last footer of `https://www.ietf.org/archive/id/draft-hamr-oauth-agent-delegation-01.txt` is `[Page 48]` (both fetched 2026-09-15). At 2364 lines, about 49 lines per page. The -01 PDF could not be fetched (Datatracker returned HTTP 403), so no PDF-to-PDF comparison exists. xml2rfc is not installed locally.
+3. RFC 8941: RFC 9651 (fetched from rfc-editor.org, 2026-09-15) obsoletes it; its Appendix D lists the changes: Date type, Display String type, ABNF moved to an informative appendix, refined parse failure handling, a "Structured Type" column in the HTTP Field Name Registry. -02 uses only a List of Byte Sequences; its IANA table already has a Structured Type column (List). -02 cites RFC 8941 by xref twice (lines 358 and 1233), names it in prose once (line 1232), and includes its bibxml at line 1608.
+4. RFC 6234 is listed in the IETF downref registry (`https://datatracker.ietf.org/doc/downref/`, fetched 2026-09-15). idnits does not read that registry.
+5. Datatracker API (2026-09-15): draft-das-agentic-tool-binding is at -03, posted 2026-09-05; draft-schrock-ep-authorization-receipts is at -13, posted 2026-09-12. -02 cites -02 and -12.
+6. The posted -01 carried the same RFC 8941 and RFC 6234 normative references. The 2026-09-02 records call -01's idnits result clean from the user's words, not from pasted output; whether these two errors appeared then cannot be determined now.
+
+**DECISION**
+
+1. The 25-page ceiling is in text pages, the unit Datatracker records. At the measured ratio, 25 pages is about 1330 lines, not the plan's 1230-line proxy.
+2. Finishing every remaining section at its plan target cuts about 710 lines, to about 1576 lines, about 30 pages: about 250 lines over the ceiling. The approved sections are over their targets by about 215 lines (Introduction 98, Implementation Status 32, Budgets 32, Attestation 28, Security 24, Test Vectors 3). How to close the gap is pending the user's choice.
+3. RFC 8941 is to be replaced by RFC 9651 in the References rewrite. RFC 6234 stays: it is in the downref registry. The two I-D bumps wait until -03 and -13 are read against every claim -02 makes about them (F4); bumping without that read is not done.
+4. From now on the full idnits output is recorded, not a summary of it.
+
+Source: user messages, 2026-09-15: "idnits pass clean", the pasted idnits output, "34 pages pdf", "43 in txt".
+
+---
+
+## 2026-09-15 — Test Vectors cut to the four negative controls; full set cited in posted -01
+
+**EVIDENCE**
+
+1. Checked by the main session on 2026-09-14 in `ietf/v3/poc/m7-check.mjs`: case 24 is V9 as written (menu declares "POST /check" as r with a valid signature, iss https://attacker.example.com, target origin https://api.example.com, link actionClass r and classSource declared; refused). Case 22 is a two-request form of V11 with the -01 single writeBudget (writeBudget 1; the second request carries a caller-supplied chainId and is refused on the exhausted budget). Case 25 is V10 with writeBudget 2. Cases 31 and 32 test the V4 rule (link-to-link omission rejected) on classSource and writeBudget, not on credentialAgeMin. No PoC code checks scope containment or a chain of three links, so no code runs V6. The old appendix sentence "These vectors have not been executed against any implementation by anyone" was therefore no longer true for V9, V10, and V11 in their -01 form.
+2. The frozen posted -01 (`ietf/v2/docs/draft-hamr-oauth-agent-delegation-01.xml`) has all of V1 to V11 in its Test Vectors appendix; its V10 and V11 use "writeBudget 2", and its preamble names accountClass and partialPolicy.
+3. Main-session checks of the spliced section: the section is byte-identical to the approved text; everything outside it is identical to `8eeac40`; xmllint exit 0; zero non-ASCII characters; every xref resolves (local anchors plus xi:include references). The check script exits 1 on two real mutants (one word changed inside the section, one outside) and 0 on the real file. A first mutant test was void: the sed pattern did not match, so the "mutant" was identical to the real file; caught because diff printed nothing, and redone with a cmp check that the files differ.
+4. The section is 43 lines, down from 232, against a target of 40.
+
+**DECISION**
+
+1. The Test Vectors section keeps only the four negative controls, V4, V6, V9, and V11, in one table with the columns Vector, Input, Expected outcome, and "A verifier that gets it wrong". Approved by the user ("approve").
+2. V11 now uses xBudget 2 and states the whole sequence (admit, admit, refuse, refuse), so V10 is not needed as a separate vector. The accountClass and partialPolicy note is gone. The old "not executed by anyone" sentence is replaced by what the PoC runs: V9 as written, a two-request V11 with the -01 single writeBudget, the V4 rule on classSource and writeBudget; no code runs V6.
+3. The full set, V1 to V11, is cited in the Test Vectors appendix of the posted draft-hamr-oauth-agent-delegation-01, by its datatracker URL, with one sentence that its V10 and V11 use writeBudget 2, which is xBudget 2 in -02. The user chose this (option 2) over a new repo file cited by commit SHA (option 1, the plan's wording): "option 2, why file, no need, unless you have a point". The main session had no point against it: the posted -01 already carries the full set. The citation sentence was approved ("approved").
+4. Security still cites V11, which stays. The Changes since -00 appendix still names V7 to V11; it records -01's changes and is cut later per the plan, so it is left unchanged.
+
+Source: user messages, 2026-09-14 and 2026-09-15.
+
+---
+
+## 2026-09-14 — Implementation Status rewritten: PoC suites, four gaps, rwxmap figures
+
+**EVIDENCE**
+
+1. PoC suites run by the main session on 2026-09-14 at `3c566e8`, all exit 0: `camara/v2/poc` m1 20/20 and m1-jws 94/94 (114 attestation cases); `ietf/v3/poc` m3-check 26/26 (floor comparison) and m7-check 43/43 (action classes). The old text said 40 action-class cases.
+2. rwxmap at commit `56b3310` (2026-09-14), re-run from `git archive 56b3310` into a scratch copy: exit 0, all pins hold, `flow.csv` byte-identical, `flow.md` identical except the run date. Over 5465 calls from 332 vendors, each vendor left out in turn: right class 4282 (78.4%), tighter 955 (17.5%), looser 228 (4.2%). Of the 228 looser calls, 17 are GET calls kept at r by the method default, and 179 are among the 1998 calls rwxmap marks for a person to check (rwxmap `dc01be0`). rwx had predicted 2441 / 192 before commit.
+3. rwxmap truth labels: hold-outs 1-5 read blind by five Sonnet agents; exams 1-3 by labelling agents; exam 4 by mid-tier model agents; the CAMARA set by agents' raw read plus orchestrator rulings. No truth label was written by a person. rwxmap's gate text says "hand-read"; flagged to the user, not fixed here (peer repo).
+4. The PoC code still carries -01 rules: `ietf/v3/poc` m3 uses the -01 axis names, including partialPolicy (case 25); m7 case 16 "omitted writeBudget -> effective 0" and case 14 "r never spends"; `m7-actionclass.mjs` classes PATCH as x.
+5. Main-session checks of the section before approval: all 17 elements match the approved text word for word (whitespace-normalised compare); xmllint exit 0; zero non-ASCII characters; every xref resolves (whitespace-tolerant parse); the file outside the section is identical to `3c566e8`; the section is 77 lines against a target of 45.
+
+**DECISION**
+
+1. Implementation Status is rewritten and approved by the user ("approve") and committed on "commit". Shape: RFC 7942 intro; the justabit PoC and the three areas its suites test; four ways the code has not caught up with -02 (-01 axis names, one shared writeBudget where no number means zero, PATCH at x, no end-to-end run of the Verification steps); what is not implemented (RFC 9421 and HTTP transport, the Agent-Delegation header, chains of more than two links, the agent identifier); rwxmap's three steps, that it signs nothing and emits no MCP tool annotations yet; the result table pinned to rwxmap `56b3310`; the limits.
+2. The figures carry three limits in the text: the rules were tuned on the same calls and there is no clean-test figure; the truth labels were written by language-model agents, not people; the goal (about 80% / 20% / 1-2%) is stated apart from the measured figures, and the measured 4.2% is above it.
+3. The section stays at 77 lines against a target of 45. The table and its limits take most of the extra lines. Length is left to the page-count check.
+4. "5465 labelled calls" stays as written in the Introduction and Publication (option 1, the user's choice). Reason: the Introduction points to Implementation Status, which now states that the labels came from models. Not chosen: option 2, "5465 model-labelled calls" in both.
+5. The plan row's earlier pin `7ee981c` and its "no pinned numbers" instruction are superseded: the user allowed the table, and the pin is now `56b3310`, where committed code produces the figures.
+6. Open: the PoC catch-up (axis names, three budgets, no number means no limit, PATCH at w, end-to-end Verification) is a separate module that needs a user go and a user validation run. Test Vectors V10/V11 still say writeBudget.
+
+Source: user message, 2026-09-14: "cont from here, approve, commit option 1".
+
+---
+
+## 2026-09-14 — Abstract and Introduction written from the user's notes; Motivation cut
+
+**EVIDENCE**
+
+1. The user wrote the Abstract and Introduction notes in their own voice (plan rule 1) and asked: "fix wrong claims, missing claims, reword to fit, reshape into paras or bullets as you see fit". The notes, verbatim:
+
+> hamr abstract>
+> this is a complementary to RFC9421 to give personhood to agents who need to take actions on the web on behalf of its humans, for digital accountability, and offering revokable paths and ways for API providers to trust agents.
+>
+> how: this comes with 2 layers, first personhood proof http header that carries a chain of links This can happen through telecom CAMARA emerging APIs assuming a voice+data line with tenue > 2 years and simswap false < 90 days is human or scan of nfc passport/national id that is ageMin > 18 or depending on the service. second is applying chmod to APIs by adding rwx layer to it through an external mechanical harness and a tool that detects APIs and assign a floor and detect what each rwx per API call with good accuracy towards most used APIs 78% and tighter assignment towards no evidence 16% and leaks of 4 percent that is already tighter and that is the long tail. tool is meant to accelerate API chmod adoption by giving a headstart of 78% to customers and API providers as explained in details
+>
+> each link can only narrow: scope, floors and expiry. there are two modes of rwx(open counts)/rw+2x+1(assigned w and x count) where in A2A the delegated agent can inherit tighter scope but not bigger i.e. original rwx > delegated rw+1x+1 as seen that delegated agent has been assigned w+1 and x+1
+>
+> floors about the personhood in either telecom/camara or id scan is PII protected by default that its boolean true/false and minAge can be sat by provider in case AV or age requirements are present and expiry to ensure that personhood isnt overused/misued
+>
+> hamr Introduction>
+>
+> problem we have now are two folds, accountability for dangerous operations by AI agents and personhood behind automation, what is happening most of the time now is complete anti-bot detection going against a torrent of the internet floor that is changing/moving under our feet and regulations/standards on how to fix it is not going fast enough or lagging behind, and what we have growing is agent does the 90% flow and humans bless the last 10% like captcha or js render that gets missed by automation web browsing, etc
+>
+> a person wants to SEARCH for a flight SFO > LAX red eye under $400 and it starts querying APIs it needs to use and assume it finds webmcp that it knows which apis are useable on this website and as llms are probalistic it may go and book the flight and come back with reasoning that it was proactive or read that it could be easily cancelled and was the only one at this pricepoint and can be cancelled within 24 hrs, and you call the airlines and then they say oh, we can't refund it was booked by you and you verified, even though you had a rubric judge as well but that didn't fire for some reason. goal is that a probalistic llm can't only be trusted to follow but should also be mechanically bound by rules hence the rwx that sits outside it based on bareloop experiment, llm can't author its own arbiter and it sits outside it. what we are solving is we are giving human personhood auth that is bound to expiry date and appling chmode to APIs so that there will be no more guesses and a tighter control over probalistic behavior of llms when given broader and growing body of autonomy online to govern and secure, and trace and audit its actions
+>
+> the rwxmap solves 78% of the problem right now and have 18% no evidence with 4% leaks that are tighter. a good promising shape replacing hand audit and choice paralaysis of how to assign rwx and how to decide each of average 220 APIs per API provider taking usual shape, safe at most used APIs 80% API usage comes from 20% of APIs and tight on traditional long tail problem no evidence+ leaks. that gives customers a mechanical checks and chmod that could be delegated to agents doing things on behalf of humans that they can sign/vouch for and for api providers a head start solving 78% of categorizing their apis until it becomes the norm to use which either way now or later could be used to feed mcphints 4 layers of control (destructive, readonly, complete the list)
+>
+> what is not
+> - chmode full proof if signed by customers
+> - not unique personhood but a definte proof of human behind, other controls limitations from camara/passport could further limit the probabiluty of over use or mandate expiry so both origin/destinatio can work to add more work to this to limit expontential N of using same id over many flows. no proof of one human per agent
+> - no unique identity scheme is intentional for privacy but there was a proposal thrugh zkagent to have partial generated id per unique passport/national id to give api providers ability to control, combat fraud and malicious activity as needed
+
+2. Checked live by the main session on 2026-09-14 before drafting: rwxmap corpus is 5465 calls from 332 vendors (`rwxmap/docs/product/prd.md`); "220" is the size of rwxmap's hold-out 2 test set (`rwxmap/docs/logs/gate-and-m0-results.md`), not an average per provider; rwxmap's learnings record (`docs/logs/learnings.md`, 2026-09-10) cites Treblle "Anatomy of an API 2023" (average 22 endpoints per API) and estimates the top 20% of endpoints at roughly 50-70% of calls, not 80%, from a borrowed web-traffic alpha; rwxmap figures 78.4 / 4.2 / 17.5 are now produced by committed code (rwxmap step 4 `4ace092`, `run-proof/flow.md`; head `c5b49f0`); rwxmap, zkagent and 8een repos are public (`gh api`); zkagent README: v1 is never zero-knowledge, Mode A anonymous, Mode B adds a per-site tag no other site can link; MCP latest specification is 2026-07-28 and its schema still defines readOnlyHint, destructiveHint, idempotentHint, openWorldHint, with annotations untrusted unless from trusted servers.
+
+**DECISION**
+
+1. The Abstract (20 lines) and the Introduction (148 lines) are the user's notes, reworded and reshaped by the main session, approved by the user ("approved") and committed on "commit". Introduction shape: problem, flight example, gap, "This document adds four things" (chain; floor on who is behind the agent; floor on what the agent may do; who says what class a call has), "This document does not" (five items).
+2. The flight example (SFO to LAX red-eye search that ends in a booking) replaces the car-rental example the plan said to keep; the user's choice.
+3. The Motivation section is cut (plan: merge into Introduction). Its two points, check every link and never return the raw value, are carried by the Introduction bullets. Its one xref, in the changes-since-00 appendix, became plain text "the Motivation section".
+4. Claims corrected from the notes, with reasons: "personhood" / "definite proof of human" -> an accountable person or account; a SIM line is not a principal root and a document does not bind the presenter (Security, Appendix A). "revokable paths" -> the draft defines no revocation. "78% towards most used APIs" and "long tail" -> not measured (rwx H3). "16%" / "18% no evidence" -> 17.5% tighter than needed ("no evidence" is a different flag). "leaks ... that are already tighter" -> leaks are the looser class. "220 APIs per provider" and "80% usage from 20% of APIs" -> not supported, dropped. "ageMin > 18" -> at least 18. "two modes", "rw+1x+1" -> counts are optional per class, written "r+1w+1x" to match the draft's "rw+2x". "expiry to ensure personhood isnt overused" -> expiry limits how long a yes can be used. zkagent is not called zero-knowledge.
+5. Dropped as unsourced or undefined in the draft: "trace and audit", "regulations lagging", "90% flow / 10%", "exponential N", "webmcp" (no reference). The bareloop point is kept as "the check has to sit outside the model" with a pointer to Verifier Placement; bareloop stays cited in Appendix A.
+6. Added because the draft requires them: signed refusal, nonce and expiry binding, the issuer query log, per-verifier counts, widening as a separate operation, POST defaulting to x.
+7. Three informative references added: RWXMAP (github.com/hamr0/rwxmap), ZKAGENT (github.com/hamr0/zkagent), MCP (specification 2026-07-28). 8een is not added here because this text does not cite it.
+8. rwxmap's shape is fixed. The user, verbatim: "session rwx has the shape fixated so, we got the core covered and won't change from what we said". The figures the Introduction and Publication cite stand.
+9. Open: Implementation Status is the Introduction's pointer for the rwxmap figures but does not carry them yet; it gets them, pinned to rwxmap's committed code, in its own rewrite. Two peer-repo metadata items were flagged to the user, not fixed here: rwxmap's GitHub description says "with a confidence" and "Emits MCP tool-annotation hints" (rwx: no confidence score, no hints emitted yet); zkagent's says "Pre-development" while its README describes v0.7.1.
+
+Source: user messages, 2026-09-14.
+
+---
+
+## 2026-09-14 — Security Considerations rewritten: three budgets, two menu signers, GET limit
+
+**DECISION**
+
+1. Security Considerations (anchor `security`) is rewritten as ten short paragraphs, 99 -> 89 source lines (plan target 65, missed by 24; every limit kept and one added). Kept: lazy verification, nonce binding is not replay protection, cost-based floors do not create uniqueness, no revocation, trust source is a central point (still cites step 5 of Verification), uniform rejection (MUST NOT kept), Attestation Issuer query log.
+2. The chain-identifier paragraph now names the three budgets (rBudget, wBudget, xBudget) instead of a single write budget; V11 is still cited because it tests that the verifier derives the chain identifier itself. Per-verifier counting stays a stated limit.
+3. The menu paragraph no longer says "owner-signed": a menu can be signed by the API Provider or by the party that runs the agent; the latter is that party's responsibility, limits only the verifiers that party configures, and never makes an API Provider's verifier admit more.
+4. New paragraph, the GET limit the plan asked for, with no number (the "17" was dropped on 2026-09-14): the method default classes every GET, HEAD and OPTIONS call as r; some GET calls change something, contrary to RFC 9110's safe-method rule; a link limited to r admits them unless a declared menu gives a higher class.
+5. The main session wrote the paragraph text; a Sonnet agent only chose line breaks; the main session compared all ten paragraphs word for word (whitespace-normalised) against the brief: all match; xmllint exit 0; no non-ASCII; no line over 72 columns. The Test Vectors text still says "writeBudget" for V10/V11; that is fixed in its own section. The user approved: "go" and then "approved".
+
+Source: user messages, 2026-09-14.
+
+---
+
+## 2026-09-14 — Verification Procedure: three steps aligned with the rewritten sections
+
+**DECISION**
+
+1. The Verification Procedure (anchor `verification`) now has 12 steps, up from 10. Steps 1-6, the nonce and expiry steps (now 8 and 9) and the final authorization-policy step (now 12) are unchanged. "step 5 of Verification" in Security Considerations still names the trust-source key step.
+2. New step 7: verify L(0) against the root Attestation Issuer's published floor and the Delegator's own authority; reject any floor, published or in a link, that names an axis not in Floor Axes; where no link up to L(n) constrains an axis, apply the published floor. Reason: Attenuation Rules and Floor Axes already state these MUSTs, but no step carried them.
+3. New step 10: every floor attestation must have a yes result; reject on a signed no or a signed refusal. Reason: Signed Refusal separates yes, no and refusal, but no step checked the result.
+4. Step 9 became step 11 and no longer names the "writeBudget ledger": the request's class must not be higher than the actionClass that applies to L(n), and where a budget applies to that class the count must be at least one, decremented in the same admission decision. The Verifier Placement clause is kept word for word.
+5. No new rule was added; each new or changed step restates a MUST from another section. The user approved: "approve".
+
+Source: user message, 2026-09-14.
+
+---
+
+## 2026-09-14 — Publication sentence: measured rwxmap figures replace the accuracy claim
+
+**DECISION**
+
+1. The Publication paragraph (anchor `menu-publication`) no longer says the tool "is usually right for the most-used calls, picks the tighter class when unsure, and can still miss some calls in the long tail". This closes OPEN item 4 of the rwx reply entry below. The user chose option 1 (remove the accuracy claim) but asked for actual numbers, verbatim: "i would go for option 1 but rephrase about, it's mostly right on most used apis, unsure about tail end and some leaks 1%, some actual numbers help, option 1 proposed is too loose", then "78.4% exact, 4.2% leaks, 17.5% over-tight".
+2. The new text states the measured figures (5465 labelled calls, tuning corpus, each vendor left out in turn: 78.4% right, 17.5% tighter than needed, 4.2% looser than needed), says the tool picks the tighter class when unsure except for GET, HEAD and OPTIONS, which stay at r without reading their names (rwx H8, D59), and keeps "the party that signs a menu is responsible for the menu it signs".
+3. Not carried from the user's wording, with reasons: "most-used" and "tail end" (rwx H3: accuracy by call popularity was never measured, and where leaks fall was not measured); "1%" (the measured leak rate is 4.2%; 1-2% is the goal, never a result, per the 2026-09-14 entry recording the one-flow table). The user supplied the measured figures and approved the text: "approve, commit and go to verification".
+4. The reduction plan said rwxmap numbers appear only in Implementation Status. Publication is non-normative, so the figures are allowed there; Implementation Status still carries the full table, pin and labels.
+
+Source: user messages, 2026-09-14.
+
+---
+
+## 2026-09-14 — rwx reply: rwxmap validation of the -02 hypotheses H1-H8
+
+**EVIDENCE**
+
+1. Reply received 2026-09-14 from peer session rwx, answering the
+   validation request recorded in the entry below. Recorded verbatim
+   (the "->" and quote characters are as received; keep the file's own
+   dash convention):
+
+> rwxmap validation of the -02 draft hypotheses H1-H8: mostly agree; H5/H6 need a different pin, and one number in H6 is about to change.
+>
+> H1. Agree. D20 (docs/wiki/decisions-log.md): x = reaches beyond the caller OR not repeatable; either alone suffices. Irreversibility is explicitly not the test (129 DELETE rows are w and nearly all irreversible). The labelling brief is data/exam4-2026-09-12/LABELLING-BRIEF.md.
+>
+> H2. Agree, with one note. Floor: GET/HEAD/OPTIONS r, POST x, PUT/DELETE/PATCH w (docs/product/prd.md floor table, refreshed 2026-09-13 on 5465 rows). "Any other method: x" is the draft's own addition; rwxmap's code throws on an unknown method rather than assigning x. Consistent with the invariant (tighter when unsure), so no disagreement, but it is not something rwxmap measured. "Starting value, never an early return" is D42, and the floor is documented as wrong both ways (GET leaks 17, POST over-tight 127).
+>
+> H3. Agree. Method floor, then verbs and nouns from operationId/summary, mechanical only, no model tier. The flagging of no-evidence rows for a person to check is the current design (a flag on w rows that no rule vouched for). "Usually right for the most-used calls" is not something rwxmap has measured per call popularity; say "right on about 78% of labelled rows" instead if you need a claim.
+>
+> H4. Agree on the key shape. Every proof CSV row carries method and the OpenAPI path template exactly as in the spec (columns: set, vendor, method, operationId, path, ...), so "METHOD path-template" keys are producible with no extra data. Nothing in rwxmap signs anything; "signing is the Resource Owner's act, not this tool's" is doctrine. Unknown: whether the {param}-is-one-segment rule holds for every vendor's templates in the corpus; rwxmap never normalises paths, it copies them from the spec.
+>
+> H5. Disagree on the pin. The 78.4 / 4.2 / 17.5 table (variant 2 of the "One-flow ladder" learnings entry) was produced by scratch scripts, not committed code, and that is still true today. The same numbers are now the PRD's ledger pins at commit 7ee981c (prd.md "The build, step by step"). A rebuild into poc/flow/ is in progress (steps 1-2 of 5 done today, commit 17c3fc5 plus one pending); when step 4 lands, committed code will produce one CSV (run-proof/flow.csv) with that whole table and per-method split. Pin 7ee981c for the numbers now and expect a later commit for "produced by committed code". Per-method figures in your H5 match the learnings record.
+>
+> H6. Partly. Committed at 7ee981c (PRD) and 3283211 (step 2 code, 803/211): step 1 49/0, step 2 803/211. The 1972 pile with 175 of 211 is in the PRD at 7ee981c but it is the two-noun-reader number and it WILL change: the rebuild uses one noun reader and the user picked mining over all 5465 rows, giving a pile of 2441 with 192 of 211 leaks in it (class counts 803/211 unchanged). Not committed yet. The flag on that pile is being named "x-pile" (rows stay class w). The one-CSV output (5465 rows, step, class, flag, truth, verdict) is designed, not yet produced.
+>
+> H7. Agree, still true. prd.md "MCP hints (future feature, M3)": nothing emits hints; idempotentHint has two readings (class-based vs RFC 9110 method-based), not chosen; destructiveHint is a separate axis (D28), not built.
+>
+> H8. Two cautions. (1) All numbers are on the 5465-row tuning corpus, LOVO (leave-one-vendor-out); exams 1-4 are burned, so there is no clean-exam number today. Label them "tuning corpus, LOVO". (2) The GET 17 leaks are the floor's by design (D59, parked), not a rule failure; if the draft says the tool "picks the tighter class when unsure", note that GET is floored at r without reading text.
+>
+> No edits made here; reply only.
+
+**DECISION**
+
+1. Agreed as drafted: H1 (class definitions by effect), H2 (method
+   default; "any other method: x" is the draft's own addition, rwxmap
+   throws on an unknown method, consistent with tighter-when-unsure),
+   H4 (menu key shape producible from rwxmap rows; rwxmap signs
+   nothing), H7 (no code emits MCP hints; idempotentHint still open).
+2. Implementation Status: pin rwxmap commit `7ee981c` (prd.md "The build,
+   step by step") for 78.4% / 228 leaks (4.2%) / 955 over-tight (17.5%)
+   and the per-method split; label every figure "tuning corpus, LOVO";
+   say there is no clean-exam figure; say the figures come from scratch
+   scripts until rwxmap's poc/flow rebuild step 4 lands (then re-pin).
+3. Do not cite the 1972 pile or "175 of 211": rwx reports they will
+   change to 2441 and 192 of 211 (one noun reader, mining over all 5465
+   rows), not committed yet. Committed and citable: step 1 49/0, step 2
+   803/211 (7ee981c; step 2 code 3283211). The flag is being named
+   "x-pile".
+4. OPEN, for the user: the committed Publication paragraph says the tool
+   "is usually right for the most-used calls, picks the tighter class
+   when unsure". rwx: per-call popularity was never measured, and GET is
+   floored at r without reading text. The sentence must change; the
+   user chooses between removing the accuracy claim (figures only in
+   Implementation Status) and stating "about 78% of labelled rows".
+5. Noted, no draft change: rwx is unsure whether every corpus path
+   template follows the "{param} is one segment" rule, because rwxmap
+   copies templates from the specs without normalising them; the
+   draft's matching rule is normative and applies to menus as signed.
+
+Source: cross-session message from rwx, 2026-09-14.
+
+## 2026-09-14 — Attestation Properties approved; rwx asked to validate rwxmap's role
+
+**DECISION**
+
+1. The user agreed to the rewritten Attestation Properties section (the
+   five MUSTs kept; two refusal rules added: an issuer that cannot answer
+   an axis refuses and never skips it, and an issuer with incomplete data
+   refuses and never rounds; a signed yes, a signed no and a signed
+   refusal are three different results). The user: "agree in
+   principle". The main session committed it, because the section does
+   not depend on the rwx check below.
+2. One wording fix at commit: "does not attest that a subject meets a
+   floor" became "cannot or will not answer a floor". The rewrite had
+   changed the posted -01 wording "declines to attest", which contradicted
+   the section's own rule that a signed no is an attestation with a false
+   result. The fix restores the -01 meaning. The main session checked the
+   posted -01 text (`ietf/v2/docs/draft-hamr-oauth-agent-delegation-01.xml`,
+   Signed Refusal and item 4) before deciding this needed no user choice.
+3. The user asked the main session to "talk to session rwx that it has
+   the same understanding of it's deliverables downstream". A validation
+   request was sent to the peer session rwx on 2026-09-14 with eight
+   hypotheses (H1 class definitions by effect; H2 method default equals
+   rwxmap's floor, plus "any other method: x"; H3 the generic tool
+   description; H4 the declared-menu format and who signs it, with the
+   question whether rwxmap rows carry method and OpenAPI path template;
+   H5 the one-flow table to cite and which commit to pin; H6 the
+   user-supplied figures 1972 / 49-0 / 803-211 / 175 of 211; H7 MCP hint
+   status; H8 any over-claim). Validation only, no edits requested.
+   Awaiting the reply; record it as a dated entry when it arrives.
+
+Source: user message, 2026-09-14.
+
+## 2026-09-14 — Budgets and the API Provider round approved
+
+**DECISION**
+
+1. The user approved the Budgets section (rBudget, wBudget, xBudget; no
+   number means no limit; rBudget counts calls; "rw+2x" shorthand) and
+   the API Provider round (rename; a menu signed by the API Provider or
+   by the party that runs the agent, provider first; the Publication
+   story), as read in plain form on 2026-09-14. The user: "#2 approve".
+2. Three leftover words fixed at commit, following from that decision:
+   the API Provider definition no longer says only the provider's
+   signing key is constrained; "no key for the claimed owner" became "no
+   trusted key for the menu's signer"; "applies only to the resource
+   that issued it" became "applies only to the API it describes".
+3. Asked whether the verifier is the API harness, the main session
+   answered from Verifier Placement: the verifier is a role, the first
+   point on a path that refuses or allows the call; it can sit on the
+   API Provider's side or in the customer's agent harness; a
+   customer-signed menu applies only at the customer's own harness.
+
+Source: user message, 2026-09-14.
+
+## 2026-09-14 — API Provider rename; customer-signed menus now, provider-signed later
+
+**DECISION**
+
+1. "Resource Owner" is renamed "API Provider" throughout the draft
+   (outside the two dated Changes appendices, which stay as posted
+   history).
+2. The party that runs the agent (for example a customer that deploys
+   it) can sign its own menu now, without waiting for the API
+   Provider. It is responsible for the menu it signs, for its own
+   verifiers and for its own agent's tool hints.
+3. Later, when API Providers publish their own signed menus, a
+   verifier looks for the API Provider's menu first; the menu signed
+   by the party that runs the agent is used only as a fallback, and
+   only by the verifiers that party configures.
+4. This replaces the main session's earlier proposal (that only a
+   provider-signed menu could ever change a verifier's class). The
+   safety point that proposal was protecting is kept in the text a
+   different way: a menu signed by the party that runs the agent
+   never makes an API Provider's verifier admit more.
+
+The user, verbatim:
+
+"you are overcomplicating this. rename to API provider yes, customer
+is the one who runs it #2 the narrative simplified, rwxmap is a place
+to start a conversation without having to wait on API provider to get
+ready, they have their apis and never thought about rwx as the whole
+thing is new. Proposal: a tool that analyzed leaning and roughly gives
+you somehow safe defaults per methods, unknowns are clear, all done
+mechanically and even programatically, you can as customer/runner of
+the code to exclude leaks or get some grounding when you read json
+map, this is how it works The build, step by step, in plain words: 1.
+Step 1, r. GET is r. POST with a read verb is r. Unchanged. 2. Step 2,
+w. PUT/DELETE/PATCH start at w. Then, in order: - a live verb (send,
+cancel, pay) -> give up, x. - a 3p noun -> give up, x. - every noun
+yours -> keep, w, marked "evidence". - none of the above -> keep, w,
+marked "no evidence". This is the 1972. < leaks marker 3. Step 3, x.
+Only what step 2 gave up. No rules. 4. Output: one CSV, all 5465 rows:
+step that claimed it, class, flag, truth, verdict. 5. Ledger pins:
+step 1 49 / 0. Step 2 803 false alarms / 211 leaks, with 175 of the
+211 in the flagged pile. #3 customer doesn't need to wait for api
+provider to sign their list, i have something i want to run now and i
+have some crude way of determining apis agent is about to use and i
+can sign it, can use it as mcphints for my agentic flow run, i am
+responsible for it, it's usually safe for top 80% usage that comes
+form 20% of apis, not perfect, but may have leaks, dangers at the long
+tail, either marked or overtight with some 1% leaks, acceptable #4
+when this becomes a known standard, easy to implement by api
+provider, they can use the tool to assign rwx to all their apis and
+they can review unknown list/leaks and can assign the correct rwx
+without having to process their whole list of apis and can sign it
+themselves, when that happens, customer change and ask for signed api
+map list and if not found (smaller api providers) create your own and
+sign it, that's the whole story"
+
+**EVIDENCE**
+
+- The figures in the user's message above (step 2 no-evidence pile
+  1972 rows, the leak marker; step 1 ledger 49 over-tight / 0 leaks;
+  step 2 803 false alarms / 211 leaks, 175 of the 211 in the flagged
+  pile) are user-supplied 2026-09-14 and not yet independently
+  verified against a rwxmap run.
+
+---
+
+## 2026-09-14 — Action Class approved; rwxmap's role and measured results
+
+**DECISION**
+
+1. The user approved the rewritten Action Class Floors section, with
+   Verifier Placement unchanged. The user: "approve, x is fine as is".
+   This confirms "POST, and any other method, default to x".
+2. rwxmap's role, in the user's words: "on the menu owner signing or
+   checking as optional, the goal is to use rwxmap to quickly classify
+   certain apis with good confidence on most used 80% 20% overtight when
+   it doesn't know and 1-2% leaks towards the long tail. rwxmap is a
+   place to start the conversation with what's possible with adoption
+   this could be a standard fetch operation for agentic automation where
+   owners pubish their own list using rwxmap to get a headstart and
+   manually correct wrong records and publish it either for mcp/mcphints
+   production and use for agentic automation".
+3. The "17 of 550" GET number is dropped from Security Considerations;
+   the limit itself (the method default grades every GET as r, and some
+   GET calls change something) stays. The user: "#2 GET number 17 are
+   the leaks? drop it". The 17 are leaks: GET calls that the r starting
+   class admits although they are really w or x (rwxmap learnings, by
+   method: GET 17 leaks, 0 over-tight).
+4. Implementation Status may use the one-flow table below, dated and
+   labelled work in progress. The user: "you can use this B". This
+   replaces the earlier "no pinned numbers" instruction for that
+   section only. The measured figures and the user's goal (about 80%
+   right, 20% over-tight, 1-2% leaks) must be stated separately; the
+   goal is never presented as a result. Today the measured leak rate
+   (4.2%) is above the goal (1-2%).
+
+**OPEN**
+
+- Owner signing. The draft's declared classSource requires a menu the
+  Resource Owner signs; without a valid signature the verifier uses the
+  method default. The user called owner signing or checking "optional".
+  The main session's proposed reading, to confirm with the user: an
+  unsigned list is fine as advice (for example MCP hints for an agent),
+  but only a signed menu can change the class a verifier uses, because
+  an unsigned list lets anyone lower a class. Until confirmed, the
+  Publication paragraph stays as approved.
+
+**EVIDENCE**
+
+- The table the user supplied, verbatim:
+  step 1 said r: claims 614, right 597, wrong 4 are w, 13 are x.
+  step 2 said w: claims 3209, right 2973, wrong 25 are r, 211 are x (leaks).
+  step 3 left as x: claims 1642, right 712, wrong 24 are r, 906 are w (false alarms).
+  Final: exact 78.4%. Leaks 228 (4.2%). Over-tight 955 (17.5%).
+- Source located by the main session: rwxmap `docs/logs/learnings.md`,
+  "One-flow ladder and the \"POST that is w\" step measured (2026-09-13)",
+  variant (2), at rwxmap commit `a298aa2` (file unchanged against that
+  commit). Same figures; by method GET 17/0, POST 0/127, PUT 93/305,
+  DELETE 76/424, PATCH 42/99 (leaks/over-tight). That record says the
+  run used scratch scripts and "no code changed", so the figures are
+  not yet produced by rwxmap's committed pipeline.
+- Arithmetic checked by the main session: 614 + 3209 + 1642 = 5465 rows;
+  597 + 2973 + 712 = 4282 right (78.4%); leaks 4 + 13 + 211 = 228 (4.2%);
+  over-tight 25 + 24 + 906 = 955 (17.5%).
+
+Source: user message, 2026-09-14.
+
+## 2026-09-14 — Action Class rewrite: method default taken from rwxmap's floor
+
+**DECISION**
+
+1. Method default from rwxmap's floor: GET/HEAD/OPTIONS r, PUT/DELETE/PATCH
+   w, POST x. PATCH was x in -01 and the -02 working text; it moves to w.
+   The user, verbatim: "well, on methods they vary, but these are our
+   assumptions for rwxmap and how we drew the floor so you can reword this
+   and/or infer from it 1. **Step 1, r.** Start every GET / HEAD / OPTIONS
+   row at r. Then look at POST: a POST whose lead verb is a read verb is r
+   too. 2. **Step 2, w.** Start every PUT / DELETE / PATCH row at w. Then
+   look at the POST rows step 1 left behind: a POST with a modify verb
+   plus a yours noun is w. (Measured 2026-09-13: 10 right, 4 wrong on 14
+   rows; the verb alone is a coin flip, 77 to 69. Not adopted today — POST
+   leftover stays x. See learnings, "One-flow ladder".) 3. **Step 3, x.**
+   Not a step of its own — x is the byproduct: every POST / PUT / DELETE /
+   PATCH row that step 1 and step 2 did not claim. Step 2 gives a w row up
+   (a live verb or a not-yours noun fires) and it lands here. #2 rBudget
+   count calls"
+2. The verb and noun steps read operation text, which a verifier does not
+   have; so they stay outside the verifier. INFERRED by the main session
+   from the message above, not stated by the user: a classifier's output
+   helps an owner write a menu and is advice, not a class source (the
+   draft already forbids a verifier from synthesizing a menu). To confirm
+   when the user reads the section.
+3. "Any other method: x" added as tighter-on-unknown; to confirm with the
+   user.
+4. rBudget counts calls, not data. The user: "#2 rBudget count calls".
+5. The Implementation Status paragraph pointing at the catalogue survey
+   behind the cut Limits subsection is removed. Not a user decision: it
+   follows from F2 (the survey figure is removed), and the paragraph had
+   no other purpose. The rewrite agent correctly stopped instead of
+   rewording it, because its brief both said not to reword it and
+   required zero references to the removed anchor.
+
+**EVIDENCE**
+
+- rwxmap `docs/product/prd.md` at commit `a298aa2` gives the floor table
+  (PUT 85% w / 15% x, DELETE 87% w / 13% x, PATCH 85% w / 14% x, POST 62%
+  x); numbers are not placed in the draft (user decision, rwxmap is work
+  in progress).
+
+## 2026-09-14 — Floor Axes and IANA text approved
+
+**DECISION**
+
+1. The user approved the rewritten Floor Axes section (with ageMin,
+   rBudget/wBudget/xBudget, subjectClass interactive/machine, the
+   registry cut) and the reduced IANA section, as read in plain form on
+   2026-09-14. The user: "approv floor". This approves the text only; no
+   PoC run is claimed, and the PoC catch-up (F10 in the reduction plan)
+   is still open.
+
+Source: user message, 2026-09-14.
+
+## 2026-09-13 — Floor Axes section decisions
+
+**DECISION**
+
+1. accountClass and partialPolicy are removed from the Floor Axes table
+   and from every sentence in that section. The user, on option 1 for
+   this cut: "accountclass/partial policy option 1 remove, what matters
+   is gsm+data markers cause you could be a prepaid as well". What
+   matters is the voice-and-data marker, subjectClass, because a
+   prepaid subscriber can also qualify under it. The partialPolicy rule
+   itself is not dropped: an issuer with incomplete data refuses and
+   never rounds; that rule moves to Attestation Properties, to be
+   rewritten there. "gsm+data" is written in the draft as "voice and
+   data", because GSM names one network generation.
+2. subjectClass keeps two values, named plain and issuer-neutral:
+   interactive and machine. The user: "#3 option 1, interactive+machine".
+   A telecom line's voice-and-data service is kept only as a short
+   example under interactive, and an M2M line only as a short example
+   under machine; prepaid/postpaid is not mentioned.
+3. The word "axis" is kept. The user: "#4 keep word axis". A single
+   plain sentence defining what an axis is (one named condition a floor
+   can constrain) is added at the start of the section.
+4. The reviewer's three listed problems and proposals are agreed to in
+   full. The user: "#5 problems list agreed to all your prop". (a) The
+   table's Type column said "rank" for actionClass and classSource;
+   changed to ordered lists (r < w < x; method < declared), with rank
+   as the comparator, both pointing to `action-class` for semantics.
+   (b) Sentences in other sections still mention the removed axis
+   registry; these are removed when each of those sections is rewritten.
+   (c) The rule that a child link can only be as strict as, or stricter
+   than, its parent — previously stated only for the duration-typed
+   axes — now covers every ordered axis; kept, it is the user's "subset
+   of the parent, never more" rule.
+5. Two sentences in the section are simplified into plainer language;
+   the general plain-language instruction is to use words anyone can
+   understand unless IETF practice needs the term. The user: "#6 fix two
+   sentences, simplify use easier language that anyone can understand
+   unless ietf directive highly recommends it". Applied narrowly: BCP 14
+   keywords and the names min, max, and rank (tied to asor-01) are kept.
+   The two sentences: the sentence naming `effective` is cut, while the
+   inheritance rule itself (no link sets an axis -> the issuer's
+   published value applies) is kept; and "one_of (singleton)" is
+   replaced by "equals" throughout the section.
+6. Budgets split three ways: rBudget, wBudget, and xBudget, not the
+   previously planned two (w and x only). The user: "#8 xBudget/wBudget
+   agreed and rBudget, assume you also want to control that agent don't
+   over read what they don't". Semantics stay deferred to the Write
+   Budget section; the Floor Axes table only names type (non-negative
+   integer) and comparator (max) for all three. The reviewer noted that
+   a read budget counts read calls made, not how much data any one read
+   returns; whether to state that as the limit's shape in the Write
+   Budget section is to confirm with the user when that section is
+   rewritten.
+7. Not a Floor Axes decision, carried here for continuity: the user
+   separately flagged the Abstract and Introduction as still pending in
+   the author's own voice: "#7 still waiting on intro/body you wanted me
+   to write". No agent action is taken on those two sections; per the
+   reduction plan's Rule for the Rewrite, the agent does only a wording
+   pass on them once the user has drafted them.
+8. Section order: Action Class Floors and Write Budget are rewritten
+   next; Abstract and Introduction last. From the user's message
+   quoted verbatim: "#1 suggest names #2 rwx is in making, take pocs
+   shape results and the idea of how it works, its WIP can't
+   freeze/commit to something still shaping up, but you get the idea,
+   captures biggest portion, overtight, translates to mcphints, leaks
+   on long tail, it's not perfect #3 option 1 #4 option 2." #3 in that
+   message is this decision (option 1: Action Class and Write Budget
+   next, Abstract/Intro last).
+9. Submission of -02 is decided only after the whole-document read, not
+   before this round. From the same message, #4: option 2 (decide on
+   submission after the whole-document read).
+10. Implementation Status describes rwxmap from its PoC: its approach
+    and the shape of its results, with no pinned numbers, stating it is
+    work in progress. From the same message, #2: "rwx is in making,
+    take pocs shape results and the idea of how it works, its WIP can't
+    freeze/commit to something still shaping up, but you get the idea,
+    captures biggest portion, overtight, translates to mcphints, leaks
+    on long tail, it's not perfect." #1 in that message, "suggest
+    names", led to the rBudget/wBudget/xBudget names in item 6 above.
+11. ageMin is added as a new axis. The user, verbatim: "ageMin option 1.
+    age is usually boolean answer to a specific age > 18 so it depends
+    if agent auth requires specific age bracket and the answer will be
+    true/false so no need for P18Y as you wont get this answer". The
+    reason found that day: zkagent (Mode A) and 8een each answer one
+    bit, whether the holder is over an age threshold (zkagent README: a
+    fixed, published threshold list; 8een README: thresholds 15/16/18/
+    21); no -02 axis could express that, and Appendix A's
+    identity-document directions mapped to no axis. Value is whole
+    years, not the duration grammar, because the answer is a yes/no to
+    a threshold, never a duration; (reviewer's note) P18Y would also
+    count 18 x 365 days, a few days short of a real 18th birthday.
+    zkagent Mode C (document validity) is not built, so no
+    document-validity axis is added.
+    An issuer that cannot answer an axis refuses, never skips; to be
+    written in Attestation Properties.
+
+**OPEN**
+
+- Whether Security Considerations also drops the "17 of 550" GET number,
+  now that rwxmap is described as work in progress rather than cited
+  with fixed figures: to confirm with the user.
+
+Source: user messages, 2026-09-13, quoted verbatim above. Implements
+Part 1 of the same day's Floor Axes section rewrite in
+`ietf/v3/docs/draft-hamr-oauth-agent-delegation-02.xml` and the matching
+updates to `ietf/v3/docs/reduction-plan-02.md`.
+
+## 2026-09-13 — IETF -02 reduction planned after the OAuth WG AI-contribution notice: registry cut to asor, 25-page ceiling, per-class budgets, x redefined by effect, CAMARA "unreviewed" claim retracted
+
+**EVIDENCE**
+
+1. The OAuth WG chairs' notice, dated 2026-09-06, is filed verbatim at
+   `ietf/v3/docs/oauth-wg-ai-guidelines-received-2026-09-06.md`. It names
+   spelling and grammar checks, wording, clarity, and using AI as a
+   sounding board as legitimate uses. It draws the line at AI performing
+   "substantive technical thinking on your behalf". It names restricting
+   posting privileges as the action if the trend persists. It does not
+   say drafts are rejected.
+2. asor-01 Section 4.2 defines the comparators max, min, one_of,
+   not_one_of, prefix, rank; Section 4.3 gives subsumption rules that the
+   -02 "HAMR Floor Axis Registry" restates (child.max <= parent.max,
+   child.min >= parent.min, one_of subset, rank <=, a parent constraint
+   not droppable). As recorded in `docs/logs/findings.md`'s 2026-09-03
+   "asor-01 posted" entry and in `ietf/v3/docs/draft-hamr-oauth-agent-delegation-02.xml`'s
+   `related-work` section (lines 1519-1541, confirmed today).
+3. `ietf/v2/docs/draft-hamr-oauth-agent-delegation-01.xml`, as posted, is
+   2364 lines (`wc -l`, confirmed today). The posted -01 is 48 pages per
+   its Datatracker record, as recorded in the 2026-09-02 "SUBMITTED and
+   posted" entry below. `ietf/v3/docs/draft-hamr-oauth-agent-delegation-02.xml`
+   is 2592 lines (`wc -l`, confirmed today), about 53 pages at that
+   ratio. xml2rfc is not installed locally; the page count of record
+   comes only from author-tools.ietf.org, run by the user.
+4. -02's `related-work` section calls the CAMARA proposal "open,
+   unreviewed" at line 1544, and its `appendix-a` calls it "an open,
+   unreviewed API proposal that proposes a horizontal profile" at lines
+   1902-1903 (`grep -n`, confirmed today). Findings entries dated
+   2026-08-31 ("CAMARA feedback on #330/#331") and 2026-09-03 ("CAMARA
+   TSC relay answered") record that the proposal was reviewed and
+   answered. The author answered the change requests and filed the
+   signing layer as Commonalities issue #705; no response or feedback
+   since (the user, 2026-09-13).
+5. -02 defines w as "an idempotent write" (XML line 733) and x as "a
+   consequential, non-idempotent action" (XML line 738), confirmed
+   today by `grep -n`. rwxmap decision D16
+   (`/home/hamr/PycharmProjects/rwxmap/docs/wiki/decisions-log.md` line
+   30, decided 2026-09-06) reads x as consequence instead — reaching a
+   third party, moving money, acting on a live session, network path or
+   device, or being unable to be undone, even when repeating it is
+   equivalent — and calls itself a proposed correction to the -02 text.
+   rwxmap's labelled floor table (`rwxmap/docs/product/prd.md` lines
+   15-21, confirmed today) shows DELETE at 19% truth-x and PUT at 15%
+   truth-x, although RFC 9110 calls both idempotent methods.
+6. -02's write-budget-axis section states that an omitted writeBudget
+   inherits the issuer's published floor, "which is zero unless the
+   issuer's published floor for the chain states otherwise" (XML line
+   1042, confirmed today by `grep -n`).
+7. rwxmap's row-level run-proof
+   (`rwxmap/run-proof/rwxmap-runs.md`, run date 2026-09-12, corpus 5465
+   rows, 332 vendors, leave-one-vendor-out, truth labelled by blind
+   model readers) records wrong loosenings as 37 truth-x rows predicted
+   w plus 13 truth-x rows predicted r, 50 total. Confirmed today: 50 of
+   5465 rows is 0.9%; 50 of 936 truth-x rows is 5.3%. The same file
+   records wrong tightenings as 2727 false alarms plus 49 over-tight,
+   2776 total. rwxmap changed later the same day: D58 (commit `d4c9124`)
+   moved goal 1 to 2703, and D60 (commit `9218104`, 14:46 +0200) moved it
+   to 2650. Goal 2 (37) and goal 3 (49) are unchanged. The draft takes its
+   numbers from a fresh run on the day the section is written.
+8. `ietf/v3/docs/reduction-plan-02.md`'s agreements map (A1-A13) traces
+   13 agreements to the sections that survive the reduction; none is
+   dropped provided A4 (Iman Schrock's approval of the wording, change
+   note, and acknowledgment) is kept in the shortened Changes since -01.
+   -02's Acknowledgments section today names only Iman Schrock (XML
+   lines 2581-2589, confirmed today); Sangam Das and Jijie Wei (varwof)
+   were granted naming on 2026-09-02
+   (`ietf/v2/docs/oauth-wg-round3-received-2026-09-02.md`) and are not
+   yet named.
+9. rwxmap D20 (`decisions-log.md` line 35, decided 2026-09-07) refines D16
+   and states irreversibility is not the test. The labelling brief
+   (`data/exam4-2026-09-12/LABELLING-BRIEF.md` lines 31-53) gives the
+   current r, w, x definitions. D28 (line 43) keeps `destructive` as a
+   separate boolean, not built or measured. The rwx session confirmed
+   these against its own repo on 2026-09-13.
+
+**DECISION**
+
+1. Reduce -02 in place in `ietf/v3` to a 25-rendered-page ceiling per
+   the plan at `ietf/v3/docs/reduction-plan-02.md`, approved by the
+   user. The long version stays preserved at `52066e3` on `main`.
+2. Option A: cut the HAMR Floor Axis Registry. State the comparators in
+   one paragraph matching asor-01 Sections 4.2-4.3 as an informative
+   reference. Keep the eight axis names and the `effective` inheritance
+   case. IANA registers only the Agent-Delegation header field.
+3. One budget per class, w and x, each attenuating like max. No number
+   means no budget limit. A child dropping a budget its parent carried
+   is still rejected. An issuer may still publish a cap. The user: "if
+   we collapse them together then no point for rwxmap to split them at
+   the first place"; "if users want to add no limitations to either
+   they can simply add no numbers".
+4. r, w, x are defined by effect per rwxmap D20 and its labelling brief:
+   x reaches beyond the caller or is not repeatable; w changes only the
+   caller's own things, even permanently; r changes nothing. Irreversibility
+   and severity are not tests. The HTTP method stays only as a starting
+   floor, not the definition. The user first answered "option 2" (D16's
+   wording) from a summary that missed D20; corrected the same day; the
+   user: "yes to both".
+5. Keep the negative-control vectors V4, V6, V9, V11 in the draft. The
+   full V1-V11 set moves to the repo, cited by commit SHA. The user:
+   "keep vectors".
+6. RETRACTION: the -02 claim that the CAMARA proposal is unreviewed and
+   proposes a horizontal profile is false. New text states: reviewed,
+   changes requested and answered, signing layer filed in Commonalities
+   #705, awaiting response, not accepted or adopted.
+7. Acknowledgments add Sangam Das and Jijie Wei (varwof), using the text
+   the author proposed publicly in
+   `ietf/v2/docs/oauth-wg-reply-3-sent-2026-09-02.md`.
+8. No destructive axis in -02. The user: "yes to both".
+9. A2A: the sub-agent gets no new grant; it narrows the parent itself and
+   signs the narrower link with its own key. This is -02 today; the chain
+   model does not change. The user: "option 1".
+10. Scope and style: keep only what the author knows and uses — agent
+   delegation and auth; the principal layer instantiated by CAMARA
+   (telecom) and zkagent (passport/ID), with 8een as the ZK case; a
+   harness reading APIs to grade r/w/x and feed MCP hints with safe
+   defaults, accepting low leaks on the long tail; r/w/x with open limits
+   or budgets such as "rw+2x"; on A2A, a child is a subset of its parent,
+   never more. Plain IETF-style explanation, no ornate wording. The
+   user's words, verbatim: "goal is to stick to what i know, agentic auth
+   camara+zkagent (telecom, passport/id) harness to read apis feed
+   mcphints with safe defaults and possible low leaks on longtail, rwx
+   open limits or rw+2x and on A2A no reesigning but could be a subset of
+   the parent never more. any other fluff tough lang to seem
+   sophsiticated is prohibited, stick to ietf expetcations of flow and
+   way of explanation no problem just don't over sophsiticate to appear
+   smart and i look dumb".
+
+**OPEN, NOT DONE**
+
+- The XML rewrite has not started; it goes one section at a time, each
+  read by the user.
+- rwxmap numbers must be re-run on the day Implementation Status is
+  written; every cited I-D version re-verified live.
+- `docs/index.md` is generated and has no row for
+  `ietf/v3/docs/reduction-plan-02.md`; regenerate with /docs-builder or
+  /remember.
+
+---
+
 ## 2026-09-06 — EMILIA comparison note: AEB understatement corrected in -02, verified against AEB -05 section 9
 
 **EVIDENCE**
