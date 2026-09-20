@@ -41,7 +41,7 @@ under the filed scope the aggregator can still read the identifier and the answe
 > **Status: filed and submitted, not approved or adopted.** CAMARA: APIBacklog issue #330 and
 > PR #331 are filed and open, awaiting Working Group evaluation; the v2 rescope is filed as
 > Commonalities issue #705, open and awaiting a maintainer label, discussed at the 2026-09-03
-> Technical Steering Committee. IETF: `draft-hamr-oauth-agent-delegation-01`
+> Technical Steering Committee. IETF: `draft-hamr-oauth-agent-delegation-02`
 > is submitted and live on the Datatracker as an individual draft — not a working-group
 > document, not adopted. This repo is the staging ground for two tracks: **CAMARA**
 > (operator/attestation side) and **IETF** (agent/delegation side).
@@ -175,12 +175,14 @@ ietf/v2/poc/        FROZEN -01 record: DIVERGED from the frozen v1 copy at
                     the -00 record; spike-a/ holds the catalogue-survey
                     dataset (specs/ omitted, reproducible from its SHA
                     column), moved in 2026-09-01; copied unchanged into v3
-ietf/v3/docs/       the `-02` working copy: Verifier Placement rewrite
-                    (boundary as a role, per effect-capable path, plus
-                    the system-wide closure/anti-bypass invariant) done,
+ietf/v3/docs/       FROZEN record of -02, SUBMITTED and posted
+                    2026-09-20, expires 23 March 2027 (Datatracker:
+                    2027-03-24): Verifier Placement rewrite (boundary as
+                    a role, per effect-capable path, plus the
+                    system-wide closure/anti-bypass invariant) done,
                     then reduced 2592 -> 1695 lines per
                     reduction-plan-02.md, all 28 plan rows closed
-                    2026-09-18; not yet submitted
+                    2026-09-18; byte-identical to the posted bytes
 ietf/v3/poc/        DIVERGED from the frozen v2 copy on 2026-09-06: added
                     `m7-check.mjs` cases 41-43 for -02 Verifier Placement
                     (40 -> 43, all passing) and updated both README.md
@@ -199,7 +201,8 @@ Each track cites the other as its counterpart; neither depends on the other's ap
   new-case proposal to APIBacklog (template pre-filled in §10).
 - **[IETF](ietf/v1/docs/ietf-agent-delegation.md)** — the agent/delegation side (v1, as
   posted; v2 `-01` SUBMITTED and posted 2026-09-02, expires 2027-03-06, at
-  `ietf/v2/docs/`). What the
+  `ietf/v2/docs/`; v3 `-02` SUBMITTED and posted 2026-09-20, expires
+  23 March 2027, at `ietf/v3/docs/`). What the
   agent carries and how permissions flow: floor-gated SIM attestation, scoped monotone
   delegations, presentment via RFC 9421. The OAuth Working Group (`oauth@ietf.org`) is
   the target.

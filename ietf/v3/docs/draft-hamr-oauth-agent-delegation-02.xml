@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<rfc xmlns:xi="http://www.w3.org/2001/XInclude" category="std" docName="draft-hamr-oauth-agent-delegation-02" ipr="trust200902" submissionType="IETF" consensus="true" version="3">
+<rfc xmlns:xi="http://www.w3.org/2001/XInclude" category="std" docName="draft-hamr-oauth-agent-delegation-02" ipr="trust200902" consensus="true" version="3">
   <front>
     <title abbrev="Agent Delegation Profile">An Attenuated Delegation Profile for Automated Agents</title>
     <seriesInfo name="Internet-Draft" value="draft-hamr-oauth-agent-delegation-02"/>
@@ -14,7 +14,7 @@
         <email>avoidaccess@msn.com</email>
       </address>
     </author>
-    <date/>
+    <date year="2026" month="September" day="19"/>
     <area>Security</area>
     <workgroup>Web Authorization Protocol</workgroup>
     <keyword>OAuth</keyword>

@@ -145,12 +145,14 @@ ietf/v2/poc/       FROZEN -01 record: DIVERGED from the frozen v1 copy at
                    record; spike-a/ holds the catalogue-survey dataset
                    (specs/ omitted, reproducible from its SHA column),
                    moved in 2026-09-01; copied unchanged into v3
-ietf/v3/docs/      the `-02` working copy: Verifier Placement rewrite
-                   (boundary as a role, per effect-capable path, plus
-                   the system-wide closure/anti-bypass invariant) done,
-                   then reduced 2592 -> 1695 lines per
-                   reduction-plan-02.md, all 28 plan rows closed
-                   2026-09-18; not yet submitted
+ietf/v3/docs/      FROZEN record of -02, SUBMITTED and posted
+                   2026-09-20, expires 23 March 2027 (Datatracker:
+                   2027-03-24): Verifier Placement rewrite (boundary as
+                   a role, per effect-capable path, plus the system-wide
+                   closure/anti-bypass invariant) done, then reduced
+                   2592 -> 1695 lines per reduction-plan-02.md, all 28
+                   plan rows closed 2026-09-18; byte-identical to the
+                   posted bytes
 ietf/v3/poc/       DIVERGED from the frozen v2 copy on 2026-09-06: added
                    `m7-check.mjs` cases 41-43 for -02 Verifier Placement
                    (40 -> 43, all passing) and updated both README.md

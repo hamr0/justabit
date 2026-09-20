@@ -14,6 +14,99 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-09-20 — -02: `submissionType` removed again and settled; upload cleared for a clean submission record
+
+**EVIDENCE**
+
+1. With `submissionType="IETF"` restored, author-tools reported "idnits 3.1.0 (submission mode): 1 error, 0 warnings, 0 comments", the one error being `SUBMISSION_TYPE_UNEXPECTED`. The explicit `<date>` fix held: `MISSING_DOC_DATE` did not return.
+2. The Datatracker submission status page was fetched and parsed on 2026-09-20. Its "Submission checks" section carries exactly two reports, idnits 2.17.1 and idnits3. There is no xml2rfc section. The xml2rfc `submissionType` warning therefore appears only in the author-tools preview and never on the submission record a reviewer sees.
+3. The two settings are therefore not equivalent in effect: with the attribute absent the submission record reads 0 errors and 0 warnings, while with it present the record carries an error plus the sentence "this Internet-Draft would then be rejected" once idnits3 becomes required.
+
+**DECISION**
+
+1. `submissionType` is removed again, and this is final for `-02`. The explicit date stays. The rendered document is IETF-stream either way, because xml2rfc says so in the warning itself.
+2. The main session changed its recommendation three times across 2026-09-19 and 2026-09-20. That churn is recorded rather than hidden: position one was set before any author-tools output existed, position two after the full readout named idnits 2.17.1, position three after the submission page was parsed and shown to carry no xml2rfc section. Only the third rests on what the submission record actually contains. The cost of the churn was the user's time, and the lesson is that the tradeoff should have been put as a choice at the first edit, not after it.
+3. Prior revision `-02` was never posted. Datatracker held it at state `uploaded` with `draft: None`, its History showed only "Uploaded submission" and "Completed submission validation checks", and both `-02` archive URLs returned 404. It was cancelled from the keyed status URL so the corrected file can go up as `-02`. Datatracker accepts only the revision one above the posted one, which is `02`; a `-03` would have been rejected.
+4. Datatracker measured the uploaded file at **34 text pages** and 11663 words. That is a measured count, not the line-based estimate, and it is well above the 25-page target relaxed to a goal on 2026-09-18.
+
+Source: user messages and pasted author-tools output, 2026-09-20; the Datatracker submission API and status page.
+
+---
+
+## 2026-09-20 — -02: `submissionType="IETF"` restored; the two tools cannot both be satisfied honestly
+
+**EVIDENCE**
+
+1. After the 2026-09-19 edit removed `submissionType`, the author-tools run still reported one warning, verbatim: "(2) Expected a valid submissionType (stream) setting, one of IETF, IAB, IRTF, independent, editorial, but found None. Will use 'IETF'". The user asked for the warnings to be gone.
+2. The two checks are in direct opposition, and this was established from their source, not reasoned:
+   - xml2rfc requires one of `IETF`, `IAB`, `IRTF`, `independent`, `editorial`, and warns when the attribute is absent.
+   - idnits3 `validateSubmissionType` (`ietf-tools/idnits`, `lib/modules/xml.mjs`) raises `SUBMISSION_TYPE_UNEXPECTED` on `if (!existingStream && ['ietf', 'iab', 'irtf'].includes(submissionType))`. Datatracker records `stream: None` for this draft because it is not adopted.
+3. There are therefore exactly three settings, and no silent honest one:
+   - `IETF` — xml2rfc silent, idnits3 raises one error.
+   - absent — idnits3 silent, xml2rfc raises one warning; the render is `IETF` either way.
+   - `independent` or `editorial` — both tools silent, but the document would declare the Independent Submission Stream and its status boilerplate would change. That is the wrong stream for a draft targeting the OAuth Working Group.
+4. The full readout of 2026-09-20 showed the idnits section is **idnits 2.17.1**, not idnits3. idnits 2.17.1 does not check `submissionType` at all. So with the attribute restored, the observed output is zero warnings and one error, that error being the registered RFC 6234 downref recorded in the entry below.
+
+**DECISION**
+
+1. `submissionType="IETF"` is restored. Line 2 of the draft is now byte-identical to what `-00` and `-01` were posted with. The explicit date added on 2026-09-19 is kept; that fix had no tradeoff.
+2. The `independent` and `editorial` values were rejected outright. Declaring a stream the document does not target, in order to silence a checker, is the kind of claim this repo does not make.
+3. The main session recommended restoring on 2026-09-19, reversed to "leave it absent" on 2026-09-20 once the full readout arrived, and has now reversed back on the user's instruction "i want warnings gone". Both reversals are recorded rather than smoothed over, because the second one was driven by a fact the first reading did not have: that the idnits actually running is 2.17.1.
+4. The consequence accepted with this choice, stated so it is not a surprise later: if author-tools ever switches its idnits section to idnits3 while the draft is still unadopted, `SUBMISSION_TYPE_UNEXPECTED` returns. It clears itself at adoption, when Datatracker sets the stream.
+5. What is still unverified: nobody has diffed the rendered text against what `-01` produced. The date deadline of 2026-09-22 from the entry below still stands.
+6. Next: a fresh author-tools run by the user to confirm zero warnings, then `/branch-review`.
+
+Source: user messages, 2026-09-20; `ietf-tools/idnits` source; the Datatracker document API.
+
+---
+
+## 2026-09-20 — -02: the idnits3 fixes confirmed by a second author-tools run; the one remaining error is a registered downref
+
+**EVIDENCE**
+
+1. The user ran author-tools a second time, on the edited draft at commit `51e7d68` on branch `ietf/02-idnits3-fixes`, and pasted the full readout. This entry records that readout rather than a summary of it, because the 2026-09-15 run showed a user's "clean" report and the actual output disagreeing.
+2. The xml2rfc conversion produced exactly one warning, verbatim: "(2) Expected a valid submissionType (stream) setting, one of IETF, IAB, IRTF, independent, editorial, but found None. Will use 'IETF'". The `(2)` is the line number, not an item number; line 2 is the `<rfc>` tag edited on 2026-09-19.
+3. That warning establishes something the 2026-09-19 entry could not verify: with the attribute absent, xml2rfc falls back to `IETF`, so the rendered document is IETF-stream either way. Removing the attribute changed which tool reports an item, not the rendered output.
+4. The idnits section of this run is **idnits 2.17.1**, a different checker from the **idnits 3.1.0 (submission mode)** that produced the 2026-09-19 items. Its verbatim result: "Checking boilerplate required by RFC 5378 and the IETF Trust" — No issues found here. "Checking nits according to 1id-guidelines.txt" — No issues found here. "Checking nits according to the id-info checklist" — No issues found here. "Miscellaneous warnings" — No issues found here. "Checking references for intended status: Proposed Standard" — one item: "** Downref: Normative reference to an Informational RFC: RFC 6234". Summary line, verbatim: "1 error (**), 0 flaws (~~), 0 warnings (==), 0 comments (--)."
+5. This readout carries no idnits3 block at all, where the 2026-09-19 readout led with "idnits 3.1.0 (submission mode): 1 error, 1 warning, 0 comments". The reading is that idnits3 now reports nothing, so `SUBMISSION_TYPE_UNEXPECTED` and `MISSING_DOC_DATE` are both cleared. **This is an inference from the page's shape, not a printed result.** No line in either paste states "idnits3: 0 errors". Recorded as an inference on purpose.
+6. The RFC 6234 downref was verified against the authoritative registry on 2026-09-20, not taken from memory or from the prior entry: `https://datatracker.ietf.org/doc/downref/` was fetched and parsed, and exactly one row matches — "RFC 6234, US Secure Hash Algorithms (SHA and SHA-based HMAC and HKDF)", registered via `draft-schaad-pkix-rfc2875-bis`. A normative reference to a registered downref is pre-approved and needs no Last Call action. idnits 2.17.1 flags it regardless because that version does not consult the registry.
+
+**DECISION**
+
+1. Nothing in the draft changes as a result of this run. Zero items require an edit.
+2. `submissionType` stays removed. The main session had recommended restoring it before the full readout was available, on the reasoning that the idnits3 error was a question about an unadopted draft rather than a gate. The full readout changed that: restoring the attribute would reintroduce the one error the user asked to clear, and evidence item 3 shows the rendered output is identical either way. The recommendation was reversed before any edit was made, and the reversal was told to the user with its reason.
+3. The RFC 6234 downref is left exactly as it is. It is correct, it is registered, and it is the kind of honest limit this repo states on purpose rather than cleans up.
+4. The hard document date creates a deadline, restated here because it is now live: the draft says 2026-09-19 and idnits3 allows plus or minus 3 days, so the date is valid through **2026-09-22**. Submitting after that requires re-dating the `<date>` element first, or `MISSING_DOC_DATE` is traded for `DOC_DATE_IN_PAST`.
+5. What this run still could not establish: that the rendered boilerplate is byte-identical to what `-01` produced. Nobody diffed the two rendered texts. The xml2rfc fallback makes divergence unlikely, not impossible.
+6. Next: `/branch-review` on `ietf/02-idnits3-fixes`. Submission is decided after that, and Appendix A's CAMARA state must be re-verified live on the day of submission, as the 2026-09-18 entry already requires.
+
+Source: user message pasting the full author-tools readout, 2026-09-20; the IETF downref registry.
+
+---
+
+## 2026-09-19 — -02: first idnits3 run; both items traced to their rule source and fixed
+
+**EVIDENCE**
+
+1. The user ran author-tools on `ietf/v3/docs/draft-hamr-oauth-agent-delegation-02.xml` and pasted the output verbatim. idnits 3.1.0 (submission mode): 1 error, 1 warning, 0 comments. The error is `SUBMISSION_TYPE_UNEXPECTED`, path `rfc.submissionType`, "A document stream is specified in the rfc tag but the existing version has no stream on Datatracker. Is this intentional?". The warning is `MISSING_DOC_DATE`, "The document date could not be determined.". The run's own header states "These results do not affect this submission. Errors reported here are expected to prevent submission once idnits3 becomes a required check."
+2. Datatracker was queried live on 2026-09-19, not inferred: `https://datatracker.ietf.org/api/v1/doc/document/draft-hamr-oauth-agent-delegation/?format=json` returns `rev: 01` and `stream: None`. The document has no stream because it has not been adopted. That is the exact condition the error names.
+3. The idnits3 rule was read at its source rather than guessed, from `ietf-tools/idnits`, `lib/modules/xml.mjs`, function `validateSubmissionType`. The error fires on one condition only: `if (!existingStream && ['ietf', 'iab', 'irtf'].includes(submissionType))`. With no stream on Datatracker, any of those three values raises it. Omitting the attribute leaves `submissionType` undefined, which is not in that list, so the check does not fire.
+4. The date rule was read the same way, from `lib/modules/metadata.mjs`, function `validateDate`. For an XML document it reads `rfc.front.date._attr`. The draft carried a bare `<date/>` with no attributes, so the value is undefined and the warning fires. The same function applies a `DATE_THRESHOLD` of 3 days: a date more than 3 days old raises `DOC_DATE_IN_PAST`, and more than 3 days ahead raises `DOC_DATE_IN_FUTURE`.
+5. Both `-00` (posted 2026-08-31) and `-01` (posted 2026-09-02) carry the identical header, `submissionType="IETF" consensus="true"` with a bare `<date/>`, and both posted without objection. idnits3 is new; this is the first run that has judged this header.
+6. Neither `xml2rfc` nor `idnits` is installed on this machine, so no local A/B of the fix is possible. Only the user's author-tools run can confirm that the two items are cleared and that the rendered boilerplate is unchanged.
+
+**DECISION**
+
+1. `submissionType="IETF"` is removed from the `<rfc>` tag. RFC 7991 makes `IETF` the default for that attribute, so the rendered document should be unchanged, while the explicit assertion that idnits3 compares against Datatracker is gone. `consensus="true"` is left in place; idnits3 does not test it, and removing it would be an unforced change.
+2. The alternative, setting `submissionType` to `independent`, was rejected. That names the Independent Submission Stream, a different publication path. This draft targets the OAuth Working Group, so the value would be factually wrong in order to silence a check.
+3. The bare `<date/>` is replaced with `<date year="2026" month="September" day="19"/>`. This clears `MISSING_DOC_DATE`.
+4. This creates a standing obligation, recorded here so it is not discovered late: **the date must be re-set to within 3 days of the actual submission date.** A bare `<date/>` lets xml2rfc stamp the render date and can never go stale; a hard date can, and at more than 3 days it trades `MISSING_DOC_DATE` for `DOC_DATE_IN_PAST`. The hard date is only correct while submission is imminent.
+5. What this change could not verify: that the two items are actually cleared, and that removing `submissionType` leaves the rendered boilerplate identical. Both need a fresh author-tools run by the user on the edited file. `xmllint` proves well-formedness only.
+
+Source: user message pasting the author-tools output, 2026-09-19; Datatracker API; `ietf-tools/idnits` source.
+
+---
+
 ## 2026-09-18 — -02: whole-document read and anchor sweep; one contradiction found and fixed
 
 **EVIDENCE**
