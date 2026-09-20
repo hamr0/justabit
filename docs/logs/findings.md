@@ -14,6 +14,30 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-09-20 — -02: the idnits3 fixes confirmed by a second author-tools run; the one remaining error is a registered downref
+
+**EVIDENCE**
+
+1. The user ran author-tools a second time, on the edited draft at commit `51e7d68` on branch `ietf/02-idnits3-fixes`, and pasted the full readout. This entry records that readout rather than a summary of it, because the 2026-09-15 run showed a user's "clean" report and the actual output disagreeing.
+2. The xml2rfc conversion produced exactly one warning, verbatim: "(2) Expected a valid submissionType (stream) setting, one of IETF, IAB, IRTF, independent, editorial, but found None. Will use 'IETF'". The `(2)` is the line number, not an item number; line 2 is the `<rfc>` tag edited on 2026-09-19.
+3. That warning establishes something the 2026-09-19 entry could not verify: with the attribute absent, xml2rfc falls back to `IETF`, so the rendered document is IETF-stream either way. Removing the attribute changed which tool reports an item, not the rendered output.
+4. The idnits section of this run is **idnits 2.17.1**, a different checker from the **idnits 3.1.0 (submission mode)** that produced the 2026-09-19 items. Its verbatim result: "Checking boilerplate required by RFC 5378 and the IETF Trust" — No issues found here. "Checking nits according to 1id-guidelines.txt" — No issues found here. "Checking nits according to the id-info checklist" — No issues found here. "Miscellaneous warnings" — No issues found here. "Checking references for intended status: Proposed Standard" — one item: "** Downref: Normative reference to an Informational RFC: RFC 6234". Summary line, verbatim: "1 error (**), 0 flaws (~~), 0 warnings (==), 0 comments (--)."
+5. This readout carries no idnits3 block at all, where the 2026-09-19 readout led with "idnits 3.1.0 (submission mode): 1 error, 1 warning, 0 comments". The reading is that idnits3 now reports nothing, so `SUBMISSION_TYPE_UNEXPECTED` and `MISSING_DOC_DATE` are both cleared. **This is an inference from the page's shape, not a printed result.** No line in either paste states "idnits3: 0 errors". Recorded as an inference on purpose.
+6. The RFC 6234 downref was verified against the authoritative registry on 2026-09-20, not taken from memory or from the prior entry: `https://datatracker.ietf.org/doc/downref/` was fetched and parsed, and exactly one row matches — "RFC 6234, US Secure Hash Algorithms (SHA and SHA-based HMAC and HKDF)", registered via `draft-schaad-pkix-rfc2875-bis`. A normative reference to a registered downref is pre-approved and needs no Last Call action. idnits 2.17.1 flags it regardless because that version does not consult the registry.
+
+**DECISION**
+
+1. Nothing in the draft changes as a result of this run. Zero items require an edit.
+2. `submissionType` stays removed. The main session had recommended restoring it before the full readout was available, on the reasoning that the idnits3 error was a question about an unadopted draft rather than a gate. The full readout changed that: restoring the attribute would reintroduce the one error the user asked to clear, and evidence item 3 shows the rendered output is identical either way. The recommendation was reversed before any edit was made, and the reversal was told to the user with its reason.
+3. The RFC 6234 downref is left exactly as it is. It is correct, it is registered, and it is the kind of honest limit this repo states on purpose rather than cleans up.
+4. The hard document date creates a deadline, restated here because it is now live: the draft says 2026-09-19 and idnits3 allows plus or minus 3 days, so the date is valid through **2026-09-22**. Submitting after that requires re-dating the `<date>` element first, or `MISSING_DOC_DATE` is traded for `DOC_DATE_IN_PAST`.
+5. What this run still could not establish: that the rendered boilerplate is byte-identical to what `-01` produced. Nobody diffed the two rendered texts. The xml2rfc fallback makes divergence unlikely, not impossible.
+6. Next: `/branch-review` on `ietf/02-idnits3-fixes`. Submission is decided after that, and Appendix A's CAMARA state must be re-verified live on the day of submission, as the 2026-09-18 entry already requires.
+
+Source: user message pasting the full author-tools readout, 2026-09-20; the IETF downref registry.
+
+---
+
 ## 2026-09-19 — -02: first idnits3 run; both items traced to their rule source and fixed
 
 **EVIDENCE**
