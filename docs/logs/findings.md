@@ -14,6 +14,33 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-09-20 — -02: `submissionType="IETF"` restored; the two tools cannot both be satisfied honestly
+
+**EVIDENCE**
+
+1. After the 2026-09-19 edit removed `submissionType`, the author-tools run still reported one warning, verbatim: "(2) Expected a valid submissionType (stream) setting, one of IETF, IAB, IRTF, independent, editorial, but found None. Will use 'IETF'". The user asked for the warnings to be gone.
+2. The two checks are in direct opposition, and this was established from their source, not reasoned:
+   - xml2rfc requires one of `IETF`, `IAB`, `IRTF`, `independent`, `editorial`, and warns when the attribute is absent.
+   - idnits3 `validateSubmissionType` (`ietf-tools/idnits`, `lib/modules/xml.mjs`) raises `SUBMISSION_TYPE_UNEXPECTED` on `if (!existingStream && ['ietf', 'iab', 'irtf'].includes(submissionType))`. Datatracker records `stream: None` for this draft because it is not adopted.
+3. There are therefore exactly three settings, and no silent honest one:
+   - `IETF` — xml2rfc silent, idnits3 raises one error.
+   - absent — idnits3 silent, xml2rfc raises one warning; the render is `IETF` either way.
+   - `independent` or `editorial` — both tools silent, but the document would declare the Independent Submission Stream and its status boilerplate would change. That is the wrong stream for a draft targeting the OAuth Working Group.
+4. The full readout of 2026-09-20 showed the idnits section is **idnits 2.17.1**, not idnits3. idnits 2.17.1 does not check `submissionType` at all. So with the attribute restored, the observed output is zero warnings and one error, that error being the registered RFC 6234 downref recorded in the entry below.
+
+**DECISION**
+
+1. `submissionType="IETF"` is restored. Line 2 of the draft is now byte-identical to what `-00` and `-01` were posted with. The explicit date added on 2026-09-19 is kept; that fix had no tradeoff.
+2. The `independent` and `editorial` values were rejected outright. Declaring a stream the document does not target, in order to silence a checker, is the kind of claim this repo does not make.
+3. The main session recommended restoring on 2026-09-19, reversed to "leave it absent" on 2026-09-20 once the full readout arrived, and has now reversed back on the user's instruction "i want warnings gone". Both reversals are recorded rather than smoothed over, because the second one was driven by a fact the first reading did not have: that the idnits actually running is 2.17.1.
+4. The consequence accepted with this choice, stated so it is not a surprise later: if author-tools ever switches its idnits section to idnits3 while the draft is still unadopted, `SUBMISSION_TYPE_UNEXPECTED` returns. It clears itself at adoption, when Datatracker sets the stream.
+5. What is still unverified: nobody has diffed the rendered text against what `-01` produced. The date deadline of 2026-09-22 from the entry below still stands.
+6. Next: a fresh author-tools run by the user to confirm zero warnings, then `/branch-review`.
+
+Source: user messages, 2026-09-20; `ietf-tools/idnits` source; the Datatracker document API.
+
+---
+
 ## 2026-09-20 — -02: the idnits3 fixes confirmed by a second author-tools run; the one remaining error is a registered downref
 
 **EVIDENCE**
