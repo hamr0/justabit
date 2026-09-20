@@ -1,5 +1,39 @@
 # Changelog
 
+## 0.14.1 — 2026-09-20
+
+- **Both idnits3 items on `ietf/v3/docs/draft-hamr-oauth-agent-delegation-02.xml`
+  cleared at their rule source**, not worked around. The error was
+  cleared by removing `submissionType` (Datatracker records no stream
+  for this unadopted draft); the warning was cleared by giving the
+  document an explicit date. The attribute was briefly restored on
+  the user's instruction to satisfy xml2rfc's own warning, then
+  removed again once it was clear the Datatracker submission record
+  (idnits/idnits3 only, no xml2rfc section) reads zero errors and
+  zero warnings without it — the draft's final state carries no
+  `submissionType` and an explicit date.
+- **`docs/logs/findings.md` records the second author-tools run
+  verbatim**, including the RFC 6234 downref check: idnits 2.17.1's
+  one error is a normative reference to RFC 6234, verified present in
+  the IETF downref registry and needing no action. The idnits3
+  clearance itself is recorded as an inference, not a printed result.
+- **Docs swept for `7a697b6..97520b7`**: `-02` posted 2026-09-20 (rev
+  02, state posted, byte-identical archive copy verified via
+  curl+cmp) made several current-state claims stale. `CLAUDE.md`,
+  `README.md`'s `ietf/v3/docs/` layout entry, and `prd.md`'s D3 row
+  move from "not yet submitted"/"working copy" to the frozen, posted
+  record (expires 2027-03-24, computed from the posting date),
+  matching how `ietf/v2/docs/` already describes the frozen -01
+  record. `docs/index.md` regenerated to pick up `findings.md`'s
+  growth from this branch's commits.
+- **-02 expiry wording corrected**: the posted draft prints "Expires:
+  23 March 2027" while Datatracker's API says 2027-03-24. `CLAUDE.md`,
+  `README.md` and `docs/product/prd.md` now lead with the date a
+  reader sees in the draft and note the Datatracker value beside it.
+  The README status banner and "Two tracks" bullet now name -02 as
+  the current posted draft alongside the frozen -01 record, and the
+  PRD header date moves from 2026-09-02 to 2026-09-20.
+
 ## 0.14.0 — 2026-09-19
 
 - **IETF `-02` reduced from 2592 to 1695 lines, all 28 reduction-plan
