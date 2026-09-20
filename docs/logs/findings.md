@@ -14,6 +14,25 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-09-20 — -02: `submissionType` removed again and settled; upload cleared for a clean submission record
+
+**EVIDENCE**
+
+1. With `submissionType="IETF"` restored, author-tools reported "idnits 3.1.0 (submission mode): 1 error, 0 warnings, 0 comments", the one error being `SUBMISSION_TYPE_UNEXPECTED`. The explicit `<date>` fix held: `MISSING_DOC_DATE` did not return.
+2. The Datatracker submission status page was fetched and parsed on 2026-09-20. Its "Submission checks" section carries exactly two reports, idnits 2.17.1 and idnits3. There is no xml2rfc section. The xml2rfc `submissionType` warning therefore appears only in the author-tools preview and never on the submission record a reviewer sees.
+3. The two settings are therefore not equivalent in effect: with the attribute absent the submission record reads 0 errors and 0 warnings, while with it present the record carries an error plus the sentence "this Internet-Draft would then be rejected" once idnits3 becomes required.
+
+**DECISION**
+
+1. `submissionType` is removed again, and this is final for `-02`. The explicit date stays. The rendered document is IETF-stream either way, because xml2rfc says so in the warning itself.
+2. The main session changed its recommendation three times across 2026-09-19 and 2026-09-20. That churn is recorded rather than hidden: position one was set before any author-tools output existed, position two after the full readout named idnits 2.17.1, position three after the submission page was parsed and shown to carry no xml2rfc section. Only the third rests on what the submission record actually contains. The cost of the churn was the user's time, and the lesson is that the tradeoff should have been put as a choice at the first edit, not after it.
+3. Prior revision `-02` was never posted. Datatracker held it at state `uploaded` with `draft: None`, its History showed only "Uploaded submission" and "Completed submission validation checks", and both `-02` archive URLs returned 404. It was cancelled from the keyed status URL so the corrected file can go up as `-02`. Datatracker accepts only the revision one above the posted one, which is `02`; a `-03` would have been rejected.
+4. Datatracker measured the uploaded file at **34 text pages** and 11663 words. That is a measured count, not the line-based estimate, and it is well above the 25-page target relaxed to a goal on 2026-09-18.
+
+Source: user messages and pasted author-tools output, 2026-09-20; the Datatracker submission API and status page.
+
+---
+
 ## 2026-09-20 — -02: `submissionType="IETF"` restored; the two tools cannot both be satisfied honestly
 
 **EVIDENCE**
