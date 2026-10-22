@@ -1637,7 +1637,7 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         <front>
           <title>rwxmap: Mechanical r/w/x Classification of OpenAPI Operations</title>
           <author initials="A." surname="Hassan"><organization>Independent</organization></author>
-          <date year="2026" month="September"/>
+          <date year="2026" month="October"/>
         </front>
       </reference>
       <reference anchor="BAREGUARD" target="https://github.com/hamr0/bareguard">
@@ -1813,6 +1813,24 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         the V4 rule on classSource and writeBudget but not on
         credentialAgeMin. No code runs V6.
       </t>
+    </section>
+
+    <section anchor="changes-since-02" numbered="true" toc="default">
+      <name>Changes since -02</name>
+      <t>
+        This section is non-normative. It will be removed before this
+        document leaves individual submission status.
+      </t>
+      <ul spacing="normal">
+        <li><t>Replaced the definition of r, w, and x (<xref target="action-class"/>). The classes now follow the chmod reading: r reads and changes nothing, w changes something a later call can set back, and x cannot be undone. -02 defined them by reach, the caller's own things or beyond the caller, and said that whether a call can be undone was not the test. This is a new definition, not a refinement of the old one.</t></li>
+        <li><t>DELETE now defaults to x, not w (<xref target="classification"/>).</t></li>
+        <li><t>Stated that a harness may build and sign a menu for a new API during a job, before it admits that API's first call (<xref target="classification"/>).</t></li>
+        <li><t>Added to <xref target="security"/> that a w call can change another person's setting, and that a menu may declare such a call x.</t></li>
+        <li><t>Rewrote the start of the Introduction (<xref target="introduction"/>) around a scope set for each job when the job starts, and compared how three providers limit a credential today.</t></li>
+        <li><t>Replaced the classifier figures in <xref target="implementation-status"/> with a test on three APIs the classifier had not seen. The new figures cannot be compared with those in -02, because the definition and the truth labels both changed.</t></li>
+        <li><t>Added bareguard to <xref target="implementation-status"/>, and the mapping from a menu to MCP and WebMCP tool hints to <xref target="menu-publication"/>.</t></li>
+        <li><t>Added informative references for WebMCP, GitHub, Cloudflare, AWS, and bareguard.</t></li>
+      </ul>
     </section>
 
     <section anchor="changes-since-01" numbered="true" toc="default">

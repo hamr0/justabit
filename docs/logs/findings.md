@@ -14,6 +14,21 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-10-22 — -03 Changes since -02 appendix and RWXMAP date placed; Test Vectors checked, no change
+
+**EVIDENCE**
+
+1. Row 15, Test Vectors. The four kept vectors (V4, V6, V9, V11) and the full V1-V11 set cited from posted -01 were checked against the new definition and the DELETE default. No vector uses the PUT, PATCH, or DELETE method default. Only V9 uses a method default, and it is POST, which stays x. No vector rests on the reach definition.
+2. Each bullet of the new appendix was checked against the -03 XML at `f94b735`: the chmod definition is in §action-class; "DELETE, ... default to x" is in §classification; the harness sentence ("A harness that meets a new API during a job may build ...") is in §classification; "A w call can change another person's ..." is in §security; the GitHub, Cloudflare, and AWS comparison is in the Introduction; the MCP and WebMCP mapping is in §menu-publication. The reference anchors BAREGUARD, WEBMCP, GITHUB-TOKENS, CLOUDFLARE-TOKENS, and AWS-IAM are in -03 and not in posted -02.
+3. The text was built in a scratchpad copy of `f94b735` and checked: `xmllint --noout` exit 0; no non-ASCII character; BCP 14 keyword count 91 before and after; every new `xref` resolves (the RFC targets come from `xi:include`, as before); the diff is the one date line and the 18 added appendix lines.
+
+**DECISION**
+
+1. The user approved rows 15-17 on 2026-10-22 ("approve 15-17"). Placed as approved: a new non-normative appendix "Changes since -02", directly before "Changes since -01", with eight bullets; the RWXMAP reference date set from September to October 2026, because the draft cites rwxmap at `d1367d3` (commit date 2026-10-04). The RWXMAP title stays.
+2. Row 15 needs no text change. The "Changes since -01" appendix stays as it is (Q3); its bullet "Defined r, w, and x by effect" is kept as a dated record of what -02 did.
+
+---
+
 ## 2026-10-22 — -03 Publication and Implementation Status approved and placed; bareguard does not ask on over-tight calls
 
 **EVIDENCE**
