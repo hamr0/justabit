@@ -820,22 +820,42 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
           detached JWS at a well-known location; the format of such
           a mechanism is out of scope for this document. Until
           providers do this, the party that runs the agent can build
-          its own menu, using a tool that reads API descriptions
-          mechanically: it gives each call a starting class from its
-          method and from the verbs and nouns in its name, and marks
-          calls it has no evidence for so a person can check them.
-          Such a tool picks the tighter class when its reading is
-          unsure, except that it keeps GET, HEAD and OPTIONS calls at
-          r without reading their names. One such tool, run over 5465
-          labelled calls it was tuned on (each vendor left out in
-          turn), gave the right class for 78.4% of calls, a tighter
-          class than needed for 17.5%, and a looser class than needed
-          for 4.2%; a looser class lets through a call that a floor
-          should refuse. The party that signs a menu is responsible
-          for the menu it signs. The same menu can also
-          give an agent tool hints. When API Providers take this up,
-          they can run the same kind of tool over their own APIs,
-          review only the calls it marked, and sign their own menu.
+          its own menu, when a job starts or when it first meets an
+          API (<xref target="classification"/>). A tool can do this
+          mechanically: it reads the API description and gives each
+          call a class from its HTTP method and from the verb that
+          leads its name. When it is unsure, it picks the tighter
+          class. It keeps GET, HEAD, and OPTIONS calls at r without
+          reading their names, so the risk in <xref
+          target="security"/> applies. It marks calls a person should
+          check: those it may have classed too tight, and those it
+          classed w with no word to support it. Finding the API
+          description can be the hard part, because many providers do
+          not publish one at a known location. One such tool, scored
+          once on 4279 calls from three APIs its rules had not seen,
+          gave the right class for 82.3% of calls, a tighter class
+          than needed for 16.9%, and a looser class than needed for
+          0.8%; a looser class lets through a call that a floor should
+          refuse (<xref target="implementation-status"/>). The party
+          that signs a menu is responsible for the menu it signs. When
+          API Providers take this up, they can run the same kind of
+          tool over their own APIs, review only the calls it marked,
+          and sign their own menu.
+        </t>
+        <t>
+          The same menu can give an agent tool hints. One mapping,
+          used by rwxmap, is: in MCP <xref target="MCP"/>, r gives
+          readOnlyHint true; w gives readOnlyHint false and
+          destructiveHint false; x gives readOnlyHint false and
+          destructiveHint true. In WebMCP <xref target="WEBMCP"/>, r
+          gives readOnlyHint true; w gives readOnlyHint false and
+          consequentialHint false; x gives readOnlyHint false and
+          consequentialHint true. MCP says a client must treat
+          annotations as untrusted unless they come from a trusted
+          server, and WebMCP says an agent cannot rely on
+          site-asserted annotations alone. A menu signed by a key the
+          verifier trusts is one way to give these hints a trusted
+          source.
         </t>
       </section>
       <section anchor="action-class-verifier-placement" numbered="true" toc="default">
@@ -1250,8 +1270,8 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         this profile, per <xref target="RFC7942"/>. The information
         is believed to be accurate at the time of writing, has not
         been independently verified, and is not an endorsement of
-        this profile by any party. Both implementations below are
-        single-author and open source. Neither has had external
+        this profile by any party. All three implementations below
+        are single-author and open source. None has had external
         review or been adopted by any organization, and no
         Attestation Issuer has reviewed or validated this profile.
       </t>
@@ -1264,8 +1284,8 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
       </t>
       <ul spacing="normal">
         <li>the attestation core, in 114 cases in <tt>camara/v2/poc</tt>: Ed25519 signatures with a pinned algorithm, nonce binding, expiry, rejection of a raw value next to the result, duplicate top-level key rejection, and the signed refusal (<xref target="attestation"/>, <xref target="refusal"/>);</li>
-        <li>floor comparison, in 26 cases in <tt>ietf/v3/poc</tt>: a closed axis set, the duration grammar, and tightening only (<xref target="floors"/>);</li>
-        <li>action classes, in 43 cases in <tt>ietf/v3/poc</tt>: classification by method default or by a signed menu, path-template matching and origin binding of menus, tightening of actionClass and classSource, the two omitted-axis cases, a budget count keyed by the chain identifier the verifier derives, and three Verifier Placement cases, one of them a bypass path as a negative control (<xref target="action-class"/>, <xref target="write-budget-chain-identifier"/>).</li>
+        <li>floor comparison, in 26 cases in <tt>ietf/v4/poc</tt>: a closed axis set, the duration grammar, and tightening only (<xref target="floors"/>);</li>
+        <li>action classes, in 43 cases in <tt>ietf/v4/poc</tt>: classification by method default or by a signed menu, path-template matching and origin binding of menus, tightening of actionClass and classSource, the two omitted-axis cases, a budget count keyed by the chain identifier the verifier derives, and three Verifier Placement cases, one of them a bypass path as a negative control (<xref target="action-class"/>, <xref target="write-budget-chain-identifier"/>).</li>
       </ul>
       <t>
         The code has not caught up with this revision in four ways,
@@ -1274,7 +1294,7 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
       <ul spacing="normal">
         <li>the floor code uses the -01 axis names, including partialPolicy, not the axes of <xref target="floors"/>;</li>
         <li>it has one writeBudget shared by w and x calls, where no number means zero and r calls never count, not the three budgets of <xref target="write-budget"/>, where no number means no limit;</li>
-        <li>its method default classes PATCH as x, not w (<xref target="classification"/>);</li>
+        <li>its method default classes DELETE as w and PATCH as x, not x and w (<xref target="classification"/>);</li>
         <li>it does not run the steps of <xref target="verification"/> end to end.</li>
       </ul>
       <t>
@@ -1285,39 +1305,81 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
       </t>
       <t>
         <strong>rwxmap.</strong> rwxmap <xref target="RWXMAP"/> is a
-        work-in-progress tool that drafts a menu from OpenAPI
-        descriptions with fixed rules and no language model. Step 1
-        classes GET, HEAD, and OPTIONS calls, and POST calls whose
-        lead verb is a read verb, as r. Step 2 starts PUT, DELETE,
-        and PATCH calls at w and raises a call to x when its verb
-        acts on something live or a noun names another party; it
-        marks a w call that no rule vouched for, so a person can
-        check it. Step 3 leaves every other POST call at x. rwxmap
-        signs nothing and does not yet produce MCP tool annotations.
-        At rwxmap commit 56b3310, run on 2026-09-14 and reproduced
-        from a clean copy, it gave these results over 5465 calls
-        from 332 vendors, with each vendor left out in turn:
+        work-in-progress tool that builds a menu from an OpenAPI
+        description with fixed rules. Step 1 classes GET, HEAD, and
+        OPTIONS calls, and POST calls whose lead verb is a read verb,
+        as r. Step 2 classes every DELETE call, and any write call
+        whose lead verb names something that cannot be undone, such
+        as send, charge, or revoke, as x. Step 3 classes PUT and
+        PATCH calls, and POST calls whose lead verb names a change
+        that can be set back, as w. Any call left is x. It marks two
+        kinds of call for a person to check: an x on a POST, which
+        may be tighter than needed, and a w on a PUT or PATCH that no
+        word supported. It writes its result as an OpenAPI extension,
+        MCP tool annotations, WebMCP hints, and a file that bareguard
+        reads. It signs nothing. It was scored once, on 2026-09-23,
+        on 4279 calls from three API descriptions its rules had never
+        seen: Cloudflare, PagerDuty, and Sentry. The same figures
+        were reproduced on 2026-10-22 from a clean copy at rwxmap
+        commit d1367d3:
       </t>
       <table>
         <thead>
           <tr><th>Result against the truth labels</th><th>Calls</th><th>Share</th></tr>
         </thead>
         <tbody>
-          <tr><td>right class</td><td>4282</td><td>78.4%</td></tr>
-          <tr><td>tighter class than needed</td><td>955</td><td>17.5%</td></tr>
-          <tr><td>looser class than needed (leak)</td><td>228</td><td>4.2%</td></tr>
+          <tr><td>right class</td><td>3520</td><td>82.3%</td></tr>
+          <tr><td>tighter class than needed</td><td>725</td><td>16.9%</td></tr>
+          <tr><td>looser class than needed (leak)</td><td>34</td><td>0.8%</td></tr>
         </tbody>
       </table>
       <t>
-        Of the 228 leaks, 17 are GET calls that the method default
-        keeps at r, and 179 are among the 1998 calls rwxmap marked
-        for a person to check. Three limits apply to these figures.
-        The rules were tuned on these same calls, so they are not a
-        clean test, and there is no clean-test figure today. The
-        truth labels were written by language-model agents that read
-        each call blind, not by people. The tool's goal is about 80%
-        right, 20% tighter, and 1-2% looser; the measured 4.2% is
-        above that goal.
+        Cloudflare is 84% of these calls. By vendor, the right class
+        was 81.8% for Cloudflare (3575 calls), 83.2% for PagerDuty
+        (465), and 87.4% for Sentry (239), and the looser class was at
+        most 0.9%. Of the 34 leaks, 26 are PUT or PATCH calls that no
+        word supported, which rwxmap marks for a person to check. Two
+        limits apply. The truth labels were written by language-model
+        agents that read each call blind, with the author ruling
+        disputes, not by independent people. And the class definition
+        changed between -02 and this document, and the truth labels
+        changed with it, so these figures cannot be compared with
+        those in -02.
+      </t>
+      <t>
+        rwxmap also has an optional pass that asks a language model,
+        Jev, about some calls and can move a class by one step. With
+        it, on the same 4279 calls, the right class was 93.0%, the
+        tighter class 6.5%, and the looser class 0.5%. These figures
+        were recorded on 2026-09-23, with thresholds fixed before any
+        of these calls was read. They were not reproduced, because the
+        model does not give the same answer twice. Jev and the
+        labellers that wrote the truth are both language models that
+        read the same brief, so their agreement can come from that
+        shared reading rather than from the truth.
+      </t>
+      <t>
+        <strong>bareguard.</strong> bareguard <xref
+        target="BAREGUARD"/> is a work-in-progress gate that a harness
+        puts in front of an agent's tool calls, shell commands, and
+        network calls. In its r/w/x mode, each tool or command carries
+        one letter, and each agent carries a three-letter grant
+        written as in chmod, such as "r--", "rw-", or "rwx". A call is
+        allowed only if the agent's grant holds the call's letter. A
+        call that is not listed is refused, never asked about. A child
+        agent's grant is cut to what its parent holds, never more. It
+        reads the file that rwxmap writes. It can be set to ask a
+        person before it allows a call that rwxmap classed w with no
+        word to support it. It also caps spend and turns, and stops
+        for a person when a cap is reached. It does not verify the
+        Agent-Delegation header, it does not sign or check a menu, and
+        a grant has no expiry. At bareguard commit 962ed98 (npm
+        version 0.25.1).
+      </t>
+      <t>
+        bareguard's letters are independent, so "r-x" allows r and x
+        calls but no w call. In this document the same grant is
+        actionClass x with wBudget 0.
       </t>
     </section>
 
@@ -1576,6 +1638,13 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
           <title>rwxmap: Mechanical r/w/x Classification of OpenAPI Operations</title>
           <author initials="A." surname="Hassan"><organization>Independent</organization></author>
           <date year="2026" month="September"/>
+        </front>
+      </reference>
+      <reference anchor="BAREGUARD" target="https://github.com/hamr0/bareguard">
+        <front>
+          <title>bareguard</title>
+          <author initials="A." surname="Hassan"><organization>Independent</organization></author>
+          <date year="2026" month="October"/>
         </front>
       </reference>
       <reference anchor="ZKAGENT" target="https://github.com/hamr0/zkagent">

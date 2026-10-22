@@ -14,6 +14,23 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-10-22 — -03 Publication and Implementation Status approved and placed; bareguard does not ask on over-tight calls
+
+**EVIDENCE**
+
+1. rwxmap's steps were read from its code at `d1367d3` (`src/flow.js`, `src/step1.js`, `src/step3.js`): step 1 gives r by method (GET, HEAD, OPTIONS) or by a read verb leading a POST; step 2 gives x to every DELETE, by method, and to a can't-undo lead verb on any write method; step 3 gives w to PUT and PATCH by floor and to a set-back verb; an unclaimed row floors at x. `reviewHint()` marks `tight` (x on a POST) and `loose` (w on a PUT or PATCH from the method floor).
+2. bareguard was read at `962ed98` (npm 0.25.1). `bareguard.context.md`: `clampRwxLetters` attenuates a child's letters, "never wider than this gate's own grant"; `rwx.unlisted`, "denied, never asked"; `askOn` is `"none"` (default) or `"loose"`; `rwx.ask` fires only "under `askOn:"loose"`" when "the letter IS covered, but the matched entry's marker is `"loose"`", and "never fires for a letter that would otherwise deny". Lines 476-478: "The marker only ever tightens. It never grants a letter a bare `rwx.denied` would still deny, never skips a deny, and never turns a deny into an ask or an allow. `tight` and `settled` never ask, no matter what `askOn` is set to." No grant expiry was found in `README.md` or `bareguard.context.md`. bareguard's letters are independent (`clampRwxLetters("rwx")` on an `r-x` parent gives `"r-x"`).
+3. The draft's budgets are each "a non-negative integer", so a wBudget of 0 is valid, and "actionClass x with wBudget 0" allows r and x calls and no w call.
+4. The text was built in a scratchpad copy of `b9e743a` and checked: `xmllint --noout` exit 0; no non-ASCII character added; BCP 14 keyword count 91 before and after; every new `xref` resolves; no `ietf/v3/poc` path is left. The bareguard reference title is the repository name only, because the repository has no short title.
+
+**DECISION**
+
+1. The user approved the review file on 2026-10-22, including the optional sentence that "r-x" is actionClass x with wBudget 0. Placed as approved: the Publication paragraph (chmod reading, a menu built when a job starts, spec discovery as the hard part, the M3 figures); a new Publication paragraph on MCP and WebMCP hints and why a signed menu gives them a trusted source; the rwxmap entry replaced; a new bareguard entry and reference; the PoC paths moved to `ietf/v4/poc`, and its lag bullet now names DELETE as well as PATCH.
+2. One sentence the review file did not show was also changed, because it would otherwise be false: the Implementation Status opening said "Both implementations below" and "Neither"; with bareguard there are three, so it now says "All three implementations below" and "None".
+3. The user asked to "clarify bareguard does that", meaning asking a person about a call that may be classed too tight (EVIDENCE 2). bareguard's own documentation says it does not: a marker "never turns a deny into an ask", and `tight` "never ask[s]". The bareguard entry states only what bareguard does today. The Introduction's "the harness can ask a person instead of refusing" makes no claim about bareguard and stays as approved. Whether to add that behaviour to bareguard is the user's decision in the bareguard repository, which this session does not edit.
+
+---
+
 ## 2026-10-22 — -03 normative change approved and placed: chmod r/w/x, DELETE to x, the C1 sentence, the A1 limit
 
 **EVIDENCE**
