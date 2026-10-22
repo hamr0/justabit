@@ -14,6 +14,24 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-10-22 — -03 Introduction approved and placed; AWS and Cloudflare sources checked
+
+**EVIDENCE**
+
+1. P5, AWS, fetched 2026-10-22. Page title confirmed by `curl`: "Access levels in policy summaries", `https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_understand-policy-summary-access-level-summaries.html`. "AWS defines the following access level classifications for the actions in a service": List, Read, Tagging, Write, Permissions management. Write: "Permission to create, delete, or modify resources in the service. For example, the Amazon S3 actions `CreateBucket`, `DeleteBucket` and `PutObject` have the **Write** access level." The per-service action tables for Lambda and S3 did not load, so no per-action Lambda row is cited. `AssumeRole` `DurationSeconds`: "Minimum value of 900. Maximum value of 43200", default 3600, capped by the role's maximum session setting of 1 to 12 hours.
+2. P6, Cloudflare, fetched 2026-10-22. "Create API token" (title confirmed by `curl`; "Last updated Apr 20, 2026"): "Most groups offer `Edit` or `Read` options. `Edit` is full CRUDL (create, read, update, delete, list) access, while `Read` is the read permission and list where appropriate." Permissions are segmented into zone, account, and user categories. "Restrict tokens": "By default, tokens do not expire and are long lived"; a TTL sets `notBefore` and `notAfter`. The permissions page shows both "Edit" and "Write" for the same groups in duplicated tables, so the draft cites the create-token page only.
+3. GitHub page title confirmed by `curl`: "Permissions required for fine-grained personal access tokens - GitHub Docs".
+4. The new Introduction text was built in a scratchpad copy of the `-03` file and checked before placement: `xmllint --noout` exit 0; every new `xref` resolves to exactly one anchor; no non-ASCII character and no capitalised BCP 14 keyword in any added line.
+
+**DECISION**
+
+1. The user approved the Introduction review file on 2026-10-22 ("all approved"). It was drafted by the agent from the user's own points of the same day and only from them. Placed as approved: three new paragraphs (how providers limit access today; why that does not fit per-job agents; the per-job scope, with the read-only Lambda and S3 example), the class bullet in the chmod reading, the menu bullet with the M3 exam figures and the ask-a-person widening, one clause in the flight example, and two sentences in the Abstract.
+2. The user's framing of the GitHub example, 2026-10-22: it is "not necessarly to match rwxmap but to give a sense of how fragmented solutions are out there and complicated and completly unready for agentic automation as at still assumes humans consuming apis and not agents". The text compares GitHub, Cloudflare, and AWS on that basis, and adds one fact all three sources state: delete sits in the same level as edit.
+3. "Ask on over-tight" is written as a harness design ("the harness can ask a person instead of refusing"), tied to the existing widening rule. It is not attributed to bareguard, which today asks on rwxmap's `loose` marker; the bareguard entry in Implementation Status will state what it does.
+4. Four informative references are added: WEBMCP, GITHUB-TOKENS, CLOUDFLARE-TOKENS, AWS-IAM. The two undated vendor pages carry an access date.
+
+---
+
 ## 2026-10-22 — -03 opened: r/w/x reframed to the chmod reading (rwxmap D87); four rulings A-D
 
 **EVIDENCE**

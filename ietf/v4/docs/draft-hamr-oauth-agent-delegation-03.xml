@@ -38,9 +38,11 @@
         with a signed yes or no, bound to the verifier's nonce and to an
         expiry, and never returns the value behind the answer. The
         second is what the agent may do: each call has a class, r, w, or
-        x, with an optional count per class, and a signed menu gives the
-        class of each call. This document does not define a credential
-        format, an identity system, or revocation.
+        x, read as in chmod, with an optional count per class, and a
+        signed menu gives the class of each call. A deployment can set
+        this scope for each job when the job starts. This document does
+        not define a credential format, an identity system, or
+        revocation.
       </t>
     </abstract>
   </front>
@@ -69,7 +71,49 @@
         person's own verified account. A model-based check was in place,
         but it is probabilistic too, and it did not stop the booking.
         The person asked for a search, a call that changes nothing. The
-        agent made a booking, a call that spends money.
+        agent made a booking, a call that spends money and cannot be
+        undone.
+      </t>
+      <t>
+        API Providers already let a person limit what a credential may
+        do, but each provider does it in its own way. A GitHub
+        fine-grained token sets read, write, or admin on each of
+        GitHub's permissions <xref target="GITHUB-TOKENS"/>. A Cloudflare
+        API token sets Read or Edit on each of Cloudflare's permission
+        groups <xref target="CLOUDFLARE-TOKENS"/>. An AWS IAM policy
+        names each action, and AWS sorts its actions into five access
+        levels: List, Read, Write, Permissions management, and Tagging
+        <xref target="AWS-IAM"/>. The names, the levels, and the scopes
+        differ from one provider to the next. In all three, deleting
+        sits in the same level as editing: a GitHub token with write on
+        Administration can delete the repository, Cloudflare's Edit
+        includes delete, and AWS's Write covers "create, delete, or
+        modify".
+      </t>
+      <t>
+        These controls were built for a person who sets up a credential
+        once and then uses it for a long time. Agents work differently.
+        A deployment can start a new agent for each job, and each job
+        needs its own small scope. With today's controls, each such
+        scope is a new token, role, or policy that a person creates in
+        that provider's terms and checks before use. This does not keep
+        up with automation that changes from one job to the next. The
+        easy path is to give the agent one broad credential and rely on
+        the model to stay within the task, and the flight example shows
+        that this is not a limit.
+      </t>
+      <t>
+        This document takes the other path: the scope is set for each
+        job, when the job starts, in one form that is the same for every
+        provider. For example, a person starts an agent to read their
+        Lambda functions and S3 buckets and report back. The agent gets
+        a link that allows only r and expires when the job should end.
+        If the agent tries to change or delete anything, the verifier
+        refuses the call, whatever the model decides. Nothing new is
+        created at the provider. Until API Providers verify this profile
+        themselves, the party that runs the agent holds the credential
+        and places the verifier on every path the agent can use to reach
+        the API (<xref target="action-class-verifier-placement"/>).
       </t>
       <t>
         <xref target="RFC9421"/> lets a receiver check who signed a
@@ -116,9 +160,11 @@
         <li>
           <t>
             <strong>A floor on what the agent may do.</strong> Each call
-            has a class: r changes nothing; w changes only the caller's
-            own things; x reaches beyond the caller, or cannot be
-            repeated (<xref target="action-class"/>). A link sets the
+            has one of three classes, read as in the chmod command: r
+            reads and changes nothing; w changes something that a later
+            call can set back; x cannot be undone, for example a delete,
+            a payment, or a message sent (<xref target="action-class"/>).
+            A link sets the
             highest class it allows and, optionally, a count per class
             (<xref target="write-budget"/>). For example, a link written
             "rwx" allows every class with no count. A link it delegates
@@ -136,15 +182,19 @@
             runs the agent can build its own menu, sign it, and be
             responsible for it. Without a trusted menu, the HTTP method
             decides, so a flight search sent as POST is x. A mechanical
-            tool can draft a menu from API descriptions. One such tool,
-            rwxmap <xref target="RWXMAP"/>, was run over 5465 labelled
-            calls it was tuned on, with each vendor left out in turn. It
-            gave the right class for 78.4% of calls, a tighter class
-            than needed for 17.5%, and a looser class for 4.2% (<xref
-            target="implementation-status"/>). The same menu can later
-            give MCP tool annotations <xref target="MCP"/>, such as
-            readOnlyHint and destructiveHint. This document does not
-            define that mapping.
+            tool can build a menu from an API description when a job
+            starts. When it is unsure, it picks the tighter class, and it
+            marks the calls it may have classed too tight. For a marked
+            call, the harness can ask a person instead of refusing;
+            allowing it is a widening, which a person must approve (<xref
+            target="attenuation"/>). One such tool, rwxmap <xref
+            target="RWXMAP"/>, was scored once on 4279 calls from three
+            APIs its rules had not seen. It gave the right class for 82.3%
+            of calls, a tighter class than needed for 16.9%, and a looser
+            class for 0.8% (<xref target="implementation-status"/>). The
+            same menu can give tool hints in MCP <xref target="MCP"/> and
+            WebMCP <xref target="WEBMCP"/> (<xref
+            target="menu-publication"/>).
           </t>
         </li>
       </ul>
@@ -1537,6 +1587,37 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
           <author><organization>Model Context Protocol</organization></author>
           <date year="2026" month="July" day="28"/>
         </front>
+      </reference>
+      <reference anchor="WEBMCP" target="https://webmachinelearning.github.io/webmcp/">
+        <front>
+          <title>WebMCP</title>
+          <author><organization>W3C Web Machine Learning Community Group</organization></author>
+          <date year="2026" month="October" day="20"/>
+        </front>
+        <refcontent>Draft Community Group Report</refcontent>
+      </reference>
+      <reference anchor="GITHUB-TOKENS" target="https://docs.github.com/en/rest/authentication/permissions-required-for-fine-grained-personal-access-tokens?apiVersion=2026-03-10">
+        <front>
+          <title>Permissions required for fine-grained personal access tokens</title>
+          <author><organization>GitHub</organization></author>
+          <date year="2026" month="October"/>
+        </front>
+        <refcontent>Accessed 22 October 2026</refcontent>
+      </reference>
+      <reference anchor="CLOUDFLARE-TOKENS" target="https://developers.cloudflare.com/fundamentals/api/get-started/create-token/">
+        <front>
+          <title>Create API token</title>
+          <author><organization>Cloudflare</organization></author>
+          <date year="2026" month="April" day="20"/>
+        </front>
+      </reference>
+      <reference anchor="AWS-IAM" target="https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_understand-policy-summary-access-level-summaries.html">
+        <front>
+          <title>Access levels in policy summaries</title>
+          <author><organization>Amazon Web Services</organization></author>
+          <date year="2026" month="October"/>
+        </front>
+        <refcontent>Accessed 22 October 2026</refcontent>
       </reference>
     </references>
 
