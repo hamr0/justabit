@@ -41,7 +41,7 @@ under the filed scope the aggregator can still read the identifier and the answe
 > **Status: filed and submitted, not approved or adopted.** CAMARA: APIBacklog issue #330 and
 > PR #331 are filed and open, awaiting Working Group evaluation; the v2 rescope is filed as
 > Commonalities issue #705, open and awaiting a maintainer label, discussed at the 2026-09-03
-> Technical Steering Committee. IETF: `draft-hamr-oauth-agent-delegation-02`
+> Technical Steering Committee. IETF: `draft-hamr-oauth-agent-delegation-03`
 > is submitted and live on the Datatracker as an individual draft — not a working-group
 > document, not adopted. This repo is the staging ground for two tracks: **CAMARA**
 > (operator/attestation side) and **IETF** (agent/delegation side).
@@ -188,13 +188,16 @@ ietf/v3/poc/        DIVERGED from the frozen v2 copy on 2026-09-06: added
                     (40 -> 43, all passing) and updated both README.md
                     files to document it; `m3-check.mjs` and spike-a/
                     stay unchanged; copied unchanged into v4
-ietf/v4/docs/       -03 working copy, NOT submitted: opened 2026-10-22
-                    as the posted -02 with only the revision stamps
-                    changed, then r/w/x redefined to the chmod reading
-                    (r reads and changes nothing; w changes something a
-                    later call can set back; x cannot be undone) and
-                    DELETE defaulted to x; change-plan-03.md is the
-                    approved plan
+ietf/v4/docs/       FROZEN record of -03, SUBMITTED and posted
+                    2026-10-22 (Datatracker submission 170776, 37 pages,
+                    13022 words; expires 2027-04-25, computed, not yet
+                    shown by Datatracker): opened 2026-10-22 as the
+                    posted -02 with only the revision stamps changed,
+                    then r/w/x redefined to the chmod reading (r reads
+                    and changes nothing; w changes something a later
+                    call can set back; x cannot be undone) and DELETE
+                    defaulted to x; change-plan-03.md is the approved
+                    plan; byte-identical to the posted bytes
 ietf/v4/poc/        copied unchanged from v3 on 2026-10-22, no code
                     changed: -03 cites its floor suite (m3, 26 cases)
                     with camara/v2/poc's attestation core as the
@@ -215,7 +218,8 @@ Each track cites the other as its counterpart; neither depends on the other's ap
 - **[IETF](ietf/v1/docs/ietf-agent-delegation.md)** — the agent/delegation side (v1, as
   posted; v2 `-01` SUBMITTED and posted 2026-09-02, expires 2027-03-06, at
   `ietf/v2/docs/`; v3 `-02` SUBMITTED and posted 2026-09-20, expires
-  23 March 2027, at `ietf/v3/docs/`). What the
+  23 March 2027, at `ietf/v3/docs/`; v4 `-03` SUBMITTED and posted 2026-10-22,
+  expires 2027-04-25 (computed, not yet shown by Datatracker), at `ietf/v4/docs/`). What the
   agent carries and how permissions flow: floor-gated SIM attestation, scoped monotone
   delegations, presentment via RFC 9421. The OAuth Working Group (`oauth@ietf.org`) is
   the target.

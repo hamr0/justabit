@@ -158,13 +158,16 @@ ietf/v3/poc/       DIVERGED from the frozen v2 copy on 2026-09-06: added
                    (40 -> 43, all passing) and updated both README.md
                    files to document it; `m3-check.mjs` and spike-a/
                    stay unchanged; copied unchanged into v4
-ietf/v4/docs/      -03 working copy, NOT submitted: opened 2026-10-22
-                   as the posted -02 with only the revision stamps
-                   changed, then r/w/x redefined to the chmod reading
-                   (r reads and changes nothing; w changes something a
-                   later call can set back; x cannot be undone) and
-                   DELETE defaulted to x; change-plan-03.md is the
-                   approved plan
+ietf/v4/docs/      FROZEN record of -03, SUBMITTED and posted
+                   2026-10-22 (Datatracker submission 170776, 37 pages,
+                   13022 words; expires 2027-04-25, computed, not yet
+                   shown by Datatracker): opened 2026-10-22 as the
+                   posted -02 with only the revision stamps changed,
+                   then r/w/x redefined to the chmod reading (r reads
+                   and changes nothing; w changes something a later
+                   call can set back; x cannot be undone) and DELETE
+                   defaulted to x; change-plan-03.md is the approved
+                   plan; byte-identical to the posted bytes
 ietf/v4/poc/       copied unchanged from v3 on 2026-10-22, no code
                    changed: -03 cites its floor suite (m3, 26 cases)
                    with camara/v2/poc's attestation core as the
