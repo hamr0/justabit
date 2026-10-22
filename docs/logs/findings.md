@@ -14,6 +14,24 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-10-22 — -03 Implementation Status narrowed to the agent-auth proof-of-concept; the action-class suite no longer cited
+
+**EVIDENCE**
+
+1. The 43 cases of `ietf/v4/poc/m7-check.mjs` were read on 2026-10-22. Every method case uses GET or POST, plus one case with an unknown method (BREW). No case tests the PUT, PATCH, or DELETE default. So the -02 defaults were never pinned by a test, and changing them alone would have left the suite green.
+2. Suites re-run on 2026-10-22 at `5e2c8b5`, by exit code: `camara/v2/poc` m1 20/20, m1-jws 94/94 (the 114 cited), m2 10/10, m3 26/26, m4 42/42, m5 67/67, m6 47/47, all exit 0; `m5-check-live.mjs` exit 2, by design, with no live backend. `ietf/v4/poc/m3-check.mjs` 26/26, exit 0, published floor `{ simType: 'voice+data', tenureMin: 'P2Y', swapAgeMin: 'P90D' }` (line 11).
+3. The -02 text said the PoC runs V9, a two-request form of V11, and the V4 rule on classSource and writeBudget. All three are `m7` features. `m3` has no credentialAgeMin axis. So with `m7` not cited, no cited code runs any vector.
+4. The text was built in a scratchpad copy of `5e2c8b5` and checked: `xmllint --noout` exit 0; no non-ASCII character; BCP 14 keyword count 91 before and after; every `xref` resolves.
+
+**DECISION**
+
+1. The user asked what value the PoC adds to -03, and first said to drop it. They then clarified ("keep camara agent auth part, it hasnt changed in code so no code needs to change, keep its mentions and its place for ref"). They had taken the PoC to be the rwxmap side. The user approved the narrowed text ("approve").
+2. Placed: the PoC entry is kept in its place and covers the agent-auth side only, the attestation core (114) and floor comparison (26), with the date re-run 2026-10-22. The action-class bullet (43) is removed. The gaps go from four to two: the -01 axis names, and no end-to-end run. A new paragraph says no code implements action classes, a signed menu, or the budgets, and no code runs the vectors. Test Vectors says no code runs them. "Changes since -02" gains one bullet.
+3. No code changed. The PoC spec for DELETE x / PATCH w (cases 44-50) was written and not built; it is withdrawn. Plan row 13 ("state the PoC's class defaults") is superseded by this entry. `change-plan-03.md` stays as a dated record.
+4. `ietf/v4/poc` stays in the repo unchanged, `m7` included. Its README and the layout rows say what -03 cites.
+
+---
+
 ## 2026-10-22 — -02 posting confirmed against Datatracker; prd.md §9 row for 2026-09-19/20 added
 
 **EVIDENCE**

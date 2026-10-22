@@ -195,9 +195,12 @@ ietf/v4/docs/       -03 working copy, NOT submitted: opened 2026-10-22
                     later call can set back; x cannot be undone) and
                     DELETE defaulted to x; change-plan-03.md is the
                     approved plan
-ietf/v4/poc/        copied unchanged from v3 on 2026-10-22; the code
-                    still carries -02's method defaults (DELETE w,
-                    PATCH x), which the -03 text states as a gap
+ietf/v4/poc/        copied unchanged from v3 on 2026-10-22, no code
+                    changed: -03 cites its floor suite (m3, 26 cases)
+                    with camara/v2/poc's attestation core as the
+                    agent-auth proof-of-concept; the action-class
+                    suite (m7) still carries -02's rules and -03 no
+                    longer cites it (user decision 2026-10-22)
 ```
 
 ## The two tracks

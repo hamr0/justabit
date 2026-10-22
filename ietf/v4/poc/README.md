@@ -4,10 +4,12 @@
 `ietf/v3/poc/` when the -03 round opened; `ietf/v3/poc/` is now the
 frozen -02 record and is never edited. Only this README's title, this
 paragraph, the run paths, and the run-path comment in `m7-check.mjs`
-differ from that copy. The code still carries -02's method defaults
-(DELETE w, PATCH x). The -03 text changes them to DELETE x and PATCH w,
-and its Implementation Status states the gap. The rest of this README
-describes the -02 suite as it was.
+differ from that copy. -03's Implementation Status cites only the floor
+suite (`m3-check.mjs`, 26 cases), next to `camara/v2/poc`'s attestation
+core. The action-class suite (`m7-*.mjs`) still carries -02's rules,
+including the method defaults DELETE w and PATCH x; -03 changes those
+defaults and no longer cites this suite (user decision 2026-10-22). The
+rest of this README describes the -02 suite as it was.
 
 A SPIKE for `draft-hamr-oauth-agent-delegation` -02, not a conformance
 harness (see the repo's standing no-go on shipping conformance harnesses —

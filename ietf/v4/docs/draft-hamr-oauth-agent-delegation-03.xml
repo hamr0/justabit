@@ -1277,28 +1277,34 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
       </t>
       <t>
         <strong>justabit proof-of-concept.</strong> A
-        zero-dependency Node.js proof-of-concept is available at
+        zero-dependency Node.js proof-of-concept of the attestation
+        side is available at
         <eref target="https://github.com/hamr0/justabit"/>. Its
-        suites passed on 2026-09-14, checked by exit code. They
+        suites passed on 2026-10-22, checked by exit code. They
         cover:
       </t>
       <ul spacing="normal">
         <li>the attestation core, in 114 cases in <tt>camara/v2/poc</tt>: Ed25519 signatures with a pinned algorithm, nonce binding, expiry, rejection of a raw value next to the result, duplicate top-level key rejection, and the signed refusal (<xref target="attestation"/>, <xref target="refusal"/>);</li>
-        <li>floor comparison, in 26 cases in <tt>ietf/v4/poc</tt>: a closed axis set, the duration grammar, and tightening only (<xref target="floors"/>);</li>
-        <li>action classes, in 43 cases in <tt>ietf/v4/poc</tt>: classification by method default or by a signed menu, path-template matching and origin binding of menus, tightening of actionClass and classSource, the two omitted-axis cases, a budget count keyed by the chain identifier the verifier derives, and three Verifier Placement cases, one of them a bypass path as a negative control (<xref target="action-class"/>, <xref target="write-budget-chain-identifier"/>).</li>
+        <li>floor comparison, in 26 cases in <tt>ietf/v4/poc</tt>: a closed axis set, the duration grammar, and tightening only, against a published floor of a voice and data SIM, a tenure of at least two years, and no SIM swap in the last 90 days (<xref target="floors"/>).</li>
       </ul>
       <t>
-        The code has not caught up with this revision in four ways,
+        The code has not caught up with this revision in two ways,
         and these parts of the text are not tested:
       </t>
       <ul spacing="normal">
-        <li>the floor code uses the -01 axis names, including partialPolicy, not the axes of <xref target="floors"/>;</li>
-        <li>it has one writeBudget shared by w and x calls, where no number means zero and r calls never count, not the three budgets of <xref target="write-budget"/>, where no number means no limit;</li>
-        <li>its method default classes DELETE as w and PATCH as x, not x and w (<xref target="classification"/>);</li>
+        <li>the floor code uses the -01 axis names (simType, swapAgeMin, partialPolicy), not the axes of <xref target="floors"/>;</li>
         <li>it does not run the steps of <xref target="verification"/> end to end.</li>
       </ul>
       <t>
-        It does not implement RFC 9421 message signatures or any
+        No code at this revision implements action classes, a signed
+        menu, or the budgets of <xref target="write-budget"/>, and no
+        code runs the vectors in <xref target="vectors"/>. The
+        action-class suite that -02 listed here tested the rules of
+        -01 and -02. It was not updated for this revision and is no
+        longer listed.
+      </t>
+      <t>
+        The proof-of-concept does not implement RFC 9421 message signatures or any
         HTTP transport, the Agent-Delegation header, a delegation
         chain of more than two links, or the agent identifier of
         <xref target="agent-identifier"/>.
@@ -1807,11 +1813,8 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
       <t>
         These vectors do not test link signatures, nonce binding, expiry
         against the clock, or the header encoding. The author derived
-        them by hand from the rules. The justabit proof-of-concept
-        (<xref target="implementation-status"/>) runs V9 as written, a
-        two-request form of V11 with the single writeBudget of -01, and
-        the V4 rule on classSource and writeBudget but not on
-        credentialAgeMin. No code runs V6.
+        them by hand from the rules. No code runs them at this
+        revision (<xref target="implementation-status"/>).
       </t>
     </section>
 
@@ -1829,6 +1832,7 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         <li><t>Rewrote the start of the Introduction (<xref target="introduction"/>) around a scope set for each job when the job starts, and compared how three providers limit a credential today.</t></li>
         <li><t>Replaced the classifier figures in <xref target="implementation-status"/> with a test on three APIs the classifier had not seen. The new figures cannot be compared with those in -02, because the definition and the truth labels both changed.</t></li>
         <li><t>Added bareguard to <xref target="implementation-status"/>, and the mapping from a menu to MCP and WebMCP tool hints to <xref target="menu-publication"/>.</t></li>
+        <li><t>Narrowed the proof-of-concept entry in <xref target="implementation-status"/> to the attestation core and floor comparison. Its action-class suite tested the rules of -01 and -02 and was not updated, so no code now runs the action-class rules or the vectors.</t></li>
         <li><t>Added informative references for WebMCP, GitHub, Cloudflare, AWS, and bareguard.</t></li>
       </ul>
     </section>
