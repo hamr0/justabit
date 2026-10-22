@@ -682,31 +682,28 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
           r &lt; w &lt; x by the rank comparator of
           <xref target="floors"/>. A link's actionClass is a ceiling
           on the whole link, not a statement about one call. The
-          values are defined by effect:
+          values follow the chmod reading:
         </t>
         <dl newline="false" spacing="normal">
           <dt>r:</dt>
-          <dd>the call changes nothing.</dd>
+          <dd>the call reads and changes nothing.</dd>
           <dt>w:</dt>
           <dd>
-            the call changes only the caller's own things, such as
-            its own records, settings, or files. Deleting the
-            caller's own thing is w, even if it cannot be undone.
+            the call changes something, and a later call can set it
+            back: it sets, edits, creates, toggles, archives, or
+            pauses.
           </dd>
           <dt>x:</dt>
           <dd>
-            Either of two things is enough. The call reaches beyond
-            the caller: it affects another party or their resource,
-            money, a live session or call, a network path or a
-            device; it sends or publishes to others; or it changes
-            who has access to something shared. Or the call is not
-            repeatable: doing it twice is not the same as doing it
-            once.
+            the call cannot be undone: it deletes, revokes, sends,
+            publishes, charges, refunds, or starts a run.
           </dd>
         </dl>
         <t>
-          Whether a call can be undone is not the test. A child link's
-          actionClass MUST NOT be higher than its parent's.
+          Whose resource a call changes does not change its class.
+          Where it is not clear whether a call can be undone, the
+          call is x. A child link's actionClass MUST NOT be higher
+          than its parent's.
         </t>
       </section>
       <section anchor="class-source" numbered="true" toc="default">
@@ -737,11 +734,13 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         <t>
           Where classSource is method, the method gives a starting
           class, not the definition of the class: GET, HEAD, and
-          OPTIONS default to r; PUT, DELETE, and PATCH default to w;
-          POST, and any other method, default to x. This matches how
+          OPTIONS default to r; PUT and PATCH default to w; DELETE,
+          POST, and any other method default to x. This matches how
           most APIs use HTTP methods, and it can be wrong either way:
-          some PUT, DELETE, or PATCH calls are really x, and some
-          POST calls are really r or w. A GET that changes something
+          some PUT or PATCH calls are really x, some DELETE calls are
+          really w, for example a delete that moves an item to a
+          trash it can be restored from, and some POST calls are
+          really r or w. A GET that changes something
           breaks the safe-method rule of <xref target="RFC9110"/>.
           The API Provider's declared menu, below, corrects a
           wrong starting class.
@@ -760,6 +759,9 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
           the same way as a menu that fails to verify. A verifier
           MUST NOT build or change a menu while it admits a
           request; a menu is created and signed before it is used.
+          A harness that meets a new API during a job may build and
+          sign a menu for it then, provided it does so before it
+          admits that API's first call.
         </t>
       </section>
       <section anchor="declared-menu" numbered="true" toc="default">
@@ -1406,6 +1408,15 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         contrary to the safe-method rule of
         <xref target="RFC9110"/>; a link limited to r admits them
         unless a declared menu gives them a higher class.
+      </t>
+      <t>
+        <strong>A w call can change another person's
+        setting.</strong> The class depends on whether a call can be
+        undone, not on whose resource it changes. A call that changes
+        another person's role, password, or access can be set back,
+        so it is w, and a link that allows w admits it. A menu may
+        declare such a call x; a class higher than the definition
+        gives only makes the verifier refuse more.
       </t>
     </section>
 

@@ -14,6 +14,25 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-10-22 — -03 normative change approved and placed: chmod r/w/x, DELETE to x, the C1 sentence, the A1 limit
+
+**EVIDENCE**
+
+1. The text was built in a scratchpad copy of the committed `-03` (`16b87c6`) and checked before placement: `xmllint --noout` exit 0; no non-ASCII character in any added line; the document's count of BCP 14 keywords is 91 before and after, because the only keyword in the added lines is the existing "MUST NOT be higher", re-wrapped.
+2. On the rwxmap M3 exam (findings, 2026-10-22, EVIDENCE 11), the DELETE-to-x method default was right for 548 of 558 DELETE calls and loosened none.
+3. A search of the new text for the old rule's wording finds it in two places only: the rwxmap paragraph of Implementation Status (plan row 12, not yet edited) and the "Changes since -01" appendix, which is a dated record of `-02` and is kept as it is.
+
+**DECISION**
+
+1. The user approved the normative review file on 2026-10-22 ("approved"). Placed as approved:
+   - §actionClass: r reads and changes nothing; w changes something a later call can set back; x cannot be undone. "Whose resource a call changes does not change its class." Unsure is x. The "MUST NOT be higher than its parent's" rule is unchanged.
+   - §Classification: DELETE moves from the w default to the x default; the text names a delete to a restorable trash as a DELETE that is really w.
+   - §Classification: the C1 sentence, so a harness may build and sign a menu for a new API during a job, before it admits that API's first call.
+   - §Security Considerations: the A1 limit, a w call can change another person's setting, and a menu may declare such a call x.
+2. The PoC still classes DELETE as w and PATCH as x. Implementation Status will say so until the PoC module is done.
+
+---
+
 ## 2026-10-22 — -03 Introduction approved and placed; AWS and Cloudflare sources checked
 
 **EVIDENCE**
