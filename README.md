@@ -187,7 +187,17 @@ ietf/v3/poc/        DIVERGED from the frozen v2 copy on 2026-09-06: added
                     `m7-check.mjs` cases 41-43 for -02 Verifier Placement
                     (40 -> 43, all passing) and updated both README.md
                     files to document it; `m3-check.mjs` and spike-a/
-                    stay unchanged
+                    stay unchanged; copied unchanged into v4
+ietf/v4/docs/       -03 working copy, NOT submitted: opened 2026-10-22
+                    as the posted -02 with only the revision stamps
+                    changed, then r/w/x redefined to the chmod reading
+                    (r reads and changes nothing; w changes something a
+                    later call can set back; x cannot be undone) and
+                    DELETE defaulted to x; change-plan-03.md is the
+                    approved plan
+ietf/v4/poc/        copied unchanged from v3 on 2026-10-22; the code
+                    still carries -02's method defaults (DELETE w,
+                    PATCH x), which the -03 text states as a gap
 ```
 
 ## The two tracks

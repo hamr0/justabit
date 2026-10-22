@@ -14,6 +14,29 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-10-22 — -03 row 18 sweep: old r/w/x wording classified; layout blocks, prd.md, and the v4 PoC README brought up to -03
+
+**EVIDENCE**
+
+1. The sweep ran at `648d129` over every tracked file outside the frozen and dated trees (`ietf/v1-v3/`, `camara/v1/`, `docs/logs/`, `docs/archive/`, `.claude/`). Terms: "own things", "own stuff", "beyond the caller", "reaches beyond", "repeatable", "by effect", "be undone", "another party", 78.4, 17.5%, 4.2%, 5465, `56b3310`, DELETE near w, PATCH near x. A second pass read `README.md`, `CLAUDE.md`, `docs/product/prd.md`, `docs/index.md`, `ietf/v4/poc/README.md`, and `ietf/v4/docs/change-plan-03.md` for wider terms (reach, effect-capable, actionClass, r/w/x, -02, -03, v4, rwxmap, bareguard). GitHub description and topics were read with `gh repo view`.
+2. Hits and classes:
+   - Out of date, fixed here: the layout blocks in `README.md` and `CLAUDE.md` had no `ietf/v4` row; the `prd.md` D3 row named v1 to v3 only; `prd.md` §9 had no row for the -03 work; `ietf/v4/poc/README.md` was titled `ietf/v3/poc` and its run commands, and the run-path comment in `ietf/v4/poc/m7-check.mjs`, pointed at `ietf/v3/poc`.
+   - PoC module, not changed here: `ietf/v4/poc/m7-actionclass.mjs:225-230` carries DELETE w and PATCH x. The -03 XML (Implementation Status) states this gap, which is true today.
+   - At submission: `README.md:44` names `-02` as the current IETF draft, which stays true until -03 is posted.
+   - Kept as dated history: "Defined r, w, and x by effect" in the XML's "Changes since -01" (Q3); `ietf/v4/poc/spike-a/` (the 2026-09-01 dataset: CSVs, `judge.py`, `disagreements.md`); `ietf/v4/poc/README.md:308` (inside a dated 2026-09-06 section); `change-plan-03.md`, `findings.md`, and `docs/index.md` rows.
+   - Correct as is: the XML's "undone" hits at lines 165, 698, 704, 1312 use the new definition; the GitHub description and topics name no r/w/x wording.
+   - The old figures (78.4, 17.5, 4.2, 5465, `56b3310`) appear in no live file.
+3. `diff -rq ietf/v3/poc ietf/v4/poc` was empty before this change, so "copied unchanged" was exact. At `648d129`, `node ietf/v4/poc/m7-check.mjs` gave 43/43 and `m3-check.mjs` 26/26, both exit 0.
+4. The new `prd.md` §9 link anchor was derived from the heading with the same rule that reproduces an existing §9 anchor (`2026-09-18---02-whole-document-read-...`).
+5. Found, not fixed: `prd.md` §9 also has no row for the -02 submission and idnits3 work of 2026-09-20 (four findings entries). This predates -03.
+
+**DECISION**
+
+1. The user asked to "fix all docs" on 2026-10-22. Fixed: the two layout blocks (a v4 docs row and a v4 poc row; v3 poc now says "copied unchanged into v4"); the D3 row and its artifact list; a new §9 row for 2026-10-22; "Last updated" to 2026-10-22; the v4 PoC README title, a -03 status paragraph, and its run paths; the run-path comment in `m7-check.mjs` (a comment only; the v3 copy carried the same kind of change, 2026-09-04).
+2. The PoC code and `README.md:44` stay as they are, for the reasons in EVIDENCE 2. The missing 2026-09-20 §9 row goes to the user.
+
+---
+
 ## 2026-10-22 — -03 Changes since -02 appendix and RWXMAP date placed; Test Vectors checked, no change
 
 **EVIDENCE**

@@ -1,4 +1,13 @@
-# ietf/v3/poc — actionClass floor axis spike
+# ietf/v4/poc — actionClass floor axis spike
+
+**-03 status (2026-10-22).** The code was copied unchanged from
+`ietf/v3/poc/` when the -03 round opened; `ietf/v3/poc/` is now the
+frozen -02 record and is never edited. Only this README's title, this
+paragraph, the run paths, and the run-path comment in `m7-check.mjs`
+differ from that copy. The code still carries -02's method defaults
+(DELETE w, PATCH x). The -03 text changes them to DELETE x and PATCH w,
+and its Implementation Status states the gap. The rest of this README
+describes the -02 suite as it was.
 
 A SPIKE for `draft-hamr-oauth-agent-delegation` -02, not a conformance
 harness (see the repo's standing no-go on shipping conformance harnesses —
@@ -55,8 +64,8 @@ the `admit`/`classify` gate itself.
 
 ## Run
 
-    node ietf/v3/poc/m7-check.mjs
-    node ietf/v3/poc/m3-check.mjs   # the copied M3 gate, unchanged
+    node ietf/v4/poc/m7-check.mjs
+    node ietf/v4/poc/m3-check.mjs   # the copied M3 gate, unchanged
 
 `m3-floor.mjs`, `m3-check.mjs`, `check-harness.mjs`, `m1-jws.mjs` are
 byte-identical copies of `camara/v2/poc/`'s. `m1-attestation.mjs` was also
