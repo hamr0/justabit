@@ -14,6 +14,25 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-10-22 — -03 render checked (37 pages); document date set for submission; the "unsure means x" sentence names who acts
+
+**EVIDENCE**
+
+1. `/branch-review` ran at `8b1f949` (whole branch `770ba29..8b1f949`, level medium): verdict ready, no blockers, all 11 security lines ran, every suite exit 0 (`m5-check-live.mjs` exit 2 by design). It logged one nit: §actionClass said "Where it is not clear whether a call can be undone, the call is x", while §Classification gives PUT and PATCH a starting class of w, and the sentence did not say who it binds.
+2. The user rendered `ietf/v4/docs/draft-hamr-oauth-agent-delegation-03.xml` at `8b1f949` with author-tools (render only, no idnits) on 2026-10-22 and pasted the warnings. Verbatim:
+   - "(2) Expected a valid submissionType (stream) setting, one of IETF, IAB, IRTF, independent, editorial, but found None. Will use 'IETF'"
+   - "(17) The document date (2026-09-19) is more than 3 days away from today's date"
+3. The user reported the rendered text at 37 pages, read from the last page footer. -02 was 34 pages (Datatracker, 2026-09-20). This is the user's reading of the render, not a Datatracker count.
+4. The change was built in a scratchpad copy of `8b1f949` and checked: `xmllint --noout` exit 0; no non-ASCII character; BCP 14 keyword count 91 before and after; the diff is the date line and the one sentence.
+
+**DECISION**
+
+1. Warning (2) is expected and stays: `submissionType` was settled as absent for -02 on 2026-09-20, because with it present idnits3 raises `SUBMISSION_TYPE_UNEXPECTED` on an unadopted draft.
+2. Warning (17) is cleared: the user will submit today, so the document date is set to 22 October 2026 (plan row 2).
+3. The user approved the nit fix ("fix nit yes"). The sentence now reads "Where the party that declares a class is not sure whether a call can be undone, it declares x." It binds the menu signer, not a verifier using the method default, so the two sections can no longer be read two ways. No BCP 14 keyword was added.
+
+---
+
 ## 2026-10-22 — -03 Implementation Status narrowed to the agent-auth proof-of-concept; the action-class suite no longer cited
 
 **EVIDENCE**

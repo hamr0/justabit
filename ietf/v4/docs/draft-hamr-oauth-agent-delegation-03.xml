@@ -14,7 +14,7 @@
         <email>avoidaccess@msn.com</email>
       </address>
     </author>
-    <date year="2026" month="September" day="19"/>
+    <date year="2026" month="October" day="22"/>
     <area>Security</area>
     <workgroup>Web Authorization Protocol</workgroup>
     <keyword>OAuth</keyword>
@@ -701,8 +701,9 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         </dl>
         <t>
           Whose resource a call changes does not change its class.
-          Where it is not clear whether a call can be undone, the
-          call is x. A child link's actionClass MUST NOT be higher
+          Where the party that declares a class is not sure whether
+          a call can be undone, it declares x. A child link's
+          actionClass MUST NOT be higher
           than its parent's.
         </t>
       </section>
