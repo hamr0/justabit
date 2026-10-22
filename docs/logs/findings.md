@@ -14,6 +14,21 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-10-22 — -02 posting confirmed against Datatracker; prd.md §9 row for 2026-09-19/20 added
+
+**EVIDENCE**
+
+1. The Datatracker document API (`/api/v1/doc/document/draft-hamr-oauth-agent-delegation/`), read on 2026-10-22, gives rev `02`, time `2026-09-20T20:38:30Z`, expires `2027-03-24T20:38:30Z`, pages 34, stream None. The new-revision events give `02` at `2026-09-20T20:38:30Z`, `01` at `2026-09-02T10:58:54Z`, and `00` at `2026-08-31T14:17:34Z`.
+2. Before this entry, no findings entry recorded the -02 posting itself. The four entries of 2026-09-19 and 2026-09-20 record the idnits3 work up to the upload. `prd.md` §9 had no row for those four entries; its newest row before 2026-10-22 was 2026-09-13/18.
+3. `CHANGELOG.md` has "## 0.14.1 — 2026-09-20", and tag v0.14.1 points at `770ba29`.
+
+**DECISION**
+
+1. The user approved adding the missing §9 row on 2026-10-22 ("2 yes"). One row indexes the four 2026-09-19/20 entries and states the posting from EVIDENCE 1. It links to the newest of them.
+2. The posting facts in `CLAUDE.md`, `README.md`, and `prd.md` D3 ("posted 2026-09-20", "expires 23 March 2027 (Datatracker: 2027-03-24)") match EVIDENCE 1. No change is needed there.
+
+---
+
 ## 2026-10-22 — -03 row 18 sweep: old r/w/x wording classified; layout blocks, prd.md, and the v4 PoC README brought up to -03
 
 **EVIDENCE**
