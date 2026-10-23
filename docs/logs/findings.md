@@ -14,6 +14,200 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-10-22 — -03 SUBMITTED and posted; posted bytes match the repo; both idnits versions clean
+
+**EVIDENCE**
+
+1. The user submitted `ietf/v4/docs/draft-hamr-oauth-agent-delegation-03.xml` at `403f7c8` on 2026-10-22, before the re-review of `403f7c8` and before a full author-tools run. The user reported this after the fact ("already submitted").
+2. Datatracker submission API, read 2026-10-22: submission id 170776, state `posted`, submission_date 2026-10-22, document_date 2026-10-22, 37 pages, 13022 words, title "An Attenuated Delegation Profile for Automated Agents". New-revision events: rev `03` at `2026-10-22T21:56:56Z`. The document API still showed rev `02` when read on 2026-10-22 and again on 2026-10-23.
+3. `https://www.ietf.org/archive/id/draft-hamr-oauth-agent-delegation-03.xml` (HTTP 200) is byte-identical to the repo file at `403f7c8` (`cmp` exit 0; sha256 `e8b9595e913f386db945480765bbc37fc20a9fada61956b972004c17db493455`).
+4. `https://www.ietf.org/archive/id/draft-hamr-oauth-agent-delegation-03.txt` (HTTP 200, sha256 `792737844b5180beff5247dea6c6d74a9582fd3c56b4bac70e98b4e29e8ccb23`): header "Expires: 25 April 2027", dated "22 October 2026", last footer "[Page 37]".
+5. The submission status page `https://datatracker.ietf.org/submit/status/170776/`, fetched 2026-10-22. Verbatim:
+   - "Your Internet-Draft has been verified to pass the submission checks."
+   - idnits 2.17.1: "Checking boilerplate required by RFC 5378 and the IETF Trust ... No issues found here." "Checking nits according to https://www.ietf.org/id-info/1id-guidelines.txt: ... No issues found here." "Running in submission checking mode -- *not* checking nits according to https://www.ietf.org/id-info/checklist . ... No nits found."
+   - idnits3: "idnits 3.1.0 (submission mode): 0 errors, 0 warnings, 0 comments" ... "No nits found."
+6. `/branch-review` re-review of `8b1f949..403f7c8` ran after the posting: verdict ready, no blockers, all 11 security lines ran; its docs sweep committed `deaadf6`.
+
+**DECISION**
+
+1. `ietf/v4/docs` is now the frozen -03 record. EVIDENCE 3 shows it is the posted bytes.
+2. The expiry in `CLAUDE.md`, `README.md`, and `prd.md` changes from "2027-04-25, computed, not yet shown by Datatracker" to "25 April 2027, per the posted text" (EVIDENCE 4).
+3. The two gates the user skipped before submitting were run afterwards: the re-review (EVIDENCE 6) and the idnits record (EVIDENCE 5, from Datatracker's own checks rather than an author-tools run). Neither found an issue. The RFC 6234 downref that idnits 2.17.1 listed for -02 does not appear for -03.
+
+---
+
+## 2026-10-22 — -03 render checked (37 pages); document date set for submission; the "unsure means x" sentence names who acts
+
+**EVIDENCE**
+
+1. `/branch-review` ran at `8b1f949` (whole branch `770ba29..8b1f949`, level medium): verdict ready, no blockers, all 11 security lines ran, every suite exit 0 (`m5-check-live.mjs` exit 2 by design). It logged one nit: §actionClass said "Where it is not clear whether a call can be undone, the call is x", while §Classification gives PUT and PATCH a starting class of w, and the sentence did not say who it binds.
+2. The user rendered `ietf/v4/docs/draft-hamr-oauth-agent-delegation-03.xml` at `8b1f949` with author-tools (render only, no idnits) on 2026-10-22 and pasted the warnings. Verbatim:
+   - "(2) Expected a valid submissionType (stream) setting, one of IETF, IAB, IRTF, independent, editorial, but found None. Will use 'IETF'"
+   - "(17) The document date (2026-09-19) is more than 3 days away from today's date"
+3. The user reported the rendered text at 37 pages, read from the last page footer. -02 was 34 pages (Datatracker, 2026-09-20). This is the user's reading of the render, not a Datatracker count.
+4. The change was built in a scratchpad copy of `8b1f949` and checked: `xmllint --noout` exit 0; no non-ASCII character; BCP 14 keyword count 91 before and after; the diff is the date line and the one sentence.
+
+**DECISION**
+
+1. Warning (2) is expected and stays: `submissionType` was settled as absent for -02 on 2026-09-20, because with it present idnits3 raises `SUBMISSION_TYPE_UNEXPECTED` on an unadopted draft.
+2. Warning (17) is cleared: the user will submit today, so the document date is set to 22 October 2026 (plan row 2).
+3. The user approved the nit fix ("fix nit yes"). The sentence now reads "Where the party that declares a class is not sure whether a call can be undone, it declares x." It binds the menu signer, not a verifier using the method default, so the two sections can no longer be read two ways. No BCP 14 keyword was added.
+
+---
+
+## 2026-10-22 — -03 Implementation Status narrowed to the agent-auth proof-of-concept; the action-class suite no longer cited
+
+**EVIDENCE**
+
+1. The 43 cases of `ietf/v4/poc/m7-check.mjs` were read on 2026-10-22. Every method case uses GET or POST, plus one case with an unknown method (BREW). No case tests the PUT, PATCH, or DELETE default. So the -02 defaults were never pinned by a test, and changing them alone would have left the suite green.
+2. Suites re-run on 2026-10-22 at `5e2c8b5`, by exit code: `camara/v2/poc` m1 20/20, m1-jws 94/94 (the 114 cited), m2 10/10, m3 26/26, m4 42/42, m5 67/67, m6 47/47, all exit 0; `m5-check-live.mjs` exit 2, by design, with no live backend. `ietf/v4/poc/m3-check.mjs` 26/26, exit 0, published floor `{ simType: 'voice+data', tenureMin: 'P2Y', swapAgeMin: 'P90D' }` (line 11).
+3. The -02 text said the PoC runs V9, a two-request form of V11, and the V4 rule on classSource and writeBudget. All three are `m7` features. `m3` has no credentialAgeMin axis. So with `m7` not cited, no cited code runs any vector.
+4. The text was built in a scratchpad copy of `5e2c8b5` and checked: `xmllint --noout` exit 0; no non-ASCII character; BCP 14 keyword count 91 before and after; every `xref` resolves.
+
+**DECISION**
+
+1. The user asked what value the PoC adds to -03, and first said to drop it. They then clarified ("keep camara agent auth part, it hasnt changed in code so no code needs to change, keep its mentions and its place for ref"). They had taken the PoC to be the rwxmap side. The user approved the narrowed text ("approve").
+2. Placed: the PoC entry is kept in its place and covers the agent-auth side only, the attestation core (114) and floor comparison (26), with the date re-run 2026-10-22. The action-class bullet (43) is removed. The gaps go from four to two: the -01 axis names, and no end-to-end run. A new paragraph says no code implements action classes, a signed menu, or the budgets, and no code runs the vectors. Test Vectors says no code runs them. "Changes since -02" gains one bullet.
+3. No code changed. The PoC spec for DELETE x / PATCH w (cases 44-50) was written and not built; it is withdrawn. Plan row 13 ("state the PoC's class defaults") is superseded by this entry. `change-plan-03.md` stays as a dated record.
+4. `ietf/v4/poc` stays in the repo unchanged, `m7` included. Its README and the layout rows say what -03 cites.
+
+---
+
+## 2026-10-22 — -02 posting confirmed against Datatracker; prd.md §9 row for 2026-09-19/20 added
+
+**EVIDENCE**
+
+1. The Datatracker document API (`/api/v1/doc/document/draft-hamr-oauth-agent-delegation/`), read on 2026-10-22, gives rev `02`, time `2026-09-20T20:38:30Z`, expires `2027-03-24T20:38:30Z`, pages 34, stream None. The new-revision events give `02` at `2026-09-20T20:38:30Z`, `01` at `2026-09-02T10:58:54Z`, and `00` at `2026-08-31T14:17:34Z`.
+2. Before this entry, no findings entry recorded the -02 posting itself. The four entries of 2026-09-19 and 2026-09-20 record the idnits3 work up to the upload. `prd.md` §9 had no row for those four entries; its newest row before 2026-10-22 was 2026-09-13/18.
+3. `CHANGELOG.md` has "## 0.14.1 — 2026-09-20", and tag v0.14.1 points at `770ba29`.
+
+**DECISION**
+
+1. The user approved adding the missing §9 row on 2026-10-22 ("2 yes"). One row indexes the four 2026-09-19/20 entries and states the posting from EVIDENCE 1. It links to the newest of them.
+2. The posting facts in `CLAUDE.md`, `README.md`, and `prd.md` D3 ("posted 2026-09-20", "expires 23 March 2027 (Datatracker: 2027-03-24)") match EVIDENCE 1. No change is needed there.
+
+---
+
+## 2026-10-22 — -03 row 18 sweep: old r/w/x wording classified; layout blocks, prd.md, and the v4 PoC README brought up to -03
+
+**EVIDENCE**
+
+1. The sweep ran at `648d129` over every tracked file outside the frozen and dated trees (`ietf/v1-v3/`, `camara/v1/`, `docs/logs/`, `docs/archive/`, `.claude/`). Terms: "own things", "own stuff", "beyond the caller", "reaches beyond", "repeatable", "by effect", "be undone", "another party", 78.4, 17.5%, 4.2%, 5465, `56b3310`, DELETE near w, PATCH near x. A second pass read `README.md`, `CLAUDE.md`, `docs/product/prd.md`, `docs/index.md`, `ietf/v4/poc/README.md`, and `ietf/v4/docs/change-plan-03.md` for wider terms (reach, effect-capable, actionClass, r/w/x, -02, -03, v4, rwxmap, bareguard). GitHub description and topics were read with `gh repo view`.
+2. Hits and classes:
+   - Out of date, fixed here: the layout blocks in `README.md` and `CLAUDE.md` had no `ietf/v4` row; the `prd.md` D3 row named v1 to v3 only; `prd.md` §9 had no row for the -03 work; `ietf/v4/poc/README.md` was titled `ietf/v3/poc` and its run commands, and the run-path comment in `ietf/v4/poc/m7-check.mjs`, pointed at `ietf/v3/poc`.
+   - PoC module, not changed here: `ietf/v4/poc/m7-actionclass.mjs:225-230` carries DELETE w and PATCH x. The -03 XML (Implementation Status) states this gap, which is true today.
+   - At submission: `README.md:44` names `-02` as the current IETF draft, which stays true until -03 is posted.
+   - Kept as dated history: "Defined r, w, and x by effect" in the XML's "Changes since -01" (Q3); `ietf/v4/poc/spike-a/` (the 2026-09-01 dataset: CSVs, `judge.py`, `disagreements.md`); `ietf/v4/poc/README.md:308` (inside a dated 2026-09-06 section); `change-plan-03.md`, `findings.md`, and `docs/index.md` rows.
+   - Correct as is: the XML's "undone" hits at lines 165, 698, 704, 1312 use the new definition; the GitHub description and topics name no r/w/x wording.
+   - The old figures (78.4, 17.5, 4.2, 5465, `56b3310`) appear in no live file.
+3. `diff -rq ietf/v3/poc ietf/v4/poc` was empty before this change, so "copied unchanged" was exact. At `648d129`, `node ietf/v4/poc/m7-check.mjs` gave 43/43 and `m3-check.mjs` 26/26, both exit 0.
+4. The new `prd.md` §9 link anchor was derived from the heading with the same rule that reproduces an existing §9 anchor (`2026-09-18---02-whole-document-read-...`).
+5. Found, not fixed: `prd.md` §9 also has no row for the -02 submission and idnits3 work of 2026-09-20 (four findings entries). This predates -03.
+
+**DECISION**
+
+1. The user asked to "fix all docs" on 2026-10-22. Fixed: the two layout blocks (a v4 docs row and a v4 poc row; v3 poc now says "copied unchanged into v4"); the D3 row and its artifact list; a new §9 row for 2026-10-22; "Last updated" to 2026-10-22; the v4 PoC README title, a -03 status paragraph, and its run paths; the run-path comment in `m7-check.mjs` (a comment only; the v3 copy carried the same kind of change, 2026-09-04).
+2. The PoC code and `README.md:44` stay as they are, for the reasons in EVIDENCE 2. The missing 2026-09-20 §9 row goes to the user.
+
+---
+
+## 2026-10-22 — -03 Changes since -02 appendix and RWXMAP date placed; Test Vectors checked, no change
+
+**EVIDENCE**
+
+1. Row 15, Test Vectors. The four kept vectors (V4, V6, V9, V11) and the full V1-V11 set cited from posted -01 were checked against the new definition and the DELETE default. No vector uses the PUT, PATCH, or DELETE method default. Only V9 uses a method default, and it is POST, which stays x. No vector rests on the reach definition.
+2. Each bullet of the new appendix was checked against the -03 XML at `f94b735`: the chmod definition is in §action-class; "DELETE, ... default to x" is in §classification; the harness sentence ("A harness that meets a new API during a job may build ...") is in §classification; "A w call can change another person's ..." is in §security; the GitHub, Cloudflare, and AWS comparison is in the Introduction; the MCP and WebMCP mapping is in §menu-publication. The reference anchors BAREGUARD, WEBMCP, GITHUB-TOKENS, CLOUDFLARE-TOKENS, and AWS-IAM are in -03 and not in posted -02.
+3. The text was built in a scratchpad copy of `f94b735` and checked: `xmllint --noout` exit 0; no non-ASCII character; BCP 14 keyword count 91 before and after; every new `xref` resolves (the RFC targets come from `xi:include`, as before); the diff is the one date line and the 18 added appendix lines.
+
+**DECISION**
+
+1. The user approved rows 15-17 on 2026-10-22 ("approve 15-17"). Placed as approved: a new non-normative appendix "Changes since -02", directly before "Changes since -01", with eight bullets; the RWXMAP reference date set from September to October 2026, because the draft cites rwxmap at `d1367d3` (commit date 2026-10-04). The RWXMAP title stays.
+2. Row 15 needs no text change. The "Changes since -01" appendix stays as it is (Q3); its bullet "Defined r, w, and x by effect" is kept as a dated record of what -02 did.
+
+---
+
+## 2026-10-22 — -03 Publication and Implementation Status approved and placed; bareguard does not ask on over-tight calls
+
+**EVIDENCE**
+
+1. rwxmap's steps were read from its code at `d1367d3` (`src/flow.js`, `src/step1.js`, `src/step3.js`): step 1 gives r by method (GET, HEAD, OPTIONS) or by a read verb leading a POST; step 2 gives x to every DELETE, by method, and to a can't-undo lead verb on any write method; step 3 gives w to PUT and PATCH by floor and to a set-back verb; an unclaimed row floors at x. `reviewHint()` marks `tight` (x on a POST) and `loose` (w on a PUT or PATCH from the method floor).
+2. bareguard was read at `962ed98` (npm 0.25.1). `bareguard.context.md`: `clampRwxLetters` attenuates a child's letters, "never wider than this gate's own grant"; `rwx.unlisted`, "denied, never asked"; `askOn` is `"none"` (default) or `"loose"`; `rwx.ask` fires only "under `askOn:"loose"`" when "the letter IS covered, but the matched entry's marker is `"loose"`", and "never fires for a letter that would otherwise deny". Lines 476-478: "The marker only ever tightens. It never grants a letter a bare `rwx.denied` would still deny, never skips a deny, and never turns a deny into an ask or an allow. `tight` and `settled` never ask, no matter what `askOn` is set to." No grant expiry was found in `README.md` or `bareguard.context.md`. bareguard's letters are independent (`clampRwxLetters("rwx")` on an `r-x` parent gives `"r-x"`).
+3. The draft's budgets are each "a non-negative integer", so a wBudget of 0 is valid, and "actionClass x with wBudget 0" allows r and x calls and no w call.
+4. The text was built in a scratchpad copy of `b9e743a` and checked: `xmllint --noout` exit 0; no non-ASCII character added; BCP 14 keyword count 91 before and after; every new `xref` resolves; no `ietf/v3/poc` path is left. The bareguard reference title is the repository name only, because the repository has no short title.
+
+**DECISION**
+
+1. The user approved the review file on 2026-10-22, including the optional sentence that "r-x" is actionClass x with wBudget 0. Placed as approved: the Publication paragraph (chmod reading, a menu built when a job starts, spec discovery as the hard part, the M3 figures); a new Publication paragraph on MCP and WebMCP hints and why a signed menu gives them a trusted source; the rwxmap entry replaced; a new bareguard entry and reference; the PoC paths moved to `ietf/v4/poc`, and its lag bullet now names DELETE as well as PATCH.
+2. One sentence the review file did not show was also changed, because it would otherwise be false: the Implementation Status opening said "Both implementations below" and "Neither"; with bareguard there are three, so it now says "All three implementations below" and "None".
+3. The user asked to "clarify bareguard does that", meaning asking a person about a call that may be classed too tight (EVIDENCE 2). bareguard's own documentation says it does not: a marker "never turns a deny into an ask", and `tight` "never ask[s]". The bareguard entry states only what bareguard does today. The Introduction's "the harness can ask a person instead of refusing" makes no claim about bareguard and stays as approved. Whether to add that behaviour to bareguard is the user's decision in the bareguard repository, which this session does not edit.
+
+---
+
+## 2026-10-22 — -03 normative change approved and placed: chmod r/w/x, DELETE to x, the C1 sentence, the A1 limit
+
+**EVIDENCE**
+
+1. The text was built in a scratchpad copy of the committed `-03` (`16b87c6`) and checked before placement: `xmllint --noout` exit 0; no non-ASCII character in any added line; the document's count of BCP 14 keywords is 91 before and after, because the only keyword in the added lines is the existing "MUST NOT be higher", re-wrapped.
+2. On the rwxmap M3 exam (findings, 2026-10-22, EVIDENCE 11), the DELETE-to-x method default was right for 548 of 558 DELETE calls and loosened none.
+3. A search of the new text for the old rule's wording finds it in two places only: the rwxmap paragraph of Implementation Status (plan row 12, not yet edited) and the "Changes since -01" appendix, which is a dated record of `-02` and is kept as it is.
+
+**DECISION**
+
+1. The user approved the normative review file on 2026-10-22 ("approved"). Placed as approved:
+   - §actionClass: r reads and changes nothing; w changes something a later call can set back; x cannot be undone. "Whose resource a call changes does not change its class." Unsure is x. The "MUST NOT be higher than its parent's" rule is unchanged.
+   - §Classification: DELETE moves from the w default to the x default; the text names a delete to a restorable trash as a DELETE that is really w.
+   - §Classification: the C1 sentence, so a harness may build and sign a menu for a new API during a job, before it admits that API's first call.
+   - §Security Considerations: the A1 limit, a w call can change another person's setting, and a menu may declare such a call x.
+2. The PoC still classes DELETE as w and PATCH as x. Implementation Status will say so until the PoC module is done.
+
+---
+
+## 2026-10-22 — -03 Introduction approved and placed; AWS and Cloudflare sources checked
+
+**EVIDENCE**
+
+1. P5, AWS, fetched 2026-10-22. Page title confirmed by `curl`: "Access levels in policy summaries", `https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_understand-policy-summary-access-level-summaries.html`. "AWS defines the following access level classifications for the actions in a service": List, Read, Tagging, Write, Permissions management. Write: "Permission to create, delete, or modify resources in the service. For example, the Amazon S3 actions `CreateBucket`, `DeleteBucket` and `PutObject` have the **Write** access level." The per-service action tables for Lambda and S3 did not load, so no per-action Lambda row is cited. `AssumeRole` `DurationSeconds`: "Minimum value of 900. Maximum value of 43200", default 3600, capped by the role's maximum session setting of 1 to 12 hours.
+2. P6, Cloudflare, fetched 2026-10-22. "Create API token" (title confirmed by `curl`; "Last updated Apr 20, 2026"): "Most groups offer `Edit` or `Read` options. `Edit` is full CRUDL (create, read, update, delete, list) access, while `Read` is the read permission and list where appropriate." Permissions are segmented into zone, account, and user categories. "Restrict tokens": "By default, tokens do not expire and are long lived"; a TTL sets `notBefore` and `notAfter`. The permissions page shows both "Edit" and "Write" for the same groups in duplicated tables, so the draft cites the create-token page only.
+3. GitHub page title confirmed by `curl`: "Permissions required for fine-grained personal access tokens - GitHub Docs".
+4. The new Introduction text was built in a scratchpad copy of the `-03` file and checked before placement: `xmllint --noout` exit 0; every new `xref` resolves to exactly one anchor; no non-ASCII character and no capitalised BCP 14 keyword in any added line.
+
+**DECISION**
+
+1. The user approved the Introduction review file on 2026-10-22 ("all approved"). It was drafted by the agent from the user's own points of the same day and only from them. Placed as approved: three new paragraphs (how providers limit access today; why that does not fit per-job agents; the per-job scope, with the read-only Lambda and S3 example), the class bullet in the chmod reading, the menu bullet with the M3 exam figures and the ask-a-person widening, one clause in the flight example, and two sentences in the Abstract.
+2. The user's framing of the GitHub example, 2026-10-22: it is "not necessarly to match rwxmap but to give a sense of how fragmented solutions are out there and complicated and completly unready for agentic automation as at still assumes humans consuming apis and not agents". The text compares GitHub, Cloudflare, and AWS on that basis, and adds one fact all three sources state: delete sits in the same level as edit.
+3. "Ask on over-tight" is written as a harness design ("the harness can ask a person instead of refusing"), tied to the existing widening rule. It is not attributed to bareguard, which today asks on rwxmap's `loose` marker; the bareguard entry in Implementation Status will state what it does.
+4. Four informative references are added: WEBMCP, GITHUB-TOKENS, CLOUDFLARE-TOKENS, AWS-IAM. The two undated vendor pages carry an access date.
+
+---
+
+## 2026-10-22 — -03 opened: r/w/x reframed to the chmod reading (rwxmap D87); four rulings A-D
+
+**EVIDENCE**
+
+1. Sources read on 2026-10-22, not memory: the posted `-02` at `ietf/v3/docs/draft-hamr-oauth-agent-delegation-02.xml`; rwxmap at commit `d1367d3` (v0.7.2) — `README.md`, decisions D87, D88, D100, D104 and D119 in `docs/wiki/decisions-log.md`, and the M3 exam record in `docs/logs/learnings.md`; bareguard at commit `e8ec809` — `README.md`, section "rwx and rwxmap".
+2. `-02` defines the classes by reach. Its §actionClass says "Deleting the caller's own thing is w, even if it cannot be undone" and "Whether a call can be undone is not the test". Its §Classification gives DELETE a method default of w.
+3. rwxmap D87 (the user's ruling, 2026-09-22) replaces that definition with the chmod reading: r changes nothing; w changes things in a way a later write can set back; x cannot be undone. Unsure goes to x. D87 states its own cost: PUT/PATCH calls that change another person's setting (a password, a role, collaborator permissions) move from x to w. D87 also states that it changed the truth labels, and that the change must be shown as a definition change with its own number, not as a fix.
+4. rwxmap M3 exam: cloudflare, pagerduty and sentry, 4279 operations the rules had never seen, labelled blind by nine model labellers under BRIEF-v3, with the user ruling disputes; scored once on 2026-09-23 and now burned. Mechanical: 3520 right (82.3%), 34 looser (0.8%), 725 tighter (16.9%). Per vendor, right class: cloudflare 81.8% (n=3575, 84% of rows), pagerduty 83.2% (n=465), sentry 87.4% (n=239). With the optional Jev model pass, thresholds frozen before any exam row was read: 93.0% right, 0.5% looser, 6.5% tighter. rwxmap's own record states the limit that Jev and the labellers are both models reading the same brief, so their agreement can be a shared reading rather than independent truth.
+5. The user's working figures (83%, 15% tighter, under 1% looser) differ from the source (82.3%, 16.9%, 0.8%). The draft uses the source figures.
+6. bareguard asks a human on rwxmap's `loose` marker (`askOn: "loose"`), not on over-tight rows. It has budgets and limits, and no expiry. `-02` already requires an expiry on every link.
+7. bareguard adds a per-request key with `gate.add()` before the matching `gate.check()`. That is the order `-02` §Classification requires: a menu is built before it is used, never during admission.
+8. P1, GitHub, fetched 2026-10-22. `https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens`: "Valid access levels are `read`, `write`, and `admin`, but not every permission supports every level", and "`write` always includes `read`, and `admin` always includes `write`." A fine-grained token is "limited to access resources owned by a single user or organization" and "can be further limited to only access specific repositories". The page the user gave (`.../permissions-required-for-fine-grained-personal-access-tokens?apiVersion=2026-03-10`) lists `DELETE /repos/{owner}/{repo}` under "Administration" at `write`, and `DELETE /repos/{owner}/{repo}/actions/caches/{cache_id}` under "Actions" at `write`. There is no separate delete level. Neither page shows a date; the API version comes from the URL only. The fetch returned that page verbatim only up to part of the "Administration" table.
+9. P2, WebMCP, read from the spec source `index.bs` at `webmachinelearning/webmcp` commit `51ed756` (2026-10-20), "Draft Community Group Report, 20 October 2026", Web Machine Learning Community Group, not on the W3C Standards Track. IDL: `dictionary ToolAnnotations { boolean readOnlyHint = false; boolean untrustedContentHint = false; boolean consequentialHint = false; boolean debugging = false; }`. No `destructive` term appears in the source. §"Consequential Annotation for Tool Executions": "a signal that a tool's execution results in significant, real-world, or non-reversible consequences", "such as booking a flight or transferring money". The same source says agents "cannot rely solely on site-asserted tool descriptions or annotations for security."
+10. P3, MCP, specification version `2026-07-28`, schema page. `ToolAnnotations` fields: `title`, `readOnlyHint` (default false), `destructiveHint` (default true, "meaningful only when `readOnlyHint == false`"), `idempotentHint` (default false), `openWorldHint` (default true). Tools page: "clients **MUST** consider tool annotations to be untrusted unless they come from trusted servers." `_meta` keys SHOULD use reverse DNS notation.
+11. P4, rwxmap, `tools/score-exam-2026-09-22.js` run on 2026-10-22 from a clean clone at `d1367d3`, exit 0, writes no files: 4279 rows, exact 3520 (82.3%), leaks 34 (0.8%), over-tight 725 (16.9%); cloudflare 81.8 / 0.9 / 17.3; pagerduty 83.2 / 0.4 / 16.3; sentry 87.4 / 0.4 / 12.1; DELETE n=558, exact 548 (98.2%), 0 leaks. This matches the record of 2026-09-23. The Jev figure (93.0 / 0.5 / 6.5) is a recorded result and was not re-run: it needs the user's key, and Jev's answers are not deterministic.
+
+**DECISION**
+
+1. **A — Option 1, as a reframe.** The user, 2026-10-22: "it's a whole reframe, we matched standard classic chmod rwx, it's a simpler model nothing new to remember ... it matches what most providers do like github when they give you ability to turn api knobs per read, write, delete/admin, so, its a gain not a loss." `-03` presents D87 as a reframe to the chmod reading. Security Considerations keeps one plain sentence: a w call can change another person's setting, and a menu signer may class such a call as x. That sentence is an honest limit, kept by project doctrine, not stated as a loss. The GitHub comparison is fetched and checked before it enters the text.
+2. **B — Option 1.** The mechanical figure leads. The Jev figure appears only in Implementation Status, with the shared-brief limit stated.
+3. **C — Option 1.** The rule stays: a verifier MUST NOT build or change a menu while it admits a request. `-03` adds one sentence: a harness may classify a new API during a run, provided it does so before it admits that API's first call.
+4. **D — no `destructive` axis.** The user: "read my comment with A1, it's a simpler model". rwxmap's `destructive` flag stays rwxmap metadata only.
+5. The work goes in `ietf/v4/` per the one-directory-per-revision rule; `ietf/v3/` stays the frozen `-02` record. The change plan is `ietf/v4/docs/change-plan-03.md`. No XML change is made until the user approves that plan.
+6. The user approved the change plan the same day and answered its three questions: "rewrite it based on what i have given you, bareguard add intro to what it does today, changes keep updating as it fits". The agent drafts the Introduction from the user's own points, and only from them, and the user approves it before it is placed. bareguard gets an Implementation Status entry that describes what it does today. The Changes appendices stay and are updated as the edit goes.
+7. The user gave the source for the GitHub comparison: https://docs.github.com/en/rest/authentication/permissions-required-for-fine-grained-personal-access-tokens?apiVersion=2026-03-10. It is fetched and read before any sentence cites it.
+
+---
+
 ## 2026-09-20 — -02: `submissionType` removed again and settled; upload cleared for a clean submission record
 
 **EVIDENCE**

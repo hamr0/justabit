@@ -1,5 +1,58 @@
 # Changelog
 
+## 0.15.0 — 2026-10-23
+
+- **IETF draft `-03` posted 2026-10-22** (Datatracker submission
+  170776, 37 pages, 13022 words, expires 25 April 2027), byte-identical
+  to `ietf/v4/docs/draft-hamr-oauth-agent-delegation-03.xml` at
+  `403f7c8`. idnits 2.17.1 and idnits3 both read clean on Datatracker's
+  submission checks, recorded verbatim in `docs/logs/findings.md`. The
+  user submitted before the re-review; the re-review ran after and
+  returned ready. The Datatracker document API still showed rev `02`
+  when read on 2026-10-22 and 2026-10-23.
+- **Normative change: `actionClass` r/w/x is redefined to the chmod
+  reading.** r reads and changes nothing; w changes something a later
+  call can set back; x cannot be undone. This replaces -02's
+  definition by reach, it does not refine it. Whose resource a call
+  changes no longer changes its class, and where the party that
+  declares a class is not sure, it declares x. The rule that a child's
+  `actionClass` MUST NOT be higher than its parent's is unchanged.
+- **`DELETE` now defaults to x** (was w). On the rwxmap M3 exam the
+  default was right for 548 of 558 DELETE calls and loosened none; a
+  delete to a restorable trash is named as a DELETE that is really w.
+  A harness may build and sign a menu for a new API during a job,
+  before it admits that API's first call. Security Considerations note
+  that a w call can change another person's setting, and a menu may
+  declare such a call x.
+- **Introduction and Abstract reframed for per-job scope.** Three new
+  Introduction paragraphs on how GitHub, Cloudflare and AWS let a
+  person limit a credential today (each puts delete in the same level
+  as edit), why credentials built for people do not fit agents, and the
+  per-job scope this profile sets. Four new informative references
+  (WebMCP, GitHub, Cloudflare, AWS), each checked against the source
+  page on 2026-10-22.
+- **Publication and Implementation Status updated.** A menu can be
+  built when a job starts or when an API is first met; the tool picks
+  the tighter class when unsure and marks calls for a person. rwxmap's
+  M3 exam figures replace -02's fitted ones (82.3% right, 16.9%
+  tighter, 0.8% looser on 4279 calls from three unseen APIs); labels
+  are model-written. New bareguard entry, from its docs at `962ed98`.
+  The justabit PoC entry keeps the attestation core (114 cases) and
+  floor comparison (26 cases) only; the action-class suite (m7, 43
+  cases) is no longer cited because it tests -01/-02 rules. No code
+  implements action classes, signed menus or budgets, or runs the
+  vectors at this revision.
+- **New non-normative appendix "Changes since -02"**, and `ietf/v4/`
+  opened as the -03 working copy (docs from the posted -02 with the
+  revision stamps changed; PoC copied unchanged from `ietf/v3/poc/`;
+  its action-class suite still carries -02's method defaults, DELETE w
+  and PATCH x, and -03 no longer cites it).
+- **Docs swept** for the -03 posting: `CLAUDE.md`, `README.md` and
+  `docs/product/prd.md` (D3 row and §9 rows for the -02 and -03
+  postings) move -03 from working copy to the posted record;
+  `ietf/v4/poc/README.md` updated; `docs/index.md` regenerated. Mode A
+  remains attested windowed disclosure, never zero-knowledge.
+
 ## 0.14.1 — 2026-09-20
 
 - **Both idnits3 items on `ietf/v3/docs/draft-hamr-oauth-agent-delegation-02.xml`
