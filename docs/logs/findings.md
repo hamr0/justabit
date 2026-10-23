@@ -14,6 +14,28 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-10-22 — -03 SUBMITTED and posted; posted bytes match the repo; both idnits versions clean
+
+**EVIDENCE**
+
+1. The user submitted `ietf/v4/docs/draft-hamr-oauth-agent-delegation-03.xml` at `403f7c8` on 2026-10-22, before the re-review of `403f7c8` and before a full author-tools run. The user reported this after the fact ("already submitted").
+2. Datatracker submission API, read 2026-10-22: submission id 170776, state `posted`, submission_date 2026-10-22, document_date 2026-10-22, 37 pages, 13022 words, title "An Attenuated Delegation Profile for Automated Agents". New-revision events: rev `03` at `2026-10-22T21:56:56Z`. The document API still showed rev `02` when read on 2026-10-22 and again on 2026-10-23.
+3. `https://www.ietf.org/archive/id/draft-hamr-oauth-agent-delegation-03.xml` (HTTP 200) is byte-identical to the repo file at `403f7c8` (`cmp` exit 0; sha256 `e8b9595e913f386db945480765bbc37fc20a9fada61956b972004c17db493455`).
+4. `https://www.ietf.org/archive/id/draft-hamr-oauth-agent-delegation-03.txt` (HTTP 200, sha256 `792737844b5180beff5247dea6c6d74a9582fd3c56b4bac70e98b4e29e8ccb23`): header "Expires: 25 April 2027", dated "22 October 2026", last footer "[Page 37]".
+5. The submission status page `https://datatracker.ietf.org/submit/status/170776/`, fetched 2026-10-22. Verbatim:
+   - "Your Internet-Draft has been verified to pass the submission checks."
+   - idnits 2.17.1: "Checking boilerplate required by RFC 5378 and the IETF Trust ... No issues found here." "Checking nits according to https://www.ietf.org/id-info/1id-guidelines.txt: ... No issues found here." "Running in submission checking mode -- *not* checking nits according to https://www.ietf.org/id-info/checklist . ... No nits found."
+   - idnits3: "idnits 3.1.0 (submission mode): 0 errors, 0 warnings, 0 comments" ... "No nits found."
+6. `/branch-review` re-review of `8b1f949..403f7c8` ran after the posting: verdict ready, no blockers, all 11 security lines ran; its docs sweep committed `deaadf6`.
+
+**DECISION**
+
+1. `ietf/v4/docs` is now the frozen -03 record. EVIDENCE 3 shows it is the posted bytes.
+2. The expiry in `CLAUDE.md`, `README.md`, and `prd.md` changes from "2027-04-25, computed, not yet shown by Datatracker" to "25 April 2027, per the posted text" (EVIDENCE 4).
+3. The two gates the user skipped before submitting were run afterwards: the re-review (EVIDENCE 6) and the idnits record (EVIDENCE 5, from Datatracker's own checks rather than an author-tools run). Neither found an issue. The RFC 6234 downref that idnits 2.17.1 listed for -02 does not appear for -03.
+
+---
+
 ## 2026-10-22 — -03 render checked (37 pages); document date set for submission; the "unsure means x" sentence names who acts
 
 **EVIDENCE**

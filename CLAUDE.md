@@ -160,8 +160,8 @@ ietf/v3/poc/       DIVERGED from the frozen v2 copy on 2026-09-06: added
                    stay unchanged; copied unchanged into v4
 ietf/v4/docs/      FROZEN record of -03, SUBMITTED and posted
                    2026-10-22 (Datatracker submission 170776, 37 pages,
-                   13022 words; expires 2027-04-25, computed, not yet
-                   shown by Datatracker): opened 2026-10-22 as the
+                   13022 words; expires 25 April 2027, per the
+                   posted text): opened 2026-10-22 as the
                    posted -02 with only the revision stamps changed,
                    then r/w/x redefined to the chmod reading (r reads
                    and changes nothing; w changes something a later
