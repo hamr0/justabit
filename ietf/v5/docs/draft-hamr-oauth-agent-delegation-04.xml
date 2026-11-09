@@ -188,10 +188,11 @@
             call, the harness can ask a person instead of refusing;
             allowing it is a widening, which a person must approve (<xref
             target="attenuation"/>). One such tool, rwxmap <xref
-            target="RWXMAP"/>, was scored once on 4279 calls from three
-            APIs its rules had not seen. It gave the right class for 82.3%
-            of calls, a tighter class than needed for 16.9%, and a looser
-            class for 0.8% (<xref target="implementation-status"/>). The
+            target="RWXMAP"/>, with a small local classifier, rwxlite
+            <xref target="RWXLITE"/>, was scored once on 1588 calls from
+            five APIs neither had seen. It gave the right class for 90.3%
+            of calls, a tighter class than needed for 7.5%, and a looser
+            class for 2.2% (<xref target="implementation-status"/>). The
             same menu can give tool hints in MCP <xref target="MCP"/> and
             WebMCP <xref target="WEBMCP"/> (<xref
             target="menu-publication"/>).
@@ -695,10 +696,26 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
           </dd>
           <dt>x:</dt>
           <dd>
-            the call cannot be undone: it deletes, revokes, sends,
-            publishes, charges, refunds, or starts a run.
+            the call cannot be undone: after it, no later call can put
+            things back the way they were, including anything anyone
+            could have done in between. This happens in two ways. The
+            thing is gone: the call deletes or purges it, or stops a
+            job and its work is lost. Or it is out of the caller's
+            hands: the call sends, publishes, charges, refunds, or
+            starts a run, or it hands a secret or a right to someone.
           </dd>
         </dl>
+        <t>
+          A call that grants or widens who can do what to which
+          resource is x, because someone can use the new access before
+          it is taken back: for example an access policy, a role or
+          permission binding, an access control list, a share or an
+          invitation, or a deploy key. A call that only narrows access
+          is w. A call that sets or replaces access and does not say
+          whether it widens or narrows it is x. A policy that does not
+          control access, such as autoscaling, lifecycle, retention, or
+          routing, is w unless it is x for another reason.
+        </t>
         <t>
           Whose resource a call changes does not change its class.
           Where the party that declares a class is not sure whether
@@ -734,8 +751,9 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         <name>Classification</name>
         <t>
           Where classSource is method, the method gives a starting
-          class, not the definition of the class: GET, HEAD, and
-          OPTIONS default to r; PUT and PATCH default to w; DELETE,
+          class, not the definition of the class: GET, HEAD,
+          OPTIONS, and QUERY <xref target="RFC10008"/> default to r;
+          PUT and PATCH default to w; DELETE,
           POST, and any other method default to x. This matches how
           most APIs use HTTP methods, and it can be wrong either way:
           some PUT or PATCH calls are really x, some DELETE calls are
@@ -826,17 +844,19 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
           mechanically: it reads the API description and gives each
           call a class from its HTTP method and from the verb that
           leads its name. When it is unsure, it picks the tighter
-          class. It keeps GET, HEAD, and OPTIONS calls at r without
-          reading their names, so the risk in <xref
-          target="security"/> applies. It marks calls a person should
+          class. It keeps GET, HEAD, OPTIONS, and QUERY calls at r
+          unless the name is a one-way action, such as logout or
+          revoke, so the risk in <xref target="security"/> still
+          applies to a GET that changes something under another
+          name. It marks calls a person should
           check: those it may have classed too tight, and those it
           classed w with no word to support it. Finding the API
           description can be the hard part, because many providers do
           not publish one at a known location. One such tool, scored
-          once on 4279 calls from three APIs its rules had not seen,
-          gave the right class for 82.3% of calls, a tighter class
-          than needed for 16.9%, and a looser class than needed for
-          0.8%; a looser class lets through a call that a floor should
+          once on 1588 calls from five APIs it had not seen, gave the
+          right class for 90.3% of calls, a tighter class than needed
+          for 7.5%, and a looser class than needed for 2.2%; a looser
+          class lets through a call that a floor should
           refuse (<xref target="implementation-status"/>). The party
           that signs a menu is responsible for the menu it signs. When
           API Providers take this up, they can run the same kind of
@@ -1313,57 +1333,64 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
       <t>
         <strong>rwxmap.</strong> rwxmap <xref target="RWXMAP"/> is a
         work-in-progress tool that builds a menu from an OpenAPI
-        description with fixed rules. Step 1 classes GET, HEAD, and
-        OPTIONS calls, and POST calls whose lead verb is a read verb,
-        as r. Step 2 classes every DELETE call, and any write call
-        whose lead verb names something that cannot be undone, such
-        as send, charge, or revoke, as x. Step 3 classes PUT and
-        PATCH calls, and POST calls whose lead verb names a change
-        that can be set back, as w. Any call left is x. It marks two
-        kinds of call for a person to check: an x on a POST, which
-        may be tighter than needed, and a w on a PUT or PATCH that no
-        word supported. It writes its result as an OpenAPI extension,
-        MCP tool annotations, WebMCP hints, and a file that bareguard
-        reads. It signs nothing. It was scored once, on 2026-09-23,
-        on 4279 calls from three API descriptions its rules had never
-        seen: Cloudflare, PagerDuty, and Sentry. The same figures
-        were reproduced on 2026-10-22 from a clean copy at rwxmap
-        commit d1367d3:
+        description. Its fixed rules start from the method default of
+        <xref target="classification"/> and then read words. A GET is
+        raised to x when its name is a one-way action, such as logout,
+        revoke, or close. A PUT or PATCH is raised to x by a path word,
+        such as role, member, token, or webhook, or by a verb that sets
+        a credential. A POST is lowered to w by a content noun, such as
+        tag, file, or comment, or by a verb from a short list, and to r
+        by a read verb, such as list, get, or search. Where it is still
+        unsure, it keeps x; it never guesses a looser class. It marks
+        two kinds of call for a person to check: a PUT, PATCH, or POST
+        left at w or r, which may be too loose, and an x that may be
+        tighter than needed. It writes its result as an OpenAPI
+        extension, MCP tool annotations, WebMCP hints, and a file that
+        bareguard reads. It signs nothing.
+      </t>
+      <t>
+        rwxmap can pass the marked calls to rwxlite <xref
+        target="RWXLITE"/>, a small classifier that runs on the local
+        machine. rwxlite is the all-MiniLM-L6-v2 sentence model, about
+        22.7 million weights, fine-tuned to pick r, w, or x and exported
+        to ONNX. It was trained on about 102,700 labelled calls from
+        about 690 public API providers. It does not sample, so the same
+        input gives the same answer. An int8 build is about 23 MB.
+        rwxmap runs the fp32 build, about 91 MB, by default, and the
+        two builds do not always agree. rwxlite can raise a marked
+        class, and it lowers one only when its confidence reaches a set
+        threshold.
+      </t>
+      <t>
+        rwxmap 0.11.0 with rwxlite 0.3.1 (fp32, threshold 0.90),
+        installed from the npm registry, was scored once, on
+        2026-11-08, on 1588 calls from five complete API descriptions
+        that neither its rules nor rwxlite's training had seen:
+        Grafana, NocoDB, Radarr, Cloudsmith, and Invoice Ninja. Nothing
+        was changed after the scoring.
       </t>
       <table>
         <thead>
-          <tr><th>Result against the truth labels</th><th>Calls</th><th>Share</th></tr>
+          <tr><th>Result against the truth labels</th><th>Released default (rules and rwxlite)</th><th>Rules alone</th><th>rwxlite alone</th></tr>
         </thead>
         <tbody>
-          <tr><td>right class</td><td>3520</td><td>82.3%</td></tr>
-          <tr><td>tighter class than needed</td><td>725</td><td>16.9%</td></tr>
-          <tr><td>looser class than needed (leak)</td><td>34</td><td>0.8%</td></tr>
+          <tr><td>right class</td><td>1434 (90.3%)</td><td>1305 (82.2%)</td><td>1288 (81.1%)</td></tr>
+          <tr><td>tighter class than needed</td><td>119 (7.5%)</td><td>240 (15.1%)</td><td>287 (18.1%)</td></tr>
+          <tr><td>looser class than needed (leak)</td><td>35 (2.2%)</td><td>43 (2.7%)</td><td>13 (0.8%)</td></tr>
         </tbody>
       </table>
       <t>
-        Cloudflare is 84% of these calls. By vendor, the right class
-        was 81.8% for Cloudflare (3575 calls), 83.2% for PagerDuty
-        (465), and 87.4% for Sentry (239), and the looser class was at
-        most 0.9%. Of the 34 leaks, 26 are PUT or PATCH calls that no
-        word supported, which rwxmap marks for a person to check. Two
-        limits apply. The truth labels were written by language-model
-        agents that read each call blind, with the author ruling
-        disputes, not by independent people. And the class definition
-        changed between -02 and this document, and the truth labels
-        changed with it, so these figures cannot be compared with
-        those in -02.
+        "rwxlite alone" means rwxlite classes every call, and any call
+        below a confidence of 95% is x and marked for review.
       </t>
       <t>
-        rwxmap also has an optional pass that asks a language model,
-        Jev, about some calls and can move a class by one step. With
-        it, on the same 4279 calls, the right class was 93.0%, the
-        tighter class 6.5%, and the looser class 0.5%. These figures
-        were recorded on 2026-09-23, with thresholds fixed before any
-        of these calls was read. They were not reproduced, because the
-        model does not give the same answer twice. Jev and the
-        labellers that wrote the truth are both language models that
-        read the same brief, so their agreement can come from that
-        shared reading rather than from the truth.
+        Two limits apply. The truth labels were written by two blind
+        labellers, both the same language model, which agreed on 98.5%
+        of calls; the author ruled the other 24. Agreement between two
+        copies of one model shows consistency, not truth. And these
+        results use the broader x of <xref
+        target="action-class-values"/> and new truth labels, so they
+        cannot be compared with the figures in -03.
       </t>
       <t>
         <strong>bareguard.</strong> bareguard <xref
@@ -1519,6 +1546,7 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
       <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.9651.xml"/>
       <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.9421.xml"/>
       <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.9110.xml"/>
+      <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.10008.xml"/>
       <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.7515.xml"/>
       <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.6454.xml"/>
       <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.6234.xml"/>
@@ -1644,7 +1672,14 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         <front>
           <title>rwxmap: Mechanical r/w/x Classification of OpenAPI Operations</title>
           <author initials="A." surname="Hassan"><organization>Independent</organization></author>
-          <date year="2026" month="October"/>
+          <date year="2026" month="November"/>
+        </front>
+      </reference>
+      <reference anchor="RWXLITE" target="https://github.com/hamr0/rwxlite">
+        <front>
+          <title>rwxlite: A Small r/w/x Classifier for API Operations</title>
+          <author initials="A." surname="Hassan"><organization>Independent</organization></author>
+          <date year="2026" month="November"/>
         </front>
       </reference>
       <reference anchor="BAREGUARD" target="https://github.com/hamr0/bareguard">
@@ -1817,6 +1852,21 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         them by hand from the rules. No code runs them at this
         revision (<xref target="implementation-status"/>).
       </t>
+    </section>
+
+    <section anchor="changes-since-03" numbered="true" toc="default">
+      <name>Changes since -03</name>
+      <t>
+        This section is non-normative. It will be removed before this
+        document leaves individual submission status.
+      </t>
+      <ul spacing="normal">
+        <li><t>Broadened x (<xref target="action-class-values"/>). The test is whether a later call can put things back the way they were, including anything done in between. A call that grants or widens access is x; a call that only narrows access is w.</t></li>
+        <li><t>QUERY <xref target="RFC10008"/> now defaults to r, like GET (<xref target="classification"/>). Under -03 it fell under "any other method" and defaulted to x.</t></li>
+        <li><t>Rewrote the rwxmap entry in <xref target="implementation-status"/> for its current rules, added the rwxlite classifier, and replaced the figures with one new scoring on 1588 calls from five APIs. The figures cannot be compared with those in -03, because x and the truth labels both changed. Removed the Jev figures, which used the old truth labels.</t></li>
+        <li><t>Updated the figures in <xref target="introduction"/> and <xref target="menu-publication"/> to match.</t></li>
+        <li><t>Added a normative reference for RFC 10008 and an informative reference for rwxlite.</t></li>
+      </ul>
     </section>
 
     <section anchor="changes-since-02" numbered="true" toc="default">
