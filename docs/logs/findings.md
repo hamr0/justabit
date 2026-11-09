@@ -14,6 +14,31 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-11-08/09 — -04 opened: broader x, QUERY is r, rwxlite and exam #6 figures; not submitted
+
+**EVIDENCE**
+
+1. User scope, 2026-11-08: "add that model, the new numbers and broadening of x to ietf, nothing more than that."
+2. rwxmap, read 2026-11-08 at tag v0.11.0 (commit `feff27a`, 2026-11-07): `docs/product/prd.md:104-138` carries D137, "x is widened to one test ... the definition does not change"; `docs/wiki/decisions-log.md:148-153` carries D134 (QUERY is r, user ruling 2026-11-04) through D139. rwxlite tag v0.3.1, commit `5069dfa`; fp32 model sha256 `bbe1997d43020724f9eab9e42e8f6337e9640fe46f764b6fceac1eb1d000a3cf`.
+3. The rwx session answered six questions on 2026-11-08 and corrected itself the same day: cite exam #6, not exam #5. The main session read the exam #6 record on rwxmap local branch `exam6-prep`, commit `ba07cc2`, `docs/wiki/exam-prereg-exam6.md:163-173,257`: 1588 operations, five APIs (Grafana, NocoDB, Radarr, Cloudsmith, Invoice Ninja), scored once 2026-11-08 from the npm install, truth sha256 verified before scoring. Mode a (default, threshold 0.90) 1434 / 35 / 119 (90.3% right, 2.2% looser, 7.5% tighter); mechanical 1305 / 43 / 240; rwxlite alone at 95 1288 / 13 / 287. Two blind Sonnet labellers agreed on 1564 of 1588; the user ruled the 24 others. The record was not on GitHub when read.
+4. Leakage: the exam #6 pre-registration checked provider names and brand aliases only (`exam-prereg-exam6.md:45-49`). On 2026-11-09 the main session compared every provider and vendor name in rwxlite `data/round13` train, val and v3eval with `poc/exam6-shortlist/excluded-vendors.txt` at `ba07cc2` (6,499 names, `LC_ALL=C` sort): 0 missing in each; none of the five exam providers is in the list.
+5. RFC 10008, "The HTTP QUERY Method", fetched from rfc-editor.org and bib.ietf.org on 2026-11-08/09: QUERY is safe and idempotent.
+6. Build: `8aa4216` opens `ietf/v5/docs` (diff against -03: docName, seriesInfo, date only); `a6c813d`, `046e218` and `d793718` apply the approved rows by script. Each committed XML was `cmp`-identical to a dry run the main session checked; `xmllint` exit 0; every xref resolves; ASCII only. `032b735` merges `docs/eagf-correspondence` (five correspondence records).
+7. CAMARA, read 2026-11-09 via `gh`: APIBacklog #330 OPEN, PR #331 OPEN, Commonalities #705 OPEN with no comments and no activity since 2026-09-01.
+8. author-tools render, reported by the user on 2026-11-09: "(2) Expected a valid submissionType (stream) setting, one of IETF, IAB, IRTF, independent, editorial, but found None. Will use 'IETF'". The user reported two warnings and pasted one; the idnits summary and page count were not pasted. Not a clean idnits record.
+
+**DECISION**
+
+1. x keeps "cannot be undone" and gains the D137 test and the access clause, because D137 states the definition does not change; access grants become x, narrowing stays w.
+2. QUERY defaults to r (user, 2026-11-09). This loosens -03's default for one method, on the ground that RFC 10008 defines QUERY as safe.
+3. Cite exam #6, the released configuration scored once; exam #5 figures are history. Jev figures removed (user, 2026-11-09): Jev was not scored on the new truth.
+4. "Had not seen" narrowed to a provider-name check, and named as a third limit (user approval 2026-11-09), because the check compares names, not calls (EVIDENCE 4).
+5. Security Considerations corrected: setting another person's password, or granting or widening their access, is x (user approval 2026-11-09). Appendix A's CAMARA date moves to 2026-11-09 (EVIDENCE 7).
+6. bareguard text unchanged, still pinned at `962ed98`, per the "nothing more" scope.
+7. Release v0.16.0 cut before submission and `/branch-review` deferred to before submission (user, 2026-11-09, "1b, 2b"). The user has not yet read the full -04 text; that read, the review, a dated author-tools idnits run, and the document date are open before submission on or after 2026-11-14.
+
+---
+
 ## 2026-10-22 — -03 SUBMITTED and posted; posted bytes match the repo; both idnits versions clean
 
 **EVIDENCE**

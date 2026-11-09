@@ -1,5 +1,13 @@
 # Change plan for draft-hamr-oauth-agent-delegation-04
 
+> Note added 2026-11-09. Two later fixes, both user-approved on
+> 2026-11-09, changed text after this plan: (1) "had not seen" became a
+> provider-name check, with a third limit (`046e218`); (2) Security
+> Considerations now says setting another person's password or granting
+> or widening their access is x, and Appendix A's CAMARA date is
+> 2026-11-09 (`d793718`). Q1 to Q3 below were answered: QUERY is r, Jev
+> removed, exam #6 cited. The plan text below is kept as written.
+
 Status: DRAFT for user approval, 2026-11-08. Nothing edited yet.
 
 Scope (user, 2026-11-08): "add that model, the new numbers and broadening
