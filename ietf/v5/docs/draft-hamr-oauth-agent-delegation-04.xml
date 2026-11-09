@@ -190,7 +190,8 @@
             target="attenuation"/>). One such tool, rwxmap <xref
             target="RWXMAP"/>, with a small local classifier, rwxlite
             <xref target="RWXLITE"/>, was scored once on 1588 calls from
-            five APIs neither had seen. It gave the right class for 90.3%
+            five APIs whose providers neither had been built or trained
+            on. It gave the right class for 90.3%
             of calls, a tighter class than needed for 7.5%, and a looser
             class for 2.2% (<xref target="implementation-status"/>). The
             same menu can give tool hints in MCP <xref target="MCP"/> and
@@ -853,8 +854,8 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
           classed w with no word to support it. Finding the API
           description can be the hard part, because many providers do
           not publish one at a known location. One such tool, scored
-          once on 1588 calls from five APIs it had not seen, gave the
-          right class for 90.3% of calls, a tighter class than needed
+          once on 1588 calls from five APIs whose providers it had not
+          been built or trained on, gave the right class for 90.3% of calls, a tighter class than needed
           for 7.5%, and a looser class than needed for 2.2%; a looser
           class lets through a call that a floor should
           refuse (<xref target="implementation-status"/>). The party
@@ -1365,7 +1366,8 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         rwxmap 0.11.0 with rwxlite 0.3.1 (fp32, threshold 0.90),
         installed from the npm registry, was scored once, on
         2026-11-08, on 1588 calls from five complete API descriptions
-        that neither its rules nor rwxlite's training had seen:
+        whose providers are in neither the data its rules were built
+        from nor rwxlite's training data, checked by provider name:
         Grafana, NocoDB, Radarr, Cloudsmith, and Invoice Ninja. Nothing
         was changed after the scoring.
       </t>
@@ -1384,10 +1386,13 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         below a confidence of 95% is x and marked for review.
       </t>
       <t>
-        Two limits apply. The truth labels were written by two blind
+        Three limits apply. The truth labels were written by two blind
         labellers, both the same language model, which agreed on 98.5%
         of calls; the author ruled the other 24. Agreement between two
-        copies of one model shows consistency, not truth. And these
+        copies of one model shows consistency, not truth. The check
+        that the five APIs were new compares provider names, not single
+        calls, and some descriptions in rwxlite's training data mention
+        these providers by name. And these
         results use the broader x of <xref
         target="action-class-values"/> and new truth labels, so they
         cannot be compared with the figures in -03.
