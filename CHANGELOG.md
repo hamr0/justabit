@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.16.0 — 2026-11-09
+
+- **IETF `-04` working copy opened at `ietf/v5/docs/`, NOT submitted.**
+  The Datatracker is closed until 2026-11-14. Released before
+  submission by the user's decision; `/branch-review` is deferred to
+  before submission and is recorded in the pull request.
+- **x broadened (rwxmap D137).** x still means the call cannot be
+  undone, and now states the test: no later call can put things back,
+  including anything done in between, either because the thing is gone
+  or because it is out of the caller's hands. Granting or widening
+  access is x; narrowing it is w. Security Considerations corrected to
+  match.
+- **QUERY (RFC 10008) defaults to r**, like GET. Under -03 it fell under
+  "any other method" and defaulted to x.
+- **New figures and the rwxlite classifier.** Implementation Status
+  describes rwxmap 0.11.0's rules and rwxlite 0.3.1 (fine-tuned
+  all-MiniLM-L6-v2, int8 about 23 MB, fp32 about 91 MB). Exam #6, scored
+  once on 2026-11-08: 90.3% right, 7.5% tighter, 2.2% looser over 1588
+  calls from five APIs whose providers were checked by name against the
+  rule and training data. Labels by two blind copies of one model, with
+  the author ruling 24 disputes. The Jev figures are removed.
+- **References:** RFC 10008 (normative), RWXLITE (informative), RWXMAP
+  dated November 2026. Appendix A's CAMARA status re-read 2026-11-09.
+- **Correspondence filed:** the EAGF outreach, mapping and both replies
+  (2026-10-25) and the -03 post to the OAuth WG (2026-10-28), in
+  `ietf/v4/docs/`.
+
 ## 0.15.0 — 2026-10-23
 
 - **IETF draft `-03` posted 2026-10-22** (Datatracker submission

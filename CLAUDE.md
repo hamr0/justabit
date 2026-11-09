@@ -167,13 +167,25 @@ ietf/v4/docs/      FROZEN record of -03, SUBMITTED and posted
                    and changes nothing; w changes something a later
                    call can set back; x cannot be undone) and DELETE
                    defaulted to x; change-plan-03.md is the approved
-                   plan; byte-identical to the posted bytes
+                   plan; the -03 XML is byte-identical to the posted
+                   bytes; correspondence records filed after posting
+                   (EAGF 2026-10-25, OAuth WG post 2026-10-28) sit
+                   beside it
 ietf/v4/poc/       copied unchanged from v3 on 2026-10-22, no code
                    changed: -03 cites its floor suite (m3, 26 cases)
                    with camara/v2/poc's attestation core as the
                    agent-auth proof-of-concept; the action-class
                    suite (m7) still carries -02's rules and -03 no
                    longer cites it (user decision 2026-10-22)
+ietf/v5/docs/      WORKING COPY of -04, NOT submitted (Datatracker
+                   closed until 2026-11-14): opened 2026-11-09 as the
+                   posted -03 with only the revision stamps changed,
+                   then x broadened to the rwxmap D137 test (a later
+                   call cannot put things back; granting or widening
+                   access is x), QUERY defaults to r, and the rwxmap
+                   0.11.0 + rwxlite 0.3.1 figures from exam #6 (1588
+                   calls, five APIs); change-plan-04.md is the approved
+                   plan; no poc/ copy: -04 still cites ietf/v4/poc
 .claude/           local session context (gitignored — never publish)
 ```
 <!-- MEMORY:START -->
