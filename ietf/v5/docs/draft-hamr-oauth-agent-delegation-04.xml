@@ -1513,11 +1513,13 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
       <t>
         <strong>A w call can change another person's
         setting.</strong> The class depends on whether a call can be
-        undone, not on whose resource it changes. A call that changes
-        another person's role, password, or access can be set back,
-        so it is w, and a link that allows w admits it. A menu may
-        declare such a call x; a class higher than the definition
-        gives only makes the verifier refuse more.
+        undone, not on whose resource it changes. A call that sets
+        another person's password, or grants or widens their role or
+        access, is x (<xref target="action-class-values"/>). A call
+        that only narrows their access is w, and a link that allows w
+        admits it. A menu may declare such a call x; a class higher
+        than the definition gives only makes the verifier refuse
+        more.
       </t>
     </section>
 
@@ -1767,7 +1769,7 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         proposal <xref target="CAMARA-PROPOSAL"/> in August and September
         2026 and asked for changes; the author answered them. The signing
         part is now a separate proposal <xref target="CAMARA-SIGNING"/>.
-        On 2026-09-15 both are open, and neither is accepted or adopted.
+        On 2026-11-09 both are open, and neither is accepted or adopted.
         The two documents meet only at the header of
         <xref target="header"/>. Lacks: CAMARA API responses are not
         signed.
@@ -1870,6 +1872,8 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         <li><t>QUERY <xref target="RFC10008"/> now defaults to r, like GET (<xref target="classification"/>). Under -03 it fell under "any other method" and defaulted to x.</t></li>
         <li><t>Rewrote the rwxmap entry in <xref target="implementation-status"/> for its current rules, added the rwxlite classifier, and replaced the figures with one new scoring on 1588 calls from five APIs. The figures cannot be compared with those in -03, because x and the truth labels both changed. Removed the Jev figures, which used the old truth labels.</t></li>
         <li><t>Updated the figures in <xref target="introduction"/> and <xref target="menu-publication"/> to match.</t></li>
+        <li><t>Corrected <xref target="security"/> to the broader x: setting another person's password, or granting or widening their access, is x; only narrowing it is w.</t></li>
+        <li><t>Updated the date of the CAMARA status in <xref target="appendix-a"/> to 2026-11-09.</t></li>
         <li><t>Added a normative reference for RFC 10008 and an informative reference for rwxlite.</t></li>
       </ul>
     </section>
