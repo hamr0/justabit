@@ -14,6 +14,21 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-11-15 — -04 document date and CAMARA status date set to 2026-11-15; not submitted
+
+**EVIDENCE**
+
+1. User, 2026-11-15: "update v5 with today's date as submission has to be within 3 days from last edit", then "option 2, then changelog", then "pr and merge directly".
+2. The -04 XML has one document date, line 17. It changes from `day="9"` to `day="15"`. The file has no hard-coded expiry; xml2rfc derives it from the document date. `xmllint` exit 0; ASCII only.
+3. CAMARA, read 2026-11-15 via `gh`: APIBacklog #330 OPEN, last comment 2026-09-01; PR #331 OPEN, not merged, review decision REVIEW_REQUIRED, label "API Proposal", last comment 2026-09-03, last update 2026-09-28; Commonalities #705 OPEN, no comments, no labels, last update 2026-09-01. Appendix A's sentence "both are open, and neither is accepted or adopted" stays true.
+
+**DECISION**
+
+1. Appendix A's CAMARA status date and its Changes-since-03 row move to 2026-11-15 (user chose option 2 over keeping 2026-11-09), on EVIDENCE 3.
+2. Released as v0.16.1 through a pull request merged directly; `/branch-review` is still deferred to before submission (user, 2026-11-15). Submission must happen by 2026-11-18, or the document date is set again.
+
+---
+
 ## 2026-11-08/09 — -04 opened: broader x, QUERY is r, rwxlite and exam #6 figures; not submitted
 
 **EVIDENCE**

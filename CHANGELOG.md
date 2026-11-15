@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.16.1 — 2026-11-15
+
+- **IETF `-04` document date set to 15 November 2026**, for
+  submission. The draft is still NOT submitted; it must be submitted
+  by 2026-11-18, or the date is set again.
+- **Appendix A's CAMARA status re-read on 2026-11-15.** APIBacklog
+  #330, APIBacklog PR #331 and Commonalities #705 are all still open;
+  the date in the text and in "Changes since -03" moves to 2026-11-15.
+- `/branch-review` is still deferred to before submission, by the
+  user's decision.
+
 ## 0.16.0 — 2026-11-09
 
 - **IETF `-04` working copy opened at `ietf/v5/docs/`, NOT submitted.**

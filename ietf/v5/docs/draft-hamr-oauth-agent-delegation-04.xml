@@ -14,7 +14,7 @@
         <email>avoidaccess@msn.com</email>
       </address>
     </author>
-    <date year="2026" month="November" day="9"/>
+    <date year="2026" month="November" day="15"/>
     <area>Security</area>
     <workgroup>Web Authorization Protocol</workgroup>
     <keyword>OAuth</keyword>
@@ -1769,7 +1769,7 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         proposal <xref target="CAMARA-PROPOSAL"/> in August and September
         2026 and asked for changes; the author answered them. The signing
         part is now a separate proposal <xref target="CAMARA-SIGNING"/>.
-        On 2026-11-09 both are open, and neither is accepted or adopted.
+        On 2026-11-15 both are open, and neither is accepted or adopted.
         The two documents meet only at the header of
         <xref target="header"/>. Lacks: CAMARA API responses are not
         signed.
@@ -1873,7 +1873,7 @@ Agent-Delegation: :BASE64-ENCODED-L0:, :BASE64-ENCODED-L1:
         <li><t>Rewrote the rwxmap entry in <xref target="implementation-status"/> for its current rules, added the rwxlite classifier, and replaced the figures with one new scoring on 1588 calls from five APIs. The figures cannot be compared with those in -03, because x and the truth labels both changed. Removed the Jev figures, which used the old truth labels.</t></li>
         <li><t>Updated the figures in <xref target="introduction"/> and <xref target="menu-publication"/> to match.</t></li>
         <li><t>Corrected <xref target="security"/> to the broader x: setting another person's password, or granting or widening their access, is x; only narrowing it is w.</t></li>
-        <li><t>Updated the date of the CAMARA status in <xref target="appendix-a"/> to 2026-11-09.</t></li>
+        <li><t>Updated the date of the CAMARA status in <xref target="appendix-a"/> to 2026-11-15.</t></li>
         <li><t>Added a normative reference for RFC 10008 and an informative reference for rwxlite.</t></li>
       </ul>
     </section>
