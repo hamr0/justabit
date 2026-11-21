@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.16.2 — 2026-11-21
+
+- **CAMARA follow-up posted and filed.** A status comment on
+  Commonalities #705 (2026-11-21) delivers the supporting materials the
+  issue said would follow (proposal v2, OpenAPI sketch, proof of
+  concept, pinned to commit `0078804`) and asks for a Commonalities
+  Working Group agenda slot. A status note on APIBacklog PR #331 points
+  to #705 and asks the TSC whether the 2026-09-03 answers close its
+  three points. Both were read back from GitHub and filed verbatim in
+  `camara/v2/docs/`.
+- The IETF `-04` posting (2026-11-15) is not yet recorded in the repo
+  and `ietf/v5` is not yet frozen; that follows in a later release.
+
 ## 0.16.1 — 2026-11-15
 
 - **IETF `-04` document date set to 15 November 2026**, for

@@ -14,6 +14,22 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-11-21 — CAMARA follow-up posted on Commonalities #705 and APIBacklog PR #331
+
+**EVIDENCE**
+
+1. `gh`, read 2026-11-21: Commonalities #705 OPEN with no comments since it was filed on 2026-09-01; APIBacklog PR #331 OPEN, last comment 2026-09-03 (the user's reply to the TSC's three points). Both were past CAMARA's 6-week inactivity limit.
+2. The earlier #705 draft (agreed 2026-11-09) was not found in the repo or in any scratchpad; it was written again on 2026-11-21 from the live #705 and #331 text.
+3. Posted 2026-11-21 on the user's instruction ("post both"): #705 comment 7065696847 at 16:30:24Z; #331 comment 7065699165 at 16:30:35Z. Each was read back from GitHub and diffed against its draft: identical except one trailing newline from the read-back. Every link in the #705 comment returned HTTP 200 before posting. Records: `camara/v2/docs/commonalities-705-status-posted-2026-11-21.md`, `camara/v2/docs/pr331-status-posted-2026-11-21.md`.
+
+**DECISION**
+
+1. Follow up on #705 first and on #331 second, because the agreed 2026-09-01 route made #705 the active step (user, 2026-11-21).
+2. The 2026 TSC election was not entered: it fills Sub Project seats with Maintainers, and the user is not a Maintainer of any `camaraproject` repository (no hit for `hamr0` in a GitHub code search on 2026-11-21; default branches only, so not proof).
+3. Released as v0.16.2 with these two records only (user, 2026-11-21). The -04 posting record and the `ietf/v5` freeze follow separately.
+
+---
+
 ## 2026-11-15 — -04 document date and CAMARA status date set to 2026-11-15; not submitted
 
 **EVIDENCE**
