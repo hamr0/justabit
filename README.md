@@ -41,7 +41,7 @@ under the filed scope the aggregator can still read the identifier and the answe
 > **Status: filed and submitted, not approved or adopted.** CAMARA: APIBacklog issue #330 and
 > PR #331 are filed and open, awaiting Working Group evaluation; the v2 rescope is filed as
 > Commonalities issue #705, open and awaiting a maintainer label, discussed at the 2026-09-03
-> Technical Steering Committee. IETF: `draft-hamr-oauth-agent-delegation-03`
+> Technical Steering Committee. IETF: `draft-hamr-oauth-agent-delegation-04`
 > is submitted and live on the Datatracker as an individual draft — not a working-group
 > document, not adopted. This repo is the staging ground for two tracks: **CAMARA**
 > (operator/attestation side) and **IETF** (agent/delegation side).
@@ -207,11 +207,12 @@ ietf/v4/poc/        copied unchanged from v3 on 2026-10-22, no code
                     agent-auth proof-of-concept; the action-class
                     suite (m7) still carries -02's rules and -03 no
                     longer cites it (user decision 2026-10-22)
-ietf/v5/docs/       WORKING COPY of -04, NOT submitted (Datatracker
-                    closed until 2026-11-14): x broadened to the rwxmap
-                    D137 test, QUERY defaults to r, rwxmap 0.11.0 +
+ietf/v5/docs/       FROZEN record of -04, SUBMITTED and posted
+                    2026-11-15 (expires 19 May 2027): x broadened to the
+                    rwxmap D137 test, QUERY defaults to r, rwxmap 0.11.0 +
                     rwxlite 0.3.1 figures from exam #6; change-plan-04.md
-                    is the approved plan; -04 still cites ietf/v4/poc
+                    is the approved plan; the -04 XML is byte-identical
+                    to the posted bytes; -04 still cites ietf/v4/poc
 ```
 
 ## The two tracks
@@ -227,8 +228,8 @@ Each track cites the other as its counterpart; neither depends on the other's ap
   posted; v2 `-01` SUBMITTED and posted 2026-09-02, expires 2027-03-06, at
   `ietf/v2/docs/`; v3 `-02` SUBMITTED and posted 2026-09-20, expires
   23 March 2027, at `ietf/v3/docs/`; v4 `-03` SUBMITTED and posted 2026-10-22,
-  expires 25 April 2027, at `ietf/v4/docs/`; v5 `-04` working copy, not
-  submitted, at `ietf/v5/docs/`). What the
+  expires 25 April 2027, at `ietf/v4/docs/`; v5 `-04` SUBMITTED and posted
+  2026-11-15, expires 19 May 2027, at `ietf/v5/docs/`). What the
   agent carries and how permissions flow: floor-gated SIM attestation, scoped monotone
   delegations, presentment via RFC 9421. The OAuth Working Group (`oauth@ietf.org`) is
   the target.

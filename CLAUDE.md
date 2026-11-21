@@ -177,15 +177,19 @@ ietf/v4/poc/       copied unchanged from v3 on 2026-10-22, no code
                    agent-auth proof-of-concept; the action-class
                    suite (m7) still carries -02's rules and -03 no
                    longer cites it (user decision 2026-10-22)
-ietf/v5/docs/      WORKING COPY of -04, NOT submitted (Datatracker
-                   closed until 2026-11-14): opened 2026-11-09 as the
+ietf/v5/docs/      FROZEN record of -04, SUBMITTED and posted
+                   2026-11-15 (Datatracker submission 172386, 38
+                   pages, 13600 words; expires 19 May 2027, per the
+                   posted text; posted before /branch-review, which
+                   is still owed): opened 2026-11-09 as the
                    posted -03 with only the revision stamps changed,
                    then x broadened to the rwxmap D137 test (a later
                    call cannot put things back; granting or widening
                    access is x), QUERY defaults to r, and the rwxmap
                    0.11.0 + rwxlite 0.3.1 figures from exam #6 (1588
                    calls, five APIs); change-plan-04.md is the approved
-                   plan; no poc/ copy: -04 still cites ietf/v4/poc
+                   plan; the -04 XML is byte-identical to the posted
+                   bytes; no poc/ copy: -04 still cites ietf/v4/poc
 .claude/           local session context (gitignored — never publish)
 ```
 <!-- MEMORY:START -->

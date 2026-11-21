@@ -14,6 +14,24 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-11-15/21 — -04 SUBMITTED and posted 2026-11-15; posted bytes match the repo; ietf/v5 frozen; posted before /branch-review
+
+**EVIDENCE**
+
+1. User, 2026-11-15: "submitted". The user submitted before `/branch-review` ran and before any author-tools output was pasted into the session.
+2. Datatracker submission API, read 2026-11-15: submission 172386, rev 04, state `posted`, submission date 2026-11-15, document date 2026-11-15, 38 pages, 13600 words, `draft` field set to the document. An earlier upload the same day, submission 172382 (rev 04, 38 pages, 13600 words), is in state `cancel`. Document API: rev 04, expires 2027-05-19T13:58:20Z; re-read 2026-11-21, unchanged.
+3. Datatracker submission checks on 172386: idnits passed, 0 errors, 0 warnings; idnits3 passed, 0 errors, 0 warnings. These are the only idnits record for -04.
+4. The posted XML was fetched from `https://www.ietf.org/archive/id/draft-hamr-oauth-agent-delegation-04.xml` and compared with `ietf/v5/docs/draft-hamr-oauth-agent-delegation-04.xml` at main: `cmp` exit 0; both SHA-256 `a97bbf3a878b6e38cbad9888951b3b708e23e9a001f915bb080104cb3ef3e7fd`. The posted text reads "15 November 2026" and "Expires: 19 May 2027".
+
+**DECISION**
+
+1. `ietf/v5` is now the FROZEN record of -04, byte-identical to the posted bytes; a new revision opens `ietf/v6` (user, 2026-11-21: "1 and commit/push in main").
+2. The order is recorded as it happened: -04 was posted before `/branch-review`. The review is still owed on the -04 changes (`72f5df9..0078804`) and runs after posting.
+3. Committed directly to main, without a pull request or a version bump, by the user's instruction (2026-11-21). The next release's CHANGELOG entry covers it.
+4. Not fixed, flagged: prd.md D6 and the IETF key-dates paragraph (§9 area, "The live document expires 4 March 2027") still state the -00 expiry as current. Pre-existing since -01, outside this sweep.
+
+---
+
 ## 2026-11-21 — CAMARA follow-up posted on Commonalities #705 and APIBacklog PR #331
 
 **EVIDENCE**
