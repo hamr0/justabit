@@ -14,6 +14,25 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-11-23 — CAMARA replies on #705 and PR #331; Sync26 moved toward the proposal; camara/v2 frozen, CAMARA v3 spec opened
+
+**EVIDENCE**
+
+1. Replies, read 2026-11-23 via `gh`, filed verbatim: APIBacklog PR #331 comment 7095374989 (albertoramosmonagas, 08:22:36Z): the 2026-09-03 replies "cover the three TSC points"; the decision sits with the Commonalities WG on #705; post the outcome on #331. Commonalities #705 comment 7100177380 (rartych, 11:51:29Z): response signing "has not been decided yet" and is a Governance/TSC question; use the Sync26 definitions (the age band moved to the Sandbox repo SimSwapTimeFrame); "fully AI-generated contributions" need "clear human involvement, technical understanding, and ownership"; windowed disclosure is worth discussing after the overall direction is agreed. Records: `camara/v2/docs/pr331-comment-received-2026-11-23.md`, `camara/v2/docs/commonalities-705-comment-received-2026-11-23.md`.
+2. The user's reply was posted on #705 on the user's instruction ("post it"): comment 7101615313, 12:46:54Z, read back identical except one trailing newline. Record: `camara/v2/docs/commonalities-705-reply-posted-2026-11-23.md`.
+3. Releases, read 2026-11-23 via `gh`: SimSwap r4.3 (v2.2.0), DeviceSwap r4.3 (v1.1.0), NumberVerification r4.2 (v2.1.1), KnowYourCustomerMatch r2.3 (v1.0.0), KnowYourCustomerFill-in r2.3 (v0.5.0), KnowYourCustomerAgeVerification r2.3 (v0.3.0), Tenure r3.4 (v0.3.0), DeviceLocation r4.3 (location-verification v3.1.0). `/retrieve-age-band` is absent from SimSwap r4.3 and from `main`; the SimSwapTimeFrame README says the TSC moved it on 2026-09-17 and SimSwap#292 removed it before r4.1. SimSwapTimeFrame `code/API_definitions/` holds only the template README (last commit 2026-10-20).
+4. Shape diff, old cited version against Sync26 (agent summary, main session spot-checked each cited line): Tenure r3.4 `kyc-tenure.yaml:27-52` adds an operator regulatory threshold date R, "not part of the API request", with `400 OUT_OF_RANGE`; kyc-age-verification r2.3 `:57` adds `400 OUT_OF_RANGE` outside "the narrower range or set of values agreed during onboarding" (the old version named no error); NumberVerification r4.2 `:30-34` adds single-use, non-refreshable, at most 300 s tokens "to prevent replay attacks"; SimSwap r4.3 `:544` and DeviceSwap r4.3 `:494` add `BadRequestWithRange400`; `maxAge` unchanged (hours, 1-2400); kyc-match score now 0-99. No Sync26 file of the six contains "jws", "signature", "nonce" or "attest" (case-insensitive grep, 0 hits each).
+
+**DECISION**
+
+1. CAMARA moved toward the proposal on its own: operator-set limits refused with `OUT_OF_RANGE`, yes/no answers, `not_available`, token replay protection. These are cited as CAMARA's work and no longer claimed as new (new no-go 19). What stays ours: the signed answer, a published menu, tighten-only, ranges on open values (v3 §3). The next #705 comment says that the floor moved toward the proposal (user, 2026-11-23).
+2. The "finish what they started" precedent moves from `/retrieve-age-band` to Tenure's threshold R and kyc-age-verification's `OUT_OF_RANGE`, both released (user approved the plan, 2026-11-23).
+3. `camara/v2/` is FROZEN as the record of the #705 round, to keep the CAMARA history (user, 2026-11-23). The v3 spec is a permanent document at `docs/product/camara-v3-spec.md` (user chose option A over `camara/v3/docs/`, 2026-11-23); §3 and no-go 11 gain a stated exception for one permanent spec per major project version. `camara/v3/` gets the CAMARA-facing records and filing text as they arrive; v3 cites `camara/v2/poc/` until code changes; the OpenAPI sketch is rewritten in `camara/v3/spec/` as a separate step, on Tenure `/check-tenure`, SimSwap `/check` and `/retrieve-date`.
+4. The route follows the codeowner: response signing to Governance/TSC first, with Tenure + SimSwap `/check` signed as the first case (v3 §4.5); Commonalities guidance after; ranges as a contribution to SimSwapTimeFrame.
+5. The v3 work is broken into modules, each POC-first and user-validated, with doc steps between them in dependency order (prd §4.4 v3 ladder, §6 Phase 4b): V3-S0 Orange check, V3-M1 signed answer, V3-M2 published menu, the OpenAPI sketch, V3-M3 tighten only, V3-M4 first-case demo, the Governance/TSC ask, V3-M5 live, the SimSwapTimeFrame contribution, V3-M6 range. The first drafts had no modules; the user asked for this break-down (user, 2026-11-23). The open V2-M3 items (caller migration, off-menu `maxAge`) move to V3-M1 and V3-M2, because `camara/v2/poc/` is frozen.
+
+---
+
 ## 2026-11-15/21 — -04 SUBMITTED and posted 2026-11-15; posted bytes match the repo; ietf/v5 frozen; posted before /branch-review
 
 **EVIDENCE**

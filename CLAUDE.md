@@ -2,7 +2,7 @@
 
 Repo-only; for whoever is *building* this. Adopters read `README.md` and
 `camara/v1/docs/camara-attested-windowed-disclosure.md` (v1, as filed;
-v2 working copy under `camara/v2/docs/`).
+v2 frozen under `camara/v2/docs/`; the v3 spec at `docs/product/camara-v3-spec.md`).
 
 This is a **standards repo**, not a software product. The deliverable is text
 that survives working-group scrutiny; the PoC exists to make the text
@@ -46,18 +46,25 @@ exception (profile rule 7), not a loophole.
 
 Every claim about CAMARA/GSMA/IETF state is pinned to a source — spec YAML,
 repo, or dated page — and re-verified before any submission. Current verified
-baseline (2026-08-14, re-verified 2026-08-24): SimSwap v2.1.0 (`/check`,
-`/retrieve-date`), NumberVerification v2.1.0 (`/verify` requires an
-identifier; `/device-phone-number` takes no request body and derives the
-line from the 3-legged token), KYC split post-Spring25 into kyc-match
-(r1.2, v0.4.0), kyc-fill-in (r1.3, v0.4.1), kyc-age-verification (r1.3,
-v0.2.1 — Sandbox). **RETRACTED (2026-08-31):** the baseline previously
+baseline (2026-11-23, CAMARA Sync26): SimSwap r4.3 v2.2.0 (`/check`,
+`/retrieve-date`), DeviceSwap r4.3 v1.1.0, NumberVerification r4.2 v2.1.1
+(`/verify` requires an identifier; `/device-phone-number` takes no request
+body and derives the line from the 3-legged token; tokens single use, at
+most 300 s), kyc-match r2.3 v1.0.0, kyc-fill-in r2.3 v0.5.0,
+kyc-age-verification r2.3 v0.3.0 (Sandbox), Tenure r3.4 v0.3.0. The age
+band left SimSwap before r4.1 and is now the Sandbox repository
+SimSwapTimeFrame, with no API definition yet. **UPDATED (2026-11-23):**
+the baseline before this date was SimSwap v2.1.0, NumberVerification
+v2.1.0, kyc-match r1.2 v0.4.0, kyc-fill-in r1.3 v0.4.1,
+kyc-age-verification r1.3 v0.2.1 — see `docs/logs/findings.md`
+2026-11-23. **RETRACTED (2026-08-31):** the baseline previously
 listed `/retrieve-age-band` as part of SimSwap v2.1.0. VERIFIED FALSE
 against every tagged release (r3.3/r3.2 both `info.version: 2.1.0`, r3.1
 `2.1.0-rc.2`, r2.2 `2.0.0`) — none of them carry `/retrieve-age-band`; it
 exists only on unreleased branch `main` (`info.version: wip`). Any
 reference to `/retrieve-age-band` must say "unreleased, `main` only," not
-"v2.1.0." If a claim dies on re-verification, retract it visibly —
+"v2.1.0." (Since 2026-11-23 it is not on `main` either: say "moved to the
+SimSwapTimeFrame Sandbox, no definition yet.") If a claim dies on re-verification, retract it visibly —
 retractions build WG credibility.
 
 **No orphaned references.** Retracting a claim, renaming/moving a file,
@@ -70,9 +77,13 @@ slug). Evidence: `docs/logs/findings.md` (2026-08-28).
 
 ## Strategy invariants
 
-- **Profile first, API second.** The ask to CAMARA is "finish what
-  `/retrieve-age-band` and `GET /device-phone-number`'s no-body shape
-  started, catalog-wide" — never "approve my API". CarrierAttestation as a
+- **Profile first, API second.** The ask to CAMARA is "finish what Sync26
+  started": Tenure's operator threshold date R and kyc-age-verification's
+  `400 OUT_OF_RANGE` already refuse what the operator does not allow, and
+  `GET /device-phone-number` already takes no request body. Claim only
+  what is missing — the signed answer, a published menu, tighten-only,
+  ranges on open values (`docs/product/camara-v3-spec.md` §3) — never "approve my API",
+  and never claim as new what a release already does. CarrierAttestation as a
   new case exists only for what no existing API covers (agent floors, Mode B).
 - **Two tracks, one seam.** CAMARA = operator/attestation side; IETF
   (OAuth WG) = agent/delegation side; they meet at the RFC 9421 header.
@@ -109,6 +120,12 @@ docs/product/      prd.md — THE contract: requirements, sequence, no-go list.
                    camara-attested-windowed-disclosure.md — stub: file moved on
                    2026-08-31, kept because filed APIBacklog issue #330/PR #331
                    link to this path and GitHub does not redirect
+                   camara-v3-spec.md — the CAMARA v3 spec, opened 2026-11-23 on
+                   the Sync26 releases: cites what CAMARA already does, proposes
+                   only the gap (signed answer, published menu, tighten-only,
+                   ranges); first case Tenure + SimSwap /check, signed; not
+                   filed. camara/v3/ gets records and filing text as they
+                   arrive; until then v3 cites camara/v2/poc
 docs/logs/         findings.md — dated EVIDENCE + DECISION log: evidence is what was
                    RUN and OBSERVED, decisions are reasoned course changes with the why
 docs/archive/      aaif-agent-auth.md — SUPERSEDED 2026-08-25, retained as a dated
@@ -119,13 +136,17 @@ camara/v1/docs/    frozen record of what was actually filed 2026-08-28
 camara/v1/poc/     Mode A demo: mock backend default, Orange adapter swappable;
                    four assertions (each with its negative), Node zero-dep, PRD §4
 camara/v1/spec/    carrier-attestation.yaml — illustrative OpenAPI sketch, not normative
-camara/v2/docs/    working copy being reshaped per the 2026-08-31 feedback — not filed
+camara/v2/docs/    FROZEN 2026-11-23: the record of the Commonalities #705 round
+                   (rescoped per the 2026-08-31 feedback; #705 filed 2026-09-01;
+                   review received 2026-11-23) with all its correspondence
 camara/v2/poc/     v1 M1-M6/demo copied unchanged 2026-08-31 (still what M2/M6/
                    demo run on) PLUS a new JWS attestation core built the same
-                   day (m1-jws.mjs, m1-jws-check.mjs) — caller migration is V2-M3
+                   day (m1-jws.mjs, m1-jws-check.mjs) — caller migration moved to
+                   V3-M1 (2026-11-23)
 camara/v2/spec/    working copy of camara/v1/spec/, rewritten 2026-08-31 for the
                    JWS envelope (renamed schemas, required phoneNumber, replaces
-                   the old {claims,sig} shape) — 215 -> 319 lines, not unchanged
+                   the old {claims,sig} shape) — 215 -> 319 lines, not unchanged;
+                   FROZEN 2026-11-23 with camara/v2/docs and camara/v2/poc
 ietf/v1/docs/      frozen record of draft-hamr-oauth-agent-delegation-00 as
                    posted 2026-08-31 (agent/delegation side, OAuth WG target);
                    ietf-agent-delegation.md is the companion prose proposal

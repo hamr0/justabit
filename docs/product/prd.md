@@ -46,12 +46,16 @@ missed WG meetings).
 **Hard rule: three living documents, no more.** New design content is folded
 into one of these (this PRD grows a dated Decisions entry, §9); side-docs are
 not created. Proposal docs follow the target body's proposal standards.
+**Exception (user, 2026-11-23):** a permanent spec for a major project
+version lives in `docs/product/` (first: `camara-v3-spec.md`). The PRD
+links to it and stays the contract.
 
 | # | Deliverable | Where | Consumer |
 |---|---|---|---|
 | D1 | **This PRD** — requirements, sequence, no-gos, decisions | `docs/product/prd.md` | us |
-| D2 | **CAMARA proposal** — problem, the normative profile (8 rules), modes, phase plan, risks, pre-filled APIBacklog template mapping. CAMARA filing is now versioned per project, per version at the repo root: v1 is the frozen record as filed 2026-08-28; v2 is the working rescoping draft opened 2026-08-31 after WG feedback. | `camara/v1/docs/camara-attested-windowed-disclosure.md` (v1); `camara/v2/docs/camara-attested-windowed-disclosure.md` (v2, drafting) | CAMARA Commonalities / ICM / APIBacklog WG |
-| D2 v2 | **CAMARA resubmission** — as a Commonalities Scope Enhancement, not a new sub-project. Five files: `camara-attested-windowed-disclosure.md` (rewrite), `camara-filing-template.md`, `camara-filing-issue.md`, `pr331-reply-posted-2026-08-31.md`, `wg-deck-outline.md` | `camara/v2/docs/` — drafting, not filed | CAMARA Commonalities WG |
+| D2 | **CAMARA proposal** — problem, the normative profile (8 rules), modes, phase plan, risks, pre-filled APIBacklog template mapping. CAMARA filing is now versioned per project, per version at the repo root: v1 is the frozen record as filed 2026-08-28; v2 is the rescoping draft opened 2026-08-31 after WG feedback, FROZEN 2026-11-23 as the record of the Commonalities #705 round; v3 is the working copy opened 2026-11-23 on the CAMARA Sync26 releases. | `camara/v1/docs/camara-attested-windowed-disclosure.md` (v1); `camara/v2/docs/camara-attested-windowed-disclosure.md` (v2, frozen); `docs/product/camara-v3-spec.md` (v3 spec, working) | CAMARA Commonalities / ICM / APIBacklog WG |
+| D2 v2 | **CAMARA resubmission** — as a Commonalities Scope Enhancement, not a new sub-project. Five files: `camara-attested-windowed-disclosure.md` (rewrite), `camara-filing-template.md`, `camara-filing-issue.md`, `pr331-reply-posted-2026-08-31.md`, `wg-deck-outline.md` | `camara/v2/docs/` — FROZEN 2026-11-23: the record of the #705 round (issue filed 2026-09-01, review received 2026-11-23), with every correspondence record of that round | CAMARA Commonalities WG |
+| D2 v3 | **CAMARA proposal on Sync26** — rebuilt on the current releases after the 2026-11-23 #705 review. Cites what CAMARA already does (operator limits refused with `400 OUT_OF_RANGE`, yes/no answers, `not_available`, single-use tokens) and proposes only what is missing: a signed answer (JWS, requester nonce, expiry), a published menu, tighten-only, and ranges on open values. First case: Tenure `/check-tenure` and SimSwap `/check`, signed. Route: response signing to Governance/TSC first; Commonalities guidance after; ranges as a contribution to SimSwapTimeFrame. Built under the v3 ladder (§4.4, V3-S0 and V3-M1 to V3-M6) in `camara/v3/poc/`, copied from `camara/v2/poc/` at V3-M1; the OpenAPI sketch in `camara/v3/spec/` follows V3-M2 (§6 Phase 4b step 6) | `docs/product/camara-v3-spec.md` — the v3 spec, working, not filed; `camara/v3/` holds the CAMARA-facing records and filing text once they exist | CAMARA Governance/TSC, Commonalities WG, SimSwapTimeFrame |
 | D3 | **Agent/delegation proposal** — agent/delegation side only, targets the IETF OAuth WG. Now versioned per project like CAMARA: v1 is the frozen record of `-00` as posted 2026-08-31; v2 is the frozen record of `-01`, SUBMITTED and posted 2026-09-02 (expires 2027-03-06): all four scope items and Appendix A direction 4 drafted; two review rounds run and their findings fixed; the PoC catch-up done; author-tools and idnits both ran clean on the submitted bytes; v3 is the frozen record of `-02`, SUBMITTED and posted 2026-09-20 (expires 23 March 2027; Datatracker: 2027-03-24): the Verifier Placement rewrite (boundary as a role, per effect-capable path, plus the system-wide closure/anti-bypass invariant) done, then reduced 2592 -> 1695 lines per reduction-plan-02.md, all 28 plan rows closed 2026-09-18, byte-identical to the posted bytes. v4 is the frozen record of `-03`, opened 2026-10-22, SUBMITTED and posted 2026-10-22 (Datatracker submission 170776, 37 pages, 13022 words; expires 25 April 2027, per the posted text; byte-identical to the posted bytes): r/w/x redefined to the chmod reading and DELETE defaulted to x, per `ietf/v4/docs/change-plan-03.md`. v5 is the frozen record of `-04`, opened 2026-11-09, SUBMITTED and posted 2026-11-15 (Datatracker submission 172386, 38 pages, 13600 words; expires 19 May 2027, per the posted text; byte-identical to the posted bytes): x broadened to the rwxmap D137 test, QUERY defaults to r, and rwxmap 0.11.0 + rwxlite 0.3.1 figures from exam #6, per `ietf/v5/docs/change-plan-04.md`; posted before `/branch-review`, which is still owed. | `ietf/v1/docs/ietf-agent-delegation.md` (v1); `ietf/v2/docs/draft-hamr-oauth-agent-delegation-01.xml` (v2, posted); `ietf/v3/docs/draft-hamr-oauth-agent-delegation-02.xml` (v3, posted); `ietf/v4/docs/draft-hamr-oauth-agent-delegation-03.xml` (v4, posted); `ietf/v5/docs/draft-hamr-oauth-agent-delegation-04.xml` (v5, posted) | IETF (OAuth WG); supersedes `docs/archive/aaif-agent-auth.md`, retained only as a dated, superseded record of the earlier AAIF-targeted text |
 | D4 | **PoC** — Mode A demo, 4 assertions, mock + Orange backends | `camara/v1/poc/` | WG readers, demo audiences |
 | D5 | Sustained WG presence (meetings, mailing lists, PR responses) | calendars, minutes | CAMARA anti-staleness rules |
@@ -483,6 +487,25 @@ no longer describes the current tree. **M1–M6 all carry an asterisk again**
 pending a user run at the new counts. Full record: `CHANGELOG.md`,
 Unreleased, and the top entry of the decisions log below.
 
+**v3 build ladder (user-approved 2026-11-23; findings 2026-11-23).** The
+same binding rule applies: each code module is spiked at its toughest
+assumption, built, reviewed, fix-rounded, run from a runbook and
+validated BY THE USER, with a dated findings record, before the next
+module starts. Code lives in `camara/v3/poc/`, copied unchanged from
+`camara/v2/poc/` at the start of V3-M1 and then diverged (`camara/v2/poc/`
+stays frozen). Doc steps sit between modules in dependency order; the
+full order is §6 Phase 4b.
+
+| Module | Scope (works alone) | Toughest assumption its POC must attack |
+|---|---|---|
+| V3-S0 Orange check | spike only: does Orange Playground expose Tenure and SimSwap `/check` | decides whether V3-M5 exists; a single 404 is not evidence of absence |
+| V3-M1 signed answer | JWS (V2-M1 core) around the Sync26 Tenure `/check-tenure` and SimSwap `/check` answers; moves the v2 callers onto the JWS core (the never-run V2-M3) | the answer is unchanged; tampered, expired, wrong-nonce and wrong-key answers REJECT; no raw date leaks, tested with a threshold ABOVE the cap |
+| V3-M2 published menu | menu file + `400 OUT_OF_RANGE` refusal (spec §4.2); absorbs the V2-M3 off-menu `maxAge` item | off-menu is refused, never rounded; the `maxAge` hours conversion; the signed answer names its menu entry |
+| V3-M3 tighten only | the next party checks the signed threshold (spec §4.3) | a looser question REJECTS; no default widens a window |
+| V3-M4 first-case demo | M1-M3 composed on the mock (spec §4.5) | composition weakens no single module's guarantee; negative control included |
+| V3-M5 live | the V3-M4 demo on Orange Playground; only if V3-S0 passes | writes can be silently ignored — READ-after-write is load-bearing |
+| V3-M6 range | ranges on open values (spec §4.4); only after SimSwapTimeFrame publishes a definition | a range never collapses to the point value |
+
 ### 4.5 POC-first discipline applied to each module
 
 The riskiest assumption is **not** the crypto (stdlib, boring) — it is that
@@ -573,6 +596,8 @@ Explicit and binding. "Useful" is not a defense for any of these.
     standards-neutral.
 11. **No fourth document.** Design content folds into the 3-doc inventory
     (§3); this PRD's Decisions log absorbs what would otherwise be a side-doc.
+    Exception (user, 2026-11-23): one permanent spec per major project
+    version in `docs/product/` (§3).
 12. ~~No APIBacklog PR before supporters.~~ **RETIRED 2026-08-25 —
     verified false as a CAMARA requirement.** The APIBacklog template's own
     Supporters field reads verbatim: "List of supporters. *NOTE: That shall
@@ -610,6 +635,12 @@ Explicit and binding. "Useful" is not a defense for any of these.
     assume a CAMARA parameter name carries the same unit or meaning across
     APIs — `maxAge` is hours/event-window on the swap APIs and
     seconds/data-staleness on location verification.
+19. **CONFIRMED (user's call, 2026-11-23; findings 2026-11-23):** Never
+    claim as new what a CAMARA release already does. Sync26 already has
+    operator-set limits refused with `400 OUT_OF_RANGE` (Tenure,
+    kyc-age-verification, SimSwap), yes/no answers, `not_available`, and
+    single-use tokens (NumberVerification). Cite them as CAMARA's work;
+    claim only the gap (`docs/product/camara-v3-spec.md` §3).
 
 ## 6. Sequence
 
@@ -655,6 +686,42 @@ Phase 4  File: Commonalities guideline proposal + sim-swap
          `PUBLISHED_THRESHOLD_MENU` to 30/60/90 days (720/1440/2160h) and
          re-aim `demo.mjs`'s leak control to assert REFUSAL of an
          above-cap/off-menu request; not yet built.
+         2026-11-21: status comments posted on #705 and PR #331.
+         2026-11-23: PR #331 — the TSC points are closed; the
+         decision sits with the Commonalities WG on #705. #705 —
+         response signing is a Governance/TSC decision; use the
+         Sync26 definitions; AI-generated contributions need clear
+         human ownership. Sync26 moved toward the proposal. v2
+         FROZEN; v3 spec opened at `docs/product/camara-v3-spec.md`
+         (findings 2026-11-23).
+Phase 4b (v3, from 2026-11-23; modules per §4.4 v3 ladder; a doc
+         step waits for the steps it depends on)
+         1. Commit the v3 spec, these PRD changes and the v3 ladder;
+            release v0.17.0.
+         2. Post the Sync26 corrections on #705, in the author's own
+            words: what was wrong, what is fixed, and that the floor
+            moved toward the proposal (v3 §2). Keeps #705 active.
+         3. V3-S0: check Orange Playground for Tenure and SimSwap
+            `/check` (may run with step 2).
+         4. V3-M1 signed answer.
+         5. V3-M2 published menu.
+         6. Rewrite the OpenAPI sketch in `camara/v3/spec/` on Tenure
+            `/check-tenure`, SimSwap `/check` and `/retrieve-date`,
+            to match V3-M1 and V3-M2 (user review).
+         7. V3-M3 tighten only.
+         8. V3-M4 first-case demo.
+         9. Governance/TSC ask with the filing text in `camara/v3/docs/`,
+            citing the demo and the sketch (v3 §4.5); the author
+            presents it at the Commonalities meeting (bi-weekly,
+            Monday 15:00 UTC). An informal TSC question may come
+            earlier; the formal ask waits for step 8.
+        10. V3-M5 live (only if step 3 passed).
+        11. Join SimSwapTimeFrame (Number Insights meeting, every 4
+            weeks, Thursday 07:30 UTC); offer the first band
+            definition on the V3-M2 menu format (v3 §4.4). Waits on
+            SimSwapTimeFrame publishing a definition.
+        12. V3-M6 range (after step 11).
+        13. Post the #705 / TSC outcome on PR #331.
 Phase 5  WG evaluation populates named supporters (template
          validation → company support analysis → bi-weekly
          Backlog WG lazy consensus)                                [G5]
@@ -735,6 +802,22 @@ be repeated.
   existential past Sandbox, not political nicety, even though they are no
   longer a precondition for filing (G4; no-go 12 retired 2026-08-25).
   Sub-project cadence example: SimSwap meets every 4 weeks, Thu 07:30 UTC.
+- **Verified spec baseline (2026-11-23, CAMARA Sync26 — findings
+  2026-11-23; supersedes the bullet below, which stays as dated
+  history):** SimSwap r4.3, v2.2.0 (`/check`, `/retrieve-date`; `maxAge`
+  unchanged: hours, 1 to 2400, default 240). `/retrieve-age-band` was
+  removed from SimSwap before r4.1 (SimSwap#292); the TSC moved the age
+  band on 2026-09-17 to the Sandbox repository SimSwapTimeFrame, which
+  has no API definition yet. DeviceSwap r4.3, v1.1.0. NumberVerification
+  r4.2, v2.1.1 (single-use tokens of at most 300 s; `GET
+  /device-phone-number` still has no request body). kyc-match r2.3,
+  v1.0.0 (score 0 to 99, no requester threshold); kyc-fill-in r2.3,
+  v0.5.0; kyc-age-verification r2.3, v0.3.0, Sandbox (its README no
+  longer says Incubating), `400 OUT_OF_RANGE` outside the agreed range.
+  Tenure r3.4, v0.3.0 (operator threshold date R, `400 OUT_OF_RANGE`).
+  location-verification r4.3, v3.1.0 (`radius` minimum 1, no maximum).
+  None of the six predicate files contains JWS, signature, nonce or
+  attest. Full table: `docs/product/camara-v3-spec.md` §2.
 - **Verified spec baseline (2026-08-14, re-verified 2026-08-24, RETRACTED
   and corrected 2026-08-31 — findings):** SimSwap v2.1.0 ships `/check` and
   `/retrieve-date` ONLY — `/retrieve-age-band` is NOT in v2.1.0 (confirmed
@@ -870,7 +953,8 @@ we manage here:
    `numberMatch: [60, 70, 80, 90]` menu for kyc-match specifically (that
    menu still applies to the swap-recency predicates, which reuse the
    existing `maxAge` field). Implementation in `demo.mjs` is deferred to
-   V2-M2, not done in this round.
+   V2-M2, not done in this round. (2026-11-23: v2 frozen; kyc-match is
+   not in the v3 first case, so no module holds it yet.)
 6. **DECIDED (blind-hub scope, main session on the user's explicit
    delegation, 2026-08-31; findings 2026-08-31): file 2.1/2.2/2.4 only,
    hold 2.3 (blind hub) for a separate companion filing.** The
@@ -895,6 +979,7 @@ we manage here:
    `P365D` being above the 2400h cap to keep the leak-control assertion
    reachable; V2-M2 must re-aim that assertion to REFUSAL of an
    above-cap/off-menu request in the same change that shrinks the menu.
+   (2026-11-23: v2 frozen; this moves to V3-M2, §4.4.)
 
 ## 9. Decisions log
 
@@ -903,6 +988,7 @@ The full rationale for every decision lives in `docs/logs/findings.md`; this tab
 | Date | Decision | Status | Where |
 |---|---|---|---|
 | 2026-11-15/21 | IETF -04 SUBMITTED and posted 2026-11-15 (Datatracker submission 172386, 38 pages, 13600 words; expires 19 May 2027; idnits and idnits3 0 errors, 0 warnings); posted XML byte-identical to `ietf/v5/docs/`; `ietf/v5` frozen. Posted before `/branch-review`, which is still owed | active | [findings.md](../logs/findings.md#2026-11-1521---04-submitted-and-posted-2026-11-15-posted-bytes-match-the-repo-ietfv5-frozen-posted-before-branch-review) |
+| 2026-11-23 | CAMARA replies: PR #331 TSC points closed, decision with the Commonalities WG on #705; #705 codeowner: response signing is a Governance/TSC decision, use Sync26, AI contributions need clear human ownership. Sync26 moved toward the proposal (Tenure threshold R, kyc-age-verification `OUT_OF_RANGE`, single-use tokens); no-go 19 added. `camara/v2` frozen; CAMARA v3 spec opened at `docs/product/camara-v3-spec.md` (permanent-spec exception to §3 and no-go 11); precedent moved off `/retrieve-age-band` | active | [findings.md](../logs/findings.md#2026-11-23--camara-replies-on-705-and-pr-331-sync26-moved-toward-the-proposal-camarav2-frozen-camara-v3-spec-opened) |
 | 2026-11-21 | CAMARA follow-up: status comment on Commonalities #705 (supporting materials, agenda request) and status note on APIBacklog PR #331 (asks the TSC to confirm its three points), both read back and filed verbatim; 2026 TSC election not entered (Maintainers only). Released as v0.16.2 | active | [findings.md](../logs/findings.md#2026-11-21--camara-follow-up-posted-on-commonalities-705-and-apibacklog-pr-331) |
 | 2026-11-15 | IETF -04 document date set to 15 November 2026 for submission; Appendix A CAMARA status re-read and dated 2026-11-15 (#330, PR #331 and Commonalities #705 all open). Released as v0.16.1; `/branch-review` still deferred to before submission; NOT submitted | active | [findings.md](../logs/findings.md#2026-11-15---04-document-date-and-camara-status-date-set-to-2026-11-15-not-submitted) |
 | 2026-11-08/09 | IETF -04 opened on branch `ietf/04-rwxlite` as `ietf/v5/`, NOT submitted (Datatracker closed until 2026-11-14). x broadened to the rwxmap D137 test and its access clause, QUERY defaults to r (RFC 10008), Security Considerations corrected to match, rwxmap 0.11.0 + rwxlite 0.3.1 figures from exam #6 (90.3% right, 7.5% tighter, 2.2% looser over 1588 calls from five APIs checked new by provider name), Jev figures removed, RWXLITE and RFC 10008 references, CAMARA status date 2026-11-09. Released as v0.16.0 before submission; `/branch-review` deferred by the user to before submission | active | [findings.md](../logs/findings.md#2026-11-0809---04-opened-broader-x-query-is-r-rwxlite-and-exam-6-figures-not-submitted) |
