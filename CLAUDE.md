@@ -125,7 +125,7 @@ docs/product/      prd.md — THE contract: requirements, sequence, no-go list.
                    only the gap (signed answer, published menu, tighten-only,
                    ranges); first case Tenure + SimSwap /check, signed; not
                    filed. camara/v3/ gets records and filing text as they
-                   arrive; until then v3 cites camara/v2/poc
+                   arrive; camara/v3/poc holds the v3 code
 docs/logs/         findings.md — dated EVIDENCE + DECISION log: evidence is what was
                    RUN and OBSERVED, decisions are reasoned course changes with the why
 docs/archive/      aaif-agent-auth.md — SUPERSEDED 2026-08-25, retained as a dated
@@ -142,11 +142,16 @@ camara/v2/docs/    FROZEN 2026-11-23: the record of the Commonalities #705 round
 camara/v2/poc/     v1 M1-M6/demo copied unchanged 2026-08-31 (still what M2/M6/
                    demo run on) PLUS a new JWS attestation core built the same
                    day (m1-jws.mjs, m1-jws-check.mjs) — caller migration moved to
-                   V3-M1 (2026-11-23)
+                   V3-M4 (2026-11-23)
 camara/v2/spec/    working copy of camara/v1/spec/, rewritten 2026-08-31 for the
                    JWS envelope (renamed schemas, required phoneNumber, replaces
                    the old {claims,sig} shape) — 215 -> 319 lines, not unchanged;
                    FROZEN 2026-11-23 with camara/v2/docs and camara/v2/poc
+camara/v3/poc/     copied unchanged from camara/v2/poc on 2026-11-23 (a4283fb),
+                   then diverged at V3-M1: m1-jws.mjs, m1-jws-check.mjs and
+                   README.md (signed `api` claim, TENURE_CHECK,
+                   attachAttestation); the other modules are still the v2 code,
+                   with only their run-line paths changed to camara/v3/poc
 ietf/v1/docs/      frozen record of draft-hamr-oauth-agent-delegation-00 as
                    posted 2026-08-31 (agent/delegation side, OAuth WG target);
                    ietf-agent-delegation.md is the companion prose proposal

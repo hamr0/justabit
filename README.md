@@ -162,6 +162,9 @@ camara/v2/docs/     FROZEN 2026-11-23: the record of the Commonalities #705
 camara/v2/poc/      copy of camara/v1/poc/ plus the JWS attestation core;
                     FROZEN 2026-11-23
 camara/v2/spec/     the JWS-envelope OpenAPI sketch; FROZEN 2026-11-23
+camara/v3/poc/      v3 code: copy of camara/v2/poc/ (2026-11-23); V3-M1
+                    adds the signed `api` claim and the Tenure schema to
+                    the JWS core
 ietf/v1/docs/       frozen record of draft-hamr-oauth-agent-delegation-00
                     as posted 2026-08-31 (agent/delegation side, OAuth WG
                     target); ietf-agent-delegation.md is the companion

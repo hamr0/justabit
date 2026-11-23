@@ -74,8 +74,16 @@ The operator signs the existing answer. The answer itself does not change.
   carries the question asked (API, threshold), the answer, the requester's
   `nonce`, the issue time and an expiry (`exp`).
 - The verifier finds the operator's key through a published JWKS.
-- The answer stays yes/no. The attestation never carries the raw value
-  (no date, no number, no location).
+- The answer stays yes/no. The attestation never carries the subscriber's
+  raw value (no swap date, no subscription date, no location). It repeats
+  only the requester's own question (for example `maxAge` or `tenureDate`),
+  which the requester already knows.
+- A signed response carries only the answer field and `attestation`.
+  Other fields of today's response (for example Tenure's `contractType`)
+  are left out, so nothing unsigned travels beside the signature. A request
+  without `nonce` gets today's response, unchanged.
+- A `nonce` that is present but is not a non-empty string (for example
+  `null` or `""`) is refused, never treated as absent.
 - If a response is also encrypted for an intermediary, it is signed first
   and then encrypted, so the requester still verifies the operator.
 

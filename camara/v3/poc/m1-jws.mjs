@@ -1,6 +1,17 @@
-// PoC module V2-M1 — JWS (RFC 7515, EdDSA) attestation core. NEW module, built
+// PoC module V3-M1 (built on the V2-M1 core) — JWS (RFC 7515, EdDSA) attestation core. NEW module, built
 // alongside the raw-Ed25519 `m1-attestation.mjs` (untouched, still what M2/M6/
-// demo run on). Caller migration to this module is a later module (V2-M3).
+// demo run on). Caller migration to this module is V3-M4 (user decision
+// 2026-11-23; it was V2-M3, never run).
+//
+// V3-M1 (this copy, camara/v3/poc): an answer schema now carries a fixed `api`
+// value (SIM_SWAP_CHECK, TENURE_CHECK, both on Sync26); attestAnswer writes it
+// into the payload, verifyAnswer rejects a payload whose `api` differs or is
+// absent (API_MISMATCH). `api` is NOT in the shared base set, so the refusal
+// profile is unchanged. `attachAttestation` is the caller-level rule: it BUILDS
+// the signed response (answer + `attestation` only) and, with no nonce, returns
+// today's response unchanged. Signed refusals stay API-unbound until V3-M2
+// (attestRefusal/verifyRefusal carry no `api`). M1 checks the question's type
+// only; its range is V3-M2.
 //
 // Two layers:
 //   Layer 1 — signJws/verifyJws: a generic, payload-agnostic JWS compact
@@ -238,10 +249,21 @@ const BASE_FIELDS = { iss: 'string', aud: 'string', nonce: 'string', iat: 'integ
 // closed for the answer profile.
 const REFUSAL_FIELDS = Object.freeze({ error: 'string' });
 
+// V3-M1: 'date' = YYYY-MM-DD that is a real calendar date (round-trips through
+// Date.UTC fields), nothing else: no time part, no short forms, no 02-30.
+function isCalendarDate(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const y = Number(value.slice(0, 4)), m = Number(value.slice(5, 7)), d = Number(value.slice(8, 10));
+  const t = new Date(0);
+  t.setUTCFullYear(y, m - 1, d);
+  return t.getUTCFullYear() === y && t.getUTCMonth() === m - 1 && t.getUTCDate() === d;
+}
+
 function typeOk(type, value) {
   if (type === 'string') return typeof value === 'string' && value.length > 0;
   if (type === 'integer') return Number.isSafeInteger(value);
   if (type === 'boolean') return typeof value === 'boolean';
+  if (type === 'date') return isCalendarDate(value);
   return false;
 }
 
@@ -347,14 +369,129 @@ function verifyRequesterChecks(payload, { expectedIss, expectedAud, nonceStore, 
 }
 
 // The named schema. SIM_SWAP_CHECK produces the exact seven-claim payload
-// in camara/v2/docs/camara-attested-windowed-disclosure.md §4. (A second,
-// TENURE_CHECK schema used to live here to prove the mechanism is not
-// SimSwap-specific; it had no real caller anywhere in the tree, so it now
-// lives as a test-only fixture in m1-jws-check.mjs instead.)
+// in camara/v2/docs/camara-attested-windowed-disclosure.md §4, plus the V3-M1
+// `api` claim. Each answer schema carries its fixed `api` value (the CAMARA
+// URL path segment); a caller can never supply its own.
 export const SIM_SWAP_CHECK = Object.freeze({
+  api: 'sim-swap/v2/check',
   params: Object.freeze({ maxAge: 'integer' }),
   answer: Object.freeze({ swapped: 'boolean' }),
 });
+
+// V3-M1: Tenure on Sync26 (kyc-tenure v0.3, POST /check-tenure). Today's
+// response also carries `contractType`; a signed response leaves it out
+// (attachAttestation builds the response from the answer keys only).
+export const TENURE_CHECK = Object.freeze({
+  api: 'kyc-tenure/v0.3/check-tenure',
+  params: Object.freeze({ tenureDate: 'date' }),
+  answer: Object.freeze({ tenureDateCheck: 'boolean' }),
+});
+
+// Fails closed on a caller who tries to supply `api` (in base, params or
+// answer) or on a schema whose params/answer name `api`: the value comes
+// from the schema only. Closest existing typed code: RESERVED_CLAIM.
+// `attestation` is reserved the same way: it is the response member that
+// carries the token, so no signed claim may share its name.
+function checkApiNotCallerSupplied(...objs) {
+  for (const o of objs) {
+    if (hasOwn(o, 'api')) return new ClaimRejected('RESERVED_CLAIM', 'api is set by the schema, never by the caller');
+    if (hasOwn(o, 'attestation')) return new ClaimRejected('RESERVED_CLAIM', 'attestation is a reserved claim name');
+  }
+  return null;
+}
+
+// A schema must carry its own fixed `api` value (fail closed if absent).
+function checkSchemaApi(schema) {
+  if (!hasOwn(schema, 'api') || typeof schema.api !== 'string' || schema.api.length === 0) {
+    return new ClaimRejected('MALFORMED_INPUT', 'answer schema must carry a non-empty api');
+  }
+  return null;
+}
+
+// Caller-level rule, spec V3-M1 §2: no requester nonce -> no attestation.
+// `attachAttestation(body, nonce, opts)` with opts = { privateKey, kid, base,
+// schema, params } BUILDS the signed response; it never filters `body`.
+//  - body not a plain object (or the check itself throws, e.g. a Proxy trap):
+//    TypeError. Otherwise this function throws ONLY AttestationFailed (any
+//    other throw, e.g. a throwing getter or a null `opts`, is wrapped with
+//    `cause`).
+//  - nonce `undefined`: return a plain shallow copy of `body`, unchanged
+//    (today's Sync26 response, not profile mode). Nothing else is checked.
+//  - nonce not a non-empty string: AttestationFailed.
+//  - schema api/params/answer are read ONCE into snapshots; each answer value
+//    is read ONCE from `body` (the key must be an own key of `body`, else
+//    AttestationFailed); `base` must be a plain object without its own nonce.
+//  - attestAnswer fails (returns a non-string): AttestationFailed, cause =
+//    the refusal reason. The unsigned body is never returned.
+//  - success: a NEW object made ONLY of the answer keys (the snapshot values
+//    that were signed) and then `attestation`. Nothing else from `body` is
+//    copied, so no raw field, extra field or forged `attestation` can ride
+//    beside the signature.
+// Scope: refusals stay API-unbound until V3-M2. M1 checks the question's type
+// only (e.g. `tenureDate` is a date); its range is V3-M2.
+export class AttestationFailed extends Error {
+  constructor(message, options) {
+    super(message || 'attestation failed', options);
+    this.name = 'AttestationFailed';
+  }
+}
+
+function defineOwn(o, k, v) {
+  Object.defineProperty(o, k, { value: v, enumerable: true, writable: true, configurable: true });
+}
+
+// One read of a flat plain-object map (schema.answer / schema.params).
+function snapshotMap(raw) {
+  if (!isPlainObject(raw)) return raw;
+  const snap = {};
+  for (const k of Object.keys(raw)) defineOwn(snap, k, raw[k]);
+  return snap;
+}
+
+export function attachAttestation(body, nonce, opts) {
+  let bodyOk;
+  try {
+    bodyOk = isPlainObject(body);
+  } catch {
+    throw new TypeError('body must be a plain object');
+  }
+  if (!bodyOk) throw new TypeError('body must be a plain object');
+  try {
+    if (nonce === undefined) return { ...body };
+    if (typeof nonce !== 'string' || nonce.length === 0) {
+      throw new AttestationFailed('nonce must be a non-empty string');
+    }
+    const { privateKey, kid, base, schema, params } = opts;
+    if (!isPlainObject(schema)) throw new AttestationFailed('schema must be a plain object');
+    const rawAnswer = schema.answer;
+    const rawParams = schema.params;
+    if (!isPlainObject(rawAnswer)) throw new AttestationFailed('schema.answer must be a plain object');
+    const answerSnap = snapshotMap(rawAnswer);
+    const schemaSnap = {};
+    if (hasOwn(schema, 'api')) defineOwn(schemaSnap, 'api', schema.api);
+    defineOwn(schemaSnap, 'params', snapshotMap(rawParams));
+    defineOwn(schemaSnap, 'answer', answerSnap);
+    const answer = {};
+    for (const k of Object.keys(answerSnap)) {
+      if (!hasOwn(body, k)) throw new AttestationFailed('body is missing an answer key');
+      defineOwn(answer, k, body[k]);
+    }
+    if (!isPlainObject(base) || hasOwn(base, 'nonce')) {
+      throw new AttestationFailed('base must be a plain object without its own nonce');
+    }
+    const token = attestAnswer(privateKey, kid, { ...base, nonce }, schemaSnap, params, answer);
+    if (typeof token !== 'string') {
+      throw new AttestationFailed('attestation could not be signed', { cause: token && token.reason });
+    }
+    const out = {};
+    for (const k of Object.keys(answerSnap)) defineOwn(out, k, answer[k]);
+    defineOwn(out, 'attestation', token);
+    return out;
+  } catch (e) {
+    if (e instanceof AttestationFailed) throw e;
+    throw new AttestationFailed('attestation failed', { cause: e });
+  }
+}
 
 // Closed refusal-reason enum. A refusal is signed too — a signed excuse is
 // still an attestation, so its `error` value must come from a fixed menu,
@@ -364,12 +501,12 @@ export const UNAVAILABLE = 'UNAVAILABLE';
 export const REFUSAL_REASONS = Object.freeze([OFF_MENU_THRESHOLD, UNAVAILABLE]);
 
 // `base` = { iss, aud, nonce, iat, exp } — the five claims shared by both
-// profiles. `schema` = { params: {name:type}, answer: {name:type} }.
-// Key order (`{...base, ...params, ...answer}`) is what makes the SIM_SWAP
-// round trip land as iss,aud,nonce,iat,exp,maxAge,swapped, matching the
-// docs' worked example byte-for-byte in field order (not load-bearing for
-// verification, since object equality doesn't care about key order, but
-// worth keeping honest).
+// profiles. `schema` = { api, params: {name:type}, answer: {name:type} }.
+// Key order: the payload is `{...base, api, ...params, ...answer}`. Order is
+// not load-bearing for verification (object equality doesn't care). With a
+// base of {iss,aud,nonce,iat,exp}, attestAnswer signs
+// iss,aud,nonce,iat,exp,api,...; attachAttestation passes `{...base, nonce}`
+// and so signs iss,aud,iat,exp,nonce,api,....
 /**
  * @returns {string|{ok: false, reason: ClaimRejected|JwsRejected}} Returns
  *   exactly what `signJws` returns — this function has no success shape of
@@ -396,6 +533,10 @@ export function attestAnswer(privateKey, kid, base, schema, params, answer) {
         !isPlainObject(params) || !isPlainObject(answer)) {
       return { ok: false, reason: new ClaimRejected('MALFORMED_INPUT', 'base/schema/params/answer must be plain objects') };
     }
+    const schemaApiErr = checkSchemaApi(schema);
+    if (schemaApiErr) return { ok: false, reason: schemaApiErr };
+    const apiSuppliedErr = checkApiNotCallerSupplied(base, params, answer, schema.params, schema.answer);
+    if (apiSuppliedErr) return { ok: false, reason: apiSuppliedErr };
     const answerEmptyErr = checkAnswerNotEmpty(schema.answer);
     if (answerEmptyErr) return { ok: false, reason: answerEmptyErr };
     const extraFields = { ...schema.params, ...schema.answer };
@@ -403,8 +544,8 @@ export function attestAnswer(privateKey, kid, base, schema, params, answer) {
     if (collisionErr) return { ok: false, reason: collisionErr };
     const selfCollisionErr = checkNoSelfCollision(schema.params, schema.answer);
     if (selfCollisionErr) return { ok: false, reason: selfCollisionErr };
-    const payload = { ...base, ...params, ...answer };
-    const err = checkClosedPayload(payload, extraFields);
+    const payload = { ...base, api: schema.api, ...params, ...answer };
+    const err = checkClosedPayload(payload, { api: 'string', ...extraFields });
     if (err) return { ok: false, reason: err };
     return signJws(privateKey, kid, payload);
   } catch {
@@ -415,7 +556,7 @@ export function attestAnswer(privateKey, kid, base, schema, params, answer) {
 /**
  * @returns {{ok: true, claims: object}|{ok: false, reason: JwsRejected|ClaimRejected}}
  *   On success, `{ok: true, claims}` where `claims` is the schema-projected
- *   claim set only (base ∪ schema.params ∪ schema.answer — never the raw
+ *   claim set only (base ∪ api ∪ schema.params ∪ schema.answer — never the raw
  *   decoded payload; see `projectClaims`). On failure, `{ok: false, reason}`
  *   where `reason` is a `JwsRejected` (propagated from `verifyJws` —
  *   malformed token, bad signature, unknown kid) or a `ClaimRejected`
@@ -444,6 +585,10 @@ export function verifyAnswer(token, resolveKey, schema, { expectedIss, expectedA
     if (!isPlainObject(schema) || !isPlainObject(schema.params) || !isPlainObject(schema.answer)) {
       return { ok: false, reason: new ClaimRejected('MALFORMED_INPUT', 'schema must be a plain object with params/answer') };
     }
+    const schemaApiErr = checkSchemaApi(schema);
+    if (schemaApiErr) return { ok: false, reason: schemaApiErr };
+    const apiSuppliedErr = checkApiNotCallerSupplied(schema.params, schema.answer);
+    if (apiSuppliedErr) return { ok: false, reason: apiSuppliedErr };
     const answerEmptyErr = checkAnswerNotEmpty(schema.answer);
     if (answerEmptyErr) return { ok: false, reason: answerEmptyErr };
     const extraFields = { ...schema.params, ...schema.answer };
@@ -451,13 +596,20 @@ export function verifyAnswer(token, resolveKey, schema, { expectedIss, expectedA
     if (collisionErr) return { ok: false, reason: collisionErr };
     const selfCollisionErr = checkNoSelfCollision(schema.params, schema.answer);
     if (selfCollisionErr) return { ok: false, reason: selfCollisionErr };
-    const closedErr = checkClosedPayload(r.payload, extraFields);
+    // V3-M1: the token must name THIS schema's API. Absent `api` fails closed
+    // with the same code; checked before the closed set so it holds on its own
+    // (two schemas of identical shape are told apart by `api` alone).
+    if (!hasOwn(r.payload, 'api') || r.payload.api !== schema.api) {
+      return { ok: false, reason: new ClaimRejected('API_MISMATCH', 'api claim missing or not this schema\'s api') };
+    }
+    const answerFields = { api: 'string', ...extraFields };
+    const closedErr = checkClosedPayload(r.payload, answerFields);
     if (closedErr) return { ok: false, reason: closedErr };
     const reqErr = verifyRequesterChecks(r.payload, { expectedIss, expectedAud, nonceStore, now });
     if (reqErr) return { ok: false, reason: reqErr };
-    // D1 FIX: hand back only the schema-declared claims (base ∪ extraFields),
+    // D1 FIX: hand back only the schema-declared claims (base ∪ api ∪ extraFields),
     // never the raw decoded payload — see projectClaims above.
-    return { ok: true, claims: projectClaims(r.payload, { ...BASE_FIELDS, ...extraFields }) };
+    return { ok: true, claims: projectClaims(r.payload, { ...BASE_FIELDS, ...answerFields }) };
   } catch {
     return { ok: false, reason: new ClaimRejected('MALFORMED_INPUT', 'schema must be a plain object with params/answer') };
   }

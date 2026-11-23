@@ -1,43 +1,62 @@
 # PoC — Mode A, four assertions, one command
 
-**v2 working copy, started as an unchanged copy of v1 on 2026-08-31; V2-M1 has since built alongside it (see addendum below).**
+**v3 working copy, copied unchanged from `camara/v2/poc` on 2026-11-23 (commit `a4283fb`); `camara/v2/poc` stays frozen. V3-M1 has since changed `m1-jws.mjs`, `m1-jws-check.mjs` and `README.md` (see below); the other modules are still the v2 code, with only their run-line paths changed to `camara/v3/poc`.**
 
-**2026-08-31 addendum:** v2 PoC code (M1-M6, demo) is still unchanged from
-v1 (Ed25519 raw-bytes envelope) — that is what M2/M6/`demo.mjs` run on, and
-callers stay on it until V2-M3 migrates them. **V2-M1 built alongside it,
-same day:** `camara/v2/poc/m1-jws.mjs`, a new JWS (RFC 7515, EdDSA)
-attestation core with two layers — a generic `signJws`/`verifyJws`
-primitive, and `attestAnswer`/`verifyAnswer` + `attestRefusal`/
-`verifyRefusal` closed-claim-set profiles matching
-`camara/v2/docs/camara-attested-windowed-disclosure.md` §4 exactly
-(the exported `SIM_SWAP_CHECK` schema; `m1-jws-check.mjs` also carries a
-test-only `TENURE_CHECK` fixture proving the mechanism generalizes).
-AGENT-RUN 94/94, user validation PENDING again: the 39/39 count was
-user-validated at `2c71a20` (2026-09-01), but a D1/D2 fix round moved the
-count to 82, and a fourth `/branch-review` cycle then moved it again — an
-equivalent mutant deleting the projectClaims call sites still passed 82/82,
-and a literal `__proto__:` schema key could silently zero out an answer
-schema — so neither record transfers forward per this repo's standing rule
-(a user record covers the tree it was run at, not a later change, even a
-comment-only one).
+**2026-11-23 — V3-M1 (signed answer).** Caller migration (M2/M6/`demo.mjs`
+onto the JWS core) is V3-M4 (user decision 2026-11-23), not V2-M3: until then
+M2/M6/`demo.mjs` still run on the raw-Ed25519 envelope (`m1-attestation.mjs`).
+V3-M1 changes `camara/v3/poc/m1-jws.mjs` as follows:
+
+- The answer payload is no longer seven claims; it carries `api` too, after
+  the base claims and before the question and answer claims. Claim order is
+  not load-bearing for verification: `attestAnswer` with a base of
+  `iss, aud, nonce, iat, exp` signs `iss, aud, nonce, iat, exp, api, ...`;
+  `attachAttestation` signs `iss, aud, iat, exp, nonce, api, ...`.
+- `attestation` is a reserved claim name, exactly as `api` is: a schema that
+  names it, or a caller who supplies it, is rejected with `RESERVED_CLAIM`
+  (through `attachAttestation`: `AttestationFailed` with that cause).
+- Two exported answer schemas, each with a fixed `api` value:
+  `SIM_SWAP_CHECK` (`sim-swap/v2/check`) and `TENURE_CHECK`
+  (`kyc-tenure/v0.3/check-tenure`).
+- `verifyAnswer` rejects a payload whose `api` differs from the schema's with
+  the typed code `API_MISMATCH`.
+- `attachAttestation(body, nonce, opts)` (opts = `{ privateKey, kid, base,
+  schema, params }`) BUILDS the signed response; it never filters `body`.
+  With a nonce, the response holds only the `schema.answer` keys (each read
+  once from `body`, and it must be an own key) and `attestation`, last.
+  Nothing else from `body` is copied: Tenure's `contractType`, a raw field, a
+  Symbol key, a `__proto__` key or a forged `attestation` never reach the
+  requester beside the signature. Every `schema.answer` value in the response
+  equals the verified claim. `schema.api`, `schema.params` and `schema.answer`
+  are read once, so a getter cannot make the response and the signature differ.
+- With a nonce of `undefined` (and only that), the call returns a plain copy
+  of `body`, unchanged: today's Sync26 response, not profile mode. Nothing
+  else is checked on that path.
+- Any other nonce that is not a non-empty string (null, `""`, 42) throws
+  `AttestationFailed` before `opts` is read. A missing answer key, a `base`
+  that is not a plain object or carries its own `nonce`, a throwing getter on
+  an answer key or on `opts`, a null `opts`, or `attestAnswer` not returning a
+  token also throw `AttestationFailed` (the underlying reason rides along as
+  `cause`). A body that is not a plain object, or whose plain-object check
+  throws (a Proxy trap), throws `TypeError`; nothing else escapes.
+- Signed refusals stay API-unbound until V3-M2.
+- M1 signs any well-typed question; the allowed range (maxAge 1-2400 h,
+  tenureDate from the operator's threshold R to today) is enforced by the
+  V3-M2 menu, not M1.
+- `TENURE_CHECK.params.tenureDate` is now type `date`: `YYYY-MM-DD` and a real
+  calendar date (`2024-02-30`, `2024-1-01`, a timestamp, `""` fail with
+  `WRONG_TYPE`).
+- A schema must carry an OWN `api`; an inherited one (a polluted
+  `Object.prototype.api`) is refused with `MALFORMED_INPUT`.
+
+User-validated 314/314 for `m1-jws-check.mjs` (2026-11-23, findings
+2026-11-23). No earlier user-validation record applies to v3: every
+"user-validated" or "LIVE-CONFIRMED" note below is dated history of the v2
+tree, kept as written.
 
 ```
-node camara/v2/poc/m1-jws-check.mjs   # V2-M1 JWS attestation core — 94 cases (AGENT-RUN
-                        #   94/94, 2026-09-01 — D1 fix: checkClosedPayload/
-                        #   checkNoReservedCollision/checkNoSelfCollision
-                        #   switched from `in` (walks the prototype chain) to
-                        #   own-key membership, plus a projectClaims
-                        #   allowlist on the returned claims; D2 fix: attest/
-                        #   verifyAnswer and attest/verifyRefusal wrapped in a
-                        #   try/catch backstop against a throwing schema
-                        #   getter/Proxy. 39 -> 82; S1 fix: key-order mutation
-                        #   proof that verifyAnswer/verifyRefusal's
-                        #   projectClaims call sites are actually live, not
-                        #   equivalent to `claims: r.payload`; S2 fix: an
-                        #   answer schema whose `answer` half has zero own
-                        #   keys (the literal `__proto__:` trap) is now
-                        #   refused as EMPTY_ANSWER_SCHEMA. 82 -> 94; user
-                        #   validation PENDING)
+node camara/v3/poc/m1-jws-check.mjs   # V3-M1 JWS attestation core — 314 cases
+                        #   (user-validated 314/314, 2026-11-23)
 ```
 
 **Requirements & no-gos:** [`docs/product/prd.md`](../../docs/product/prd.md) §4–§5.
@@ -46,12 +65,13 @@ node camara/v2/poc/m1-jws-check.mjs   # V2-M1 JWS attestation core — 94 cases 
 per-module user validation; see PRD §4.4 and the decision log) and the ladder
 since then has held: each module is POC'd against its toughest assumption,
 built, proven end-to-end on its own, and **validated by the user before the
-next module starts**. **Both gates are now MET at code commit `4446517` /
+next module starts**. **Both gates were MET, on the v2 tree, at code commit `4446517` /
 docs commit `c921508`: the user ran the full validation suite on their own
 machine (log timestamped 2026-08-18 08:16) — every suite clean, zero `FAIL`,
 zero `TypeError`, zero `Error:` lines in the entire log.** Gate G1 (M1–M4 + M6
-all user-validated) is MET at the current counts; gate G2 (M5 user-validated
-live) is MET on both legs (offline and live). This is the first time in this
+all user-validated) was MET at those v2 counts; gate G2 (M5 user-validated
+live) was MET on both legs (offline and live) there. No gate is met for v3
+until the user runs it. That was the first time in this
 project both gates have been met at the same commit, on a tree that had
 already been through two `/code-review` rounds with every fix
 mutation-proven. This record covers `4446517`/`c921508` only, per this
@@ -60,16 +80,16 @@ see `docs/logs/findings.md`, 2026-08-18 (latest). Every check runs on
 its own (negatives first, exit 0 only if every case holds):
 
 ```
-node camara/v2/poc/m1-check.mjs   # M1 attestation core — 20 cases (user-validated 20/20 at
-                        #   `4446517`, 2026-08-18)
-node camara/v2/poc/m2-check.mjs   # M2 blind envelope — 10 cases (user-validated 10/10 at
-                        #   `4446517`, 2026-08-18)
-node camara/v2/poc/m3-check.mjs   # M3 floor gate — 26 cases (user-validated 26/26 at
-                        #   `4446517`, 2026-08-18)
-node camara/v2/poc/m4-check.mjs   # M4 mock facts adapter — 42 cases (user-validated 42/42 at
-                        #   `d85d3cf`/v0.5.0, 2026-08-18)
-node camara/v2/poc/m5-check.mjs   # M5 orange facts adapter, OFFLINE — 67 cases (user-validated
-                        #   67/67 at `d85d3cf`/v0.5.0, 2026-08-18).
+node camara/v3/poc/m1-check.mjs   # M1 attestation core — 20 cases (user-validated 20/20 at
+                        #   `4446517`, 2026-08-18) (v2 tree, not re-run on v3)
+node camara/v3/poc/m2-check.mjs   # M2 blind envelope — 10 cases (user-validated 10/10 at
+                        #   `4446517`, 2026-08-18) (v2 tree, not re-run on v3)
+node camara/v3/poc/m3-check.mjs   # M3 floor gate — 26 cases (user-validated 26/26 at
+                        #   `4446517`, 2026-08-18) (v2 tree, not re-run on v3)
+node camara/v3/poc/m4-check.mjs   # M4 mock facts adapter — 42 cases (user-validated 42/42 at
+                        #   `d85d3cf`/v0.5.0, 2026-08-18) (v2 tree, not re-run on v3)
+node camara/v3/poc/m5-check.mjs   # M5 orange facts adapter, OFFLINE — 67 cases (user-validated
+                        #   67/67 at `d85d3cf`/v0.5.0, 2026-08-18). (v2 tree, not re-run on v3)
                         #   Zero credentials, zero network:
                         #   an injected transport replays responses captured live on
                         #   2026-08-16, so it runs on a clean clone.
@@ -77,7 +97,7 @@ node camara/v2/poc/m5-check.mjs   # M5 orange facts adapter, OFFLINE — 67 case
 # M5 LIVE — the G2 gate. Talks to the real Orange Playground.
 # `| head -1` because a `pass` entry is multi-line (secret on line 1, notes below).
 # The stored value is ALREADY `Basic <base64>`; the adapter normalizes either form.
-ORANGE_BASIC_AUTH="$(pass camara/orange_network | head -1)" node camara/v2/poc/m5-check-live.mjs
+ORANGE_BASIC_AUTH="$(pass camara/orange_network | head -1)" node camara/v3/poc/m5-check-live.mjs
                         # 19 cases (11/11 user-validated at 8e842c3, the shipped
                         # v0.3.0 state — that met G2 AT THAT TREE. The 3 -> 6 round
                         # never touched this file: the user's live run of it died on
@@ -92,7 +112,7 @@ ORANGE_BASIC_AUTH="$(pass camara/orange_network | head -1)" node camara/v2/poc/m
                         # `9b04854` and `4446517` — closed again by a fresh full user
                         # run: LIVE-CONFIRMED AGAIN at `4446517`/`c921508`
                         # (2026-08-18 08:16), 19/19. G2 IS MET at `4446517` — see
-                        # docs/logs/findings.md, 2026-08-18 (latest).
+                        # docs/logs/findings.md, 2026-08-18 (latest). (v2 tree, not re-run on v3)
                         # exit 2 + printed prerequisites if the credential is absent —
                         # never a silent pass, never a mock fallback.
                         # COSTS QUOTA: consumes and returns one of the app's 10 custom
@@ -100,10 +120,10 @@ ORANGE_BASIC_AUTH="$(pass camara/orange_network | head -1)" node camara/v2/poc/m
                         # interrupted run does not leak one), prints the count at both
                         # ends, and case 19 asserts it came back.
 
-node camara/v2/poc/m6-check.mjs   # M6 integration — 47 cases (user-validated 47/47 at
+node camara/v3/poc/m6-check.mjs   # M6 integration — 47 cases (user-validated 47/47 at
                         #   `d85d3cf`/v0.5.0, 2026-08-18 — case 46 CROSS-REQUESTER
                         #   SEALING added earlier, second code-review round, 45 -> 46;
-                        #   case 47 CONDITIONAL AXIS READ added in the M7 round, 46 -> 47).
+                        #   case 47 CONDITIONAL AXIS READ added in the M7 round, 46 -> 47). (v2 tree, not re-run on v3)
                         #   Zero credentials, zero network in BOTH
                         #   backend modes: the `--backend orange` seam runs
                         #   through an injected transport replaying captured
@@ -114,16 +134,16 @@ node camara/v2/poc/m6-check.mjs   # M6 integration — 47 cases (user-validated 
                         #   Takes ~15s — RSA-4096 keygen dominates.
 ```
 
-## The demo — `node camara/v2/poc/demo.mjs`
+## The demo — `node camara/v3/poc/demo.mjs`
 
 ```
-node camara/v2/poc/demo.mjs                    # mock backend: zero credentials, zero network
+node camara/v3/poc/demo.mjs                    # mock backend: zero credentials, zero network
 
 # live: Orange Network APIs Playground. `| head -1` because a `pass` entry is
 # multi-line (secret on line 1, notes below) — the adapter also defends itself
 # by using line 1 only, but a whole entry in a header makes fetch throw a string
 # quoting the notes.
-ORANGE_BASIC_AUTH="$(pass camara/orange_network | head -1)" node camara/v2/poc/demo.mjs --backend orange
+ORANGE_BASIC_AUTH="$(pass camara/orange_network | head -1)" node camara/v3/poc/demo.mjs --backend orange
 ```
 
 It prints the four assertions in plain language — a `Q:` with the scripted
