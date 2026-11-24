@@ -5,11 +5,12 @@
 // the other check files (a shrinking suite must not read as green).
 import { generateKeyPairSync, randomUUID, sign as rawSign } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
+import { seal, open } from './m2-envelope.mjs';
 import {
   signJws, verifyJws, compactSize,
   attestAnswer, verifyAnswer, attestRefusal, verifyRefusal,
   makeNonceStore, JwsRejected, ClaimRejected,
-  SIM_SWAP_CHECK, TENURE_CHECK, attachAttestation, AttestationFailed, OFF_MENU_THRESHOLD, UNAVAILABLE,
+  SIM_SWAP_CHECK, TENURE_CHECK, attachAttestation, AttestationFailed, OUT_OF_RANGE, UNAVAILABLE, KNOWN_APIS, parseDuration,
 } from './m1-jws.mjs';
 
 // V3-M1: TENURE_CHECK is now an exported named schema in m1-jws.mjs.
@@ -171,7 +172,7 @@ check('1 WRONG SEGMENT COUNT', false, verifyJws('abc.def', resolveKey), JwsRejec
 // by the real operator key, so this is purely a directory-resolution fault.
 {
   const base = freshBase();
-  const token = signJws(operator.privateKey, OP_KID, { ...base, api: TEST_API, maxAge: 2160, swapped: false });
+  const token = signJws(operator.privateKey, OP_KID, { ...base, api: TEST_API, entry: 'P90D', swapped: false });
   const wrongResolve = () => impostor.publicKey;
   check('11 WRONG KEY FROM resolveKey', false, verifyJws(token, wrongResolve), JwsRejected);
 }
@@ -179,7 +180,7 @@ check('1 WRONG SEGMENT COUNT', false, verifyJws('abc.def', resolveKey), JwsRejec
 // 12 FLIPPED PAYLOAD BYTE — one bit tampered after signing.
 {
   const base = freshBase();
-  const token = signJws(operator.privateKey, OP_KID, { ...base, api: TEST_API, maxAge: 2160, swapped: false });
+  const token = signJws(operator.privateKey, OP_KID, { ...base, api: TEST_API, entry: 'P90D', swapped: false });
   const [h, p, s] = token.split('.');
   const pBuf = Buffer.from(p, 'base64url');
   pBuf[0] ^= 0xff;
@@ -200,9 +201,9 @@ check('1 WRONG SEGMENT COUNT', false, verifyJws('abc.def', resolveKey), JwsRejec
 // 14 EXTRA CLAIM — a leaky operator ships a raw field alongside the answer.
 {
   const base = freshBase();
-  const token = signJws(operator.privateKey, OP_KID, { ...base, api: TEST_API, maxAge: 2160, swapped: false, swapTimestamp: '2026-01-02' });
+  const token = signJws(operator.privateKey, OP_KID, { ...base, api: TEST_API, entry: 'P90D', swapped: false, swapTimestamp: '2026-01-02' });
   check('14 EXTRA CLAIM', false,
-    verifyAnswer(token, resolveKey, SIM_SWAP_CHECK, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW }),
+    verifyAnswer(token, resolveKey, SIM_SWAP_CHECK, { expectedIss: ISS, expectedAud: AUD, expectedEntry: 'P90D', nonceStore, now: NOW }),
     ClaimRejected, 'EXTRA_CLAIM');
 }
 
@@ -210,9 +211,9 @@ check('1 WRONG SEGMENT COUNT', false, verifyJws('abc.def', resolveKey), JwsRejec
 // field is absent.
 {
   const base = freshBase();
-  const token = signJws(operator.privateKey, OP_KID, { ...base, api: TEST_API, maxAge: 2160 });
+  const token = signJws(operator.privateKey, OP_KID, { ...base, api: TEST_API, entry: 'P90D' });
   check('15 MISSING CLAIM', false,
-    verifyAnswer(token, resolveKey, SIM_SWAP_CHECK, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW }),
+    verifyAnswer(token, resolveKey, SIM_SWAP_CHECK, { expectedIss: ISS, expectedAud: AUD, expectedEntry: 'P90D', nonceStore, now: NOW }),
     ClaimRejected, 'MISSING_CLAIM');
 }
 
@@ -220,9 +221,9 @@ check('1 WRONG SEGMENT COUNT', false, verifyJws('abc.def', resolveKey), JwsRejec
 // `claims.swapped` naively would read it as a yes.
 {
   const base = freshBase();
-  const token = signJws(operator.privateKey, OP_KID, { ...base, api: TEST_API, maxAge: 2160, swapped: 'false' });
+  const token = signJws(operator.privateKey, OP_KID, { ...base, api: TEST_API, entry: 'P90D', swapped: 'false' });
   check('16 WRONG TYPE (swapped:"false")', false,
-    verifyAnswer(token, resolveKey, SIM_SWAP_CHECK, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW }),
+    verifyAnswer(token, resolveKey, SIM_SWAP_CHECK, { expectedIss: ISS, expectedAud: AUD, expectedEntry: 'P90D', nonceStore, now: NOW }),
     ClaimRejected, 'WRONG_TYPE');
 }
 
@@ -233,27 +234,27 @@ check('1 WRONG SEGMENT COUNT', false, verifyJws('abc.def', resolveKey), JwsRejec
   const nonce = randomUUID();
   nonceStore.issue(nonce);
   const badBase = { iss: ISS, aud: AUD, nonce, iat: NOW, exp: NOW };
-  const token = signJws(operator.privateKey, OP_KID, { ...badBase, api: TEST_API, maxAge: 2160, swapped: false });
+  const token = signJws(operator.privateKey, OP_KID, { ...badBase, api: TEST_API, entry: 'P90D', swapped: false });
   check('17 EXP <= IAT', false,
-    verifyAnswer(token, resolveKey, SIM_SWAP_CHECK, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW }),
+    verifyAnswer(token, resolveKey, SIM_SWAP_CHECK, { expectedIss: ISS, expectedAud: AUD, expectedEntry: 'P90D', nonceStore, now: NOW }),
     ClaimRejected, 'EXP_NOT_AFTER_IAT');
 }
 
 // 18 ISS MISMATCH — signed and structurally fine, wrong issuer claimed.
 {
   const base = freshBase();
-  const token = signJws(operator.privateKey, OP_KID, { ...base, api: TEST_API, maxAge: 2160, swapped: false });
+  const token = signJws(operator.privateKey, OP_KID, { ...base, api: TEST_API, entry: 'P90D', swapped: false });
   check('18 ISS MISMATCH', false,
-    verifyAnswer(token, resolveKey, SIM_SWAP_CHECK, { expectedIss: 'someone-else.example', expectedAud: AUD, nonceStore, now: NOW }),
+    verifyAnswer(token, resolveKey, SIM_SWAP_CHECK, { expectedIss: 'someone-else.example', expectedAud: AUD, expectedEntry: 'P90D', nonceStore, now: NOW }),
     ClaimRejected, 'ISS_MISMATCH');
 }
 
 // 19 AUD MISMATCH — a valid answer to a different requester.
 {
   const base = freshBase();
-  const token = signJws(operator.privateKey, OP_KID, { ...base, api: TEST_API, maxAge: 2160, swapped: false });
+  const token = signJws(operator.privateKey, OP_KID, { ...base, api: TEST_API, entry: 'P90D', swapped: false });
   check('19 AUD MISMATCH', false,
-    verifyAnswer(token, resolveKey, SIM_SWAP_CHECK, { expectedIss: ISS, expectedAud: 'someone-else.example', nonceStore, now: NOW }),
+    verifyAnswer(token, resolveKey, SIM_SWAP_CHECK, { expectedIss: ISS, expectedAud: 'someone-else.example', expectedEntry: 'P90D', nonceStore, now: NOW }),
     ClaimRejected, 'AUD_MISMATCH');
 }
 
@@ -264,18 +265,18 @@ check('1 WRONG SEGMENT COUNT', false, verifyJws('abc.def', resolveKey), JwsRejec
   const nonce = randomUUID();
   nonceStore.issue(nonce);
   const base = { iss: ISS, aud: AUD, nonce, iat: NOW - 1000, exp: NOW - 500 };
-  const token = signJws(operator.privateKey, OP_KID, { ...base, api: TEST_API, maxAge: 2160, swapped: false });
+  const token = signJws(operator.privateKey, OP_KID, { ...base, api: TEST_API, entry: 'P90D', swapped: false });
   check('20 EXPIRED', false,
-    verifyAnswer(token, resolveKey, SIM_SWAP_CHECK, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW }),
+    verifyAnswer(token, resolveKey, SIM_SWAP_CHECK, { expectedIss: ISS, expectedAud: AUD, expectedEntry: 'P90D', nonceStore, now: NOW }),
     ClaimRejected, 'EXPIRED');
 }
 
 // 21 UNKNOWN NONCE — never issued into the store at all.
 {
   const nonce = randomUUID(); // deliberately never nonceStore.issue()'d
-  const token = signJws(operator.privateKey, OP_KID, { iss: ISS, aud: AUD, nonce, iat: NOW, exp: NOW + 300, api: TEST_API, maxAge: 2160, swapped: false });
+  const token = signJws(operator.privateKey, OP_KID, { iss: ISS, aud: AUD, nonce, iat: NOW, exp: NOW + 300, api: TEST_API, entry: 'P90D', swapped: false });
   check('21 UNKNOWN NONCE', false,
-    verifyAnswer(token, resolveKey, SIM_SWAP_CHECK, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW }),
+    verifyAnswer(token, resolveKey, SIM_SWAP_CHECK, { expectedIss: ISS, expectedAud: AUD, expectedEntry: 'P90D', nonceStore, now: NOW }),
     ClaimRejected, 'NONCE_REJECTED');
 }
 
@@ -283,9 +284,9 @@ check('1 WRONG SEGMENT COUNT', false, verifyJws('abc.def', resolveKey), JwsRejec
 // nonce, the second must find it already used.
 {
   const base = freshBase();
-  const token = signJws(operator.privateKey, OP_KID, { ...base, api: TEST_API, maxAge: 2160, swapped: false });
-  const first = verifyAnswer(token, resolveKey, SIM_SWAP_CHECK, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW });
-  const second = verifyAnswer(token, resolveKey, SIM_SWAP_CHECK, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW });
+  const token = signJws(operator.privateKey, OP_KID, { ...base, api: TEST_API, entry: 'P90D', swapped: false });
+  const first = verifyAnswer(token, resolveKey, SIM_SWAP_CHECK, { expectedIss: ISS, expectedAud: AUD, expectedEntry: 'P90D', nonceStore, now: NOW });
+  const second = verifyAnswer(token, resolveKey, SIM_SWAP_CHECK, { expectedIss: ISS, expectedAud: AUD, expectedEntry: 'P90D', nonceStore, now: NOW });
   checkTrue('22a REPLAYED NONCE first use accepts', first.ok === true);
   check('22b REPLAYED NONCE second use rejects', false, second, ClaimRejected, 'NONCE_REJECTED');
 }
@@ -294,9 +295,9 @@ check('1 WRONG SEGMENT COUNT', false, verifyJws('abc.def', resolveKey), JwsRejec
 // this; bypass via signJws to prove verifyRefusal holds independently.
 {
   const base = freshBase();
-  const token = signJws(operator.privateKey, OP_KID, { ...base, error: 'MADE_UP_REASON' });
+  const token = signJws(operator.privateKey, OP_KID, { ...base, api: TEST_API, error: 'MADE_UP_REASON' });
   check('23 REFUSAL ERROR OFF ENUM', false,
-    verifyRefusal(token, resolveKey, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW }),
+    verifyRefusal(token, resolveKey, { expectedIss: ISS, expectedAud: AUD, expectedApi: TEST_API, nonceStore, now: NOW }),
     ClaimRejected, 'INVALID_ERROR');
 }
 
@@ -305,9 +306,9 @@ check('1 WRONG SEGMENT COUNT', false, verifyJws('abc.def', resolveKey), JwsRejec
 // the schemas don't overlap, so the closed set must still reject it.
 {
   const base = freshBase();
-  const token = signJws(operator.privateKey, OP_KID, { ...base, api: TEST_API, maxAge: 2160, swapped: false });
+  const token = signJws(operator.privateKey, OP_KID, { ...base, api: TEST_API, entry: 'P90D', swapped: false });
   check('24 WRONG SCHEMA (SIM_SWAP token vs TENURE_CHECK)', false,
-    verifyAnswer(token, resolveKey, TENURE_CHECK, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW }),
+    verifyAnswer(token, resolveKey, TENURE_CHECK, { expectedIss: ISS, expectedAud: AUD, expectedEntry: 'P2Y', nonceStore, now: NOW }),
     ClaimRejected, 'API_MISMATCH');  // V3-M1: api is checked before shape
 }
 
@@ -369,7 +370,7 @@ check('1 WRONG SEGMENT COUNT', false, verifyJws('abc.def', resolveKey), JwsRejec
   const okSchema = { api: TEST_API, params: { maxAge: 'integer' }, answer: { swapped: 'boolean' } };
   const token = attestAnswer(operator.privateKey, OP_KID, base, okSchema, { maxAge: 2160 }, { swapped: false });
   const v = typeof token === 'string'
-    ? verifyAnswer(token, resolveKey, okSchema, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW })
+    ? verifyAnswer(token, resolveKey, okSchema, { expectedIss: ISS, expectedAud: AUD, expectedEntry: 'P90D', nonceStore, now: NOW })
     : token;
   check('29 NEGATIVE CONTROL (non-colliding schema still signs and verifies)', true, v);
 }
@@ -397,7 +398,7 @@ check('1 WRONG SEGMENT COUNT', false, verifyJws('abc.def', resolveKey), JwsRejec
   const collidingSchema = { api: TEST_API, params: { swapped: 'integer' }, answer: { swapped: 'boolean' } };
   const token = signJws(operator.privateKey, OP_KID, { ...base, api: TEST_API, swapped: true });
   check('35 SCHEMA SELF COLLISION AT VERIFY (params.swapped vs answer.swapped)', false,
-    verifyAnswer(token, resolveKey, collidingSchema, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW }),
+    verifyAnswer(token, resolveKey, collidingSchema, { expectedIss: ISS, expectedAud: AUD, expectedEntry: 'P90D', nonceStore, now: NOW }),
     ClaimRejected, 'SCHEMA_SELF_COLLISION');
 }
 
@@ -410,7 +411,7 @@ check('1 WRONG SEGMENT COUNT', false, verifyJws('abc.def', resolveKey), JwsRejec
   const okSchema = { api: TEST_API, params: { maxAge: 'integer' }, answer: { swapped: 'boolean' } };
   const token = attestAnswer(operator.privateKey, OP_KID, base, okSchema, { maxAge: 2160 }, { swapped: false });
   const v = typeof token === 'string'
-    ? verifyAnswer(token, resolveKey, okSchema, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW })
+    ? verifyAnswer(token, resolveKey, okSchema, { expectedIss: ISS, expectedAud: AUD, expectedEntry: 'P90D', nonceStore, now: NOW })
     : token;
   check('36 NEGATIVE CONTROL (non-self-colliding schema still signs and verifies)', true, v);
 }
@@ -421,11 +422,11 @@ check('1 WRONG SEGMENT COUNT', false, verifyJws('abc.def', resolveKey), JwsRejec
 // (pre-fix behaviour was ClaimRejected/EXTRA_CLAIM). Must reject, not throw.
 {
   const base = freshBase();
-  const token = signJws(operator.privateKey, OP_KID, { ...base, api: TEST_API, maxAge: 2160, swapped: false });
+  const token = signJws(operator.privateKey, OP_KID, { ...base, api: TEST_API, entry: 'P90D', swapped: false });
   let threw = false;
   let v;
   try {
-    v = verifyAnswer(token, resolveKey, {}, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW });
+    v = verifyAnswer(token, resolveKey, {}, { expectedIss: ISS, expectedAud: AUD, expectedEntry: 'P90D', nonceStore, now: NOW });
   } catch {
     threw = true;
   }
@@ -438,11 +439,11 @@ check('1 WRONG SEGMENT COUNT', false, verifyJws('abc.def', resolveKey), JwsRejec
 // after the fix round — this closes it too, which is intended).
 {
   const base = freshBase();
-  const token = signJws(operator.privateKey, OP_KID, { ...base, api: TEST_API, maxAge: 2160, swapped: false });
+  const token = signJws(operator.privateKey, OP_KID, { ...base, api: TEST_API, entry: 'P90D', swapped: false });
   let threw = false;
   let v;
   try {
-    v = verifyAnswer(token, resolveKey, null, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW });
+    v = verifyAnswer(token, resolveKey, null, { expectedIss: ISS, expectedAud: AUD, expectedEntry: 'P90D', nonceStore, now: NOW });
   } catch {
     threw = true;
   }
@@ -455,12 +456,12 @@ check('1 WRONG SEGMENT COUNT', false, verifyJws('abc.def', resolveKey), JwsRejec
 // bug rather than an adversarial input; must reject cleanly, not throw.
 {
   const base = freshBase();
-  const token = signJws(operator.privateKey, OP_KID, { ...base, api: TEST_API, maxAge: 2160, swapped: false });
+  const token = signJws(operator.privateKey, OP_KID, { ...base, api: TEST_API, entry: 'P90D', swapped: false });
   let threw = false;
   let v;
   try {
     v = verifyAnswer(token, resolveKey, { answer: { swapped: 'boolean' } },
-      { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW });
+      { expectedIss: ISS, expectedAud: AUD, expectedEntry: 'P90D', nonceStore, now: NOW });
   } catch {
     threw = true;
   }
@@ -477,39 +478,40 @@ check('1 WRONG SEGMENT COUNT', false, verifyJws('abc.def', resolveKey), JwsRejec
 // names, types, and — since it costs nothing to also hold — key order).
 {
   const base = freshBase();
-  const token = attestAnswer(operator.privateKey, OP_KID, base, SIM_SWAP_CHECK, { maxAge: 2160 }, { swapped: false });
+  const token = attestAnswer(operator.privateKey, OP_KID, base, SIM_SWAP_CHECK, { entry: 'P90D' }, { swapped: false });
   const isString = typeof token === 'string';
   const v = isString
-    ? verifyAnswer(token, resolveKey, SIM_SWAP_CHECK, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW })
+    ? verifyAnswer(token, resolveKey, SIM_SWAP_CHECK, { expectedIss: ISS, expectedAud: AUD, expectedEntry: 'P90D', nonceStore, now: NOW })
     : token;
   check('30 SIM_SWAP ROUND TRIP', true, v, undefined, undefined);
-  const shapeOk = isString && v.ok && Object.keys(v.claims).join(',') === 'iss,aud,nonce,iat,exp,api,maxAge,swapped' &&
+  const shapeOk = isString && v.ok && Object.keys(v.claims).join(',') === 'iss,aud,nonce,iat,exp,api,entry,swapped' &&
     v.claims.iss === ISS && v.claims.aud === AUD && v.claims.nonce === base.nonce &&
-    v.claims.maxAge === 2160 && v.claims.swapped === false;
-  checkTrue('30b SIM_SWAP payload matches docs §4 shape exactly', shapeOk);
+    v.claims.api === SIM_SWAP_CHECK.api && v.claims.entry === 'P90D' && v.claims.swapped === false &&
+    !Object.prototype.hasOwnProperty.call(v.claims, 'maxAge');
+  checkTrue('30b SIM_SWAP payload is the V3-M2 seven-claim shape (entry signed, maxAge not)', shapeOk);
 }
 
 // 31 TENURE ROUND TRIP — proves the schema mechanism generalizes beyond
 // SimSwap.
 {
   const base = freshBase();
-  const token = attestAnswer(operator.privateKey, OP_KID, base, TENURE_CHECK, { tenureDate: '2024-01-01' }, { tenureDateCheck: true });
+  const token = attestAnswer(operator.privateKey, OP_KID, base, TENURE_CHECK, { entry: 'P2Y' }, { tenureDateCheck: true });
   const v = typeof token === 'string'
-    ? verifyAnswer(token, resolveKey, TENURE_CHECK, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW })
+    ? verifyAnswer(token, resolveKey, TENURE_CHECK, { expectedIss: ISS, expectedAud: AUD, expectedEntry: 'P2Y', nonceStore, now: NOW })
     : token;
   check('31 TENURE ROUND TRIP', true, v);
-  checkTrue('31b TENURE payload fidelity', v.ok && v.claims.tenureDate === '2024-01-01' && v.claims.tenureDateCheck === true);
+  checkTrue('31b TENURE payload fidelity', v.ok && v.claims.entry === 'P2Y' && !Object.prototype.hasOwnProperty.call(v.claims, 'tenureDate') && v.claims.tenureDateCheck === true);
 }
 
 // 32 REFUSAL ROUND TRIP — a signed excuse, from the closed enum.
 {
   const base = freshBase();
-  const token = attestRefusal(operator.privateKey, OP_KID, base, OFF_MENU_THRESHOLD);
+  const token = attestRefusal(operator.privateKey, OP_KID, base, OUT_OF_RANGE, TEST_API);
   const v = typeof token === 'string'
-    ? verifyRefusal(token, resolveKey, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW })
+    ? verifyRefusal(token, resolveKey, { expectedIss: ISS, expectedAud: AUD, expectedApi: TEST_API, nonceStore, now: NOW })
     : token;
   check('32 REFUSAL ROUND TRIP', true, v);
-  checkTrue('32b REFUSAL payload fidelity', v.ok && v.claims.error === OFF_MENU_THRESHOLD);
+  checkTrue('32b REFUSAL payload fidelity', v.ok && v.claims.error === OUT_OF_RANGE && v.claims.api === TEST_API);
 }
 
 // 33 SIZE GUARD — a SIM_SWAP_CHECK answer with a 30-char iss/aud, a UUID
@@ -528,9 +530,32 @@ check('1 WRONG SEGMENT COUNT', false, verifyJws('abc.def', resolveKey), JwsRejec
   const nonce = randomUUID();
   nonceStore.issue(nonce);
   const base = { iss: longIss, aud: longAud, nonce, iat: NOW, exp: NOW + 300 };
-  const token = attestAnswer(operator.privateKey, kid20, base, SIM_SWAP_CHECK, { maxAge: 2160 }, { swapped: false });
+  const token = attestAnswer(operator.privateKey, kid20, base, SIM_SWAP_CHECK, { entry: 'P90D' }, { swapped: false });
   const size = typeof token === 'string' ? compactSize(token) : Infinity;
   checkTrue(`33 SIZE GUARD (${size}B < ${capacity}B derived RSA-4096 OAEP cap)`, typeof token === 'string' && size < capacity);
+  // 33b (V3-M2): the worst-case signed refusal (longest api name) must fit the
+  // cap too. The worst-case Tenure ANSWER is measured and printed but NOT
+  // asserted: at 461 B it is over the 446 B cap (closed by V3-M2b (user decision 2026-11-24)).
+  const nonce2 = randomUUID();
+  nonceStore.issue(nonce2);
+  const tToken = attestAnswer(operator.privateKey, kid20, { ...base, nonce: nonce2 }, TENURE_CHECK, { entry: 'P2Y' }, { tenureDateCheck: false });
+  const tSize = typeof tToken === 'string' ? compactSize(tToken) : Infinity;
+  console.log(`INFO 33b worst-case Tenure answer ${tSize}B (cap ${capacity}B) - measured, not asserted`);
+  const rToken = attestRefusal(operator.privateKey, kid20, { ...base, nonce: nonce2 }, OUT_OF_RANGE, TENURE_CHECK.api);
+  const rSize = typeof rToken === 'string' ? compactSize(rToken) : Infinity;
+  checkTrue(`33b SIZE GUARD worst-case refusal (${rSize}B < ${capacity}B)`, rSize < capacity);
+  // 33c KNOWN GAP, closed by V3-M2b: the worst-case signed Tenure answer is over the
+  // v2 envelope cap, so seal() REFUSES it (throws; never truncates, no ciphertext).
+  // 33d NEGATIVE CONTROL: the worst-case SimSwap answer fits, seals and opens to the same bytes.
+  let sealed, sealThrew = false;
+  try { sealed = seal(rsaKey.publicKey, Buffer.from(tToken, 'utf8')); } catch { sealThrew = true; }
+  checkTrue(`33c KNOWN GAP (closed by V3-M2b): sealing the worst-case Tenure answer (${tSize}B > ${capacity}B) is REFUSED, never truncated, and yields no ciphertext`,
+    tSize > capacity && sealThrew === true && sealed === undefined);
+  const sBytes = Buffer.from(token, 'utf8');
+  const sSealed = seal(rsaKey.publicKey, sBytes);
+  const sOpened = open(rsaKey.privateKey, sSealed);
+  checkTrue(`33d NEGATIVE CONTROL: the worst-case SimSwap answer (${size}B) seals and opens to the same bytes`,
+    Buffer.isBuffer(sSealed) && sSealed.length === modulusBits / 8 && sOpened.ok === true && sOpened.payloadBytes.equals(sBytes));
 }
 
 // =====================================================================
@@ -558,11 +583,11 @@ const PROTO_NAMES = [
 // culprit instead of hiding inside one aggregate boolean.
 for (const name of PROTO_NAMES) {
   const base = freshBase();
-  const baseText = JSON.stringify({ ...base, api: TEST_API, maxAge: 2160, swapped: false });
+  const baseText = JSON.stringify({ ...base, api: TEST_API, entry: 'P90D', swapped: false });
   const payloadText = baseText.slice(0, -1) + `,${JSON.stringify(name)}:${JSON.stringify('RAW LEAK ' + name)}}`;
   const token = forge({ alg: 'EdDSA', kid: OP_KID }, payloadText, operator.privateKey);
   check(`40 D1 WIRE SMUGGLE [${name}]`, false,
-    verifyAnswer(token, resolveKey, SIM_SWAP_CHECK, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW }),
+    verifyAnswer(token, resolveKey, SIM_SWAP_CHECK, { expectedIss: ISS, expectedAud: AUD, expectedEntry: 'P90D', nonceStore, now: NOW }),
     ClaimRejected, 'EXTRA_CLAIM');
 }
 
@@ -581,7 +606,7 @@ for (const name of PROTO_NAMES) {
   const schema = { api: TEST_API, params: { maxAge: 'integer' }, answer: { [name]: 'boolean' } };
   const token = attestAnswer(operator.privateKey, OP_KID, base, schema, { maxAge: 2160 }, { [name]: true });
   const v = typeof token === 'string'
-    ? verifyAnswer(token, resolveKey, schema, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW })
+    ? verifyAnswer(token, resolveKey, schema, { expectedIss: ISS, expectedAud: AUD, expectedEntry: 'P90D', nonceStore, now: NOW })
     : token;
   check(`41 D1 LEGIT DECLARED FIELD [${name}]`, true, v);
   // Also the projection assertion for this name: claims must carry EXACTLY
@@ -608,7 +633,7 @@ for (const name of PROTO_NAMES) {
   const schema = { api: TEST_API, params: { maxAge: 'integer' }, answer: { ['__proto__']: 'boolean' } };
   const token = attestAnswer(operator.privateKey, OP_KID, base, schema, { maxAge: 2160 }, { ['__proto__']: true });
   const v = typeof token === 'string'
-    ? verifyAnswer(token, resolveKey, schema, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW })
+    ? verifyAnswer(token, resolveKey, schema, { expectedIss: ISS, expectedAud: AUD, expectedEntry: 'P90D', nonceStore, now: NOW })
     : token;
   check('42 D1 PROJECTION __proto__ FIELD ROUND-TRIPS', true, v);
   checkTrue('42b D1 PROJECTION __proto__ FIELD is an own data property, value true',
@@ -664,12 +689,12 @@ for (const name of PROTO_NAMES) {
 // verifyAnswer is hostile.
 {
   const base = freshBase();
-  const token = signJws(operator.privateKey, OP_KID, { ...base, api: TEST_API, maxAge: 2160, swapped: false });
+  const token = signJws(operator.privateKey, OP_KID, { ...base, api: TEST_API, entry: 'P90D', swapped: false });
   const throwingSchema = { get params() { throw new Error('boom-params'); }, answer: { swapped: 'boolean' } };
   let threw = false;
   let v;
   try {
-    v = verifyAnswer(token, resolveKey, throwingSchema, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW });
+    v = verifyAnswer(token, resolveKey, throwingSchema, { expectedIss: ISS, expectedAud: AUD, expectedEntry: 'P90D', nonceStore, now: NOW });
   } catch {
     threw = true;
   }
@@ -680,7 +705,7 @@ for (const name of PROTO_NAMES) {
 // 46 D2 VERIFYANSWER, PROXY schema WITH A THROWING get TRAP.
 {
   const base = freshBase();
-  const token = signJws(operator.privateKey, OP_KID, { ...base, api: TEST_API, maxAge: 2160, swapped: false });
+  const token = signJws(operator.privateKey, OP_KID, { ...base, api: TEST_API, entry: 'P90D', swapped: false });
   const proxySchema = new Proxy({ api: TEST_API, params: { maxAge: 'integer' }, answer: { swapped: 'boolean' } }, {
     get(t, k) {
       if (k === 'params') throw new Error('proxy-get-boom');
@@ -690,7 +715,7 @@ for (const name of PROTO_NAMES) {
   let threw = false;
   let v;
   try {
-    v = verifyAnswer(token, resolveKey, proxySchema, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW });
+    v = verifyAnswer(token, resolveKey, proxySchema, { expectedIss: ISS, expectedAud: AUD, expectedEntry: 'P90D', nonceStore, now: NOW });
   } catch {
     threw = true;
   }
@@ -734,14 +759,14 @@ for (const name of PROTO_NAMES) {
 {
   const base = freshBase();
   const shuffledPayload = {
-    swapped: false, maxAge: 2160,
+    swapped: false, entry: 'P90D',
     exp: base.exp, iat: base.iat, nonce: base.nonce, aud: base.aud, iss: base.iss, api: TEST_API,
   };
   const token = signJws(operator.privateKey, OP_KID, shuffledPayload);
-  const v = verifyAnswer(token, resolveKey, SIM_SWAP_CHECK, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW });
+  const v = verifyAnswer(token, resolveKey, SIM_SWAP_CHECK, { expectedIss: ISS, expectedAud: AUD, expectedEntry: 'P90D', nonceStore, now: NOW });
   check('48 S1 ANSWER PROJECTION LIVE (KEY ORDER)', true, v);
   checkTrue('48b S1 ANSWER PROJECTION LIVE claims come back in canonical order despite shuffled wire order',
-    v.ok === true && Object.keys(v.claims).join(',') === 'iss,aud,nonce,iat,exp,api,maxAge,swapped');
+    v.ok === true && Object.keys(v.claims).join(',') === 'iss,aud,nonce,iat,exp,api,entry,swapped');
 }
 
 // 49 S1 ANSWER NEGATIVE CONTROL — a normally (already-canonically) ordered
@@ -749,12 +774,12 @@ for (const name of PROTO_NAMES) {
 // 48's assertion is not merely "any hand-signed token reads as canonical".
 {
   const base = freshBase();
-  const canonicalPayload = { ...base, api: TEST_API, maxAge: 2160, swapped: false };
+  const canonicalPayload = { ...base, api: TEST_API, entry: 'P90D', swapped: false };
   const token = signJws(operator.privateKey, OP_KID, canonicalPayload);
-  const v = verifyAnswer(token, resolveKey, SIM_SWAP_CHECK, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW });
+  const v = verifyAnswer(token, resolveKey, SIM_SWAP_CHECK, { expectedIss: ISS, expectedAud: AUD, expectedEntry: 'P90D', nonceStore, now: NOW });
   check('49 S1 ANSWER NEGATIVE CONTROL (already-canonical wire order stays canonical)', true, v);
   checkTrue('49b S1 ANSWER NEGATIVE CONTROL claims order',
-    v.ok === true && Object.keys(v.claims).join(',') === 'iss,aud,nonce,iat,exp,api,maxAge,swapped');
+    v.ok === true && Object.keys(v.claims).join(',') === 'iss,aud,nonce,iat,exp,api,entry,swapped');
 }
 
 // 50 S1 REFUSAL PROJECTION LIVE (KEY ORDER) — verifyRefusal's OWN, separate
@@ -763,25 +788,25 @@ for (const name of PROTO_NAMES) {
 {
   const base = freshBase();
   const shuffledPayload = {
-    error: OFF_MENU_THRESHOLD,
+    error: OUT_OF_RANGE, api: TEST_API,
     exp: base.exp, iat: base.iat, nonce: base.nonce, aud: base.aud, iss: base.iss,
   };
   const token = signJws(operator.privateKey, OP_KID, shuffledPayload);
-  const v = verifyRefusal(token, resolveKey, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW });
+  const v = verifyRefusal(token, resolveKey, { expectedIss: ISS, expectedAud: AUD, expectedApi: TEST_API, nonceStore, now: NOW });
   check('50 S1 REFUSAL PROJECTION LIVE (KEY ORDER)', true, v);
   checkTrue('50b S1 REFUSAL PROJECTION LIVE claims come back in canonical order despite shuffled wire order',
-    v.ok === true && Object.keys(v.claims).join(',') === 'iss,aud,nonce,iat,exp,error');
+    v.ok === true && Object.keys(v.claims).join(',') === 'iss,aud,nonce,iat,exp,api,error');
 }
 
 // 51 S1 REFUSAL NEGATIVE CONTROL — mirrors 49 for the refusal side.
 {
   const base = freshBase();
-  const canonicalPayload = { ...base, error: UNAVAILABLE };
+  const canonicalPayload = { ...base, api: TEST_API, error: UNAVAILABLE };
   const token = signJws(operator.privateKey, OP_KID, canonicalPayload);
-  const v = verifyRefusal(token, resolveKey, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW });
+  const v = verifyRefusal(token, resolveKey, { expectedIss: ISS, expectedAud: AUD, expectedApi: TEST_API, nonceStore, now: NOW });
   check('51 S1 REFUSAL NEGATIVE CONTROL (already-canonical wire order stays canonical)', true, v);
   checkTrue('51b S1 REFUSAL NEGATIVE CONTROL claims order',
-    v.ok === true && Object.keys(v.claims).join(',') === 'iss,aud,nonce,iat,exp,error');
+    v.ok === true && Object.keys(v.claims).join(',') === 'iss,aud,nonce,iat,exp,api,error');
 }
 
 // =====================================================================
@@ -809,10 +834,10 @@ for (const name of PROTO_NAMES) {
 // holds the same line independently.
 {
   const base = freshBase();
-  const token = signJws(operator.privateKey, OP_KID, { ...base, api: TEST_API, maxAge: 2160 });
+  const token = signJws(operator.privateKey, OP_KID, { ...base, api: TEST_API, entry: 'P90D' });
   const emptyAnswerSchema = { api: TEST_API, params: { maxAge: 'integer' }, answer: { __proto__: 'boolean' } };
   check('53 S2 EMPTY ANSWER SCHEMA AT VERIFY (literal __proto__ trap)', false,
-    verifyAnswer(token, resolveKey, emptyAnswerSchema, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW }),
+    verifyAnswer(token, resolveKey, emptyAnswerSchema, { expectedIss: ISS, expectedAud: AUD, expectedEntry: 'P90D', nonceStore, now: NOW }),
     ClaimRejected, 'EMPTY_ANSWER_SCHEMA');
 }
 
@@ -824,7 +849,7 @@ for (const name of PROTO_NAMES) {
   const noParamsSchema = { api: TEST_API, params: {}, answer: { swapped: 'boolean' } };
   const token = attestAnswer(operator.privateKey, OP_KID, base, noParamsSchema, {}, { swapped: true });
   const v = typeof token === 'string'
-    ? verifyAnswer(token, resolveKey, noParamsSchema, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW })
+    ? verifyAnswer(token, resolveKey, noParamsSchema, { expectedIss: ISS, expectedAud: AUD, expectedEntry: 'P90D', nonceStore, now: NOW })
     : token;
   check('54 S2 NEGATIVE CONTROL (empty params stays legal)', true, v);
 }
@@ -840,7 +865,7 @@ for (const name of PROTO_NAMES) {
   const schema = { api: TEST_API, params: { maxAge: 'integer' }, answer: { ['__proto__']: 'boolean' } };
   const token = attestAnswer(operator.privateKey, OP_KID, base, schema, { maxAge: 2160 }, { ['__proto__']: true });
   const v = typeof token === 'string'
-    ? verifyAnswer(token, resolveKey, schema, { expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW })
+    ? verifyAnswer(token, resolveKey, schema, { expectedIss: ISS, expectedAud: AUD, expectedEntry: 'P90D', nonceStore, now: NOW })
     : token;
   check('55 S2 NEGATIVE CONTROL (computed-key __proto__ answer field stays legal, not empty)', true, v);
 }
@@ -854,15 +879,15 @@ for (const name of PROTO_NAMES) {
 
 
 const SIM = SIM_SWAP_CHECK, TEN = TENURE_CHECK;
-const SIM_P = { maxAge: 120 }, SIM_A = { swapped: true };
-const TEN_P = { tenureDate: '2024-01-01' }, TEN_A = { tenureDateCheck: true };
+const SIM_P = { entry: 'P90D' }, SIM_A = { swapped: true };
+const TEN_P = { entry: 'P2Y' }, TEN_A = { tenureDateCheck: true };
 const vOpts = () => ({ expectedIss: ISS, expectedAud: AUD, nonceStore, now: NOW });
 const rev = (o) => Object.fromEntries(Object.entries(o).reverse());
 function signed(schema, params, answer) {
   const base = freshBase();
   return { base, token: attestAnswer(operator.privateKey, OP_KID, base, schema, params, answer) };
 }
-const verifyFresh = (token, schema) => verifyAnswer(token, resolveKey, schema, vOpts());
+const verifyFresh = (token, schema, entry) => verifyAnswer(token, resolveKey, schema, { ...vOpts(), expectedEntry: entry ?? (schema && schema.api === TEN.api ? 'P2Y' : 'P90D') });
 const b64j = (o) => Buffer.from(JSON.stringify(o), 'utf8').toString('base64url');
 
 // -- Assertion 1: valid signed answer verifies, each schema; api is in claims.
@@ -916,8 +941,8 @@ for (const [nm, schema, par, ans, api] of [
   check('V3 5 TENURE token checked as SimSwap', false, verifyFresh(s1.token, SIM), ClaimRejected, 'API_MISMATCH');
   check('V3 5 SIMSWAP token checked as Tenure', false, verifyFresh(s2.token, TEN), ClaimRejected, 'API_MISMATCH');
   // Two schemas with the SAME shape and DIFFERENT api: shape cannot tell them apart.
-  const SAME_A = { api: 'api-a/v1/check', params: { maxAge: 'integer' }, answer: { swapped: 'boolean' } };
-  const SAME_B = { api: 'api-b/v1/check', params: { maxAge: 'integer' }, answer: { swapped: 'boolean' } };
+  const SAME_A = { api: 'api-a/v1/check', params: { entry: 'duration' }, answer: { swapped: 'boolean' } };
+  const SAME_B = { api: 'api-b/v1/check', params: { entry: 'duration' }, answer: { swapped: 'boolean' } };
   const a = signed(SAME_A, SIM_P, SIM_A);
   check('V3 5 SAME-SHAPE token checked under the other api', false, verifyFresh(a.token, SAME_B), ClaimRejected, 'API_MISMATCH');
   const a2 = signed(SAME_A, SIM_P, SIM_A);
@@ -1045,7 +1070,7 @@ for (const [nm, schema, par, ans, api] of [
         failsWith(() => attachAttestation(body, bad, mkCtx(schema, par, { privateKey: undefined }))));
     }
     // attestAnswer failure -> AttestationFailed, never the unsigned body (F1).
-    const badParams = schema === SIM ? { maxAge: 'not-a-number' } : { tenureDate: 12345 };
+    const badParams = schema === SIM ? { entry: 'not-a-duration' } : { entry: 12345 };
     checkTrue(`V3 7 ${nm}: attestAnswer fails (params violate the schema type) -> AttestationFailed`,
       failsWith(() => attachAttestation(body, 'n1', mkCtx(schema, badParams))));
     checkTrue(`V3 7 ${nm}: unusable private key -> AttestationFailed`,
@@ -1303,7 +1328,7 @@ for (const [nm, schema, par, ans, api] of [
     // cause of a signing failure is the refusal reason.
     {
       let e = null;
-      try { attachAttestation(goodBody('sim'), fresh(), mkOpts('sim', { params: { maxAge: 'not-a-number' } })); } catch (x) { e = x; }
+      try { attachAttestation(goodBody('sim'), fresh(), mkOpts('sim', { params: { entry: 'not-a-duration' } })); } catch (x) { e = x; }
       checkTrue('V3 B [SimSwap] attestAnswer failure -> AttestationFailed whose cause is ClaimRejected',
         e instanceof AttestationFailed && e.cause instanceof ClaimRejected);
     }
@@ -1349,19 +1374,136 @@ for (const [nm, schema, par, ans, api] of [
     }
   }
 
-  // R5: 'date' type (tenureDate), at attest and at verify.
+  // R5: 'date' type, at attest and at verify. V3-M2 (option 1): no named
+  // schema signs a date any more, so the type is exercised on a test-local
+  // schema that declares one; the same refusals hold.
   {
+    const DATE_SCHEMA = { api: TEN.api, params: { tenureDate: 'date' }, answer: TEN.answer };
     for (const bad of ['2024-02-30', '2023-02-29', '2024-1-01', '2024-01-01T12:34:56Z', 'yesterday', '']) {
       check(`V3 R5 tenureDate ${JSON.stringify(bad)} refused at attest`, false,
-        attestAnswer(operator.privateKey, OP_KID, freshBase(), TEN, { tenureDate: bad }, TEN_A), ClaimRejected, 'WRONG_TYPE');
+        attestAnswer(operator.privateKey, OP_KID, freshBase(), DATE_SCHEMA, { tenureDate: bad }, TEN_A), ClaimRejected, 'WRONG_TYPE');
     }
     const forgedBad = signJws(operator.privateKey, OP_KID, { ...freshBase(), api: TEN.api, tenureDate: '2024-02-30', ...TEN_A });
-    check('V3 R5 tenureDate "2024-02-30" refused at verify (signer-trusted token)', false, verifyFresh(forgedBad, TEN), ClaimRejected, 'WRONG_TYPE');
+    check('V3 R5 tenureDate "2024-02-30" refused at verify (signer-trusted token)', false, verifyFresh(forgedBad, DATE_SCHEMA), ClaimRejected, 'WRONG_TYPE');
     for (const good of ['2024-01-01', '2024-02-29']) {
-      const t = attestAnswer(operator.privateKey, OP_KID, freshBase(), TEN, { tenureDate: good }, TEN_A);
-      check(`V3 R5 NEGATIVE CONTROL tenureDate ${good} signs and verifies`, true, typeof t === 'string' ? verifyFresh(t, TEN) : t);
+      const t = attestAnswer(operator.privateKey, OP_KID, freshBase(), DATE_SCHEMA, { tenureDate: good }, TEN_A);
+      check(`V3 R5 NEGATIVE CONTROL tenureDate ${good} signs and verifies`, true, typeof t === 'string' ? verifyFresh(t, DATE_SCHEMA) : t);
     }
+  }
+
+  // R8 (V3-M2): refusals are API-bound, proven in this suite on its own.
+  {
+    const mk = () => attestRefusal(operator.privateKey, OP_KID, freshBase(), OUT_OF_RANGE, SIM.api);
+    const vr = (t, expectedApi) => verifyRefusal(t, resolveKey, { ...vOpts(), expectedApi });
+    check('V3 R8 SimSwap refusal checked as Tenure', false, vr(mk(), TEN.api), ClaimRejected, 'API_MISMATCH');
+    check('V3 R8 NEGATIVE CONTROL SimSwap refusal checked as SimSwap verifies', true, vr(mk(), SIM.api));
+    const noApi = signJws(operator.privateKey, OP_KID, { ...freshBase(), error: OUT_OF_RANGE });
+    check('V3 R8 refusal with no api claim', false, vr(noApi, SIM.api), ClaimRejected, 'API_MISMATCH');
+    check('V3 R8 no expectedApi given fails closed', false, vr(mk(), undefined), ClaimRejected, 'API_MISMATCH');
+  }
+
+  // R6 (V3-M2): the `duration` type of the signed `entry`, at attest and at
+  // verify, on the real schemas. P0D, leading zeros, lower case, a bare number
+  // and a month unit are all refused; P90D / P2Y verify.
+  {
+    for (const [nm, schema, ans] of [['SIM_SWAP_CHECK', SIM, SIM_A], ['TENURE_CHECK', TEN, TEN_A]]) {
+      for (const bad of ['P0D', 'P090D', 'p90d', '90', 'P3M', 'P', 'PD', 'P-1D', 'P1.5D', '', 'P90D ']) {
+        check(`V3 R6 ${nm} entry ${JSON.stringify(bad)} refused at attest`, false,
+          attestAnswer(operator.privateKey, OP_KID, freshBase(), schema, { entry: bad }, ans), ClaimRejected, 'WRONG_TYPE');
+      }
+      const forgedBad = signJws(operator.privateKey, OP_KID, { ...freshBase(), api: schema.api, entry: 'P0D', ...ans });
+      check(`V3 R6 ${nm} entry "P0D" refused at verify (signer-trusted token)`, false, verifyFresh(forgedBad, schema, 'P0D'), ClaimRejected, 'WRONG_TYPE');
+      for (const good of ['P90D', 'P2Y']) {
+        const t = attestAnswer(operator.privateKey, OP_KID, freshBase(), schema, { entry: good }, ans);
+        check(`V3 R6 NEGATIVE CONTROL ${nm} entry ${good} signs and verifies`, true, typeof t === 'string' ? verifyFresh(t, schema, good) : t);
+      }
+      // F7: one parser. An over-long or leading-zero entry fails typeOk at attest and at verify.
+      for (const bad of ['P99999999999999999999D', 'P0090D', 'P00D', 'P9007199254740992D']) {
+        check(`V3 R6 ${nm} entry ${bad} refused at attest`, false,
+          attestAnswer(operator.privateKey, OP_KID, freshBase(), schema, { entry: bad }, ans), ClaimRejected, 'WRONG_TYPE');
+        const f = signJws(operator.privateKey, OP_KID, { ...freshBase(), api: schema.api, entry: bad, ...ans });
+        check(`V3 R6 ${nm} entry ${bad} refused at verify`, false, verifyFresh(f, schema, bad), ClaimRejected, 'WRONG_TYPE');
+      }
+    }
+    checkTrue('V3 R6 parseDuration: P90D=90, P2Y=730, P1Y=P365D, junk null',
+      parseDuration('P90D') === 90 && parseDuration('P2Y') === 730 && parseDuration('P1Y') === parseDuration('P365D') &&
+      parseDuration('P3M') === null && parseDuration('P090D') === null && parseDuration(90) === null);
+  }
+
+  // R9 (V3-M2, F1): the requester says which entry it asked for. A valid
+  // answer for a DIFFERENT entry, or no expectedEntry, is refused.
+  {
+    const asked = 'P90D';
+    const tOther = attestAnswer(operator.privateKey, OP_KID, freshBase(), SIM, { entry: 'P30D' }, SIM_A);
+    check('V3 R9 menu 30/60/90: asked P90D, signed P30D -> ENTRY_MISMATCH', false, verifyFresh(tOther, SIM, asked), ClaimRejected, 'ENTRY_MISMATCH');
+    const tRight = attestAnswer(operator.privateKey, OP_KID, freshBase(), SIM, { entry: asked }, SIM_A);
+    const noExp = verifyAnswer(tRight, resolveKey, SIM, vOpts());
+    check('V3 R9 expectedEntry missing -> ENTRY_MISMATCH (fail closed)', false, noExp, ClaimRejected, 'ENTRY_MISMATCH');
+    const tRight2 = attestAnswer(operator.privateKey, OP_KID, freshBase(), SIM, { entry: asked }, SIM_A);
+    const numExp = verifyAnswer(tRight2, resolveKey, SIM, { ...vOpts(), expectedEntry: 90 });
+    check('V3 R9 expectedEntry not a string -> ENTRY_MISMATCH', false, numExp, ClaimRejected, 'ENTRY_MISMATCH');
+    const tRight3 = attestAnswer(operator.privateKey, OP_KID, freshBase(), SIM, { entry: asked }, SIM_A);
+    check('V3 R9 NEGATIVE CONTROL: the right entry verifies', true, verifyFresh(tRight3, SIM, asked));
+    // A schema with no `entry` in params ignores the option.
+    const noEntry = { api: 'x/v1/y', params: { n: 'integer' }, answer: { ok: 'boolean' } };
+    const tn = attestAnswer(operator.privateKey, OP_KID, freshBase(), noEntry, { n: 1 }, { ok: true });
+    check('V3 R9 schema without entry ignores expectedEntry', true, verifyAnswer(tn, resolveKey, noEntry, vOpts()));
+  }
+
+  // R10 (V3-M2, F3): a refusal's api is one of KNOWN_APIS, at attest and at verify.
+  {
+    const free = 'sim-swap/v2/check;2026-10-01';
+    check('V3 R10 attestRefusal free-text api refused', false,
+      attestRefusal(operator.privateKey, OP_KID, freshBase(), OUT_OF_RANGE, free), ClaimRejected, 'INVALID_API');
+    const hand = signJws(operator.privateKey, OP_KID, { ...freshBase(), api: free, error: OUT_OF_RANGE });
+    check('V3 R10 hand-signed free-text api refused at verify', false,
+      verifyRefusal(hand, resolveKey, { ...vOpts(), expectedApi: free }), ClaimRejected, 'INVALID_API');
+    for (const api of KNOWN_APIS) {
+      const t = attestRefusal(operator.privateKey, OP_KID, freshBase(), OUT_OF_RANGE, api);
+      check(`V3 R10 NEGATIVE CONTROL known api ${api} refuses and verifies`, true,
+        typeof t === 'string' ? verifyRefusal(t, resolveKey, { ...vOpts(), expectedApi: api }) : t);
+    }
+    checkTrue('V3 R10 KNOWN_APIS is the two named schemas', KNOWN_APIS.length === 2 &&
+      KNOWN_APIS[0] === SIM.api && KNOWN_APIS[1] === TEN.api && Object.isFrozen(KNOWN_APIS));
+  }
+
+  // R7 (V3-M2, option 1): no date and no hours value appears in any signed
+  // answer or signed refusal. The decoded payload has no `maxAge`, no
+  // `tenureDate`, and no value that looks like a date; the signed question is
+  // the menu entry only. NEGATIVE CONTROL: the same assertion catches a
+  // payload built with the old shape (maxAge / tenureDate signed).
+  {
+    const DATE_LIKE = /[0-9]{4}-[0-9]{2}-[0-9]{2}/;
+    const noRawQuestion = (payload) =>
+      !Object.prototype.hasOwnProperty.call(payload, 'maxAge') &&
+      !Object.prototype.hasOwnProperty.call(payload, 'tenureDate') &&
+      !Object.values(payload).some((v) => typeof v === 'string' && DATE_LIKE.test(v));
+    const decode = (token) => JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf8'));
+    for (const [nm, schema, par, ans] of [['SIM_SWAP_CHECK', SIM, SIM_P, SIM_A], ['TENURE_CHECK', TEN, TEN_P, TEN_A]]) {
+      const { token } = signed(schema, par, ans);
+      checkTrue(`V3 R7 ${nm} signed answer carries no maxAge, no tenureDate, no date value`,
+        typeof token === 'string' && noRawQuestion(decode(token)));
+      const rt = attestRefusal(operator.privateKey, OP_KID, freshBase(), OUT_OF_RANGE, schema.api);
+      checkTrue(`V3 R7 ${nm} signed refusal carries no maxAge, no tenureDate, no date value`,
+        typeof rt === 'string' && noRawQuestion(decode(rt)));
+    }
+    // Negative control: old-shape payloads (V3-M1 / the abandoned both-claims
+    // shape) are caught by the very same assertion.
+    const oldSim = signJws(operator.privateKey, OP_KID, { ...freshBase(), api: SIM.api, maxAge: 2160, swapped: false });
+    const oldSimEntry = signJws(operator.privateKey, OP_KID, { ...freshBase(), api: SIM.api, maxAge: 2160, entry: 'P90D', swapped: false });
+    const oldTen = signJws(operator.privateKey, OP_KID, { ...freshBase(), api: TEN.api, tenureDate: '2024-11-23', tenureDateCheck: true });
+    const oddDate = signJws(operator.privateKey, OP_KID, { ...freshBase(), api: TEN.api, entry: '2024-11-23', tenureDateCheck: true });
+    checkTrue('V3 R7 NEGATIVE CONTROL old shape with maxAge is caught', !noRawQuestion(decode(oldSim)) && !noRawQuestion(decode(oldSimEntry)));
+    checkTrue('V3 R7 NEGATIVE CONTROL old shape with tenureDate is caught', !noRawQuestion(decode(oldTen)));
+    checkTrue('V3 R7 NEGATIVE CONTROL a date value under another name is caught', !noRawQuestion(decode(oddDate)));
+    // And verifyAnswer itself refuses the old shapes (EXTRA_CLAIM): the
+    // schema is closed, so a leaky signer cannot ship a date or hours value.
+    check('V3 R7 verifyAnswer refuses a SimSwap token that also signs maxAge', false,
+      verifyFresh(oldSimEntry, SIM), ClaimRejected, 'EXTRA_CLAIM');
+    const oldTenEntry = signJws(operator.privateKey, OP_KID, { ...freshBase(), api: TEN.api, tenureDate: '2024-11-23', entry: 'P2Y', tenureDateCheck: true });
+    check('V3 R7 verifyAnswer refuses a Tenure token that also signs tenureDate', false,
+      verifyFresh(oldTenEntry, TEN), ClaimRejected, 'EXTRA_CLAIM');
   }
 }
 
-conclude(314);
+conclude(385);

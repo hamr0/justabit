@@ -14,6 +14,38 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-11-23/24 — V3-M2 published menu: spike PASS, built, four review rounds; the signed answer names the menu entry only; the Tenure envelope gap becomes V3-M2b; user-validated 385/385 and 46/46
+
+**EVIDENCE**
+
+1. V3-M2 spike (`.claude/scratch/camara-v3/spike-m2/spike.mjs`): pre-registered readout PASS. Only menu values are accepted; across about 13,000 requests no refusal read the backend; at UTC midnight it never answers for the wrong day; a scripted search learns only the menu band, never the raw date. Exit 0 under the default TZ, Pacific/Kiritimati and America/Adak; the mutants local-time, 729-days and read-before-check each differ (`cmp`) and exit 1. The main session re-ran all of it.
+2. Build (`camara/v3/poc/`): new `menu.mjs` (default menu SimSwap `P90D`, Tenure `P2Y`; `loadMenu` throws on an unusable entry; `checkMenu`, `entryFor`, `answerWithMenu`), `menu.json`, `menu-check.mjs`. `m1-jws.mjs`: the signed question is `entry` only (decision 1); refusals name their API; the refusal reason `OFF_MENU_THRESHOLD` is renamed Sync26's `OUT_OF_RANGE`. Spec §4.2 and §6 spliced from main-session text.
+3. The build stopped on case 33 (SIZE GUARD): with `entry` added beside `maxAge`, the worst-case SimSwap JWS was 455 B against the 446 B RSA-4096 OAEP capacity of the v2 envelope. Decision 1 brought it to 437 B.
+4. Main-session check of the build: the worst-case Tenure answer stays over the cap (about 460 B, measured 459-461 B by key and nonce). Measured on the V3-M1 commit `888ef70`: 475 B. So the gap dates from V3-M1; case 33 tested SimSwap only, so no test caught it. Decision 2.
+5. `/code-review medium`, round 1: 7 findings, all confirmed and fixed. Most serious: the requester could not check that the signed `entry` was the question it asked (now `verifyAnswer` requires `expectedEntry`, else `ENTRY_MISMATCH`; `entryFor` gives the requester its expected entry); a signed refusal accepted free text as `api` (now a closed list, `KNOWN_APIS`, at sign and verify). Also: duplicates by days, one duration parser, spec §4.1 wording, CLAUDE.md file map.
+6. `/code-review medium`, round 2 (on the fix round): 7 findings, all confirmed and fixed. The menu keyed APIs as `simSwap`/`tenure` while the signer used the CAMARA paths, so `entryFor` with the signer's name returned null; the menu is now keyed by the schema `api` value (one name for one thing). Tenure entries capped at `P100Y`; the threshold date R must be a real calendar date; new cases 33c/33d show the envelope REFUSES the large Tenure answer and never truncates it, with SimSwap as the negative control; spec §4.3 and the V3-M3 row now say "signed menu entry".
+7. `/code-review medium`, round 3: no invariant break. 5 code items fixed: `checkMenu` now takes the whole request body and reads only its one field as an own property (a real body with `phoneNumber` and `nonce` was refused); an absent field is refused, Sync26's 240 h default is not applied; a given menu runs through `loadMenu`; an API may be absent from a menu; a missing or invalid `today` for Tenure throws `TypeError` outside the wire-input catch. 2 doc items: this entry, and `docs/index.md` (regenerated before `/branch-review`).
+8. `/code-review medium`, round 4: no code defect. Text-only fixes: the `KNOWN_APIS` comment says a new schema must add its `api`; the `today` rule holds whatever the menu offers; a README call signature; the V3-M4 row now owns joining `answerWithMenu` to `attachAttestation`.
+9. Every new guard was mutation-tested (cp backup, `cmp` differs, red, cp restore, `cmp` equal, green), by the agents and, for read-before-check and `expectedEntry`, by the main session.
+10. Final run by the main session, every exit 0 under UTC, Pacific/Kiritimati and America/Adak: `m1-jws-check` 385/385, `menu-check` 46/46, `m1-check` 20/20, `m2-check` 10/10, `m3-check` 26/26, `m4-check` 42/42, `m5-check` 67/67, `m6-check` 47/47. `m5-check-live` needs a live backend and was not run.
+11. USER VALIDATION (2026-11-24): the user ran the runbook at this tree and pasted the output: `m1-jws-check` `RESULT: 385/385`, `exit=0`, with `PASS 33c KNOWN GAP (closed by V3-M2b)`; `m1` to `m6` `-check` each `exit=0`; `menu-check` under `TZ=Pacific/Kiritimati` `RESULT: 46/46`, `exit=0`; and `.claude/scratch/camara-v3/show-m2.mjs` ending `SHOW-M2 OK`, `exit=0`, whose signed payloads carry `api`, `entry` (`P90D`, `P2Y`) and the boolean only, and whose two off-menu requests show `{"refused":"OUT_OF_RANGE"}` with `backend reads=0`. The first `show-m2.mjs` run failed with `ERR_MODULE_NOT_FOUND`: a defect in the main session's helper (it resolved the modules from the working folder), not in V3-M2; fixed to resolve from its own file, and the user re-ran it. No output of step 1 (`menu-check` in the default time zone) was pasted; the main session ran it at this tree (46/46, exit 0, in UTC, Pacific/Kiritimati and America/Adak). The V3-M1 record (314/314, 2026-11-23) does not carry over.
+
+**DECISION**
+
+1. The signed answer names the menu entry only (`entry`, for example `P90D`, `P2Y`); `maxAge` and `tenureDate` are not signed (user, 2026-11-23, "option 1"). Why: the two claims said the same thing twice, the user's aim is "the signed question should be 'is it P90D?', not a raw value or a date", and the smaller token fits the SimSwap envelope. The requester still sends the Sync26 field; the operator maps it to the entry before any read. Consequence: the V3-M1 signed shape the user validated on 2026-11-23 changes; that record stays as written on its date, and this module is validated again at its own count.
+2. The Tenure envelope gap is closed by a new module, V3-M2b, directly after V3-M2 (user, 2026-11-24, "option 1"): a hybrid envelope, a fresh AES-256-GCM key per message for the signed answer and RSA-OAEP for that key only (the HPKE pattern; `m2-envelope.mjs` line 8 already named it). Why: shortening the claims only moves the limit to the next API with a long path; V3-M4 was too late because the gap already exists in committed code; a separate module keeps a security change in its own small diff and its own checkpoint. Numbered step 5b in prd §6 Phase 4b so cited step numbers do not change.
+3. The menu is keyed by the CAMARA API path (`sim-swap/v2/check`, `kyc-tenure/v0.3/check-tenure`), the same value the signer signs (main session, review round 2; told to the user 2026-11-24). This is the menu format later offered to SimSwapTimeFrame.
+4. Cases the spec left open were settled fail-closed: an absent request field refuses (no Sync26 default); an unusable `thresholdR` refuses; an unloadable menu refuses; a bad `today` is a caller bug and throws.
+
+**OPEN ITEMS (documented, not fixed)**
+
+- The signer checks the entry's type only; an operator must call `answerWithMenu` first. V3-M4 joins them (prd §4.4).
+- A signed Tenure answer cannot be sealed for the blind hub (cases 33b/33c). V3-M2b closes it.
+- A requester that asks the same question every day sees the day the answer changes (spec §6). Only billing and per-line query limits help.
+- V3-S0 live half: still not run.
+
+---
+
 ## 2026-11-23 — V3-M1 signed answer: spike PASS, built, six review rounds; the signed response is built, not filtered; caller migration moved to V3-M4; user-validated 314/314
 
 **EVIDENCE**

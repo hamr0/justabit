@@ -9,9 +9,18 @@
 // absent (API_MISMATCH). `api` is NOT in the shared base set, so the refusal
 // profile is unchanged. `attachAttestation` is the caller-level rule: it BUILDS
 // the signed response (answer + `attestation` only) and, with no nonce, returns
-// today's response unchanged. Signed refusals stay API-unbound until V3-M2
-// (attestRefusal/verifyRefusal carry no `api`). M1 checks the question's type
-// only; its range is V3-M2.
+// today's response unchanged.
+//
+// V3-M2: refusals are now API-bound. attestRefusal takes the API and writes an
+// `api` claim; verifyRefusal takes `expectedApi` and rejects a mismatch or an
+// absent claim (API_MISMATCH), as verifyAnswer does. The refusal reason
+// OFF_MENU_THRESHOLD is renamed OUT_OF_RANGE (Sync26's code); UNAVAILABLE
+// stays. Each answer schema carries a signed `entry` claim (a duration such as
+// P90D): the published-menu entry the question was answered against. It is the
+// ONLY signed question claim; the Sync26 request field is not signed.
+// This module checks the TYPE of the question and of `entry` only; whether
+// the question is on the operator's menu is enforced by menu.mjs, before any
+// backend read.
 //
 // Two layers:
 //   Layer 1 — signJws/verifyJws: a generic, payload-agnostic JWS compact
@@ -248,10 +257,13 @@ const BASE_FIELDS = { iss: 'string', aud: 'string', nonce: 'string', iat: 'integ
 // base claim, the same failure class the reserved-claim clobber fix above
 // closed for the answer profile.
 const REFUSAL_FIELDS = Object.freeze({ error: 'string' });
+// V3-M2: a refusal also names its API. `api` is NOT a caller-suppliable base
+// claim (same rule as answers): it comes from attestRefusal's `api` argument.
+const REFUSAL_WIRE_FIELDS = Object.freeze({ api: 'string', ...REFUSAL_FIELDS });
 
 // V3-M1: 'date' = YYYY-MM-DD that is a real calendar date (round-trips through
 // Date.UTC fields), nothing else: no time part, no short forms, no 02-30.
-function isCalendarDate(value) {
+export function isCalendarDate(value) {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const y = Number(value.slice(0, 4)), m = Number(value.slice(5, 7)), d = Number(value.slice(8, 10));
   const t = new Date(0);
@@ -259,11 +271,26 @@ function isCalendarDate(value) {
   return t.getUTCFullYear() === y && t.getUTCMonth() === m - 1 && t.getUTCDate() === d;
 }
 
+// 'duration' = a published-menu entry, P<n>D or P<n>Y (1Y = 365D, the repo's
+// duration grammar), n in 0..2^53-1 with no leading zero. Returns the days, or
+// null. P0D parses to 0: callers (typeOk here, menu.mjs) reject it. The one
+// duration parser (menu.mjs imports it).
+export function parseDuration(s) {
+  if (typeof s !== 'string') return null;
+  const m = /^P(0|[1-9][0-9]{0,15})([DY])$/.exec(s);
+  if (!m) return null;
+  const n = Number(m[1]);
+  if (!Number.isSafeInteger(n)) return null;
+  const days = m[2] === 'Y' ? n * 365 : n;
+  return Number.isSafeInteger(days) ? days : null;
+}
+
 function typeOk(type, value) {
   if (type === 'string') return typeof value === 'string' && value.length > 0;
   if (type === 'integer') return Number.isSafeInteger(value);
   if (type === 'boolean') return typeof value === 'boolean';
   if (type === 'date') return isCalendarDate(value);
+  if (type === 'duration') { const d = parseDuration(value); return d !== null && d > 0; }
   return false;
 }
 
@@ -368,13 +395,22 @@ function verifyRequesterChecks(payload, { expectedIss, expectedAud, nonceStore, 
   return null;
 }
 
-// The named schema. SIM_SWAP_CHECK produces the exact seven-claim payload
-// in camara/v2/docs/camara-attested-windowed-disclosure.md §4, plus the V3-M1
-// `api` claim. Each answer schema carries its fixed `api` value (the CAMARA
-// URL path segment); a caller can never supply its own.
+// The named schema. V3-M2 (user decision 2026-11-23, "sign entry only"): a
+// signed answer carries the five base claims, the fixed `api` claim, the
+// menu `entry` (a duration such as P90D) and the answer key: seven claims.
+// The Sync26 request field (`maxAge`, `tenureDate`) is NOT signed: the
+// operator maps it to the entry (menu.mjs) before any read, so no hours value
+// and no date appears in any signed answer. Each answer schema carries its
+// fixed `api` value (the CAMARA URL path segment); a caller can never supply
+// its own.
+// The signer checks the entry's type only (a positive duration). attestAnswer and
+// attachAttestation do NOT check the menu or the per-API cap (SimSwap <= 2400 h):
+// an operator MUST call answerWithMenu (menu.mjs) first and sign only the entry it
+// returns. V3-M4 (caller migration) joins the two. The requester's `expectedEntry`
+// check (verifyAnswer) closes the requester side.
 export const SIM_SWAP_CHECK = Object.freeze({
   api: 'sim-swap/v2/check',
-  params: Object.freeze({ maxAge: 'integer' }),
+  params: Object.freeze({ entry: 'duration' }),
   answer: Object.freeze({ swapped: 'boolean' }),
 });
 
@@ -383,9 +419,15 @@ export const SIM_SWAP_CHECK = Object.freeze({
 // (attachAttestation builds the response from the answer keys only).
 export const TENURE_CHECK = Object.freeze({
   api: 'kyc-tenure/v0.3/check-tenure',
-  params: Object.freeze({ tenureDate: 'date' }),
+  params: Object.freeze({ entry: 'duration' }),
   answer: Object.freeze({ tenureDateCheck: 'boolean' }),
 });
+
+// The closed set of API names a refusal may carry (attestRefusal / verifyRefusal).
+// A new answer schema must add its `api` here, or it can sign answers but not
+// refusals. Kept as a literal list on purpose: a refusal's `api` must never be
+// a value the caller chose.
+export const KNOWN_APIS = Object.freeze([SIM_SWAP_CHECK.api, TENURE_CHECK.api]);
 
 // Fails closed on a caller who tries to supply `api` (in base, params or
 // answer) or on a schema whose params/answer name `api`: the value comes
@@ -427,8 +469,8 @@ function checkSchemaApi(schema) {
 //    that were signed) and then `attestation`. Nothing else from `body` is
 //    copied, so no raw field, extra field or forged `attestation` can ride
 //    beside the signature.
-// Scope: refusals stay API-unbound until V3-M2. M1 checks the question's type
-// only (e.g. `tenureDate` is a date); its range is V3-M2.
+// Scope: this module checks the type of `entry` only; whether the question is
+// on the operator's menu is menu.mjs (V3-M2).
 export class AttestationFailed extends Error {
   constructor(message, options) {
     super(message || 'attestation failed', options);
@@ -496,9 +538,9 @@ export function attachAttestation(body, nonce, opts) {
 // Closed refusal-reason enum. A refusal is signed too — a signed excuse is
 // still an attestation, so its `error` value must come from a fixed menu,
 // not free text an operator could smuggle a raw value into.
-export const OFF_MENU_THRESHOLD = 'OFF_MENU_THRESHOLD';
+export const OUT_OF_RANGE = 'OUT_OF_RANGE';
 export const UNAVAILABLE = 'UNAVAILABLE';
-export const REFUSAL_REASONS = Object.freeze([OFF_MENU_THRESHOLD, UNAVAILABLE]);
+export const REFUSAL_REASONS = Object.freeze([OUT_OF_RANGE, UNAVAILABLE]);
 
 // `base` = { iss, aud, nonce, iat, exp } — the five claims shared by both
 // profiles. `schema` = { api, params: {name:type}, answer: {name:type} }.
@@ -567,7 +609,7 @@ export function attestAnswer(privateKey, kid, base, schema, params, answer) {
  *   checking `.ok` first, since a failure object simply has no `claims`
  *   key and would read back as `undefined` rather than throw.
  */
-export function verifyAnswer(token, resolveKey, schema, { expectedIss, expectedAud, nonceStore, now }) {
+export function verifyAnswer(token, resolveKey, schema, { expectedIss, expectedAud, expectedEntry, nonceStore, now }) {
   const r = verifyJws(token, resolveKey);
   if (!r.ok) return r;
   // `attestAnswer` guards schema/schema.params/schema.answer before ever
@@ -602,6 +644,12 @@ export function verifyAnswer(token, resolveKey, schema, { expectedIss, expectedA
     if (!hasOwn(r.payload, 'api') || r.payload.api !== schema.api) {
       return { ok: false, reason: new ClaimRejected('API_MISMATCH', 'api claim missing or not this schema\'s api') };
     }
+    // V3-M2: when the schema signs an `entry`, the requester must say which entry
+    // it asked for (entryFor in menu.mjs) and the signed one must equal it.
+    if (hasOwn(schema.params, 'entry') &&
+        (typeof expectedEntry !== 'string' || !hasOwn(r.payload, 'entry') || r.payload.entry !== expectedEntry)) {
+      return { ok: false, reason: new ClaimRejected('ENTRY_MISMATCH', 'entry claim missing or not the expected entry') };
+    }
     const answerFields = { api: 'string', ...extraFields };
     const closedErr = checkClosedPayload(r.payload, answerFields);
     if (closedErr) return { ok: false, reason: closedErr };
@@ -626,32 +674,36 @@ export function verifyAnswer(token, resolveKey, schema, { expectedIss, expectedA
  *   `typeof result === 'string'` for success, exactly as `signJws` callers
  *   must — never read the result as a token without that check.
  */
-export function attestRefusal(privateKey, kid, base, error) {
+export function attestRefusal(privateKey, kid, base, error, api) {
   // D2 FIX backstop: `base` is caller-supplied and may carry a throwing
   // getter or Proxy trap. Every branch below still returns its own specific
   // code before this catch could see it.
   try {
-    if (!isPlainObject(base) || typeof error !== 'string') {
-      return { ok: false, reason: new ClaimRejected('MALFORMED_INPUT', 'base must be a plain object, error must be a string') };
+    if (!isPlainObject(base) || typeof error !== 'string' || typeof api !== 'string' || api.length === 0) {
+      return { ok: false, reason: new ClaimRejected('MALFORMED_INPUT', 'base must be a plain object, error and api must be strings') };
     }
+    if (!KNOWN_APIS.includes(api)) return { ok: false, reason: new ClaimRejected('INVALID_API', 'api is not a known API') };
+    // V3-M2: the api comes from the argument only, never from `base`.
+    const apiSuppliedErr = checkApiNotCallerSupplied(base);
+    if (apiSuppliedErr) return { ok: false, reason: apiSuppliedErr };
     if (!REFUSAL_REASONS.includes(error)) {
       return { ok: false, reason: new ClaimRejected('INVALID_ERROR', 'error not in the closed enum') };
     }
-    const collisionErr = checkNoReservedCollision(REFUSAL_FIELDS);
+    const collisionErr = checkNoReservedCollision(REFUSAL_WIRE_FIELDS);
     if (collisionErr) return { ok: false, reason: collisionErr };
-    const payload = { ...base, error };
-    const err = checkClosedPayload(payload, REFUSAL_FIELDS);
+    const payload = { ...base, api, error };
+    const err = checkClosedPayload(payload, REFUSAL_WIRE_FIELDS);
     if (err) return { ok: false, reason: err };
     return signJws(privateKey, kid, payload);
   } catch {
-    return { ok: false, reason: new ClaimRejected('MALFORMED_INPUT', 'base must be a plain object, error must be a string') };
+    return { ok: false, reason: new ClaimRejected('MALFORMED_INPUT', 'base must be a plain object, error and api must be strings') };
   }
 }
 
 /**
  * @returns {{ok: true, claims: object}|{ok: false, reason: JwsRejected|ClaimRejected}}
  *   On success, `{ok: true, claims}` where `claims` is the schema-projected
- *   claim set only (base ∪ REFUSAL_FIELDS — never the raw decoded payload;
+ *   claim set only (base ∪ api ∪ REFUSAL_FIELDS — never the raw decoded payload;
  *   see `projectClaims`). On failure, `{ok: false, reason}` where `reason`
  *   is a `JwsRejected` (propagated from `verifyJws` — malformed token, bad
  *   signature, unknown kid) or a `ClaimRejected` (closed-set/type/off-menu
@@ -662,23 +714,33 @@ export function attestRefusal(privateKey, kid, base, error) {
  *   failure object simply has no `claims` key and would read back as
  *   `undefined` rather than throw.
  */
-export function verifyRefusal(token, resolveKey, { expectedIss, expectedAud, nonceStore, now }) {
+export function verifyRefusal(token, resolveKey, { expectedIss, expectedAud, expectedApi, nonceStore, now }) {
   const r = verifyJws(token, resolveKey);
   if (!r.ok) return r;
   // D2 FIX backstop, symmetric with verifyAnswer's. Every branch below
   // still returns its own specific code before this catch could see it.
   try {
-    const collisionErr = checkNoReservedCollision(REFUSAL_FIELDS);
+    const collisionErr = checkNoReservedCollision(REFUSAL_WIRE_FIELDS);
     if (collisionErr) return { ok: false, reason: collisionErr };
-    const closedErr = checkClosedPayload(r.payload, REFUSAL_FIELDS);
+    // V3-M2: the token must name the API the caller expects. Absent `api`, or
+    // no usable expectedApi, fails closed with the same code; checked before
+    // the closed set so it holds on its own.
+    if (typeof expectedApi !== 'string' || expectedApi.length === 0 ||
+        !hasOwn(r.payload, 'api') || r.payload.api !== expectedApi) {
+      return { ok: false, reason: new ClaimRejected('API_MISMATCH', 'api claim missing or not the expected api') };
+    }
+    if (!KNOWN_APIS.includes(r.payload.api)) {
+      return { ok: false, reason: new ClaimRejected('INVALID_API', 'api claim is not a known API') };
+    }
+    const closedErr = checkClosedPayload(r.payload, REFUSAL_WIRE_FIELDS);
     if (closedErr) return { ok: false, reason: closedErr };
     if (!REFUSAL_REASONS.includes(r.payload.error)) {
       return { ok: false, reason: new ClaimRejected('INVALID_ERROR', 'error not in the closed enum') };
     }
     const reqErr = verifyRequesterChecks(r.payload, { expectedIss, expectedAud, nonceStore, now });
     if (reqErr) return { ok: false, reason: reqErr };
-    // D1 FIX: hand back only the schema-declared claims (base ∪ REFUSAL_FIELDS).
-    return { ok: true, claims: projectClaims(r.payload, { ...BASE_FIELDS, ...REFUSAL_FIELDS }) };
+    // D1 FIX: hand back only the schema-declared claims (base ∪ api ∪ REFUSAL_FIELDS).
+    return { ok: true, claims: projectClaims(r.payload, { ...BASE_FIELDS, ...REFUSAL_WIRE_FIELDS }) };
   } catch {
     return { ok: false, reason: new ClaimRejected('MALFORMED_INPUT', 'malformed refusal payload') };
   }

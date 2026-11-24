@@ -1,6 +1,89 @@
 # PoC — Mode A, four assertions, one command
 
-**v3 working copy, copied unchanged from `camara/v2/poc` on 2026-11-23 (commit `a4283fb`); `camara/v2/poc` stays frozen. V3-M1 has since changed `m1-jws.mjs`, `m1-jws-check.mjs` and `README.md` (see below); the other modules are still the v2 code, with only their run-line paths changed to `camara/v3/poc`.**
+**v3 working copy, copied unchanged from `camara/v2/poc` on 2026-11-23 (commit `a4283fb`); `camara/v2/poc` stays frozen. V3-M1 and V3-M2 have since changed `m1-jws.mjs`, `m1-jws-check.mjs` and `README.md`, and V3-M2 added `menu.mjs`, `menu.json` and `menu-check.mjs` (see below); the other modules are still the v2 code, with only their run-line paths changed to `camara/v3/poc`.**
+
+**2026-11-23 — V3-M2 (published menu).** The operator publishes the questions
+it answers as a short closed set of durations per API (not a range: a range
+lets a requester find the raw date by asking again with a moved value).
+Default menu = the agent floor: SimSwap `P90D`, Tenure `P2Y` (`menu.json`,
+same content as `DEFAULT_MENU` in `menu.mjs`). An operator may publish more.
+The menu is keyed by the schema `api` value from `m1-jws.mjs`
+(`sim-swap/v2/check`, `kyc-tenure/v0.3/check-tenure`): one name for one thing,
+so `SIM_SWAP_CHECK.api` goes straight into `entryFor`, `answerWithMenu` and
+`attestRefusal`. The old short names `simSwap` / `tenure` are refused by
+`loadMenu` and `checkMenu`.
+
+- The requester still sends the Sync26 request body. `checkMenu`, `entryFor`
+  and `answerWithMenu` take the WHOLE body (for example `{phoneNumber, maxAge,
+  nonce}`) and read ONLY the API's own field (`maxAge` hours; `tenureDate`) as
+  an own property (an inherited one, or `__proto__` via `JSON.parse`, does not
+  count). Other keys are ignored: never signed, never passed to `readBackend`,
+  which gets only `(api, entry)`. A body without the field is refused: Sync26's
+  240 h `maxAge` default (P10D) is not on the default menu, and a default the
+  requester did not ask for is not a question it asked.
+  `menu.mjs` maps the field to the menu entry BEFORE any backend read. Off menu is
+  `OUT_OF_RANGE`: never rounded, nothing read. Dates are UTC only.
+- Signed shape (user decision 2026-11-23, "sign `entry` only"): the answer
+  is `iss, aud, nonce, iat, exp, api, entry, <answer>`. `maxAge` and
+  `tenureDate` are NOT signed, so no hours value and no date appears in any
+  signed answer or refusal. This changes the V3-M1 signed shape.
+- Signed refusals are now API-bound: `attestRefusal(..., error, api)` writes
+  `api`; `verifyRefusal` takes `expectedApi` and rejects a mismatch
+  (`API_MISMATCH`). `OFF_MENU_THRESHOLD` is renamed `OUT_OF_RANGE`.
+- `loadMenu` throws on a bad entry, `P0D`, a SimSwap entry above the 2400 h
+  cap (for example `P365D`; `P100D` loads, `P101D` throws), or a Tenure entry
+  above `P100Y` (no line is older than 100 years; keeps the UTC date math in
+  range).
+- `loadMenu` accepts a menu that omits an API (the operator does not offer
+  it; `checkMenu` refuses every question for it). A list that is present must
+  still be non-empty. `checkMenu` runs a given `ctx.menu` through `loadMenu`;
+  if that throws, the question is refused.
+- Requester side: call `entryFor` when the request is BUILT, with the same
+  `today` used to compute `tenureDate`, and keep the result as
+  `expectedEntry` for `verifyAnswer`. Recomputing it at verify time fails
+  with `ENTRY_MISMATCH` across UTC midnight.
+- Wire input never throws. A caller bug does: a Tenure question with a
+  missing or invalid `ctx.today` (not a `Date` with a valid time) throws
+  `TypeError`, so a wiring mistake is not hidden as `OUT_OF_RANGE`. SimSwap
+  questions need no `today`.
+- `thresholdR` and the requester's `tenureDate` must be real calendar dates
+  (`isCalendarDate`, exported from `m1-jws.mjs`): `2024-13-01`, `2024-00-01`,
+  `2024-02-30` refuse.
+- The signer does NOT check the menu. `attestAnswer` and `attachAttestation`
+  sign any positive duration as `entry` and do not apply the per-API cap; an
+  operator MUST call `answerWithMenu` first and sign only the entry it returns.
+  V3-M4 (caller migration) joins the two.
+- The V3-M1 bullets below that say refusals are API-unbound or that
+  `TENURE_CHECK` signs a `tenureDate` of type `date` are history; V3-M2
+  replaces them. The `date` type stays in the library but no named schema
+  uses it.
+- Known open item: the worst-case Tenure signed answer (461 B) is over the
+  446 B RSA-4096 OAEP cap of the v2 envelope; SimSwap (437 B) and the signed
+  refusal (441 B) fit. Closed by V3-M2b (hybrid AES-256-GCM + RSA-OAEP
+  envelope, user decision 2026-11-24), a separate later module; the `INFO 33b`
+  line in `m1-jws-check.mjs` stays a measurement until then. Case 33c pins the
+  gap: sealing that answer with `m2-envelope.mjs` `seal()` is refused (it
+  throws, never truncates, no ciphertext), with 33d as the negative control
+  (the worst-case SimSwap answer seals and opens to the same bytes).
+- Requester side (F1): `verifyAnswer` takes `expectedEntry`. For a schema
+  whose params include `entry` it is required, and must equal the signed
+  `entry`, else `ENTRY_MISMATCH`. The requester gets it from
+  `entryFor(api, body, ctx)` in `menu.mjs` (its own request field mapped
+  through the same published menu; `null` if off menu). Without it a valid
+  answer to a different question could pass.
+- Refusal APIs (F3): `KNOWN_APIS` (exported from `m1-jws.mjs`) is the closed
+  set of API names a refusal may carry. `attestRefusal` and `verifyRefusal`
+  reject any other `api` with `INVALID_API`.
+- One duration grammar (F7): `parseDuration` lives in `m1-jws.mjs`, and
+  `menu.mjs` imports it. The signer checks `entry` is a positive duration;
+  the per-API caps (SimSwap 2400 h, Tenure P100Y) stay in `menu.mjs`.
+- `loadMenu` treats `['P1Y','P365D']` as a duplicate (compared in days).
+
+```
+node camara/v3/poc/menu-check.mjs      # V3-M2 published menu — 46 cases
+node camara/v3/poc/m1-jws-check.mjs    # 385 cases (314 at V3-M1 + V3-M2 rewrites and additions)
+```
+Run both also under `TZ=Pacific/Kiritimati` and `TZ=America/Adak`.
 
 **2026-11-23 — V3-M1 (signed answer).** Caller migration (M2/M6/`demo.mjs`
 onto the JWS core) is V3-M4 (user decision 2026-11-23), not V2-M3: until then

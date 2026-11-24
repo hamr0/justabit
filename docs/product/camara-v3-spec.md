@@ -71,13 +71,14 @@ The operator signs the existing answer. The answer itself does not change.
 
 - The request gets one optional field, `nonce`, chosen by the requester.
 - The response gets one field, `attestation`: a JWS (RFC 7515) whose payload
-  carries the question asked (API, threshold), the answer, the requester's
+  carries the question asked (API, menu entry), the answer, the requester's
   `nonce`, the issue time and an expiry (`exp`).
 - The verifier finds the operator's key through a published JWKS.
 - The answer stays yes/no. The attestation never carries the subscriber's
-  raw value (no swap date, no subscription date, no location). It repeats
-  only the requester's own question (for example `maxAge` or `tenureDate`),
-  which the requester already knows.
+  raw value (no swap date, no subscription date, no location). It names
+  the question as the operator's menu entry (for example `P90D`, §4.2),
+  which the requester already knows; the request field itself (`maxAge`,
+  `tenureDate`) is not signed.
 - A signed response carries only the answer field and `attestation`.
   Other fields of today's response (for example Tenure's `contractType`)
   are left out, so nothing unsigned travels beside the signature. A request
@@ -96,12 +97,21 @@ Built and tested as V3-M1 (prd §4.4).
 
 ### 4.2 A published menu (fills gap 2)
 
-The operator publishes the limits it already applies, in a machine-readable
-form: for each API, the allowed values or range (for example Tenure's R,
-age-verification's agreed set, SimSwap's local `maxAge` limit). An
-off-menu request keeps today's behaviour: `400 OUT_OF_RANGE`, with
-`BadRequestWithRange400` where the API has it. It is refused, never
-rounded. The signed answer names the menu entry it was answered against.
+The operator publishes, in a machine-readable form, the questions it
+answers: a short set of values per API, not a range. Each value is a
+yes/no question. The default menu is the agent floor, one entry per API:
+SimSwap `P90D` ("no SIM swap in the last 90 days?", sent as `maxAge`
+`2160`) and Tenure `P2Y` ("tenure of 2 years or more?", sent as
+`tenureDate` = the UTC date today minus 730 days). An operator may publish
+more entries by its own choice; each entry adds one band a requester can
+test. A set, not a range, because a range lets a requester find the raw
+date by asking many times and moving the value; Sync26 already allows a
+set (kyc-age-verification refuses with `400 OUT_OF_RANGE` a value outside
+"the narrower range or set of values agreed during onboarding"). An
+off-menu request gets today's `400 OUT_OF_RANGE`: it is refused, never
+rounded, and the operator reads nothing for it. The signed answer names
+the menu entry (`entry`), so what is signed is the yes/no question, not a
+date. A signed refusal names its API.
 
 Built and tested as V3-M2 (prd §4.4).
 
@@ -110,7 +120,7 @@ Built and tested as V3-M2 (prd §4.4).
 A party that passes an answer on may ask only the same or a stricter
 question than the one it received. It never asks a looser one. The
 signed question in §4.1 makes this checkable: the next party compares
-the threshold in the signature with the one it needs. Widening is a new,
+the signed menu entry with the one it needs. Widening is a new,
 separate request, never a default.
 
 Built and tested as V3-M3 (prd §4.4).
@@ -158,6 +168,11 @@ Built as the V3-M4 demo on a mock, then V3-M5 on Orange Playground if it exposes
 - A SIM is not a person. Tenure and SIM-swap age make many fake lines
   costly; they do not prove uniqueness or identity.
 - Number portability (MNP) can reset naive tenure.
+- A requester that asks the same question again every day can see the day
+  the answer changes, and so learn the date (for example the day "under 2
+  years" becomes "2 years and over"). No menu stops this, because the
+  question is "since when". Only operational limits help: each query is
+  paid, and the operator can limit repeated queries for one line.
 - No aggregator operator has reviewed this design (TSC point, 2026-09-03).
 
 ## 7. Open questions
