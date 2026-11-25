@@ -164,7 +164,14 @@ camara/v2/poc/      copy of camara/v1/poc/ plus the JWS attestation core;
 camara/v2/spec/     the JWS-envelope OpenAPI sketch; FROZEN 2026-11-23
 camara/v3/poc/      v3 code: copy of camara/v2/poc/ (2026-11-23); V3-M1
                     adds the signed `api` claim and the Tenure schema to
-                    the JWS core
+                    the JWS core; V3-M2 adds the published menu (menu.mjs,
+                    menu.json) and signs the menu entry only; V3-M2b
+                    replaces the envelope with a JWE (RSA-OAEP-256 +
+                    A256GCM) padded to one fixed size
+camara/v3/spec/     carrier-attestation.yaml — illustrative OpenAPI sketch
+                    of the v3 signed answer on Sync26 SimSwap /check and
+                    Tenure /check-tenure (2026-11-25), not normative;
+                    sketch-check.py checks it against the v3 PoC
 ietf/v1/docs/       frozen record of draft-hamr-oauth-agent-delegation-00
                     as posted 2026-08-31 (agent/delegation side, OAuth WG
                     target); ietf-agent-delegation.md is the companion
