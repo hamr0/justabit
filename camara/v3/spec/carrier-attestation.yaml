@@ -175,7 +175,7 @@ components:
       minLength: 1
       maxLength: 256
       description: |
-        The requester's challenge. The operator copies it into the signed
+        The verifier's challenge: the party that will rely on the answer issues it. The operator copies it into the signed
         payload. This is the field this proposal adds to the request. If the
         member is present, it must be a non-empty string. `null` and `""`
         are refused with `400 INVALID_ARGUMENT`. The maximum length here is

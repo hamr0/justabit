@@ -502,10 +502,36 @@ full order is §6 Phase 4b.
 | V3-M1 signed answer | JWS (V2-M1 core) around the Sync26 Tenure `/check-tenure` and SimSwap `/check` answers, with a signed `api` claim; the caller migration moved to V3-M4 (user, 2026-11-23) | the answer is unchanged; tampered, expired, wrong-nonce, wrong-key and wrong-API answers REJECT; a signed response carries only the answer and `attestation`, so no other field (`contractType`, `latestSimChange`) reaches the requester beside it. M1 has no cap, so the above-cap leak test is V3-M2's |
 | V3-M2 published menu | menu file + `400 OUT_OF_RANGE` refusal (spec §4.2); absorbs the V2-M3 off-menu `maxAge` item; the signed refusal names the API it refuses (`api`, as the answer does since V3-M1) | off-menu is refused, never rounded; the `maxAge` hours conversion; the signed answer names its menu entry; no raw date leaks, tested with a threshold ABOVE the cap |
 | V3-M2b sealed envelope | replace the v2 RSA-OAEP envelope (`m2-envelope.mjs`) with a JWE (RFC 7516, `RSA-OAEP-256` + `A256GCM`, `node:crypto` only): a fresh AES-256-GCM key per message seals the signed answer, RSA-OAEP seals only that key; every payload padded to one fixed 1024 B size (`MAX_PAYLOAD` 1023); user and POCs, 2026-11-24, why in findings.md | every signed answer and refusal of every profile API seals and opens at one fixed sealed length (2142 B for RSA-4096); a payload over `MAX_PAYLOAD` is refused at `seal()` and the operator sends a true signed refusal; `open()` refuses any other length before any crypto; the hub cannot read it; `open()` never throws and gives one failure reason for every fault |
-| V3-M3 tighten only | the next party checks the signed menu entry (spec §4.3) | a looser question REJECTS; no default widens a window |
+| V3-M3 tighten only | the verifier checks the signed menu entry against its own (spec §4.3), inside `verifyAnswer` in `m1-jws.mjs` (no new function on top): equal entry, any answer; stricter entry, pass answer only; looser entry, `LOOSER`; spec corrected first (2026-11-25, findings) | monotonicity: a pass at a stricter entry implies a pass at every looser one (spike on every mock line before the build); a looser question REJECTS; a fail at a stricter entry is never accepted for a looser one; no default widens a window |
 | V3-M4 first-case demo | M1-M3 composed on the mock (spec §4.5); moves M2/M6/demo from the raw-Ed25519 core onto the JWS core (the never-run V2-M3; user, 2026-11-23); joins `answerWithMenu` to `attachAttestation`, so the signer can sign only an entry the menu returned (until then the signer checks the entry's type only) | composition weakens no single module's guarantee; negative control included |
 | V3-M5 live | the V3-M4 demo on Orange Playground; only if V3-S0 passes | writes can be silently ignored — READ-after-write is load-bearing |
 | V3-M6 range | ranges on open values (spec §4.4); only after SimSwapTimeFrame publishes a definition | a range never collapses to the point value |
+
+**v3 open items (2026-11-25; findings 2026-11-25).** Recorded, not
+decided. Each one names where it is decided.
+
+1. `aud` when the caller and the verifier differ: the signed `aud` names
+   the operator's direct caller; what a verifier that did not call
+   checks is open (spec §7 item 5; decided before V3-M4).
+2. An auditor's check after `exp`: signature and claims only, for the
+   record, never to act (spec §7 item 6).
+3. The HTTP status of a signed `UNAVAILABLE` refusal is open; the sketch
+   shows the signed refusal on the 400 only.
+4. The nonce maximum length: 256 in the sketch is a sketch value (spec
+   §7 item 3).
+5. `/retrieve-date` is not in the sketch: a signed refusal cannot name
+   it, because `KNOWN_APIS` lists only `/check` and `/check-tenure`;
+   open values wait on SimSwapTimeFrame (spec §4.4, V3-M6).
+6. The sketch paths are written in full (`/sim-swap/v2/check`) so that
+   they equal the signed `api`; CAMARA writes `{apiRoot}/sim-swap/v2`
+   plus `/check`. Settle before any filing text.
+7. A signed Tenure response has no `contractType`; a response to a
+   request with no `nonce` is today's `TenureInfo`, unchanged.
+8. The V3-M3 monotonicity spike is owed (§4.4 V3-M3 row).
+9. The V3-S0 live half is not run: the user confirms that KYC Tenure is
+   attached to the Orange Playground app. It decides V3-M5.
+10. The project memory still says "RSA-4096 OAEP" for the envelope;
+    `/remember` corrects it (not a repo document).
 
 ### 4.5 POC-first discipline applied to each module
 
@@ -713,6 +739,11 @@ Phase 4b (v3, from 2026-11-23; modules per §4.4 v3 ladder; a doc
             and V3-M2 (user-validated). Narrowed: `/retrieve-date` is
             left out, because a signed refusal cannot name it and open
             values wait on SimSwapTimeFrame (findings 2026-11-25, D1).
+        6b. DONE 2026-11-25: spec correction before V3-M3. v3 §4.1
+            and §4.3 restore the v2 verifier steps (the party that
+            relies on the answer issues the nonce; equal or stricter
+            entry only); two open questions added to v3 §7; the open
+            items go to §4.4 "v3 open items" (findings 2026-11-25).
          7. V3-M3 tighten only.
          8. V3-M4 first-case demo.
          9. Governance/TSC ask with the filing text in `camara/v3/docs/`,
@@ -992,6 +1023,7 @@ The full rationale for every decision lives in `docs/logs/findings.md`; this tab
 
 | Date | Decision | Status | Where |
 |---|---|---|---|
+| 2026-11-25 | v3 spec corrected before V3-M3: the party that relies on the answer (the verifier) issues the nonce; a verifier accepts equal entries (any answer) or stricter entries (pass answer only), never looser; the five v2 verifier steps restored to spec §4.1; spec §7 items 5 and 6 added; sketch `Nonce` description matched; V3-M3 built inside `verifyAnswer`; ten v3 open items recorded in PRD §4.4 (user decision, option B) | active | [findings.md](../logs/findings.md#2026-11-25--v3-spec-correction-before-v3-m3-the-verifier-issues-the-nonce-and-accepts-equal-or-stricter-entries-only-v2-verifier-steps-restored-open-items-recorded-in-the-prd) |
 | 2026-11-15/21 | IETF -04 SUBMITTED and posted 2026-11-15 (Datatracker submission 172386, 38 pages, 13600 words; expires 19 May 2027; idnits and idnits3 0 errors, 0 warnings); posted XML byte-identical to `ietf/v5/docs/`; `ietf/v5` frozen. Posted before `/branch-review`, which is still owed | active | [findings.md](../logs/findings.md#2026-11-1521---04-submitted-and-posted-2026-11-15-posted-bytes-match-the-repo-ietfv5-frozen-posted-before-branch-review) |
 | 2026-11-25 | PRD step 6 done: OpenAPI sketch at `camara/v3/spec/` on Sync26 SimSwap `/check` and Tenure `/check-tenure`, signed answer and signed refusal; `/retrieve-date` left out (a signed refusal cannot name it; open values wait on SimSwapTimeFrame), which narrows step 6; `400` stays CAMARA `ErrorInfo` plus one `attestation` member; no menu schema (format open); `sketch-check.py` checks it against the v3 PoC (4 checks, 6 mutants red); user-validated (2026-11-25) | active | [findings.md](../logs/findings.md#2026-11-25--prd-step-6-openapi-sketch-on-sync26-simswap-check-tenure-check-tenure-signed-answer-and-signed-refusal-retrieve-date-left-out-user-validated) |
 | 2026-11-24/25 | V3-M2b sealed envelope built: JWE (`RSA-OAEP-256` + `A256GCM`) padded to one fixed 1024 B size, so every profile answer and refusal seals to one length (2142 B) and the hub cannot tell true from false; `open()` refuses other lengths before any crypto; demo's old RSA size checks removed (POC A/B); the bucket-edge leak found in review and closed by the fixed size (POC); user-validated 17/17, 385/385 and 48/48 (2026-11-25) | active | [findings.md](../logs/findings.md#2026-11-2425--v3-m2b-sealed-envelope-jwe-rsa-oaep-256--a256gcm-padded-to-one-fixed-1024-b-size-two-pocs-decided-the-demo-guards-and-the-fixed-size-user-validated-1717-385385-and-4848) |

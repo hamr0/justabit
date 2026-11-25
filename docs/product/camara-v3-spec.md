@@ -69,7 +69,10 @@ A search of all six Sync26 definition files above for "JWS", "signature",
 
 The operator signs the existing answer. The answer itself does not change.
 
-- The request gets one optional field, `nonce`, chosen by the requester.
+- The request gets one optional field, `nonce`. The party that will rely
+  on the answer (the verifier) issues the nonce. The verifier is the
+  requester itself, or a party the requester answers to, for example a
+  service that deals with an AI agent.
 - The response gets one field, `attestation`: a JWS (RFC 7515) whose payload
   carries the question asked (API, menu entry), the answer, the requester's
   `nonce`, the issue time and an expiry (`exp`).
@@ -87,6 +90,21 @@ The operator signs the existing answer. The answer itself does not change.
   `null` or `""`) is refused, never treated as absent.
 - If a response is also encrypted for an intermediary, it is signed first
   and then encrypted, so the requester still verifies the operator.
+
+A verifier checks a signed answer in this order:
+
+1. It finds the operator's key in its own trusted copy of the operator's
+   JWKS, never from a hint inside the token.
+2. It verifies the signature.
+3. It checks that `exp` has not passed, and that `nonce` is one it issued
+   itself and has not seen answered before.
+4. It checks the signed `api` and menu entry against its own question
+   (§4.3).
+5. Only then does it act on the answer.
+
+These steps restore the verifier steps of the v2 text
+(`camara/v2/docs/camara-attested-windowed-disclosure.md` §4), which the
+first v3 text left out (findings 2026-11-25).
 
 This is the response-side counterpart of the request-side DPoP claims
 (`camara:bh`, `camara:qh`) in the CAMARA Security and Interoperability
@@ -117,11 +135,19 @@ Built and tested as V3-M2 (prd §4.4).
 
 ### 4.3 Tighten only (fills gap 3)
 
-A party that passes an answer on may ask only the same or a stricter
-question than the one it received. It never asks a looser one. The
-signed question in §4.1 makes this checkable: the next party compares
-the signed menu entry with the one it needs. Widening is a new,
-separate request, never a default.
+A verifier accepts a signed answer only for its own question or a
+stricter one. It never accepts a looser one. For the menu questions in
+this proposal, a bigger entry is stricter: no SIM swap in 90 days
+implies no SIM swap in 60 days, and tenure of 2 years implies tenure of
+1 year. So a verifier that needs entry R:
+
+- accepts the answer, pass or fail, when the signed entry equals R;
+- accepts only the pass answer (`swapped: false`, `tenureDateCheck:
+  true`) when the signed entry is stricter than R, because a fail at a
+  stricter question says nothing about R;
+- rejects the answer when the signed entry is looser than R.
+
+Widening is a new, separate request, never a default.
 
 Built and tested as V3-M3 (prd §4.4).
 
@@ -183,6 +209,10 @@ Built as the V3-M4 demo on a mock, then V3-M5 on Orange Playground if it exposes
 2. The menu format and where it is published.
 3. Whether `nonce` is required or optional, and the maximum `exp`.
 4. How the SimSwapTimeFrame band (§4.4) maps onto a published menu.
+5. What a verifier checks in `aud` when it is not the operator's direct
+   caller. The signed `aud` names the direct caller.
+6. How an auditor checks an answer after `exp`: the signature and the
+   claims only, for the record, never to act on the answer.
 
 ## 8. References (read 2026-11-23)
 

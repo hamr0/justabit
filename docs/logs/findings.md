@@ -14,6 +14,41 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-11-25 — v3 spec correction before V3-M3: the verifier issues the nonce and accepts equal or stricter entries only; v2 verifier steps restored; open items recorded in the PRD
+
+**EVIDENCE**
+
+1. The first V3-M3 draft spec (local, `.claude/scratch`) put a separate `checkTighten` function on top of verified claims. It asked the user (D1) how a party that did not call the operator verifies a forwarded token, since that party cannot consume the requester's nonce. The user asked "are we patching and need to redesign?".
+2. The orchestrator then read the v2 text. `camara/v2/docs/camara-attested-windowed-disclosure.md` lines 303-315 already state the verifier steps ("nonce matches one the verifier itself (or its principal) issued"; "tighter is acceptable, looser is not"). v3 §4.1 had changed this to "a `nonce` chosen by the requester" and left the verifier steps out. v3 §4.3 said "the next party compares the signed menu entry" with no freshness check. The first V3-M3 draft was a patch on that gap.
+
+**DECISION**
+
+1. (user, 2026-11-25) Correct the spec first. Texts: verifier-issued nonce (§4.1); five verifier steps (§4.1); the equal, stricter, looser rule (§4.3); §7 items 5 and 6. The sketch `Nonce` description changes to match; this changes a user-validated file, so the user re-runs `sketch-check.py`.
+2. V3-M3 is built inside `verifyAnswer`, not as a function on top. The draft decisions D1 (forwarded token) and D2 (fail inference) are dissolved: D1 by the restored flow, D2 by the rule "stricter entry, pass answer only".
+3. (user, 2026-11-25) The user first asked for the open items under `docs/wiki/`. The orchestrator raised the conflict with PRD §3 and no-go 11 (no fourth document) and recommended the PRD; the user chose the PRD (option B). The open items are in PRD §4.4 "v3 open items".
+
+**OPEN ITEMS (documented, not fixed)**
+
+PRD §4.4 "v3 open items" holds 10 items. Item 1 (`aud` when the caller and the verifier differ) must be decided before V3-M4.
+
+**SWEEP (2026-11-25)**
+
+Searched the repo (excluding `.git` and `.claude`) for "chosen by the requester", "requester's nonce", "requester-supplied nonce", "requester-supplied freshness", "next party" and "requester's challenge".
+
+| Hit | Class | Note |
+|---|---|---|
+| `docs/product/camara-v3-spec.md` §4.1 "chosen by the requester" | corrected by this change | verifier-issued nonce |
+| `docs/product/camara-v3-spec.md` §4.3 "the next party compares" | corrected by this change | equal or stricter rule |
+| `docs/product/prd.md` V3-M3 row "the next party checks" | corrected by this change | |
+| `camara/v3/spec/carrier-attestation.yaml` Nonce "requester's challenge" | corrected by this change | |
+| `docs/product/prd.md` FR2 "echoes the requester's nonce" | kept, reported | v1 Mode A requirement, where the requester is the verifier; not wrong as written; the main session decides whether to reword |
+| `README.md` line 78 "echo the requester's nonce" | stale, out of scope, reported | not fixed |
+| `CLAUDE.md` invariant "bound to the requester's nonce" | reported to the user, NOT edited | |
+| `camara/v1/docs/camara-attested-windowed-disclosure.md` lines 176, 200 | frozen, keep | filed record |
+| `camara/v2/docs/camara-attested-windowed-disclosure.md` lines 89, 289; `camara/v2/docs/commonalities-705-status-posted-2026-11-21.md` line 18 | frozen, keep | v2 record |
+| `camara/v1/poc/m2-check.mjs`, `camara/v2/poc/m2-check.mjs`, `camara/v3/poc/m2-check.mjs` comments | PoC comment, keep | v3 poc not edited by this change |
+| `docs/logs/findings.md` line ~3995 | dated history, keep | |
+
 ## 2026-11-25 — PRD step 6: OpenAPI sketch on Sync26 (SimSwap /check, Tenure /check-tenure), signed answer and signed refusal; /retrieve-date left out; user-validated
 
 **EVIDENCE**
