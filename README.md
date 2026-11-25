@@ -162,6 +162,8 @@ camara/v2/docs/     FROZEN 2026-11-23: the record of the Commonalities #705
 camara/v2/poc/      copy of camara/v1/poc/ plus the JWS attestation core;
                     FROZEN 2026-11-23
 camara/v2/spec/     the JWS-envelope OpenAPI sketch; FROZEN 2026-11-23
+camara/v3/README.md the v3 readout: idea, wire, menu, verifier steps, PoC,
+                    limits, open items (2026-11-25); a guide, not the spec
 camara/v3/poc/      v3 code: copy of camara/v2/poc/ (2026-11-23); V3-M1
                     adds the signed `api` claim and the Tenure schema to
                     the JWS core; V3-M2 adds the published menu (menu.mjs,

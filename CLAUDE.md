@@ -147,6 +147,9 @@ camara/v2/spec/    working copy of camara/v1/spec/, rewritten 2026-08-31 for the
                    JWS envelope (renamed schemas, required phoneNumber, replaces
                    the old {claims,sig} shape) — 215 -> 319 lines, not unchanged;
                    FROZEN 2026-11-23 with camara/v2/docs and camara/v2/poc
+camara/v3/README.md the v3 readout: the idea, the wire, the menu, the
+                   verifier steps, what the PoC contains and supports, limits,
+                   open items and status (2026-11-25); a guide, not the spec
 camara/v3/poc/     copied unchanged from camara/v2/poc on 2026-11-23 (a4283fb),
                    then diverged at V3-M1: m1-jws.mjs, m1-jws-check.mjs and
                    README.md (signed `api` claim, TENURE_CHECK,
