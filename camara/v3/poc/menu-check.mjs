@@ -284,7 +284,7 @@ function ask(api, params, ctx, answerFn = () => true) {
   const wrong = attestAnswer(operator.privateKey, KID, base(), SIM_SWAP_CHECK, { entry: 'P30D' }, { swapped: false });
   const asked = entryFor(S, { maxAge: 2160 }, ctx);
   const v = verifyAnswer(wrong, resolveKey, SIM_SWAP_CHECK, vo({ expectedEntry: asked }));
-  checkTrue('M29 asked P90D, signed P30D: ENTRY_MISMATCH', v.ok === false && v.reason instanceof ClaimRejected && v.reason.code === 'ENTRY_MISMATCH');
+  checkTrue('M29 asked P90D, signed P30D: LOOSER', v.ok === false && v.reason instanceof ClaimRejected && v.reason.code === 'LOOSER');
   const right = attestAnswer(operator.privateKey, KID, base(), SIM_SWAP_CHECK, { entry: 'P90D' }, { swapped: false });
   checkTrue('M30 NEGATIVE CONTROL: asked P90D, signed P90D verifies', verifyAnswer(right, resolveKey, SIM_SWAP_CHECK, vo({ expectedEntry: asked })).ok === true);
   let dup = false;

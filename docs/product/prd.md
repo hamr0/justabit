@@ -502,7 +502,7 @@ full order is §6 Phase 4b.
 | V3-M1 signed answer | JWS (V2-M1 core) around the Sync26 Tenure `/check-tenure` and SimSwap `/check` answers, with a signed `api` claim; the caller migration moved to V3-M4 (user, 2026-11-23) | the answer is unchanged; tampered, expired, wrong-nonce, wrong-key and wrong-API answers REJECT; a signed response carries only the answer and `attestation`, so no other field (`contractType`, `latestSimChange`) reaches the requester beside it. M1 has no cap, so the above-cap leak test is V3-M2's |
 | V3-M2 published menu | menu file + `400 OUT_OF_RANGE` refusal (spec §4.2); absorbs the V2-M3 off-menu `maxAge` item; the signed refusal names the API it refuses (`api`, as the answer does since V3-M1) | off-menu is refused, never rounded; the `maxAge` hours conversion; the signed answer names its menu entry; no raw date leaks, tested with a threshold ABOVE the cap |
 | V3-M2b sealed envelope | replace the v2 RSA-OAEP envelope (`m2-envelope.mjs`) with a JWE (RFC 7516, `RSA-OAEP-256` + `A256GCM`, `node:crypto` only): a fresh AES-256-GCM key per message seals the signed answer, RSA-OAEP seals only that key; every payload padded to one fixed 1024 B size (`MAX_PAYLOAD` 1023); user and POCs, 2026-11-24, why in findings.md | every signed answer and refusal of every profile API seals and opens at one fixed sealed length (2142 B for RSA-4096); a payload over `MAX_PAYLOAD` is refused at `seal()` and the operator sends a true signed refusal; `open()` refuses any other length before any crypto; the hub cannot read it; `open()` never throws and gives one failure reason for every fault |
-| V3-M3 tighten only | the verifier checks the signed menu entry against its own (spec §4.3), inside `verifyAnswer` in `m1-jws.mjs` (no new function on top): equal entry, any answer; stricter entry, pass answer only; looser entry, `LOOSER`; spec corrected first (2026-11-25, findings) | monotonicity: a pass at a stricter entry implies a pass at every looser one (spike on every mock line before the build); a looser question REJECTS; a fail at a stricter entry is never accepted for a looser one; no default widens a window |
+| V3-M3 tighten only | the verifier checks the signed menu entry against its own (spec §4.3), inside `verifyAnswer` in `m1-jws.mjs` (no new function on top): equal entry, any answer; stricter entry, pass answer only; looser entry, `LOOSER`; spec corrected first (2026-11-25, findings); built and user-validated 2026-11-25 (393/393) | monotonicity: a pass at a stricter entry implies a pass at every looser one (spike on every mock line before the build); a looser question REJECTS; a fail at a stricter entry is never accepted for a looser one; no default widens a window |
 | V3-M4 first-case demo | M1-M3 composed on the mock (spec §4.5); moves M2/M6/demo from the raw-Ed25519 core onto the JWS core (the never-run V2-M3; user, 2026-11-23); joins `answerWithMenu` to `attachAttestation`, so the signer can sign only an entry the menu returned (until then the signer checks the entry's type only) | composition weakens no single module's guarantee; negative control included |
 | V3-M5 live | the V3-M4 demo on Orange Playground; only if V3-S0 passes | writes can be silently ignored — READ-after-write is load-bearing |
 | V3-M6 range | ranges on open values (spec §4.4); only after SimSwapTimeFrame publishes a definition | a range never collapses to the point value |
@@ -527,11 +527,15 @@ decided. Each one names where it is decided.
    plus `/check`. Settle before any filing text.
 7. A signed Tenure response has no `contractType`; a response to a
    request with no `nonce` is today's `TenureInfo`, unchanged.
-8. The V3-M3 monotonicity spike is owed (§4.4 V3-M3 row).
+8. The V3-M3 monotonicity spike is closed by the source read
+   (findings 2026-11-25), not a data run.
 9. The V3-S0 live half is not run: the user confirms that KYC Tenure is
    attached to the Orange Playground app. It decides V3-M5.
 10. The project memory still says "RSA-4096 OAEP" for the envelope;
     `/remember` corrects it (not a repo document).
+11. CAMARA Tenure's table has no row for a subscription that starts
+    exactly on the threshold date (S = R); a possible comment to CAMARA,
+    not built (findings 2026-11-25).
 
 ### 4.5 POC-first discipline applied to each module
 
@@ -744,7 +748,7 @@ Phase 4b (v3, from 2026-11-23; modules per §4.4 v3 ladder; a doc
             relies on the answer issues the nonce; equal or stricter
             entry only); two open questions added to v3 §7; the open
             items go to §4.4 "v3 open items" (findings 2026-11-25).
-         7. V3-M3 tighten only.
+         7. DONE 2026-11-25: V3-M3 tighten only (393/393, user-validated).
          8. V3-M4 first-case demo.
          9. Governance/TSC ask with the filing text in `camara/v3/docs/`,
             citing the demo and the sketch (v3 §4.5); the author
@@ -1023,6 +1027,7 @@ The full rationale for every decision lives in `docs/logs/findings.md`; this tab
 
 | Date | Decision | Status | Where |
 |---|---|---|---|
+| 2026-11-25 | V3-M3 tighten only built: one comparison in `verifyAnswer` (equal entry any answer, stricter entry pass only, looser `LOOSER`); monotonicity spike closed by a source read, not a data run; user-validated 393/393 | active | [findings.md](../logs/findings.md#2026-11-25--v3-m3-tighten-only-one-comparison-in-verifyanswer-equal-entry-any-answer-stricter-entry-pass-only-looser-looser-user-validated-393393) |
 | 2026-11-25 | Nonce wording follows the v3 correction: README profile rule 2 and the CLAUDE.md invariant now say verifier's nonce (user, option A); v1 FR2 and frozen records kept; sketch re-validated at f3abde7 (`sketch-check.py` four PASS, exit 0; user-validated) | active | [findings.md](../logs/findings.md#2026-11-25--nonce-wording-follows-the-v3-correction-readme-profile-rule-2-and-the-claudemd-invariant-say-verifiers-nonce-sketch-re-validated-at-f3abde7) |
 | 2026-11-25 | v3 spec corrected before V3-M3: the party that relies on the answer (the verifier) issues the nonce; a verifier accepts equal entries (any answer) or stricter entries (pass answer only), never looser; the five v2 verifier steps restored to spec §4.1; spec §7 items 5 and 6 added; sketch `Nonce` description matched; V3-M3 built inside `verifyAnswer`; ten v3 open items recorded in PRD §4.4 (user decision, option B) | active | [findings.md](../logs/findings.md#2026-11-25--v3-spec-correction-before-v3-m3-the-verifier-issues-the-nonce-and-accepts-equal-or-stricter-entries-only-v2-verifier-steps-restored-open-items-recorded-in-the-prd) |
 | 2026-11-15/21 | IETF -04 SUBMITTED and posted 2026-11-15 (Datatracker submission 172386, 38 pages, 13600 words; expires 19 May 2027; idnits and idnits3 0 errors, 0 warnings); posted XML byte-identical to `ietf/v5/docs/`; `ietf/v5` frozen. Posted before `/branch-review`, which is still owed | active | [findings.md](../logs/findings.md#2026-11-1521---04-submitted-and-posted-2026-11-15-posted-bytes-match-the-repo-ietfv5-frozen-posted-before-branch-review) |

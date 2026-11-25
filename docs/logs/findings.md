@@ -14,6 +14,24 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-11-25 — V3-M3 tighten only: one comparison in verifyAnswer (equal entry any answer, stricter entry pass only, looser LOOSER); user-validated 393/393
+
+**EVIDENCE**
+
+`m1-jws.mjs` adds a frozen `pass` value per schema (SimSwap `swapped: false`, Tenure `tenureDateCheck: true`) and replaces the entry equality check in `verifyAnswer`: an invalid entry gives `ENTRY_MISMATCH`; E < R gives `LOOSER`; E > R without the pass answer gives `NOT_PASS`. `m1-jws-check` went 385 -> 393 (8 cases: equal entry pass and fail, stricter pass, stricter fail, looser P60D vs P90D, P1Y = P365D, P2Y vs P731D, negative control). Existing expectations changed because the rule decides them: R9 and menu-check M29 (asked P90D, signed P30D) `ENTRY_MISMATCH` -> `LOOSER`; 11 verify-side bad-entry cases `WRONG_TYPE` -> `ENTRY_MISMATCH` (the entry is now parsed before the type check). Mutation: the real comparison reversed gave 390/393 (the three looser cases red); restored, `cmp` identical. `m2-check.mjs` comment now says "verifier's nonce". The main session re-ran all suites, each exit 0: m1-jws-check 393/393, menu-check 46/46, m1-check 20/20, m2-check 17/17, m3-check 26/26, m4-check 42/42, m5-check 67/67, m6-check 48/48, demo 34/34, sketch-check exit 0.
+
+**EVIDENCE: USER VALIDATION**
+
+(2026-11-25) m1-jws-check RESULT 393/393, exit 0.
+
+**DECISION**
+
+The monotonicity spike is a source read, not a data run. SimSwap `/check` `swapped` is "swapped during the period within the provided age" (sim-swap.yaml r4.3 lines 37, 252), so a bigger window contains a smaller one. Tenure's decision table (kyc-tenure.yaml r3.4 lines 27-52) is monotone row by row, and a date before the threshold R is a refusal, never a pass. A data spike was dropped: the mock has no Tenure fact and no `/check` answer, so any data would be written to contain the rule (vacuous). The user chose option B (mock answers first) and then, on the simple-over-clever rule, the small build. The orchestrator had recommended the larger option several times before the user asked; recorded here plainly.
+
+**OPEN ITEMS**
+
+CAMARA Tenure's table has no row for a subscription that starts exactly on the threshold date (S = R: row 3 needs R < S, row 5 needs S < R). A possible comment to CAMARA, not built.
+
 ## 2026-11-25 — nonce wording follows the v3 correction: README profile rule 2 and the CLAUDE.md invariant say verifier's nonce; sketch re-validated at f3abde7
 
 **EVIDENCE: USER VALIDATION**

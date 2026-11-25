@@ -27,7 +27,7 @@ const SEALED_LEN = 2142;
 const { check, conclude } = makeHarness({ field: 'ok', okWord: 'OK' });
 
 // A realistic profile-mode request: a predicate, the floor it must be evaluated against,
-// and the requester's nonce. No identifier, no raw value.
+// and the verifier's nonce. No identifier, no raw value.
 const buildRequest = (n, predicate = 'sim_swap_since_90d') => Buffer.from(JSON.stringify({
   predicate,
   floor: { simType: 'voice+data', tenureMin: 'P2Y', swapAgeMin: 'P90D' },

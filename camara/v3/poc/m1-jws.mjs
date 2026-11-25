@@ -412,6 +412,7 @@ export const SIM_SWAP_CHECK = Object.freeze({
   api: 'sim-swap/v2/check',
   params: Object.freeze({ entry: 'duration' }),
   answer: Object.freeze({ swapped: 'boolean' }),
+  pass: Object.freeze({ swapped: false }),
 });
 
 // V3-M1: Tenure on Sync26 (kyc-tenure v0.3, POST /check-tenure). Today's
@@ -421,6 +422,7 @@ export const TENURE_CHECK = Object.freeze({
   api: 'kyc-tenure/v0.3/check-tenure',
   params: Object.freeze({ entry: 'duration' }),
   answer: Object.freeze({ tenureDateCheck: 'boolean' }),
+  pass: Object.freeze({ tenureDateCheck: true }),
 });
 
 // The closed set of API names a refusal may carry (attestRefusal / verifyRefusal).
@@ -644,11 +646,22 @@ export function verifyAnswer(token, resolveKey, schema, { expectedIss, expectedA
     if (!hasOwn(r.payload, 'api') || r.payload.api !== schema.api) {
       return { ok: false, reason: new ClaimRejected('API_MISMATCH', 'api claim missing or not this schema\'s api') };
     }
-    // V3-M2: when the schema signs an `entry`, the requester must say which entry
-    // it asked for (entryFor in menu.mjs) and the signed one must equal it.
-    if (hasOwn(schema.params, 'entry') &&
-        (typeof expectedEntry !== 'string' || !hasOwn(r.payload, 'entry') || r.payload.entry !== expectedEntry)) {
-      return { ok: false, reason: new ClaimRejected('ENTRY_MISMATCH', 'entry claim missing or not the expected entry') };
+    // V3-M2 + spec 4.3: when the schema signs an `entry`, the requester says which
+    // entry R it needs (entryFor in menu.mjs). Accept E = R (any answer), or E
+    // stricter than R (bigger days) with the pass answer; E looser than R is refused.
+    if (hasOwn(schema.params, 'entry')) {
+      const e = hasOwn(r.payload, 'entry') ? parseDuration(r.payload.entry) : null;
+      const rq = parseDuration(expectedEntry);
+      if (e === null || e <= 0 || rq === null || rq <= 0) {
+        return { ok: false, reason: new ClaimRejected('ENTRY_MISMATCH', 'entry claim missing or not the expected entry') };
+      }
+      if (e < rq) {
+        return { ok: false, reason: new ClaimRejected('LOOSER', 'signed entry is looser than the entry the verifier needs') };
+      }
+      const [pk, pv] = schema.pass ? Object.entries(schema.pass)[0] : [];
+      if (e > rq && (pk === undefined || r.payload[pk] !== pv)) {
+        return { ok: false, reason: new ClaimRejected('NOT_PASS', 'stricter entry is accepted only with the pass answer') };
+      }
     }
     const answerFields = { api: 'string', ...extraFields };
     const closedErr = checkClosedPayload(r.payload, answerFields);

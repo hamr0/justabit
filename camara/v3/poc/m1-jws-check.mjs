@@ -1415,7 +1415,7 @@ for (const [nm, schema, par, ans, api] of [
           attestAnswer(operator.privateKey, OP_KID, freshBase(), schema, { entry: bad }, ans), ClaimRejected, 'WRONG_TYPE');
       }
       const forgedBad = signJws(operator.privateKey, OP_KID, { ...freshBase(), api: schema.api, entry: 'P0D', ...ans });
-      check(`V3 R6 ${nm} entry "P0D" refused at verify (signer-trusted token)`, false, verifyFresh(forgedBad, schema, 'P0D'), ClaimRejected, 'WRONG_TYPE');
+      check(`V3 R6 ${nm} entry "P0D" refused at verify (signer-trusted token)`, false, verifyFresh(forgedBad, schema, 'P0D'), ClaimRejected, 'ENTRY_MISMATCH');
       for (const good of ['P90D', 'P2Y']) {
         const t = attestAnswer(operator.privateKey, OP_KID, freshBase(), schema, { entry: good }, ans);
         check(`V3 R6 NEGATIVE CONTROL ${nm} entry ${good} signs and verifies`, true, typeof t === 'string' ? verifyFresh(t, schema, good) : t);
@@ -1425,7 +1425,7 @@ for (const [nm, schema, par, ans, api] of [
         check(`V3 R6 ${nm} entry ${bad} refused at attest`, false,
           attestAnswer(operator.privateKey, OP_KID, freshBase(), schema, { entry: bad }, ans), ClaimRejected, 'WRONG_TYPE');
         const f = signJws(operator.privateKey, OP_KID, { ...freshBase(), api: schema.api, entry: bad, ...ans });
-        check(`V3 R6 ${nm} entry ${bad} refused at verify`, false, verifyFresh(f, schema, bad), ClaimRejected, 'WRONG_TYPE');
+        check(`V3 R6 ${nm} entry ${bad} refused at verify`, false, verifyFresh(f, schema, bad), ClaimRejected, 'ENTRY_MISMATCH');
       }
     }
     checkTrue('V3 R6 parseDuration: P90D=90, P2Y=730, P1Y=P365D, junk null',
@@ -1438,7 +1438,7 @@ for (const [nm, schema, par, ans, api] of [
   {
     const asked = 'P90D';
     const tOther = attestAnswer(operator.privateKey, OP_KID, freshBase(), SIM, { entry: 'P30D' }, SIM_A);
-    check('V3 R9 menu 30/60/90: asked P90D, signed P30D -> ENTRY_MISMATCH', false, verifyFresh(tOther, SIM, asked), ClaimRejected, 'ENTRY_MISMATCH');
+    check('V3 R9 menu 30/60/90: asked P90D, signed P30D -> LOOSER', false, verifyFresh(tOther, SIM, asked), ClaimRejected, 'LOOSER');
     const tRight = attestAnswer(operator.privateKey, OP_KID, freshBase(), SIM, { entry: asked }, SIM_A);
     const noExp = verifyAnswer(tRight, resolveKey, SIM, vOpts());
     check('V3 R9 expectedEntry missing -> ENTRY_MISMATCH (fail closed)', false, noExp, ClaimRejected, 'ENTRY_MISMATCH');
@@ -1509,4 +1509,26 @@ for (const [nm, schema, par, ans, api] of [
   }
 }
 
-conclude(385);
+// V3-M3 §4.3: entry comparison. Equal entry: any answer; stricter entry: pass
+// answer only; looser entry: refused.
+{
+  const SIM_PASS = { swapped: false }, SIM_FAIL = { swapped: true };
+  const ent = (e, ans) => attestAnswer(operator.privateKey, OP_KID, freshBase(), SIM, { entry: e }, ans);
+  const ver = (t, r) => verifyAnswer(t, resolveKey, SIM, { ...vOpts(), expectedEntry: r });
+  check('V3 §4.3 equal entry, pass answer accepted', true, ver(ent('P90D', SIM_PASS), 'P90D'));
+  check('V3 §4.3 equal entry, fail answer accepted', true, ver(ent('P90D', SIM_FAIL), 'P90D'));
+  check('V3 §4.3 stricter entry (P90D vs P60D), pass answer accepted', true, ver(ent('P90D', SIM_PASS), 'P60D'));
+  check('V3 §4.3 stricter entry (P90D vs P60D), fail answer -> NOT_PASS', false, ver(ent('P90D', SIM_FAIL), 'P60D'), ClaimRejected, 'NOT_PASS');
+  check('V3 §4.3 looser entry (P60D vs P90D) -> LOOSER', false, ver(ent('P60D', SIM_PASS), 'P90D'), ClaimRejected, 'LOOSER');
+  check('V3 §4.3 P1Y vs P365D accepted as equal (fail answer too)', true, ver(ent('P1Y', SIM_FAIL), 'P365D'));
+  check('V3 §4.3 P2Y vs P731D -> LOOSER', false, ver(ent('P2Y', SIM_PASS), 'P731D'), ClaimRejected, 'LOOSER');
+  // Negative control: the looser case is refused only because of the
+  // comparison. With the comparison reversed (E > R refused, E < R accepted)
+  // the same case would be accepted, and the equal case still passes.
+  const cmp = (e, r, pass) => { const a = parseDuration(e), b = parseDuration(r); return a === b || (a > b && pass); };
+  const cmpReversed = (e, r, pass) => { const a = parseDuration(e), b = parseDuration(r); return a === b || (a < b && pass); };
+  checkTrue('V3 §4.3 NEGATIVE CONTROL looser case is refused by the rule, accepted if the comparison is reversed',
+    cmp('P60D', 'P90D', true) === false && cmpReversed('P60D', 'P90D', true) === true && cmp('P90D', 'P90D', false) === true);
+}
+
+conclude(393);
