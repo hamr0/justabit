@@ -153,10 +153,23 @@ Built and tested as V3-M3 (prd §4.4).
 
 ### 4.4 A range instead of a raw value (fills gap 4)
 
-For open values, the operator answers with a range from its published menu
-instead of the point value. The age band in SimSwapTimeFrame is the first
-case. The author proposes to contribute to that repository rather than
-define a second band here.
+For open values, the operator answers with a range instead of the point
+value. The SIM swap age band in SimSwapTimeFrame is the first case. There,
+the band table is the published menu: CAMARA defines it once for every
+operator (17 bands, plus one value for "never swapped"), and a provider
+must support the whole table. This proposal does not define a second band
+and does not let an operator choose its own bands. It adds two things on
+top of that table:
+
+- the signature of §4.1, for the band answer, if the Governance/TSC
+  direction allows it;
+- a note that repeated queries for one line can find the swap time at a
+  band edge (for example, the change from band 1 to band 2 happens 4 hours
+  after the swap), so a provider limit on repeated queries helps (§6).
+
+The author contributes these on camaraproject/SimSwapTimeFrame#4 (read
+2026-11-25; the band table is in the removed SimSwap definition at commit
+`05d46bf`, `sim-swap.yaml` lines 50-72).
 
 Built and tested as V3-M6, after SimSwapTimeFrame publishes a definition (prd §4.4).
 
@@ -208,7 +221,8 @@ Built as the V3-M4 demo on a mock, then V3-M5 on Orange Playground if it exposes
    replay window.
 2. The menu format and where it is published.
 3. Whether `nonce` is required or optional, and the maximum `exp`.
-4. How the SimSwapTimeFrame band (§4.4) maps onto a published menu.
+4. SETTLED 2026-11-25: for the SIM swap age, the SimSwapTimeFrame band
+   table is the published menu (§4.4).
 5. What a verifier checks in `aud` when it is not the operator's direct
    caller. The signed `aud` names the direct caller.
 6. How an auditor checks an answer after `exp`: the signature and the

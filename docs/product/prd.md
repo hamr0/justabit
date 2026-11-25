@@ -536,6 +536,11 @@ decided. Each one names where it is decided.
 11. CAMARA Tenure's table has no row for a subscription that starts
     exactly on the threshold date (S = R); a possible comment to CAMARA,
     not built (findings 2026-11-25).
+12. SETTLED 2026-11-25: spec §4.4 said "a range from its published
+    menu", but SimSwapTimeFrame requires the full 17-band table
+    ("partial support is not permitted"); §4.4 now says the band table
+    is the menu, defined once by CAMARA; spec §7 item 4 settled
+    (findings 2026-11-25).
 
 ### 4.5 POC-first discipline applied to each module
 
@@ -1029,6 +1034,7 @@ The full rationale for every decision lives in `docs/logs/findings.md`; this tab
 
 | Date | Decision | Status | Where |
 |---|---|---|---|
+| 2026-11-25 | v3 spec §4.4 corrected: for the SIM swap age band, the SimSwapTimeFrame band table is the published menu (17 bands plus one value for "never swapped", defined once by CAMARA, full support required); no second band, no operator-chosen bands; the proposal adds only the §4.1 signature and the repeated-query note; spec §7 item 4 settled; PRD §4.4 open item 12 (user decision, "go") | active | [findings.md](../logs/findings.md#2026-11-25--v3-spec-44-the-simswaptimeframe-band-table-is-the-published-menu-no-second-band-no-operator-chosen-bands-spec-7-item-4-settled) |
 | 2026-11-25 | V3-M4 first case built: `operatorAnswer` (menu.mjs) joins the menu to the signer, `first-case.mjs` shows a shop verifying answers it did not ask for; `aud` settled with no code change; demo.mjs and m6-check.mjs stay on the raw-Ed25519 core (narrowed, user "go"); user-validated 11/11 | active | [findings.md](../logs/findings.md#2026-11-25--v3-m4-first-case-operatoranswer-joins-the-menu-to-the-signer-first-casemjs-a-shop-verifies-answers-it-did-not-ask-for-aud-settled-with-no-code-change-user-validated-1111) |
 | 2026-11-25 | V3-M3 tighten only built: one comparison in `verifyAnswer` (equal entry any answer, stricter entry pass only, looser `LOOSER`); monotonicity spike closed by a source read, not a data run; user-validated 393/393 | active | [findings.md](../logs/findings.md#2026-11-25--v3-m3-tighten-only-one-comparison-in-verifyanswer-equal-entry-any-answer-stricter-entry-pass-only-looser-looser-user-validated-393393) |
 | 2026-11-25 | Nonce wording follows the v3 correction: README profile rule 2 and the CLAUDE.md invariant now say verifier's nonce (user, option A); v1 FR2 and frozen records kept; sketch re-validated at f3abde7 (`sketch-check.py` four PASS, exit 0; user-validated) | active | [findings.md](../logs/findings.md#2026-11-25--nonce-wording-follows-the-v3-correction-readme-profile-rule-2-and-the-claudemd-invariant-say-verifiers-nonce-sketch-re-validated-at-f3abde7) |

@@ -14,6 +14,17 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-11-25 — v3 spec §4.4: the SimSwapTimeFrame band table is the published menu; no second band, no operator-chosen bands; spec §7 item 4 settled
+
+**EVIDENCE**
+Read 2026-11-25 with `gh`: camaraproject/SimSwapTimeFrame README (Sandbox, created 2026-10-09, no release, no API definition) and issue #4 (open, 0 comments, by hdamker: carry the band over from SimSwap); SimSwap#277 (closed; consensus in its thread: keep the integer enum and the `111` sentinel, drop minimum/maximum, S-311 as a documented exception); the removed definition at SimSwap `05d46bf` (parent of `7b7e46e`), `sim-swap.yaml` lines 50-72: 17 bands from "0h ≤ d < 4h" to "3y+" plus `111`, and "A provider that exposes this operation MUST support the complete standardized band model; partial support is not permitted". Neither that file nor `sim-swap-retrieveSimSwapAgeBand.feature` mentions repeated queries.
+
+**DECISION** (user, "go", 2026-11-25)
+v3 spec §4.4 said "a range from its published menu", which conflicts with the full-table rule. §4.4 now says the band table is the menu, defined once by CAMARA; the proposal adds only the §4.1 signature (if Governance/TSC allows) and the repeated-query note. Spec §7 item 4 settled. The orchestrator first proposed contributing a range shape for the #277 sentinel; after reading #277 that was dropped, because the thread had already converged and a newcomer reopening it is not simple over clever. A short comment on SimSwapTimeFrame#4 (the repeated-query note) is drafted locally, not posted.
+
+**OPEN ITEMS**
+None new.
+
 ## 2026-11-25 — V3-M4 first case: operatorAnswer joins the menu to the signer; first-case.mjs, a shop verifies answers it did not ask for; aud settled with no code change; user-validated 11/11
 
 **EVIDENCE**
