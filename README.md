@@ -75,7 +75,7 @@ conforming to profile mode:
 ```
 1. MUST return only the predicate result (boolean) or a declared band —
    never the underlying raw value (timestamp, country, number, address).
-2. MUST echo the requester's nonce and the predicate being answered inside
+2. MUST echo the verifier's nonce and the predicate being answered inside
    the signed response and MUST include an expiry; verifiers MUST reject
    wrong-predicate, replayed, or expired responses — and any payload with
    a duplicate claim key (one signed blob must never read true to one

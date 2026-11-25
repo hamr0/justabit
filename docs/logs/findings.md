@@ -14,6 +14,16 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-11-25 — nonce wording follows the v3 correction: README profile rule 2 and the CLAUDE.md invariant say verifier's nonce; sketch re-validated at f3abde7
+
+**EVIDENCE: USER VALIDATION**
+
+(2026-11-25, after commit f3abde7 changed the sketch Nonce description) the user ran `python3 camara/v3/spec/sketch-check.py` (four PASS, exit 0) and `git status --short` (clean). The earlier step 6 validation covered only the file before f3abde7.
+
+**DECISION**
+
+(user, 2026-11-25, option A) The sweep in the previous entry left two hits saying "requester's nonce": README.md profile rule 2 (line 78) and the CLAUDE.md invariant. Both now say "verifier's nonce", to match v3 spec §4.1 (the party that relies on the answer issues the nonce). The README rule mirrors the v1/v2 profile text; v2 already said the nonce is one "the verifier itself (or its principal) issued" (`camara/v2/docs/camara-attested-windowed-disclosure.md` line 310), so the meaning does not change for v2. Kept on purpose: `docs/product/prd.md:93` (FR2, the v1 requirement, where the requester is the verifier); frozen camara/v1 and camara/v2 records; dated findings history. Still stale, fixed in the V3-M3 build: the "requester's nonce" comment in `camara/v3/poc/m2-check.mjs`.
+
 ## 2026-11-25 — v3 spec correction before V3-M3: the verifier issues the nonce and accepts equal or stricter entries only; v2 verifier steps restored; open items recorded in the PRD
 
 **EVIDENCE**

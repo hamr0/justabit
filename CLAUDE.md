@@ -10,7 +10,7 @@ undeniable. Optimize for the reader in a CAMARA/IETF meeting, not for elegance.
 
 ## The one invariant
 
-**A profile-mode response is a signed boolean bound to the requester's nonce
+**A profile-mode response is a signed boolean bound to the verifier's nonce
 with an expiry — never the underlying raw value.** If a change lets a
 timestamp, country, number, or address reach the requester in profile mode,
 the change is wrong, however useful. Bands are a declared, transitional
