@@ -14,7 +14,9 @@
 // entry (option 1, user decision 2026-11-23): no hours value and no date is
 // signed. Dates are UTC only; near midnight UTC a requester may be refused once
 // and must ask again (fail-closed, no tolerance window).
-import { parseDuration, isCalendarDate, SIM_SWAP_CHECK, TENURE_CHECK } from './m1-jws.mjs';
+import {
+  parseDuration, isCalendarDate, SIM_SWAP_CHECK, TENURE_CHECK, attachAttestation, attestRefusal, OUT_OF_RANGE,
+} from './m1-jws.mjs';
 
 const hasOwn = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 
@@ -137,4 +139,23 @@ export function answerWithMenu(api, body, ctx, readBackend) {
   const c = checkMenu(api, body, ctx);
   if (!c.ok) return { refused: c.code };
   return { entry: c.entry, answer: readBackend(api, c.entry) };
+}
+
+// V3-M4: the operator side in one call. The signed entry comes ONLY from
+// answerWithMenu (the menu), never from the request or the caller. `body` is the
+// Sync26 request body (its `nonce`, if any, is the verifier's). signOpts =
+// { privateKey, kid, base: { iss, aud, iat, exp } }. Off menu: with a nonce, a
+// signed OUT_OF_RANGE refusal naming the API; without one, today's plain error.
+// A nonce that is present but not a non-empty string throws (as attachAttestation).
+export function operatorAnswer(api, body, ctx, readBackend, signOpts) {
+  const r = answerWithMenu(api, body, ctx, readBackend);
+  const nonce = body.nonce;
+  if (r.refused) {
+    if (nonce === undefined) return { error: OUT_OF_RANGE };
+    const token = attestRefusal(signOpts.privateKey, signOpts.kid, { ...signOpts.base, nonce }, OUT_OF_RANGE, api);
+    if (typeof token !== 'string') throw new Error('refusal could not be signed');
+    return { error: OUT_OF_RANGE, attestation: token };
+  }
+  const schema = [SIM_SWAP_CHECK, TENURE_CHECK].find((s) => s.api === api);
+  return attachAttestation(r.answer, nonce, { ...signOpts, schema, params: { entry: r.entry } });
 }

@@ -155,7 +155,9 @@ camara/v3/poc/     copied unchanged from camara/v2/poc on 2026-11-23 (a4283fb),
                    menu.mjs, menu.json and menu-check.mjs; V3-M2b replaced
                    m2-envelope.mjs with a JWE envelope (RSA-OAEP-256 + A256GCM,
                    padded to one fixed 1024 B size) and changed m2-check.mjs,
-                   m6-check.mjs, m1-jws-check.mjs and demo.mjs; the other
+                   m6-check.mjs, m1-jws-check.mjs and demo.mjs; V3-M3 changed
+                   verifyAnswer (equal or stricter entry); V3-M4 added
+                   operatorAnswer to menu.mjs and first-case.mjs; the other
                    modules are still the v2 code, with only their run-line
                    paths changed to camara/v3/poc
 camara/v3/spec/    carrier-attestation.yaml — illustrative OpenAPI sketch of

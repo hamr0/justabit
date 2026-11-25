@@ -503,16 +503,16 @@ full order is §6 Phase 4b.
 | V3-M2 published menu | menu file + `400 OUT_OF_RANGE` refusal (spec §4.2); absorbs the V2-M3 off-menu `maxAge` item; the signed refusal names the API it refuses (`api`, as the answer does since V3-M1) | off-menu is refused, never rounded; the `maxAge` hours conversion; the signed answer names its menu entry; no raw date leaks, tested with a threshold ABOVE the cap |
 | V3-M2b sealed envelope | replace the v2 RSA-OAEP envelope (`m2-envelope.mjs`) with a JWE (RFC 7516, `RSA-OAEP-256` + `A256GCM`, `node:crypto` only): a fresh AES-256-GCM key per message seals the signed answer, RSA-OAEP seals only that key; every payload padded to one fixed 1024 B size (`MAX_PAYLOAD` 1023); user and POCs, 2026-11-24, why in findings.md | every signed answer and refusal of every profile API seals and opens at one fixed sealed length (2142 B for RSA-4096); a payload over `MAX_PAYLOAD` is refused at `seal()` and the operator sends a true signed refusal; `open()` refuses any other length before any crypto; the hub cannot read it; `open()` never throws and gives one failure reason for every fault |
 | V3-M3 tighten only | the verifier checks the signed menu entry against its own (spec §4.3), inside `verifyAnswer` in `m1-jws.mjs` (no new function on top): equal entry, any answer; stricter entry, pass answer only; looser entry, `LOOSER`; spec corrected first (2026-11-25, findings); built and user-validated 2026-11-25 (393/393) | monotonicity: a pass at a stricter entry implies a pass at every looser one (spike on every mock line before the build); a looser question REJECTS; a fail at a stricter entry is never accepted for a looser one; no default widens a window |
-| V3-M4 first-case demo | M1-M3 composed on the mock (spec §4.5); moves M2/M6/demo from the raw-Ed25519 core onto the JWS core (the never-run V2-M3; user, 2026-11-23); joins `answerWithMenu` to `attachAttestation`, so the signer can sign only an entry the menu returned (until then the signer checks the entry's type only) | composition weakens no single module's guarantee; negative control included |
+| V3-M4 first-case demo | M1-M3 composed on the mock (spec §4.5); moves M2/M6/demo from the raw-Ed25519 core onto the JWS core (the never-run V2-M3; user, 2026-11-23); joins `answerWithMenu` to `attachAttestation`, so the signer can sign only an entry the menu returned (until then the signer checks the entry's type only); NARROWED 2026-11-25: demo.mjs and m6-check.mjs stay on the raw-Ed25519 core (v2 code); built as operatorAnswer (menu.mjs) and first-case.mjs, user-validated 11/11 | composition weakens no single module's guarantee; negative control included |
 | V3-M5 live | the V3-M4 demo on Orange Playground; only if V3-S0 passes | writes can be silently ignored — READ-after-write is load-bearing |
 | V3-M6 range | ranges on open values (spec §4.4); only after SimSwapTimeFrame publishes a definition | a range never collapses to the point value |
 
 **v3 open items (2026-11-25; findings 2026-11-25).** Recorded, not
 decided. Each one names where it is decided.
 
-1. `aud` when the caller and the verifier differ: the signed `aud` names
-   the operator's direct caller; what a verifier that did not call
-   checks is open (spec §7 item 5; decided before V3-M4).
+1. SETTLED 2026-11-25 (findings 2026-11-25, V3-M4): a verifier that did
+   not call passes, as `expectedAud`, the caller identity it is told; the
+   binding to the verifier comes from its own nonce. No code change.
 2. An auditor's check after `exp`: signature and claims only, for the
    record, never to act (spec §7 item 6).
 3. The HTTP status of a signed `UNAVAILABLE` refusal is open; the sketch
@@ -749,7 +749,9 @@ Phase 4b (v3, from 2026-11-23; modules per §4.4 v3 ladder; a doc
             entry only); two open questions added to v3 §7; the open
             items go to §4.4 "v3 open items" (findings 2026-11-25).
          7. DONE 2026-11-25: V3-M3 tighten only (393/393, user-validated).
-         8. V3-M4 first-case demo.
+         8. DONE 2026-11-25 (narrowed): V3-M4 first-case demo
+            (`operatorAnswer`, `first-case.mjs`, 11/11, user-validated);
+            demo.mjs and m6-check.mjs stay on the raw-Ed25519 core.
          9. Governance/TSC ask with the filing text in `camara/v3/docs/`,
             citing the demo and the sketch (v3 §4.5); the author
             presents it at the Commonalities meeting (bi-weekly,
@@ -1027,6 +1029,7 @@ The full rationale for every decision lives in `docs/logs/findings.md`; this tab
 
 | Date | Decision | Status | Where |
 |---|---|---|---|
+| 2026-11-25 | V3-M4 first case built: `operatorAnswer` (menu.mjs) joins the menu to the signer, `first-case.mjs` shows a shop verifying answers it did not ask for; `aud` settled with no code change; demo.mjs and m6-check.mjs stay on the raw-Ed25519 core (narrowed, user "go"); user-validated 11/11 | active | [findings.md](../logs/findings.md#2026-11-25--v3-m4-first-case-operatoranswer-joins-the-menu-to-the-signer-first-casemjs-a-shop-verifies-answers-it-did-not-ask-for-aud-settled-with-no-code-change-user-validated-1111) |
 | 2026-11-25 | V3-M3 tighten only built: one comparison in `verifyAnswer` (equal entry any answer, stricter entry pass only, looser `LOOSER`); monotonicity spike closed by a source read, not a data run; user-validated 393/393 | active | [findings.md](../logs/findings.md#2026-11-25--v3-m3-tighten-only-one-comparison-in-verifyanswer-equal-entry-any-answer-stricter-entry-pass-only-looser-looser-user-validated-393393) |
 | 2026-11-25 | Nonce wording follows the v3 correction: README profile rule 2 and the CLAUDE.md invariant now say verifier's nonce (user, option A); v1 FR2 and frozen records kept; sketch re-validated at f3abde7 (`sketch-check.py` four PASS, exit 0; user-validated) | active | [findings.md](../logs/findings.md#2026-11-25--nonce-wording-follows-the-v3-correction-readme-profile-rule-2-and-the-claudemd-invariant-say-verifiers-nonce-sketch-re-validated-at-f3abde7) |
 | 2026-11-25 | v3 spec corrected before V3-M3: the party that relies on the answer (the verifier) issues the nonce; a verifier accepts equal entries (any answer) or stricter entries (pass answer only), never looser; the five v2 verifier steps restored to spec §4.1; spec §7 items 5 and 6 added; sketch `Nonce` description matched; V3-M3 built inside `verifyAnswer`; ten v3 open items recorded in PRD §4.4 (user decision, option B) | active | [findings.md](../logs/findings.md#2026-11-25--v3-spec-correction-before-v3-m3-the-verifier-issues-the-nonce-and-accepts-equal-or-stricter-entries-only-v2-verifier-steps-restored-open-items-recorded-in-the-prd) |

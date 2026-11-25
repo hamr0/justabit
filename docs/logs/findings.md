@@ -14,6 +14,61 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-11-25 — V3-M4 first case: operatorAnswer joins the menu to the signer; first-case.mjs, a shop verifies answers it did not ask for; aud settled with no code change; user-validated 11/11
+
+**EVIDENCE**
+
+Spike (scratch, not in the repo), readout S1 WORKS: the existing exports,
+unchanged, let a shop that did not call the operator verify both answers
+(its own nonce store; `aud` = the caller identity the agent declares;
+`expectedEntry` P60D against a signed P90D accepted; replay rejected
+`NONCE_REJECTED`).
+
+Build: `menu.mjs` adds `operatorAnswer` (`answerWithMenu`, then
+`attachAttestation` with the entry the menu returned, so the signer never
+takes an entry from the request; off menu with a nonce -> signed
+`OUT_OF_RANGE` refusal naming the API). `first-case.mjs` (11 checks):
+P1 SimSwap P90D accepted for a shop needing P60D, response keys only
+`swapped` + `attestation`; P2 Tenure P2Y accepted, no `contractType`;
+N1/N2 replay; N3 a changed byte; N4 shop needs P120D -> LOOSER; N5 recent
+swap, `swapped:true` at P90D for P60D -> NOT_PASS; N6 off-menu `maxAge`
+1440 -> signed refusal verified, 0 backend reads; L1 leak scan (swap
+dates, tenure start, `tenureDate` sent, `maxAge`, `contractType`) clean;
+L2 the scan flags a leaky object; E1 `entryFor` maps the request to P90D.
+Demo data are two scripted lines inside the file (Tenure rule start <=
+`tenureDate`; not a test of CAMARA's table); `m4-facts-mock.mjs` unchanged.
+
+Mutation (main session, exit codes read directly): shop P30D in N4 ->
+10/11, exit 1; menu refusal switched off -> crash, exit 1 (red as a crash,
+not a clean check failure); both restored, `cmp` identical.
+
+All suites exit 0 (main session): first-case 11/11, m1-jws-check 393/393,
+menu-check 46/46, m1-check 20/20, m2-check 17/17, m3-check 26/26,
+m4-check 42/42, m5-check 67/67, m6-check 48/48, demo 34/34.
+
+**EVIDENCE: USER VALIDATION**
+
+2026-11-25: `node first-case.mjs` RESULT 11/11, exit 0.
+
+**DECISION**
+
+1. (User, "go", 2026-11-25.) V3-M4 narrowed on simple over clever. The PRD
+   row also asked to move `demo.mjs` (1582 lines) and `m6-check.mjs`
+   (1332 lines) from the raw-Ed25519 core onto the JWS core; that rewrite
+   shows nothing new about the proposal and is not done. Both stay on the
+   raw core as v2 code: a recorded limit.
+2. Open item 1 (`aud`) is settled with no code change: a verifier that did
+   not call passes, as `expectedAud`, the caller identity it is told; the
+   binding to the verifier comes from the verifier's own nonce. Shown by
+   the spike and P1/P2.
+
+**OPEN ITEMS**
+
+- The leak scan does not cover the recent-swap response (it carries only
+  `swapped:true` and the token).
+- The SimSwap demo rule is swap days < entry days (demo data; the
+  exact-boundary choice stays CAMARA's).
+
 ## 2026-11-25 — V3-M3 tighten only: one comparison in verifyAnswer (equal entry any answer, stricter entry pass only, looser LOOSER); user-validated 393/393
 
 **EVIDENCE**

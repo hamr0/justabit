@@ -167,7 +167,9 @@ camara/v3/poc/      v3 code: copy of camara/v2/poc/ (2026-11-23); V3-M1
                     the JWS core; V3-M2 adds the published menu (menu.mjs,
                     menu.json) and signs the menu entry only; V3-M2b
                     replaces the envelope with a JWE (RSA-OAEP-256 +
-                    A256GCM) padded to one fixed size
+                    A256GCM) padded to one fixed size; V3-M3 adds tighten-only
+                    to the verifier; V3-M4 adds the first-case demo
+                    (first-case.mjs)
 camara/v3/spec/     carrier-attestation.yaml — illustrative OpenAPI sketch
                     of the v3 signed answer on Sync26 SimSwap /check and
                     Tenure /check-tenure (2026-11-25), not normative;
