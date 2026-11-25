@@ -158,6 +158,10 @@ camara/v3/poc/     copied unchanged from camara/v2/poc on 2026-11-23 (a4283fb),
                    m6-check.mjs, m1-jws-check.mjs and demo.mjs; the other
                    modules are still the v2 code, with only their run-line
                    paths changed to camara/v3/poc
+camara/v3/spec/    carrier-attestation.yaml — illustrative OpenAPI sketch of
+                   the v3 signed answer on Sync26 SimSwap /check and Tenure
+                   /check-tenure (2026-11-25), not normative; sketch-check.py
+                   checks it against the v3 PoC
 ietf/v1/docs/      frozen record of draft-hamr-oauth-agent-delegation-00 as
                    posted 2026-08-31 (agent/delegation side, OAuth WG target);
                    ietf-agent-delegation.md is the companion prose proposal

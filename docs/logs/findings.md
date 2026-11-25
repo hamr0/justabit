@@ -14,6 +14,32 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-11-25 — PRD step 6: OpenAPI sketch on Sync26 (SimSwap /check, Tenure /check-tenure), signed answer and signed refusal; /retrieve-date left out; user-validated
+
+**EVIDENCE**
+
+1. Sources fetched with `gh` on 2026-11-25: `camaraproject/SimSwap` r4.3 `sim-swap.yaml` (`info.version` 2.2.0, line 95; `CreateCheckSimSwap` 259-273; `CheckSimSwapInfo` 244-252; `ErrorInfo` 286-307; `GENERIC_400_OUT_OF_RANGE` 393-398; `BadRequestWithRange400` 544-567) and `camaraproject/Tenure` r3.4 `kyc-tenure.yaml` (`info.version` 0.3.0, line 120; `Tenure` 186-200; `TenureInfo` 201-225; `ErrorInfo` 238-259, identical to SimSwap's; `GENERIC_400_OUT_OF_RANGE` 279-284; `BadRequestWithRange400` 328-351). The main session re-checked the line ranges against the fetched files.
+2. `camara/v3/spec/sketch-check.py` runs four checks: (1) the YAML parses and every `$ref` resolves; (2) drift: the sketch matches the REAL `attestAnswer` and `attestRefusal` output and `menu.json`; (3) a leak guard on the payload schemas; (4) no `contractType` in any response. Six mutants (add `maxAge`; drop `api`; a third refusal reason; `contractType` in the Tenure 200; menu `P60D`; a broken `$ref`) each exit 1 and each differs from the original by `cmp`. The real file exits 0.
+3. Main-session review found two nits, fixed in one round: the `maxAge` example changed from 240 to 2160, and the sketch now says so; `x-camara-commonalities: 0.9.0` was removed, because the added `attestation` member is not part of Commonalities 0.9.0. Accepted as they are: `TenureInfoAttested` has no `contractType` (the no-nonce response is today's `TenureInfo`, stated in the description); the full paths equal the signed `api` claim (CAMARA writes `{apiRoot}/sim-swap/v2` plus `/check`); the HTTP status of a signed `UNAVAILABLE` refusal is open.
+4. USER VALIDATION (2026-11-25): the user ran `sketch-check.py` on the real file (exit 0, four PASS) and on a `maxAge`-leak mutant (`cmp` different, checks 2 and 3a FAIL, exit 1). `git status` showed only `camara/v3/spec/`. Step 4 of the runbook (a read of the sketch) was not reported. Step 2 of the runbook carried a `sed` line that does nothing; it was harmless, its output went to `/dev/null`.
+
+**DECISION**
+
+1. The spec was approved by the user on 2026-11-25. The draft stays local in `.claude/scratch` (gitignored).
+2. D1 = B: `/retrieve-date` is not in the sketch. A signed refusal could not name it, because `KNOWN_APIS` in `camara/v3/poc/m1-jws.mjs` lists only `/check` and `/check-tenure`. Open values wait on SimSwapTimeFrame (spec §4.4). This NARROWS PRD §6 Phase 4b step 6, which named `/retrieve-date`.
+3. D2 = A: a `400` is the CAMARA `ErrorInfo`, unchanged, plus one `attestation` member.
+4. D3 = B: no menu schema. `menu.json` is shown as an example in the operation descriptions. The menu format stays open (spec §7.2).
+5. The user asked whether the first recommendation (A, A, A) was simple over clever. It was not for D1 and D3. The recommendation was revised.
+6. Correction: the orchestrator first said V3-M2b changed the wire shape the sketch must show. That was wrong. V3-M2b changed only the blind-hub envelope, which the sketch leaves out (spec §6).
+
+**OPEN ITEMS (documented, not fixed)**
+
+- The HTTP status of a signed `UNAVAILABLE` refusal is open.
+- The nonce maximum length of 256 is a sketch value (spec §7.3).
+- PRD §6 Phase 4b step 6 named `/retrieve-date`; D1 narrows it.
+
+---
+
 ## 2026-11-24/25 — V3-M2b sealed envelope: JWE (RSA-OAEP-256 + A256GCM) padded to one fixed 1024 B size; two POCs decided the demo guards and the fixed size; user-validated 17/17, 385/385 and 48/48
 
 **EVIDENCE**
