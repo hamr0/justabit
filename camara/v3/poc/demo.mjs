@@ -22,8 +22,8 @@
 //   3. the single-use NONCE STORE (M1's nonce check is stateless BINDING; replay
 //      rejection is the requester's job, by M1's own documented limit);
 //   4. THE REFUSAL BUDGET (M3 builds rejection reasons from wire input and does
-//      not bound them; M2's seal() THROWS above the envelope capacity — so an
-//      unbounded refusal crashes the operator instead of refusing). The
+//      not bound them, so a signed refusal would reflect unbounded wire input;
+//      before V3-M2b it also crashed the operator at the RSA seal limit). The
 //      2026-08-17 adversarial review found this owned in name only: the clamp
 //      counted UTF-16 code units where seal counts BYTES, and the echoed NONCE
 //      was never bounded at all. Both are now computed from one stated
@@ -43,7 +43,7 @@
 import { randomBytes, generateKeyPairSync, sign as edSign, verify as edVerify } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import { attest, verifyAttestation, hasDuplicateTopLevelKey } from './m1-attestation.mjs';
-import { generateEnvelopeKeys, seal, open, OAEP_CAPACITY } from './m2-envelope.mjs';
+import { generateEnvelopeKeys, seal, open, MAX_PAYLOAD } from './m2-envelope.mjs';
 import { checkFloor } from './m3-floor.mjs';
 import { createMockFacts, evaluatePredicate, factQuery } from './m4-facts-mock.mjs';
 import { createOrangeFacts } from './m5-facts-orange.mjs';
@@ -259,9 +259,11 @@ function canonValue(v) {
 
 // ────────────────────────── M6-owned: the reason clamp ───────────────────────
 // A refusal crosses the wire too. M3 builds its reasons from WIRE input and does
-// not bound them (deliberately — the clamp belongs on the side that knows the
-// envelope capacity), and M2's seal() THROWS above that capacity. Unclamped, a
-// long enough floor value makes the operator CRASH instead of refuse.
+// not bound them (deliberately — the clamp belongs on the operator side), so an
+// unclamped refusal would sign and return whatever length of wire input it was
+// built from. Before V3-M2b the same input also made seal() THROW at the RSA limit
+// and the operator CRASH instead of refuse; the clamp's bound is still the one
+// computed for that limit (below), kept as the reflected-input bound.
 //
 // The 2026-08-17 ADVERSARIAL REVIEW found BOTH halves of the previous version
 // wrong, and the comment that used to sit here ("measured at the spike: the
@@ -280,7 +282,7 @@ function canonValue(v) {
 //
 //   frame    {"iss":"<iss>","payload":"<b64>","sig":"<b64>"}
 //            32 fixed + iss 16 + sig 88 (64 raw Ed25519 bytes, base64)  = 136 B
-//   so the base64 payload gets OAEP_CAPACITY 446 - 136                  = 310 B
+//   so the base64 payload gets the old RSA limit 446 - 136             = 310 B
 //   base64 runs in multiples of 4 → 308 usable → claims 308 / 4 * 3     = 231 B
 //   claims   {"error":<E>,"nonce":<N>,"exp":<13 digits>}
 //            39 fixed + E + N, where E and N are the JSON-ENCODED sizes
@@ -294,8 +296,9 @@ function canonValue(v) {
 // to it and says so in the clear instead (step 7 of the operator).
 //
 // 13 exp digits covers every millisecond timestamp until the year 5138. A longer
-// `iss` than the demo's would eat into E — which is why case 29 SEALS the worst
-// case rather than trusting this comment.
+// `iss` than the demo's would eat into E. (Dated history, 2026-08-17: this arithmetic
+// is for the old 446 B RSA limit. Since V3-M2b the envelope is one fixed 1024 B size,
+// MAX_PAYLOAD 1023, and the numbers are kept as the reflected-input bound.)
 export const WIRE_REASON_JSON_MAX = 122;
 export const NONCE_JSON_MAX = 70;
 
@@ -461,7 +464,8 @@ export function createOperator({ keys, directory, backend, floor = PUBLISHED_FLO
     //    like every other frame-level fault. Found by the 2026-08-17 adversarial
     //    review: unbounded, a 200-character nonce on an otherwise minimal
     //    request made seal() THROW straight out of handle(), which is a remote
-    //    crash on an input anyone can send. See the clamp arithmetic above.
+    //    crash on an input anyone can send (dated history: that was the RSA-only
+    //    envelope; the bound is kept). See the clamp arithmetic above.
     if (Buffer.byteLength(JSON.stringify(req.nonce), 'utf8') > NONCE_JSON_MAX) {
       return transportReject('nonce too long to echo in a signed refusal');
     }
@@ -586,31 +590,14 @@ export function createOperator({ keys, directory, backend, floor = PUBLISHED_FLO
     // The leaky-operator control for assertion 1: ship the age alongside the bit.
     if (controls.leakRaw) claims.swapAgeMs = facts.swapAgeMs;
 
-    // 13. M1 signs, M6 packs, M2 seals — and the frame is MEASURED before it is
-    //     sealed. A request that fits one envelope does not guarantee an answer
-    //     that does: `roamingIn` takes a SET, and the canonical predicate string
-    //     re-escapes every quote in it, so the answer frame grows faster than the
-    //     request did. Measured 2026-08-17 (found while fixing the two crashes
-    //     above, not filed by the review): 18 two-letter codes fit a 446-byte
-    //     request and produce a 448-byte answer frame, and seal() threw straight
-    //     out of handle(). A refusal carries no predicate, so it always fits —
-    //     which is what makes "refuse instead of crash" available here at all.
+    // 13. M1 signs, M6 packs, M2 seals. The envelope has ONE size (MAX_PAYLOAD), so a large
+    //     answer, such as a `roamingIn` set of 40 codes, is sealed like any other, and an
+    //     answer over MAX_PAYLOAD is refused below instead of letting seal() throw.
     const plain = packSigned(attest(keys.opSig.privateKey, claims), keys.opIss);
-    // Capacity DERIVED from the actual recipient key here too (2026-08-18 fix
-    // round), not the module constant `OAEP_CAPACITY` (446, the RSA-4096 demo
-    // value): `seal()` in m2-envelope.mjs already derives the real capacity
-    // from `recipientEnc` (`modulusBits / 8 - 66`), so against a non-4096
-    // recipient this guard and `seal()`'s own check used to disagree — turning
-    // this intended graceful `signedReject` into `seal()` throwing straight out
-    // of `handle()`. Falls back to `OAEP_CAPACITY` only if the key shape is not
-    // a recognisable RSA KeyObject, in which case `seal()` below throws its own
-    // clear error exactly as it did before this fix — unchanged behaviour for
-    // that edge case, and unchanged behaviour for RSA-4096 either way.
-    const recipientCapacity = typeof recipientEnc?.asymmetricKeyDetails?.modulusLength === 'number'
-      ? recipientEnc.asymmetricKeyDetails.modulusLength / 8 - 66
-      : OAEP_CAPACITY;
-    if (plain.length > recipientCapacity) {
-      return signedReject('answer does not fit one envelope', req.nonce, recipientEnc);
+    // One envelope size: an answer that does not fit is refused, signed and true. The
+    // refusal carries no predicate, so it always fits.
+    if (plain.length > MAX_PAYLOAD) {
+      return signedReject('answer over the envelope size', req.nonce, recipientEnc);
     }
     return { kind: 'answer', claims, effectiveFloor, plain, sealed: seal(recipientEnc, plain) };
   }
@@ -654,9 +641,8 @@ export function createRP({ keys, directory }) {
     const req = { number, predicate, floor: floorDemanded, nonce };
     const want = { predicate: canonicalPredicate(predicate) };
     const plain = packSigned(attest(keys.rpSig.privateKey, req), keys.rpIss);
-    // seal() THROWS if the RP's own request will not fit one envelope — the
-    // sender's own fault per M2, loud here, never a truncated half-request.
-    // The store is written AFTER it, and deliberately: the nonce is only pending
+    // seal() THROWS on a sender fault (a non-Buffer payload or a bad key), loud here,
+    // never a truncated half-request. The store is written AFTER it, and deliberately: the nonce is only pending
     // once a request actually exists to be answered. Registering first left an
     // entry that nothing could ever verify or consume in a store the comment
     // above already admits only GROWS — a caller retrying an oversize request in
@@ -903,12 +889,14 @@ export function rawNeedles(daysAgo, { country = 'FR', number = DEMO_NUMBER, devi
   ];
 }
 
-// The subset that is safe to scan against OPAQUE bytes — RSA ciphertext read as
-// latin1, and frames whose payload is base64. Measured, not guessed: a 2-char
-// country code lands inside 512 random bytes about once every 8 runs and inside
-// a 308-character base64 payload about once every 13; a 3-digit day count lands
-// inside a 32-character hex nonce about once every 140. A needle that reds a
-// clean run asserts nothing, so those two are scanned only where a hit is real.
+// The subset that is safe to scan against OPAQUE bytes — the sealed message (a JWE, which
+// since V3-M2b is base64url ASCII text, not raw bytes) read as latin1, and frames whose
+// payload is base64. A short alphanumeric needle (a 2-char country code, a 3-digit day
+// count) appears BY CHANCE in base64url text, so it can red a clean run; that is why
+// OPAQUE_MIN_NEEDLE (8 characters, below) exists. (An earlier "about 1 in 8" figure was
+// measured on the old raw 512-byte RSA ciphertext and does not apply to the JWE; chance
+// hits there are likelier, not rarer, and no new figure is claimed.) A needle that reds a
+// clean run asserts nothing, so the short ones are scanned only where a hit is real.
 // Both cutoffs below are the SAME operation at two calibrations, so the filter
 // itself is written once: only the threshold differs, and each threshold's own
 // justification stays with its constant.
@@ -1058,7 +1046,7 @@ export async function runDemo(backend) {
 
   assert('answer verified: signature, predicate, nonce, expiry',
     r1.verdict.accepted === true && r1.out.claims.result === true,
-    `reason='${r1.verdict.reason}', request ${q1.plain.length} B / response ${r1.out.plain.length} B plaintext (envelope cap ${OAEP_CAPACITY} B)`);
+    `reason='${r1.verdict.reason}', request ${q1.plain.length} B / response ${r1.out.plain.length} B plaintext`);
   assert('the signed claim set is closed — exactly {predicate, result, nonce, exp}',
     JSON.stringify(Object.keys(r1.verdict.claims ?? {})) === '["predicate","result","nonce","exp"]',
     `keys=${JSON.stringify(Object.keys(r1.verdict.claims ?? {}))}`);
@@ -1093,7 +1081,7 @@ export async function runDemo(backend) {
     `${r1b.out.claims?.result}`);
   assert('the bit flips and the ciphertext length does not move',
     r1b.out.claims.result === false && r1b.verdict.accepted === true && r1b.out.sealed.length === r1.out.sealed.length,
-    `${r1.out.sealed.length} B both times — RSA-OAEP ciphertext is fixed-length, so the billing record carries no content signal`);
+    `${r1.out.sealed.length} B both times — the JWE plaintext is padded to one fixed 1024 B size, so the billing record carries no content signal`);
   await backend.setBackstory(DEMO_NUMBER, story(), NOW);
 
   // NEGATIVE: an operator that ships the age alongside the bit. Two independent
@@ -1163,14 +1151,14 @@ export async function runDemo(backend) {
   // NARRATION, labelled as what it is. The hub's blindness is STRUCTURAL — it
   // is never handed a key that opens either leg — and a structural property is
   // not something an assertion can fail. What this line actually exercises is
-  // RSA-OAEP: a key that is not the recipient's does not open the ciphertext.
+  // JWE: a key that is not the recipient's does not open the ciphertext.
   // The 2026-08-17 review flagged the old label ("the hub opening a message it
   // just carried gets nothing") for claiming the first while checking the
   // second. The real evidence for blindness is the log scan below, which CAN
   // fail, and the chatty control that shows it failing.
   const hubKeys = generateEnvelopeKeys();
   const hubTry = open(hubKeys.privateKey, r1.atRp);
-  assert('a key that is not the recipient\'s does not open the ciphertext (RSA-OAEP, not a blindness proof)',
+  assert('a key that is not the recipient\'s does not open the ciphertext (JWE (RSA-OAEP-256 + A256GCM), not a blindness proof)',
     hubTry.ok === false, `hub open → '${hubTry.reason}' — blindness itself is structural: the hub is never given a key`);
 
   out('');
@@ -1188,7 +1176,7 @@ export async function runDemo(backend) {
     logHits.length === 0, `scanned for [${LOG_NEEDLES.join(', ')}] → hits=${JSON.stringify(logHits)}`);
   note('honest limit, unchanged by composition: message COUNT, TIMING and the RP↔operator');
   note('PAIRING stay visible — that is exactly what metering needs. Rule 6 removes content,');
-  note('not the fact of the query. Sizes are fixed-length here, so they carry no signal.');
+  note('not the fact of the query. Sealed sizes are padded to one fixed size, so they carry no signal.');
 
   // NEGATIVE: a hub operator adds one "helpful" debug field.
   const chattyHub = createHub();
@@ -1485,23 +1473,6 @@ export async function runDemo(backend) {
   flip('letting the unsigned `iss` pick the key ACCEPTS that same answer',
     rp.verifyResponse(sideSealed, 'side-nonce', NOW + 1_000, { trustIssHint: true }).accepted === true,
     'profile rule 3\'s exact attack, live in the composition: any listed operator could answer for any other');
-
-  out('');
-  step('ENVELOPE CAPACITY IS THE RECIPIENT\'S, NOT A CONSTANT (2026-08-18 fix round).');
-  step('`OAEP_CAPACITY` (446 B) is only correct for an RSA-4096 recipient; the pre-seal');
-  step('guard above derives the real cap from `recipientEnc` itself, exactly as `seal()`');
-  step('does — so a smaller-key requester gets a graceful, signed refusal, never a crash.');
-  const smallKeys = generateKeys();
-  smallKeys.rpEnc = generateKeyPairSync('rsa', { modulusLength: 3072 });   // real cap 318 B, under the 446 B constant
-  const smallWorld = createWorld({ backend, keys: smallKeys });
-  const q7 = smallWorld.rp.buildRequest(
-    { type: 'roamingIn', operator: 'in', value: ['AB', 'BC', 'CD', 'DE', 'EF'] },
-    { swapAgeMin: 'P180D' },
-  );
-  const r7 = await roundTrip(smallWorld, q7);
-  assert('a recipient with a SMALLER-than-4096 envelope key gets a graceful refusal, not a thrown exception',
-    r7.out.kind === 'reject' && r7.verdict.refused === true && r7.out.reason === 'answer does not fit one envelope',
-    `RSA-3072 real cap 318 B < the RSA-4096 OAEP_CAPACITY constant (446 B); requester saw: '${r7.verdict.reason}'`);
 
   // ───────────────────────────────────────────────────────────── the notes
   section('Notes the reader is owed');

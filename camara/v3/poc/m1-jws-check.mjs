@@ -514,16 +514,12 @@ check('1 WRONG SEGMENT COUNT', false, verifyJws('abc.def', resolveKey), JwsRejec
   checkTrue('32b REFUSAL payload fidelity', v.ok && v.claims.error === OUT_OF_RANGE && v.claims.api === TEST_API);
 }
 
-// 33 SIZE GUARD — a SIM_SWAP_CHECK answer with a 30-char iss/aud, a UUID
-// nonce, and a 20-char kid must fit under the M2 RSA-4096 OAEP cap. The
-// cap is DERIVED here from a freshly generated RSA-4096 key (bits/8 - 66),
-// never hard-coded, mirroring m2-envelope.mjs's own seal()-side derivation
-// exactly — m2 exports the constant 446 but not a standalone deriving
-// function, so this re-derives from the same formula against a real key.
+// 33 SEALED ANSWERS (V3-M2b) — the worst-case signed answers and refusal (30-char iss/aud,
+// UUID nonce, 20-char kid) all seal and open to the same bytes, and all seal to ONE length,
+// so the hub cannot tell them apart. 33 (an answer under the old RSA-OAEP cap) is dropped: it
+// duplicated 33d, and nothing seals with RSA-OAEP alone any more.
 {
   const rsaKey = generateKeyPairSync('rsa', { modulusLength: 4096 });
-  const modulusBits = rsaKey.publicKey.asymmetricKeyDetails.modulusLength;
-  const capacity = modulusBits / 8 - 66;
   const longIss = 'a'.repeat(30);
   const longAud = 'b'.repeat(30);
   const kid20 = 'k'.repeat(20);
@@ -532,30 +528,37 @@ check('1 WRONG SEGMENT COUNT', false, verifyJws('abc.def', resolveKey), JwsRejec
   const base = { iss: longIss, aud: longAud, nonce, iat: NOW, exp: NOW + 300 };
   const token = attestAnswer(operator.privateKey, kid20, base, SIM_SWAP_CHECK, { entry: 'P90D' }, { swapped: false });
   const size = typeof token === 'string' ? compactSize(token) : Infinity;
-  checkTrue(`33 SIZE GUARD (${size}B < ${capacity}B derived RSA-4096 OAEP cap)`, typeof token === 'string' && size < capacity);
-  // 33b (V3-M2): the worst-case signed refusal (longest api name) must fit the
-  // cap too. The worst-case Tenure ANSWER is measured and printed but NOT
-  // asserted: at 461 B it is over the 446 B cap (closed by V3-M2b (user decision 2026-11-24)).
+  // 33b2: the worst-case Tenure answer (461 B, over the old 446 B RSA cap) seals and opens
+  // to the same bytes.
   const nonce2 = randomUUID();
   nonceStore.issue(nonce2);
   const tToken = attestAnswer(operator.privateKey, kid20, { ...base, nonce: nonce2 }, TENURE_CHECK, { entry: 'P2Y' }, { tenureDateCheck: false });
   const tSize = typeof tToken === 'string' ? compactSize(tToken) : Infinity;
-  console.log(`INFO 33b worst-case Tenure answer ${tSize}B (cap ${capacity}B) - measured, not asserted`);
+  // A regression that returns a refusal object instead of a token must print FAIL, not crash.
+  const isStr = typeof token === 'string' && typeof tToken === 'string';
+  const tBytes = Buffer.from(typeof tToken === 'string' ? tToken : '', 'utf8');
+  const tSealed = seal(rsaKey.publicKey, tBytes);
+  const tOpened = open(rsaKey.privateKey, tSealed);
+  checkTrue(`33b2 V3-M2b: worst-case Tenure answer (${tSize}B) seals and opens to the same bytes`,
+    isStr && tOpened.ok === true && tOpened.payloadBytes?.equals(tBytes) === true);
   const rToken = attestRefusal(operator.privateKey, kid20, { ...base, nonce: nonce2 }, OUT_OF_RANGE, TENURE_CHECK.api);
   const rSize = typeof rToken === 'string' ? compactSize(rToken) : Infinity;
-  checkTrue(`33b SIZE GUARD worst-case refusal (${rSize}B < ${capacity}B)`, rSize < capacity);
-  // 33c KNOWN GAP, closed by V3-M2b: the worst-case signed Tenure answer is over the
-  // v2 envelope cap, so seal() REFUSES it (throws; never truncates, no ciphertext).
-  // 33d NEGATIVE CONTROL: the worst-case SimSwap answer fits, seals and opens to the same bytes.
-  let sealed, sealThrew = false;
-  try { sealed = seal(rsaKey.publicKey, Buffer.from(tToken, 'utf8')); } catch { sealThrew = true; }
-  checkTrue(`33c KNOWN GAP (closed by V3-M2b): sealing the worst-case Tenure answer (${tSize}B > ${capacity}B) is REFUSED, never truncated, and yields no ciphertext`,
-    tSize > capacity && sealThrew === true && sealed === undefined);
-  const sBytes = Buffer.from(token, 'utf8');
+  // 33b: the worst-case signed refusal seals to the same length as the answers (compared below).
+  // 33c V3-M2b (was KNOWN GAP): the worst-case Tenure answer seals, and to the SAME sealed
+  // length as the SimSwap answer (checked in 33d below), so the hub cannot tell them apart.
+  // 33d NEGATIVE CONTROL: the worst-case SimSwap answer seals and opens to the same bytes.
+  const sBytes = Buffer.from(typeof token === 'string' ? token : '', 'utf8');
   const sSealed = seal(rsaKey.publicKey, sBytes);
   const sOpened = open(rsaKey.privateKey, sSealed);
+  checkTrue(`33c V3-M2b: worst-case Tenure answer (${tSize}B) and SimSwap answer (${size}B) seal to one length (${tSealed.length}B)`,
+    isStr && tSize > size && sSealed.length === tSealed.length);
+  const rBytes = Buffer.from(typeof rToken === 'string' ? rToken : '', 'utf8');
+  const rSealed = seal(rsaKey.publicKey, rBytes);
+  checkTrue(`33b worst-case refusal (${rSize}B) seals to the same length (${rSealed.length}B) and opens to the same bytes`,
+    typeof rToken === 'string' && rSealed.length === tSealed.length &&
+    open(rsaKey.privateKey, rSealed).payloadBytes?.equals(rBytes) === true);
   checkTrue(`33d NEGATIVE CONTROL: the worst-case SimSwap answer (${size}B) seals and opens to the same bytes`,
-    Buffer.isBuffer(sSealed) && sSealed.length === modulusBits / 8 && sOpened.ok === true && sOpened.payloadBytes.equals(sBytes));
+    typeof token === 'string' && sOpened.ok === true && sOpened.payloadBytes?.equals(sBytes) === true);
 }
 
 // =====================================================================

@@ -1,6 +1,96 @@
 # PoC — Mode A, four assertions, one command
 
-**v3 working copy, copied unchanged from `camara/v2/poc` on 2026-11-23 (commit `a4283fb`); `camara/v2/poc` stays frozen. V3-M1 and V3-M2 have since changed `m1-jws.mjs`, `m1-jws-check.mjs` and `README.md`, and V3-M2 added `menu.mjs`, `menu.json` and `menu-check.mjs` (see below); the other modules are still the v2 code, with only their run-line paths changed to `camara/v3/poc`.**
+**v3 working copy, copied unchanged from `camara/v2/poc` on 2026-11-23 (commit `a4283fb`); `camara/v2/poc` stays frozen. V3-M1 and V3-M2 have since changed `m1-jws.mjs`, `m1-jws-check.mjs` and `README.md`, V3-M2b rewrote `m2-envelope.mjs` and changed `m2-check.mjs`, `m6-check.mjs`, `m1-jws-check.mjs` and `demo.mjs`, and V3-M2 added `menu.mjs`, `menu.json` and `menu-check.mjs` (see below); the other modules are still the v2 code, with only their run-line paths changed to `camara/v3/poc`.**
+
+**2026-11-24 — V3-M2b (sealed envelope, one fixed size).** `m2-envelope.mjs` is now a
+JWE (RFC 7516) in compact form: `alg` `RSA-OAEP-256`, `enc` `A256GCM`. A fresh
+256-bit content key per message encrypts the payload with AES-256-GCM (fresh
+96-bit IV, the header as AAD); RSA-OAEP-SHA256 wraps only that 32-byte key. So
+every signed answer and refusal seals, including the worst-case Tenure answer
+(461 B). Decision: user, 2026-11-24 (JWE; then ONE fixed envelope size, see
+below). `seal`,
+`open` and `generateEnvelopeKeys` keep their signatures. The `OAEP_CAPACITY`
+export is gone: it was no longer a seal limit, and `demo.mjs`, `m6-check.mjs`
+and `m2-check.mjs` no longer check against it. `open()` also checks the
+lengths after decoding (IV 12 B, tag 16 B, padded body exactly 1024 B). Case 15
+(a 14 B IV) and case 16 (a 1025 B body) each build a valid JWE of exactly the
+sealed length (the RSA wrapped key's leading `0x00` bytes are dropped to pay for
+the longer IV or body), so they reach ONLY those checks and are mutation-proven
+(next section). `demo.mjs` lost its old size checks
+(the RSA-3072 small-key step; 35 -> 34 assertions; the pre-seal
+answer guard stays and now checks `MAX_PAYLOAD`), and `m6-check.mjs` case 29 lost its third assertion (the worst
+refusal fits one RSA envelope).
+
+One fixed size (review fix, 2026-11-24). Padding to the NEXT multiple of 1024
+let the hub read the boolean at a bucket edge (a true answer of 1020 B sealed
+to 2142 B, the false one of 1024 B to 3507 B), and `open()` had no size
+bound. Now every payload is padded to exactly 1024 B (`0x80`, then `0x00`):
+`MAX_PAYLOAD` is 1023 (exported), `seal()` throws above it, and every sealed
+message is 2142 B for RSA-4096 (derived from the key modulus, not a constant:
+1801 B for 2048, 1971 B for 3072). `open()` refuses any input that is not
+exactly the sealed length for its private key, BEFORE any crypto (case 17: a
+50 MB JWE is refused in under 1 ms, mutation-proven). `demo.mjs` refuses an
+answer over the envelope with the TRUE signed reason `answer over the
+envelope size` (`m6-check.mjs` case 48).
+
+Five properties, each tested in `m2-check.mjs` with a negative control:
+1. Length hiding: the payload is padded (`0x80`, then `0x00`) to exactly
+   1024 B, so SimSwap true/false, Tenure true/false and a refusal all seal to
+   one length, 2142 B (case 11; the control without padding gives 5 lengths).
+2. One failure reason: any fault returns `undecryptable`, never throws (case 12:
+   2,000 random flips across the five parts, wrong key, truncated, empty, a
+   6th part, a different header, bad padding, non-canonical base64url; the
+   control that reports the failing step gives 5 reasons). The header is one
+   constant compared as text, there is no header parser, and each part must
+   re-encode to the same base64url text.
+3. Fresh key and IV: 1000 seals give 1000 distinct content keys (each
+   encrypted key part is decrypted and compared, since RSA-OAEP output is
+   randomized) and 1000 distinct IVs (case 13).
+4. Round trip at 0, 1, 446, 461 and 1023 B, and payloads ending in `0x80` or
+   `0x00` (case 14); one byte more throws at seal (case 1).
+5. Sender faults throw: not a Buffer, not an RSA key (Ed25519, DSA), RSA under
+   2048 bits (case 2).
+
+Mutation-proven (each mutant turns `m2-check.mjs` red): no padding, header check
+removed, per-step failure reason, fixed IV, padding marker not required, strict
+base64url check removed, fixed content key (case 13), exact-length check in
+`open()` removed (case 17), `seal()` size throw removed (cases 1, m6 48), the
+RSA key-type check removed (case 2, DSA), the IV/tag length check in `open()`
+removed (case 15 red; case 16 stays green), the plaintext-length check removed
+(case 16 red; case 15 stays green), and both removed (cases 15 and 16 red).
+Limit: the 15 B tag wire in case 15 is also refused by Node's `setAuthTag` when
+the IV/tag check is absent, so the tag half of that check is not mutation-proven
+by itself; the IV half is.
+
+Honest limits: the hub still sees message count, timing and who talks to whom
+(the metadata it needs to bill). There is one size: a payload over 1023 B is
+refused by `seal()`, not sent in a bigger bucket. No timing-oracle defence is claimed (JS is not
+constant-time; RFC 7516 section 11.5's random-key fall-through is left out on
+purpose). It is a standard JWE profile, but no outside party has reviewed it.
+`demo.mjs` keeps `clampReason` and `NONCE_JSON_MAX`: they bound signed
+refusals built from wire input. Their numbers (122 and 70) were derived from
+the old 446 B RSA limit and are kept as they are; whether to re-derive them is
+an open item (3).
+
+Open items of the fixed size, documented and not hidden:
+1. The mutant "pad to the next multiple of 1024, `seal()` throw kept" is
+   EQUIVALENT: for a payload of 1023 B or less it pads to the same 1024 B, and
+   larger payloads still throw, so no test can fail on it. Documented, not
+   killed.
+2. At the edge a true answer can fit while the 4 B longer false answer is
+   refused. The hub sees one length (2142 B) either way; the requester sees
+   an answer versus the signed refusal, and it is entitled to the bit.
+3. `clampReason` and `NONCE_JSON_MAX` (122 / 70) stay as derived from the old
+   446 B limit.
+
+The RFC 7516 Appendix A.1 decryption check was run in the
+spike only (SHA-1 there; the module has no hash option).
+
+```
+node camara/v3/poc/m2-check.mjs        # V3-M2b sealed envelope - 17 cases
+node camara/v3/poc/m6-check.mjs        # 48 cases (V3-M2b added 48, the over-size refusal)
+node camara/v3/poc/m1-jws-check.mjs    # 385 cases (385 at V3-M2; V3-M2b added 33b2, dropped 33)
+```
 
 **2026-11-23 — V3-M2 (published menu).** The operator publishes the questions
 it answers as a short closed set of durations per API (not a range: a range
@@ -57,14 +147,11 @@ so `SIM_SWAP_CHECK.api` goes straight into `entryFor`, `answerWithMenu` and
   `TENURE_CHECK` signs a `tenureDate` of type `date` are history; V3-M2
   replaces them. The `date` type stays in the library but no named schema
   uses it.
-- Known open item: the worst-case Tenure signed answer (461 B) is over the
-  446 B RSA-4096 OAEP cap of the v2 envelope; SimSwap (437 B) and the signed
-  refusal (441 B) fit. Closed by V3-M2b (hybrid AES-256-GCM + RSA-OAEP
-  envelope, user decision 2026-11-24), a separate later module; the `INFO 33b`
-  line in `m1-jws-check.mjs` stays a measurement until then. Case 33c pins the
-  gap: sealing that answer with `m2-envelope.mjs` `seal()` is refused (it
-  throws, never truncates, no ciphertext), with 33d as the negative control
-  (the worst-case SimSwap answer seals and opens to the same bytes).
+- Closed by V3-M2b (2026-11-24): the worst-case Tenure signed answer (461 B) was
+  over the 446 B RSA-4096 OAEP cap of the v2 envelope; the hybrid JWE envelope now
+  seals it. `33` (a size guard against the old cap) is dropped, as it duplicated `33d`;
+  `33b` now asserts the worst refusal seals to the same length. `33b2` asserts it seals and opens to the same bytes; `33c` asserts it
+  seals to the same length as the SimSwap answer; `33d` stays the control.
 - Requester side (F1): `verifyAnswer` takes `expectedEntry`. For a schema
   whose params include `entry` it is required, and must equal the signed
   `entry`, else `ENTRY_MISMATCH`. The requester gets it from
@@ -81,7 +168,7 @@ so `SIM_SWAP_CHECK.api` goes straight into `entryFor`, `answerWithMenu` and
 
 ```
 node camara/v3/poc/menu-check.mjs      # V3-M2 published menu — 46 cases
-node camara/v3/poc/m1-jws-check.mjs    # 385 cases (314 at V3-M1 + V3-M2 rewrites and additions)
+node camara/v3/poc/m1-jws-check.mjs    # 385 cases at V3-M2 (314 at V3-M1 + V3-M2 rewrites and additions); 385 at V3-M2b
 ```
 Run both also under `TZ=Pacific/Kiritimati` and `TZ=America/Adak`.
 
@@ -165,8 +252,8 @@ its own (negatives first, exit 0 only if every case holds):
 ```
 node camara/v3/poc/m1-check.mjs   # M1 attestation core — 20 cases (user-validated 20/20 at
                         #   `4446517`, 2026-08-18) (v2 tree, not re-run on v3)
-node camara/v3/poc/m2-check.mjs   # M2 blind envelope — 10 cases (user-validated 10/10 at
-                        #   `4446517`, 2026-08-18) (v2 tree, not re-run on v3)
+node camara/v3/poc/m2-check.mjs   # M2 blind envelope — 17 cases (V3-M2b; the
+                        #   v2 10/10 validation does not transfer)
 node camara/v3/poc/m3-check.mjs   # M3 floor gate — 26 cases (user-validated 26/26 at
                         #   `4446517`, 2026-08-18) (v2 tree, not re-run on v3)
 node camara/v3/poc/m4-check.mjs   # M4 mock facts adapter — 42 cases (user-validated 42/42 at
@@ -203,7 +290,8 @@ ORANGE_BASIC_AUTH="$(pass camara/orange_network | head -1)" node camara/v3/poc/m
                         # interrupted run does not leak one), prints the count at both
                         # ends, and case 19 asserts it came back.
 
-node camara/v3/poc/m6-check.mjs   # M6 integration — 47 cases (user-validated 47/47 at
+node camara/v3/poc/m6-check.mjs   # M6 integration — 48 cases (V3-M2b; the v2 history below does
+                        #   not transfer). v2 history: 47 cases (user-validated 47/47 at
                         #   `d85d3cf`/v0.5.0, 2026-08-18 — case 46 CROSS-REQUESTER
                         #   SEALING added earlier, second code-review round, 45 -> 46;
                         #   case 47 CONDITIONAL AXIS READ added in the M7 round, 46 -> 47). (v2 tree, not re-run on v3)
@@ -211,8 +299,9 @@ node camara/v3/poc/m6-check.mjs   # M6 integration — 47 cases (user-validated 
                         #   backend modes: the `--backend orange` seam runs
                         #   through an injected transport replaying captured
                         #   Playground bytes, exactly like m5-check. It also runs
-                        #   the demo itself and asserts its exit code, its 33/33
-                        #   tally, and claims discipline (every mention of
+                        #   the demo itself and asserts its exit code, that its
+                        #   RESULT line is n/n (parsed, not a fixed count; the demo is
+                        #   34/34 on v3), and claims discipline (every mention of
                         #   zero-knowledge in the output must be a negation).
                         #   Takes ~15s — RSA-4096 keygen dominates.
 ```

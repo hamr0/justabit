@@ -9,9 +9,9 @@
 // then shown ACCEPTING with that one guard disabled — a control that cannot
 // accept means the negative was vacuous, and a guard never disabled has not been
 // proven load-bearing.
-import { generateKeyPairSync, sign as edSign } from 'node:crypto';
+import { generateKeyPairSync, sign as edSign, publicEncrypt, constants } from 'node:crypto';
 import { attest } from './m1-attestation.mjs';
-import { generateEnvelopeKeys, seal, open, OAEP_CAPACITY } from './m2-envelope.mjs';
+import { generateEnvelopeKeys, seal, open, MAX_PAYLOAD } from './m2-envelope.mjs';
 import { checkFloor } from './m3-floor.mjs';
 import { makeHarness } from './check-harness.mjs';
 import * as M5 from './m5-facts-orange.mjs';
@@ -300,7 +300,7 @@ const W = await mockWorld();
 // only. Renamed 2026-08-17: the old title ("BLIND HUB") claimed more than the
 // code checked. The hub's blindness is STRUCTURAL — it is never handed a key
 // that opens either leg — and a structural property has no failing case to
-// write; what the `open` below exercises is RSA-OAEP. The assertions that CAN
+// write; what the `open` below exercises is the RSA-OAEP key unwrap and AES-GCM. The assertions that CAN
 // fail are the log ones, and the chatty control is what makes them mean
 // anything: a scanner that cannot red is not a scanner.
 {
@@ -363,9 +363,10 @@ const W = await mockWorld();
 // `{"d":"2026-04-02"}` and `{"swapDays":137}` all scored ZERO while the label
 // read "no raw value in ANY wire artifact". The inventory is now complete; what
 // varies is which artifact a given needle can honestly be scanned against —
-// OPAQUE bytes (ciphertext, base64-bearing frames) take the long forms only,
-// because a 2-character country code lands in 512 random bytes about one run in
-// 8. PLAINTEXT takes the WHOLE inventory, with the random hex nonce blanked so
+// OPAQUE text (the sealed message, which is base64url ASCII since V3-M2b, and base64-bearing
+// frames) takes the long forms only, because a short alphanumeric needle (a 2-character
+// country code) appears by chance in base64url text; that is why OPAQUE_MIN_NEEDLE (8,
+// in demo.mjs) exists. PLAINTEXT takes the WHOLE inventory, with the random hex nonce blanked so
 // the 3-digit day count asserts instead of flaking. The control plants one leak
 // per value the operator holds — the four the old set was blind to, and every
 // value added since — so this case can fail for each of them individually. The
@@ -434,40 +435,36 @@ const W = await mockWorld();
       ok: c(PREDICATE) === 'simSwapAge gte "P90D"' });
 }
 
-// 20 REASON CLAMP — M3 builds reasons from wire input and does not bound them;
-// M2's seal() THROWS above the envelope capacity. Unclamped, a long enough
-// refusal makes the operator CRASH instead of refuse. Both halves measured here:
-// the unclamped reason throws at seal, the clamped one seals.
+// 20 REASON CLAMP — M3 builds reasons from wire input and does not bound them, so a signed
+// refusal would reflect unbounded wire input. The clamp bounds the reason (in JSON-encoded
+// bytes, WIRE_REASON_JSON_MAX); the verdict is that bound: the clamped reason fits it and the
+// unclamped one does not. (Before V3-M2b the unclamped reason also made seal() throw.)
 {
-  const w = await mockWorld();
   const long = checkFloor(PUBLISHED_FLOOR, { swapAgeMin: `P${'9'.repeat(600)}Q` });
-  const sealIt = (reason) => {
-    try {
-      seal(w.keys.rpEnc.publicKey, packSigned(attest(w.keys.opSig.privateKey, { error: reason, nonce: 'n', exp: NOW + VALIDITY_MS }), w.keys.opIss));
-      return null;
-    } catch (e) { return e.message; }
-  };
-  const rawThrew = sealIt(long.reason);
-  const clampedThrew = sealIt(clampReason(long.reason));
-  ok('20 REASON CLAMP', rawThrew !== null && clampedThrew === null,
-    { label: `unclamped ${claimBytes(long.reason)} B → '${String(rawThrew).slice(0, 40)}…'; clamped ${claimBytes(clampReason(long.reason))} B seals`,
-      ok: long.allowed === false && claimBytes(clampReason(long.reason)) <= WIRE_REASON_JSON_MAX && clampReason(42) === 'rejected' });
+  const raw = claimBytes(long.reason), clamped = claimBytes(clampReason(long.reason));
+  ok('20 REASON CLAMP', clamped <= WIRE_REASON_JSON_MAX && raw > WIRE_REASON_JSON_MAX,
+    { label: `unclamped ${raw} B > ${WIRE_REASON_JSON_MAX} B bound; clamped ${clamped} B`,
+      ok: long.allowed === false && clampReason(42) === 'rejected' });
 }
 
 // 21 LARGEST WIRE-REACHABLE FLOOR VALUE — how reachable case 20 actually is:
-// the 446-byte envelope caps the REQUEST too, which caps how long a wire value
-// (and therefore an M3 reason) can be. The operator must survive the worst one a
-// requester can physically send, and refuse it rather than crash.
+// the longest floor value the requester can build (grown until buildRequest throws, or 400
+// digits) sets how long a wire value, and so an M3 reason, can get. The operator must
+// survive the worst one and refuse it rather than crash. (Before V3-M2b the 446 B RSA limit
+// on the request was what stopped the growth.) The loop now runs up to MAX_PAYLOAD and
+// stops at the first n where buildRequest throws; the case asserts hitLimit, i.e. that the
+// growth ended on that throw, not by exhausting the loop bound.
 {
   const w = await mockWorld();
   let biggest = null;
-  for (let n = 1; n <= 400; n++) {
-    try { biggest = { n, req: w.rp.buildRequest(PREDICATE, { swapAgeMin: `P${'9'.repeat(n)}Q` }) }; } catch { break; }
+  let hitLimit = false;
+  for (let n = 1; n <= MAX_PAYLOAD; n++) {
+    try { biggest = { n, req: w.rp.buildRequest(PREDICATE, { swapAgeMin: `P${'9'.repeat(n)}Q` }) }; } catch { hitLimit = true; break; }
   }
   const r = await roundTrip(w, biggest.req);
   ok('21 LARGEST WIRE-REACHABLE FLOOR VALUE', r.out.kind === 'reject',
     { label: `max wire value ${biggest.n + 2} chars → refused, signed, sealed`,
-      ok: r.verdict.refused === true && claimBytes(r.out.reason) <= WIRE_REASON_JSON_MAX });
+      ok: hitLimit && r.verdict.refused === true && claimBytes(r.out.reason) <= WIRE_REASON_JSON_MAX });
 }
 
 // 22 BACKEND SEAM — the FR5 claim. The orange backend runs through an INJECTED
@@ -743,62 +740,56 @@ ok('23 ONE EVALUATION STEP', Object.keys(M5).sort().join(',') === 'createOrangeF
 // sweep proved could be DELETED with the suite still green — which is the same
 // thing said twice: the code was right and nothing was holding it there.
 
-// 29 THE REFUSAL BUDGET IS COMPUTED, NOT ASSUMED — the two ways `handle()` could
-// be made to THROW on a request that fits one envelope. Both arrive through the
-// ordinary path, from anyone holding the operator's public envelope key, and
-// both were live at 8238d02:
-//   * an unbounded echoed NONCE (200 characters on an otherwise minimal
-//     request), and
-//   * a clamp counting UTF-16 CODE UNITS while seal() counts BYTES (a floor
-//     value of 40 astral characters clamped to 121 units = 363 bytes).
-// The third assertion is the arithmetic itself: the WORST refusal the two bounds
-// admit — a 68-byte nonce beside a maximal multibyte reason — must actually seal
-// into one envelope. That is the line that would red if `iss` grew, which is the
-// one input the stated arithmetic assumes.
+// 29 THE REFUSAL BUDGET — two ways a request could make a signed refusal reflect unbounded
+// wire input, both reachable from anyone holding the operator's public envelope key:
+//   * an unbounded echoed NONCE (200 characters on an otherwise minimal request), and
+//   * a clamp counting UTF-16 CODE UNITS while the bound is in BYTES (a floor value of 40
+//     astral characters clamped to 121 units = 363 bytes).
+// Third assertion: the WORST admissible refusal frame (the longest nonce NONCE_JSON_MAX allows,
+// the longest reason WIRE_REASON_JSON_MAX allows, the demo's iss) still fits MAX_PAYLOAD, seals
+// and opens. It is what keeps a signed refusal always sendable at the one envelope size.
 {
   const w = await mockWorld();
   const longNonce = await sendRaw(w, { nonce: 'N'.repeat(200), zz: 1 });
   const astral = await sendRaw(w, { number: DEMO_NUMBER, floor: { swapAgeMin: `P${'\u{1F600}'.repeat(40)}D` }, nonce: 'mb' });
   const clamped = clampReason(`P${'\u{1F600}'.repeat(40)}D is not a duration`);
 
-  const worstNonce = 'n'.repeat(NONCE_JSON_MAX - 2);
-  const worstReason = clampReason('\u{1F600}'.repeat(400));
-  const worstFrame = packSigned(attest(w.keys.opSig.privateKey, { error: worstReason, nonce: worstNonce, exp: NOW + VALIDITY_MS }), w.keys.opIss);
-  let worstSealed = null;
-  try { worstSealed = seal(w.keys.rpEnc.publicKey, worstFrame); } catch (e) { worstSealed = e.message; }
+  const worst = packSigned(attest(w.keys.opSig.privateKey, {
+    error: 'x'.repeat(WIRE_REASON_JSON_MAX - 2), nonce: 'N'.repeat(NONCE_JSON_MAX - 2), exp: NOW + VALIDITY_MS,
+  }), w.keys.opIss);
+  const worstBack = worst.length <= MAX_PAYLOAD ? open(w.keys.rpEnc.privateKey, seal(w.keys.rpEnc.publicKey, worst)) : { ok: false };
+  const worstFits = worst.length <= MAX_PAYLOAD && worstBack.ok === true && worstBack.payloadBytes.equals(worst);
 
   check('29 REFUSAL BUDGET', false, { ok: longNonce.kind !== 'reject', reason: longNonce.reason },
     'nonce too long to echo in a signed refusal',
-    { label: `astral floor value refuses (${claimBytes(clamped)} B claim, was 363 raw); worst admissible refusal = ${worstFrame.length}/${OAEP_CAPACITY} B and seals`,
-      ok: astral.kind === 'reject' && astral.sealed !== null
+    { label: `astral floor value refuses (${claimBytes(clamped)} B claim, was 363 raw); worst refusal frame ${worst.length} B <= ${MAX_PAYLOAD}, seals and opens`,
+      ok: astral.kind === 'reject' && astral.sealed !== null && worstFits
         && claimBytes(clamped) <= WIRE_REASON_JSON_MAX
-        && Buffer.from(clamped, 'utf8').toString('utf8') === clamped   // still valid UTF-8: no character was split
-        && worstFrame.length <= OAEP_CAPACITY && Buffer.isBuffer(worstSealed) });
+        && Buffer.from(clamped, 'utf8').toString('utf8') === clamped }); // still valid UTF-8: no character was split
 }
 
-// 30 AN ANSWER THAT WILL NOT FIT IS REFUSED, NOT A CRASH — found 2026-08-17
-// while fixing case 29, and not on the review's list. A request that fits one
-// envelope does NOT imply an answer that does: `roamingIn` takes a SET, and the
-// canonical predicate re-escapes every quote in it, so the answer frame grows
-// faster than the request did. 18 two-letter codes fit a 446-byte request and
-// produced a 448-byte answer frame; seal() threw straight out of handle().
+// k DISTINCT two-letter codes (AA, AB, ... up to 26*26 = 676), for the large-set cases 30 and 48.
+const distinctCodes = (k) => Array.from({ length: k }, (_, i) =>
+  String.fromCharCode(65 + (Math.floor(i / 26) % 26)) + String.fromCharCode(65 + (i % 26)));
+
+// 30 A LARGE ANSWER IS ANSWERED — found 2026-08-17: `roamingIn` takes a SET, and the canonical
+// predicate re-escapes every quote in it, so the answer frame grows faster than the request.
+// Under the RSA-only envelope a 40-code request could not be answered (the frame passed the
+// 446 B limit). Since V3-M2b it is a signed answer that the requester opens and verifies.
+// Negative control: the old envelope's own call (RSA-OAEP over the whole frame) refuses the
+// same frame, so this case is in the region the old envelope could not reach.
 {
   const w = await mockWorld();
-  let biggest = null;
-  for (let n = 1; n <= 40; n++) {
-    const value = Array.from({ length: n }, (_, i) => `${String.fromCharCode(65 + (i % 26))}${String.fromCharCode(65 + ((i * 7) % 26))}`);
-    try { biggest = { n, req: w.rp.buildRequest({ type: 'roamingIn', operator: 'in', value }, {}) }; } catch { break; }
-  }
+  const value = distinctCodes(40);
+  const req = w.rp.buildRequest({ type: 'roamingIn', operator: 'in', value }, {});
   let r;
-  try { r = await roundTrip(w, biggest.req); } catch (e) { r = { out: { kind: 'THREW', reason: e.message } }; }
-  // ...and the control: one code fewer still ANSWERS, so this case pins the
-  // overflow boundary rather than "roamingIn is broken".
-  const smallValue = Array.from({ length: biggest.n - 4 }, (_, i) => `${String.fromCharCode(65 + (i % 26))}${String.fromCharCode(65 + ((i * 7) % 26))}`);
-  const small = await roundTrip(w, w.rp.buildRequest({ type: 'roamingIn', operator: 'in', value: smallValue }, {}));
-  check('30 OVERSIZE ANSWER', false, { ok: r.out.kind === 'answer', reason: r.out.reason },
-    'answer does not fit one envelope',
-    { label: `${biggest.n} country codes fit the request and overflow the answer; ${smallValue.length} still answers`,
-      ok: r.out.kind === 'reject' && r.out.sealed !== null && small.verdict.accepted === true });
+  try { r = await roundTrip(w, req); } catch (e) { r = { out: { kind: 'THREW', reason: e.message }, verdict: {} }; }
+  let oldThrew = false;
+  try { publicEncrypt({ key: w.keys.rpEnc.publicKey, padding: constants.RSA_PKCS1_OAEP_PADDING, oaepHash: 'sha256' }, r.out.plain ?? Buffer.alloc(0)); } catch { oldThrew = true; }
+  console.log(`     40-code request outcome: kind '${r.out.kind}'${r.out.reason ? ` ('${r.out.reason}')` : ''}, frame ${r.out.plain?.length} B`);
+  ok('30 LARGE ANSWER IS ANSWERED', r.out.kind === 'answer' && r.verdict.accepted === true && typeof r.verdict.claims?.result === 'boolean',
+    { label: `40 country codes: signed answer, opened and verified; the old RSA-OAEP call on the same ${r.out.plain?.length} B frame throws=${oldThrew}`,
+      ok: oldThrew === true });
 }
 
 // 31 A FORGED RESPONSE DOES NOT BURN THE PENDING NONCE — the untrusted hub's
@@ -1183,8 +1174,9 @@ ok('23 ONE EVALUATION STEP', Object.keys(M5).sort().join(',') === 'createOrangeF
   const offMenu = await roundTrip(w, q);
   const control = await roundTrip(w, w.rp.buildRequest({ type: 'numberMatch', operator: 'gte', value: 96, claimed: 'Alice Arnaut' }, TIGHTER), { operator: { skipMenu: true } });
   // The needle set splits the SAME way the wire scanner splits, and for the same
-  // MEASURED reason: `97` is two characters, and two characters land inside 512
-  // random ciphertext bytes about one run in eight. This case FLAKED exactly once
+  // reason: `97` is two characters, and a short alphanumeric needle appears by chance in
+  // the sealed message (base64url ASCII text since V3-M2b); OPAQUE_MIN_NEEDLE (8, in
+  // demo.mjs) exists for that. This case FLAKED exactly once
   // that way before the split existed — a needle that reds a clean run asserts
   // nothing, so the short one is scanned only where a hit is real.
   const secrets = [REGISTERED_NAME, String(NEAR_MISS_SCORE), 'nameMatchScore', 'nameMatch'];
@@ -1316,8 +1308,25 @@ ok('23 ONE EVALUATION STEP', Object.keys(M5).sort().join(',') === 'createOrangeF
       ok: roamHits47.length === 0 && reachHits47.length === 0 });
 }
 
+// 48 AN ANSWER OVER THE ENVELOPE SIZE IS A TRUE SIGNED REFUSAL — the largest roamingIn set the
+// requester can still send whose ANSWER frame is over MAX_PAYLOAD. The operator must refuse,
+// signed and sealed, with the true reason; never crash, never seal a second size.
+{
+  const w = await mockWorld();
+  let req = null, sent = 0, hitLimit = false;
+  for (let k = 40; k <= 200; k++) {
+    try { req = w.rp.buildRequest({ type: 'roamingIn', operator: 'in', value: distinctCodes(k) }, {}); sent = k; } catch { hitLimit = true; break; }
+  }
+  let r;
+  try { r = await roundTrip(w, req); } catch (e) { r = { out: { kind: 'THREW', reason: e.message }, verdict: {} }; }
+  ok('48 ANSWER OVER THE ENVELOPE SIZE IS A TRUE SIGNED REFUSAL',
+    r.out.kind === 'reject' && r.verdict.refused === true && r.out.reason === 'answer over the envelope size',
+    { label: `${sent} codes: request fits, answer frame would exceed ${MAX_PAYLOAD} B; requester saw refusal '${r.verdict.reason}'`,
+      ok: hitLimit && r.out.sealed?.length === seal(w.keys.rpEnc.publicKey, Buffer.alloc(1)).length });
+}
+
 // The declared case count. A suite that silently loses the cases carrying its
 // guarantee still printed a green `RESULT: n/n` before this argument existed
 // (measured 2026-08-16 on m4-check: truncated to 18/18 exit 0, emptied to 0/0
 // exit 0).
-conclude(47);
+conclude(48);
