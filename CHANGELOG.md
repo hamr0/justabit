@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.17.0 — 2026-11-26
+
+- **CAMARA v3 proposal, re-based on the Sync26 releases** (PR #43).
+  `docs/product/camara-v3-spec.md` cites what Sync26 already does
+  (operator limits refused with `400 OUT_OF_RANGE`, yes/no answers,
+  single-use tokens) and proposes only the gap: a signed answer, a
+  published menu, never accepting a looser question, and ranges on open
+  values. For the SIM swap age, the SimSwapTimeFrame band table is the
+  published menu. `camara/v2` is frozen as the record of the #705 round.
+- **v3 proof of concept** in `camara/v3/poc`, each module user-validated:
+  signed answer (V3-M1), published menu (V3-M2), a JWE envelope padded to
+  one fixed 1024 B size (V3-M2b), tighten-only verification (V3-M3) and
+  the first case on Tenure and SimSwap `/check` (V3-M4). An illustrative,
+  non-normative OpenAPI sketch is in `camara/v3/spec`, and the readout is
+  `camara/v3/README.md`.
+- **Posted 2026-11-26 and filed verbatim in `camara/v3/docs/`:** the
+  Governance issue camaraproject/Governance#220 (signed answers for
+  CAMARA yes/no APIs, first case Tenure and SimSwap `/check`), an update
+  on Commonalities #705, and a note on camaraproject/SimSwapTimeFrame#4
+  about repeated queries and band edges. Each was read back from GitHub.
+- Sync26 baseline re-read at each release tag on 2026-11-26; no change.
+
 ## 0.16.2 — 2026-11-21
 
 - **CAMARA follow-up posted and filed.** A status comment on
