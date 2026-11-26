@@ -137,7 +137,7 @@ Each assertion must be able to FAIL, and the demo must show the negative:
 - Node ≥ 20, **zero dependencies** — `node:crypto` for Ed25519
   signing/verification and the E2E leg (RSA-4096 OAEP-SHA256 envelopes, per
   the 2026-08-15 decision log entry — one vetted primitive, no hand-glued
-  hybrid), `node:http` if a
+  hybrid; the v3 PoC uses a standard JWE, RSA-OAEP-256 + A256GCM, since V3-M2b), `node:http` if a
   process split is ever needed (default: in-process actors, one file per
   role max).
 - No secrets in the tree; `.env` gitignored; no real subscriber numbers ever

@@ -1,6 +1,6 @@
 # PoC — Mode A, four assertions, one command
 
-**v3 working copy, copied unchanged from `camara/v2/poc` on 2026-11-23 (commit `a4283fb`); `camara/v2/poc` stays frozen. V3-M1 and V3-M2 have since changed `m1-jws.mjs`, `m1-jws-check.mjs` and `README.md`, V3-M2b rewrote `m2-envelope.mjs` and changed `m2-check.mjs`, `m6-check.mjs`, `m1-jws-check.mjs` and `demo.mjs`, and V3-M2 added `menu.mjs`, `menu.json` and `menu-check.mjs` (see below); the other modules are still the v2 code, with only their run-line paths changed to `camara/v3/poc`.**
+**v3 working copy, copied unchanged from `camara/v2/poc` on 2026-11-23 (commit `a4283fb`); `camara/v2/poc` stays frozen. V3-M1 and V3-M2 have since changed `m1-jws.mjs`, `m1-jws-check.mjs` and `README.md`, V3-M2b rewrote `m2-envelope.mjs` and changed `m2-check.mjs`, `m6-check.mjs`, `m1-jws-check.mjs` and `demo.mjs`, and V3-M2 added `menu.mjs`, `menu.json` and `menu-check.mjs` (see below); V3-M3 changed `verifyAnswer` in `m1-jws.mjs` (equal or stricter entry) and `m1-jws-check.mjs`, and V3-M4 added `operatorAnswer` to `menu.mjs` and the demo `first-case.mjs`; the other modules are still the v2 code, with only their run-line paths changed to `camara/v3/poc`.**
 
 **2026-11-24 — V3-M2b (sealed envelope, one fixed size).** `m2-envelope.mjs` is now a
 JWE (RFC 7516) in compact form: `alg` `RSA-OAEP-256`, `enc` `A256GCM`. A fresh
@@ -168,7 +168,8 @@ so `SIM_SWAP_CHECK.api` goes straight into `entryFor`, `answerWithMenu` and
 
 ```
 node camara/v3/poc/menu-check.mjs      # V3-M2 published menu — 46 cases
-node camara/v3/poc/m1-jws-check.mjs    # 385 cases at V3-M2 (314 at V3-M1 + V3-M2 rewrites and additions); 385 at V3-M2b
+node camara/v3/poc/m1-jws-check.mjs    # 385 cases at V3-M2 (314 at V3-M1 + V3-M2 rewrites and additions); 385 at V3-M2b; 393 at V3-M3
+node camara/v3/poc/first-case.mjs      # V3-M4 first case, the shop flow end to end — 11 cases
 ```
 Run both also under `TZ=Pacific/Kiritimati` and `TZ=America/Adak`.
 
@@ -473,7 +474,8 @@ flagged inline with **CHANGED 2026-08-16**; the full spike record (with the
 raw shapes) is the dated findings entry.
 
 Node ≥ 20, zero dependencies, real crypto (`node:crypto`: Ed25519 signatures,
-RSA-4096 OAEP-SHA256 envelopes for the end-to-end leg past the hub — one
+a JWE envelope (RSA-OAEP-256 + A256GCM since V3-M2b; RSA-4096 OAEP-SHA256 in the v2
+code) for the end-to-end leg past the hub — one
 vetted primitive, per the PRD decision log). The runbook is the demo section
 above.
 
