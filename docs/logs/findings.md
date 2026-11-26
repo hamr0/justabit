@@ -14,6 +14,38 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-11-26 — Sync26 operator limits arrived after #705: release dates checked; Post 2 states the dates and claims no cause
+
+### Evidence (run 2026-11-26, `gh api`, tagged releases only)
+
+Commonalities#705 was created 2026-09-01T11:15:19Z. For each API, the
+release that first carries the operator's own limit, counted with
+`grep -c` on `code/API_definitions/<file>` at each tag:
+
+| API | Marker counted | Last tag with 0 | First tag with it | Release date |
+|---|---|---|---|---|
+| SimSwap | `BadRequestWithRange400` | r4.1 (0) | r4.2 (2) | 2026-10-20 |
+| Tenure | "not part of the API request" (threshold date R) | r3.2 (0) | r3.3 (1) | 2026-11-06 |
+| kyc-age-verification | "agreed during onboarding" | r2.1 (0) | r2.2 (2) | 2026-11-19 |
+
+The `OUT_OF_RANGE` code itself is older: it is already in SimSwap r3.3,
+Tenure r2.2 and kyc-age-verification r1.3. Only the operator's own limit is
+new after #705.
+
+Same day, the baseline was re-read at each tag (`info.version`): SimSwap
+r4.3 2.2.0, DeviceSwap r4.3 1.1.0, NumberVerification r4.2 2.1.1, Tenure
+r3.4 0.3.0, kyc-age-verification r2.3 0.3.0, kyc-match r2.3 1.0.0,
+kyc-fill-in r2.3 0.5.0. `retrieve-age-band` has 0 hits in SimSwap r4.3.
+All match the CLAUDE.md baseline of 2026-11-23.
+
+### Decision
+
+The user asked that Post 2 say the later releases converged on what #705
+proposed, so the proposal was re-based on them. Post 2 states the release
+dates next to the #705 filing date and makes no claim that the releases
+followed #705 (user chose this option, 2026-11-26). The dates show order,
+not cause; a credit claim cannot be proven and would draw a challenge.
+
 ## 2026-11-25 — v3 spec §4.4: the SimSwapTimeFrame band table is the published menu; no second band, no operator-chosen bands; spec §7 item 4 settled
 
 **EVIDENCE**
