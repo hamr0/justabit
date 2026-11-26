@@ -75,7 +75,7 @@ conforming to profile mode:
 ```
 1. MUST return only the predicate result (boolean) or a declared band —
    never the underlying raw value (timestamp, country, number, address).
-2. MUST echo the requester's nonce and the predicate being answered inside
+2. MUST echo the verifier's nonce and the predicate being answered inside
    the signed response and MUST include an expiry; verifiers MUST reject
    wrong-predicate, replayed, or expired responses — and any payload with
    a duplicate claim key (one signed blob must never read true to one
@@ -98,12 +98,15 @@ honestly: [`camara/v1/docs/camara-attested-windowed-disclosure.md`](camara/v1/do
 
 ## Why a profile, not one more API
 
-CAMARA's own catalog is already halfway here and stopped. `/retrieve-age-band` (unreleased,
-`main` only — not in any tagged SimSwap release) coarsens a
-response because raw timestamps over-disclose. `GET /device-phone-number` already takes no
-request body at all — it derives the line from the 3-legged access token instead of asking
-for an identifier. `kyc-age-verification` already ships as a boolean predicate API in the
-catalog. Every one of those is the working group's own precedent.
+CAMARA's own catalog is already halfway here and stopped. In the Sync26 releases, Tenure
+(r3.4) lets the operator set a threshold date that the requester cannot change, and refuses
+an earlier date with `400 OUT_OF_RANGE`; `kyc-age-verification` (r2.3, Sandbox) answers a
+threshold with yes or no and refuses one outside the agreed range the same way.
+`GET /device-phone-number` takes no request body at all — it derives the line from the
+3-legged access token instead of asking for an identifier. The SIM-swap age band, which
+coarsens a raw date, now has its own Sandbox repository, SimSwapTimeFrame (no definition
+yet). Every one of those is the working group's own precedent; what none of them does is
+sign the answer.
 
 So the ask is not "approve my API" but "finish what you started, catalog-wide". One
 issuance rail plus pluggable predicates means every new status API inherits the mode for
@@ -139,6 +142,8 @@ docs/product/       prd.md — the PRD that leads everything: requirements,
                     camara-attested-windowed-disclosure.md — stub: file
                     moved 2026-08-31, kept so the filed APIBacklog links
                     keep resolving (GitHub has no redirects)
+                    camara-v3-spec.md — the CAMARA v3 spec on the Sync26
+                    releases, opened 2026-11-23 — not filed
 docs/logs/          findings.md — dated evidence + decision log
 docs/archive/       aaif-agent-auth.md — superseded 2026-08-25, dated
                     record only (agent side now lives at
@@ -152,10 +157,25 @@ camara/v1/docs/     frozen record of what was actually filed 2026-08-28:
 camara/v1/poc/      Mode A demo: mock backend by default, Orange Network
                     APIs Playground as a swappable live backend
 camara/v1/spec/     carrier-attestation.yaml — OpenAPI sketch (CAMARA-style)
-camara/v2/docs/     working copy being reshaped per the 2026-08-31 feedback
-                    — not filed
-camara/v2/poc/      working copy of camara/v1/poc/, copied unchanged
-camara/v2/spec/     working copy of camara/v1/spec/, copied unchanged
+camara/v2/docs/     FROZEN 2026-11-23: the record of the Commonalities #705
+                    round, with all its correspondence
+camara/v2/poc/      copy of camara/v1/poc/ plus the JWS attestation core;
+                    FROZEN 2026-11-23
+camara/v2/spec/     the JWS-envelope OpenAPI sketch; FROZEN 2026-11-23
+camara/v3/README.md the v3 readout: idea, wire, menu, verifier steps, PoC,
+                    limits, open items (2026-11-25); a guide, not the spec
+camara/v3/poc/      v3 code: copy of camara/v2/poc/ (2026-11-23); V3-M1
+                    adds the signed `api` claim and the Tenure schema to
+                    the JWS core; V3-M2 adds the published menu (menu.mjs,
+                    menu.json) and signs the menu entry only; V3-M2b
+                    replaces the envelope with a JWE (RSA-OAEP-256 +
+                    A256GCM) padded to one fixed size; V3-M3 adds tighten-only
+                    to the verifier; V3-M4 adds the first-case demo
+                    (first-case.mjs)
+camara/v3/spec/     carrier-attestation.yaml — illustrative OpenAPI sketch
+                    of the v3 signed answer on Sync26 SimSwap /check and
+                    Tenure /check-tenure (2026-11-25), not normative;
+                    sketch-check.py checks it against the v3 PoC
 ietf/v1/docs/       frozen record of draft-hamr-oauth-agent-delegation-00
                     as posted 2026-08-31 (agent/delegation side, OAuth WG
                     target); ietf-agent-delegation.md is the companion
@@ -220,8 +240,9 @@ ietf/v5/docs/       FROZEN record of -04, SUBMITTED and posted
 Each track cites the other as its counterpart; neither depends on the other's approval.
 
 - **[CAMARA](camara/v1/docs/camara-attested-windowed-disclosure.md)** — the
-  operator/attestation side (v1, as filed; v2 rescoping working copy at
-  `camara/v2/docs/`). What the operator attests and how it travels. Profile to
+  operator/attestation side (v1, as filed; v2, the #705
+  round, frozen at `camara/v2/docs/`; the v3 spec on the Sync26
+  releases at `docs/product/camara-v3-spec.md`). What the operator attests and how it travels. Profile to
   Commonalities, consent hooks to ICM, adoption PRs to sim-swap and roaming-status,
   new-case proposal to APIBacklog (template pre-filled in §10).
 - **[IETF](ietf/v1/docs/ietf-agent-delegation.md)** — the agent/delegation side (v1, as
@@ -273,9 +294,10 @@ Requirements live in the [PRD §4](docs/product/prd.md); status, setup and cavea
   tightening) and the delegation model agents carry.
 - **8een** — the one-bit verifier pattern, trust-anchor handling, and the evidence
   discipline (claims pinned to file/line/commit; retractions kept).
-- **CAMARA's own specs** — `/retrieve-age-band` (unreleased, `main` only), `GET
-  /device-phone-number`'s no-body shape, `kyc-age-verification`: the catalog is already
-  halfway here. This profile finishes the trajectory, catalog-wide.
+- **CAMARA's own specs** — Tenure's operator threshold date, `kyc-age-verification`'s
+  `OUT_OF_RANGE` refusal, `GET /device-phone-number`'s no-body shape, and the
+  SimSwapTimeFrame age band: the catalog is already halfway here. This profile finishes
+  the trajectory, catalog-wide.
 
 ## License
 

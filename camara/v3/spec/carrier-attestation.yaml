@@ -1,0 +1,538 @@
+openapi: 3.0.3
+info:
+  title: Signed answers on Sync26 SimSwap and Tenure (sketch)
+  description: |
+    ILLUSTRATIVE. NON-NORMATIVE. This file has no authority. The normative
+    text is `docs/product/camara-v3-spec.md`. This sketch makes the wire
+    examples in that text concrete for working-group review.
+
+    It is not a fork of SimSwap or Tenure. It shows two Sync26 operations
+    with two additive fields: an optional `nonce` in the request and an
+    `attestation` member in the response.
+
+    Sources (fetched with `gh api` on 2026-11-25):
+    - camaraproject/SimSwap, tag r4.3, `code/API_definitions/sim-swap.yaml`,
+      `info.version` 2.2.0 (line 95).
+    - camaraproject/Tenure, tag r3.4, `code/API_definitions/kyc-tenure.yaml`,
+      `info.version` 0.3.0 (line 120).
+    Each copied schema below names its source lines.
+
+    What the sketch shows:
+    - A request with a `nonce` gets a response that carries the answer and
+      an `attestation`. The `attestation` is a JWS (RFC 7515, EdDSA) signed
+      by the operator.
+    - The signed answer is one boolean. It never carries a raw value: no
+      swap date, no subscription date, no hours value. It names the
+      question as the operator's menu entry, for example `P90D`.
+    - A request without a `nonce` gets today's response, unchanged.
+    - A `nonce` that is present but is not a non-empty string is refused
+      with `400 INVALID_ARGUMENT`. It is never treated as absent.
+    - An off-menu request is refused with today's `400 OUT_OF_RANGE`. The
+      operator never rounds the value. It reads nothing for that request.
+      The 400 body is the CAMARA `ErrorInfo`, unchanged, plus one
+      `attestation` member: the signed refusal.
+
+    Not in the sketch:
+    - SimSwap `/retrieve-date`. Open values wait on the SimSwapTimeFrame
+      range work (spec section 4.4). Profile mode never signs a raw date.
+    - The JWE envelope. It is the PoC transport for a blind hub. The blind
+      hub is a separate, later proposal (spec section 6).
+    - Tighten-only behaviour (spec section 4.3).
+    - JWKS discovery, and where the menu is published (spec section 7).
+  version: 0.1.0
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: '{apiRoot}'
+    variables:
+      apiRoot:
+        default: http://localhost:9091
+        description: API root, defined by the service provider.
+paths:
+  /sim-swap/v2/check:
+    post:
+      summary: Check SIM swap, with a signed answer
+      description: |
+        Same operation as SimSwap `POST /check` (r4.3, v2.2.0), with one
+        optional request field (`nonce`) and one added response member
+        (`attestation`).
+
+        With no `nonce`, the response is today's response, unchanged.
+
+        With a `nonce`, the operator checks the request against its
+        published menu before it reads anything. The question is the menu
+        entry that matches `maxAge`. If it is on the menu, the response
+        carries `swapped` and `attestation`. The signed payload names the
+        entry (for example `P90D`). It does not carry `maxAge`. If it is off
+        the menu, the operator refuses with `400 OUT_OF_RANGE` and a signed
+        refusal. It never rounds the value.
+
+        Menu example (the default agent floor, one entry per API). The
+        format, and where the operator publishes it, are open (spec
+        section 7.2). This is an example, not a schema:
+
+        ```
+        "sim-swap/v2/check": ["P90D"]
+        "kyc-tenure/v0.3/check-tenure": ["P2Y"]
+        ```
+
+        `P90D` is sent as `maxAge` `2160` (hours). The cap in the Sync26
+        specification stays 2400 hours.
+      operationId: checkSimSwapAttested
+      security:
+        - openId:
+            - sim-swap:check
+        - openId:
+            - sim-swap
+      parameters:
+        - $ref: '#/components/parameters/x-correlator'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCheckSimSwapAttested'
+      responses:
+        '200':
+          description: >
+            Returns whether a SIM swap happened in the period. With a
+            `nonce` in the request, the response also carries `attestation`.
+          headers:
+            x-correlator:
+              $ref: '#/components/headers/x-correlator'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckSimSwapInfoAttested'
+        '400':
+          $ref: '#/components/responses/BadRequestWithRangeAttested400'
+  /kyc-tenure/v0.3/check-tenure:
+    post:
+      summary: Check tenure, with a signed answer
+      description: |
+        Same operation as Tenure `POST /check-tenure` (r3.4, v0.3.0), with
+        one optional request field (`nonce`) and one added response member
+        (`attestation`).
+
+        With no `nonce`, the response is today's response, unchanged. That
+        includes `contractType` when the operator knows it.
+
+        With a `nonce`, the operator checks the request against its
+        published menu before it reads anything. The question is the menu
+        entry that matches `tenureDate` (for example `P2Y`: the date is the
+        UTC date today minus 730 days). If it is on the menu, the response
+        carries `tenureDateCheck` and `attestation`. The signed payload
+        names the entry. It does not carry `tenureDate`. The signed response
+        leaves out `contractType`, so nothing unsigned travels beside the
+        signature. If it is off the menu, the operator refuses with
+        `400 OUT_OF_RANGE` and a signed refusal. It never rounds the value.
+
+        Menu example (the default agent floor, one entry per API). The
+        format, and where the operator publishes it, are open (spec
+        section 7.2). This is an example, not a schema:
+
+        ```
+        "sim-swap/v2/check": ["P90D"]
+        "kyc-tenure/v0.3/check-tenure": ["P2Y"]
+        ```
+      operationId: checkTenureAttested
+      security:
+        - openId:
+            - kyc-tenure:check-tenure
+      parameters:
+        - $ref: '#/components/parameters/x-correlator'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TenureAttested'
+      responses:
+        '200':
+          description: >
+            Returns tenure information. With a `nonce` in the request, the
+            response carries only `tenureDateCheck` and `attestation`.
+          headers:
+            x-correlator:
+              $ref: '#/components/headers/x-correlator'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenureInfoAttested'
+        '400':
+          $ref: '#/components/responses/BadRequestWithRangeAttested400'
+components:
+  securitySchemes:
+    openId:
+      type: openIdConnect
+      openIdConnectUrl: https://example.com/.well-known/openid-configuration
+      description: OpenID Connect authentication via discovery metadata.
+  schemas:
+    # ---- Request and response bodies (wire) ----
+    Nonce:
+      type: string
+      minLength: 1
+      maxLength: 256
+      description: |
+        The verifier's challenge: the party that will rely on the answer issues it. The operator copies it into the signed
+        payload. This is the field this proposal adds to the request. If the
+        member is present, it must be a non-empty string. `null` and `""`
+        are refused with `400 INVALID_ARGUMENT`. The maximum length here is
+        a sketch value; the nonce rules are open (spec section 7.3).
+      example: 7f3c9a1e-5b2d-4c8e-9a10-2d6f0b8e4c11
+    Attestation:
+      type: string
+      description: >
+        Compact JWS (RFC 7515). The header is AttestationHeader. The decoded
+        payload is AttestationPayloadSimSwap, AttestationPayloadTenure or
+        RefusalPayload. The requester verifies it with the operator's key.
+        How the requester finds that key is open (spec section 7.1).
+      example: eyJhbGciOiJFZERTQSIsImtpZCI6Im9wLTEifQ.eyJpc3MiOiJvcCJ9.c2ln
+    CreateCheckSimSwapAttested:
+      type: object
+      description: |
+        Request body of `POST /check`. `phoneNumber` and `maxAge` are copied
+        from camaraproject/SimSwap tag r4.3, `sim-swap.yaml`, schema
+        `CreateCheckSimSwap` (lines 259-273). `nonce` is the one added field.
+        The `maxAge` example is changed from upstream's `240` to `2160`, the
+        `P90D` menu entry.
+      properties:
+        phoneNumber:
+          $ref: '#/components/schemas/PhoneNumber'
+        maxAge:
+          type: integer
+          example: 2160
+          description: |
+            Period in hours to be checked for SIM swap.
+          format: int32
+          minimum: 1
+          maximum: 2400
+          default: 240
+        nonce:
+          $ref: '#/components/schemas/Nonce'
+    CheckSimSwapInfoAttested:
+      type: object
+      description: |
+        Response body of `POST /check`. `swapped` is copied from
+        camaraproject/SimSwap tag r4.3, `sim-swap.yaml`, schema
+        `CheckSimSwapInfo` (lines 244-252). `attestation` is the one added
+        member. It is present only when the request carried a `nonce`.
+      required:
+        - swapped
+      properties:
+        swapped:
+          type: boolean
+          description: Indicates whether the SIM card has been swapped during the period within the provided age.
+        attestation:
+          $ref: '#/components/schemas/Attestation'
+    TenureAttested:
+      type: object
+      description: |
+        Request body of `POST /check-tenure`. `phoneNumber` and `tenureDate`
+        are copied from camaraproject/Tenure tag r3.4, `kyc-tenure.yaml`,
+        schema `Tenure` (lines 186-200). `nonce` is the one added field.
+      properties:
+        phoneNumber:
+          $ref: '#/components/schemas/PhoneNumber'
+        tenureDate:
+          type: string
+          description: The date, in RFC 3339 / ISO 8601 compliant format "YYYY-MM-DD", from which continuous tenure of the identified network subscriber is required to be confirmed
+          format: date
+          minLength: 10
+          maxLength: 10
+          example: '2023-07-03'
+        nonce:
+          $ref: '#/components/schemas/Nonce'
+      required:
+        - tenureDate
+    TenureInfoAttested:
+      type: object
+      description: |
+        Response body of `POST /check-tenure`. `tenureDateCheck` is copied
+        from camaraproject/Tenure tag r3.4, `kyc-tenure.yaml`, schema
+        `TenureInfo` (lines 201-225). `attestation` is the one added member.
+        The signed response has no `contractType` (present in `TenureInfo`,
+        lines 210-223), because nothing unsigned may travel beside the
+        signature. A response to a request with no `nonce` is today's
+        `TenureInfo`, unchanged.
+      required:
+        - tenureDateCheck
+      properties:
+        tenureDateCheck:
+          description: |
+            `true` when the identified mobile subscription has had valid tenure since `tenureDate`, otherwise `false`
+          example: true
+          type: boolean
+        attestation:
+          $ref: '#/components/schemas/Attestation'
+    PhoneNumber:
+      description: A public identifier addressing a telephone subscription. In mobile networks it corresponds to the MSISDN (Mobile Station International Subscriber Directory Number). In order to be globally unique it has to be formatted in international format, according to E.164 standard, prefixed with '+'.
+      type: string
+      pattern: ^\+[1-9][0-9]{4,14}$
+      maxLength: 16
+      example: '+123456789'
+    ErrorInfo:
+      type: object
+      description: |
+        Copied unchanged from camaraproject/SimSwap tag r4.3, `sim-swap.yaml`
+        (lines 286-307). camaraproject/Tenure tag r3.4, `kyc-tenure.yaml`
+        (lines 238-259) carries the same text; the two copies are identical.
+        A structured error response providing details about a failed request,
+        including the HTTP status code, an error code, and a human-readable
+        message.
+      required:
+        - status
+        - code
+        - message
+      properties:
+        status:
+          type: integer
+          format: int32
+          minimum: 100
+          maximum: 599
+          description: HTTP response status code
+        code:
+          type: string
+          maxLength: 96
+          description: A human-readable code to describe the error
+        message:
+          type: string
+          maxLength: 512
+          description: A human-readable description of what the event represents
+    XCorrelator:
+      type: string
+      description: Correlator string, UUID format recommended but any string matching the pattern can be used
+      pattern: ^[a-zA-Z0-9-_:;.\/<>{}]{0,256}$
+      maxLength: 256
+      example: b4333c46-49c0-4f62-80d7-f0ef930f1c46
+    # ---- Decoded JWS (documentation only; the wire carries the compact JWS) ----
+    AttestationHeader:
+      type: object
+      description: >
+        JOSE header of every attestation. Documentation only. Exactly two
+        members.
+      additionalProperties: false
+      required:
+        - alg
+        - kid
+      properties:
+        alg:
+          type: string
+          enum:
+            - EdDSA
+        kid:
+          type: string
+          minLength: 1
+          description: Names the operator key. The requester resolves it from a trusted directory, never from the token.
+    AttestationPayloadSimSwap:
+      type: object
+      description: >
+        Decoded payload of the signed answer for `POST /sim-swap/v2/check`.
+        Documentation only. The set is closed: eight claims. There is no
+        `maxAge`, no hours value and no date.
+      additionalProperties: false
+      required:
+        - iss
+        - aud
+        - nonce
+        - iat
+        - exp
+        - api
+        - entry
+        - swapped
+      properties:
+        iss:
+          type: string
+          minLength: 1
+          description: The operator that signed.
+        aud:
+          type: string
+          minLength: 1
+          description: The requester the answer is for.
+        nonce:
+          type: string
+          minLength: 1
+          description: The `nonce` from the request.
+        iat:
+          type: integer
+          description: Issue time, seconds since the epoch.
+        exp:
+          type: integer
+          description: Expiry, seconds since the epoch. It is later than `iat`.
+        api:
+          type: string
+          enum:
+            - sim-swap/v2/check
+          description: The operation that was asked.
+        entry:
+          $ref: '#/components/schemas/MenuEntry'
+        swapped:
+          type: boolean
+          description: The answer.
+    AttestationPayloadTenure:
+      type: object
+      description: >
+        Decoded payload of the signed answer for
+        `POST /kyc-tenure/v0.3/check-tenure`. Documentation only. The set is
+        closed: eight claims. There is no `tenureDate`, no `contractType` and
+        no date.
+      additionalProperties: false
+      required:
+        - iss
+        - aud
+        - nonce
+        - iat
+        - exp
+        - api
+        - entry
+        - tenureDateCheck
+      properties:
+        iss:
+          type: string
+          minLength: 1
+          description: The operator that signed.
+        aud:
+          type: string
+          minLength: 1
+          description: The requester the answer is for.
+        nonce:
+          type: string
+          minLength: 1
+          description: The `nonce` from the request.
+        iat:
+          type: integer
+          description: Issue time, seconds since the epoch.
+        exp:
+          type: integer
+          description: Expiry, seconds since the epoch. It is later than `iat`.
+        api:
+          type: string
+          enum:
+            - kyc-tenure/v0.3/check-tenure
+          description: The operation that was asked.
+        entry:
+          $ref: '#/components/schemas/MenuEntry'
+        tenureDateCheck:
+          type: boolean
+          description: The answer.
+    RefusalPayload:
+      type: object
+      description: >
+        Decoded payload of a signed refusal. Documentation only. The set is
+        closed: seven claims. `OUT_OF_RANGE` is Sync26's own code, for an
+        off-menu request. `UNAVAILABLE` means the operator cannot answer.
+        This sketch shows the refusal on the 400 response only. The status
+        that carries `UNAVAILABLE` is open.
+      additionalProperties: false
+      required:
+        - iss
+        - aud
+        - nonce
+        - iat
+        - exp
+        - api
+        - error
+      properties:
+        iss:
+          type: string
+          minLength: 1
+          description: The operator that signed.
+        aud:
+          type: string
+          minLength: 1
+          description: The requester the refusal is for.
+        nonce:
+          type: string
+          minLength: 1
+          description: The `nonce` from the request.
+        iat:
+          type: integer
+          description: Issue time, seconds since the epoch.
+        exp:
+          type: integer
+          description: Expiry, seconds since the epoch. It is later than `iat`.
+        api:
+          type: string
+          enum:
+            - sim-swap/v2/check
+            - kyc-tenure/v0.3/check-tenure
+          description: The operation that was asked.
+        error:
+          type: string
+          enum:
+            - OUT_OF_RANGE
+            - UNAVAILABLE
+    MenuEntry:
+      type: string
+      pattern: ^P[1-9][0-9]{0,15}[DY]$
+      description: >
+        A published-menu entry: a positive number of days (`D`) or years
+        (`Y`), with `1Y` = 365 days. It names the yes/no question the
+        operator answered, for example `P90D` or `P2Y`.
+      example: P90D
+  parameters:
+    x-correlator:
+      name: x-correlator
+      in: header
+      description: Correlation id for the different services
+      schema:
+        $ref: '#/components/schemas/XCorrelator'
+  headers:
+    x-correlator:
+      description: Correlation id for the different services
+      schema:
+        $ref: '#/components/schemas/XCorrelator'
+  examples:
+    SIGNED_OUT_OF_RANGE:
+      description: >
+        Off-menu request with a `nonce`. The `status`, `code` and `message`
+        are Sync26's `GENERIC_400_OUT_OF_RANGE` (SimSwap r4.3
+        `sim-swap.yaml` lines 393-398; Tenure r3.4 `kyc-tenure.yaml` lines
+        279-284). `attestation` is the added member.
+      value:
+        status: 400
+        code: OUT_OF_RANGE
+        message: Client specified an invalid range.
+        attestation: eyJhbGciOiJFZERTQSIsImtpZCI6Im9wLTEifQ.eyJpc3MiOiJvcCJ9.c2ln
+    UNSIGNED_INVALID_ARGUMENT:
+      description: >
+        A malformed request, for example `"nonce": ""`. No attestation,
+        because there is no valid nonce to bind it to.
+      value:
+        status: 400
+        code: INVALID_ARGUMENT
+        message: Client specified an invalid argument, request body or query param.
+  responses:
+    BadRequestWithRangeAttested400:
+      description: |
+        Bad Request. The body is the CAMARA `ErrorInfo`, unchanged, as in
+        `BadRequestWithRange400` (SimSwap r4.3 `sim-swap.yaml` lines
+        544-567; Tenure r3.4 `kyc-tenure.yaml` lines 328-351). It has one
+        added member, `attestation`: the signed refusal (RefusalPayload).
+        `attestation` is present only when the request carried a valid
+        `nonce`.
+      headers:
+        x-correlator:
+          $ref: '#/components/headers/x-correlator'
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/ErrorInfo'
+              - type: object
+                properties:
+                  status:
+                    enum:
+                      - 400
+                  code:
+                    enum:
+                      - INVALID_ARGUMENT
+                      - OUT_OF_RANGE
+                  attestation:
+                    $ref: '#/components/schemas/Attestation'
+          examples:
+            SIGNED_OUT_OF_RANGE:
+              $ref: '#/components/examples/SIGNED_OUT_OF_RANGE'
+            UNSIGNED_INVALID_ARGUMENT:
+              $ref: '#/components/examples/UNSIGNED_INVALID_ARGUMENT'

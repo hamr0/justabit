@@ -14,6 +14,309 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-11-26 — Sync26 operator limits arrived after #705: release dates checked; Post 2 states the dates and claims no cause
+
+### Evidence (run 2026-11-26, `gh api`, tagged releases only)
+
+Commonalities#705 was created 2026-09-01T11:15:19Z. For each API, the
+release that first carries the operator's own limit, counted with
+`grep -c` on `code/API_definitions/<file>` at each tag:
+
+| API | Marker counted | Last tag with 0 | First tag with it | Release date |
+|---|---|---|---|---|
+| SimSwap | `BadRequestWithRange400` | r4.1 (0) | r4.2 (2) | 2026-10-20 |
+| Tenure | "not part of the API request" (threshold date R) | r3.2 (0) | r3.3 (1) | 2026-11-06 |
+| kyc-age-verification | "agreed during onboarding" | r2.1 (0) | r2.2 (2) | 2026-11-19 |
+
+The `OUT_OF_RANGE` code itself is older: it is already in SimSwap r3.3,
+Tenure r2.2 and kyc-age-verification r1.3. Only the operator's own limit is
+new after #705.
+
+Same day, the baseline was re-read at each tag (`info.version`): SimSwap
+r4.3 2.2.0, DeviceSwap r4.3 1.1.0, NumberVerification r4.2 2.1.1, Tenure
+r3.4 0.3.0, kyc-age-verification r2.3 0.3.0, kyc-match r2.3 1.0.0,
+kyc-fill-in r2.3 0.5.0. `retrieve-age-band` has 0 hits in SimSwap r4.3.
+All match the CLAUDE.md baseline of 2026-11-23.
+
+### Decision
+
+The user asked that Post 2 say the later releases converged on what #705
+proposed, so the proposal was re-based on them. Post 2 states the release
+dates next to the #705 filing date and makes no claim that the releases
+followed #705 (user chose this option, 2026-11-26). The dates show order,
+not cause; a credit claim cannot be proven and would draw a challenge.
+
+## 2026-11-25 — v3 spec §4.4: the SimSwapTimeFrame band table is the published menu; no second band, no operator-chosen bands; spec §7 item 4 settled
+
+**EVIDENCE**
+Read 2026-11-25 with `gh`: camaraproject/SimSwapTimeFrame README (Sandbox, created 2026-10-09, no release, no API definition) and issue #4 (open, 0 comments, by hdamker: carry the band over from SimSwap); SimSwap#277 (closed; consensus in its thread: keep the integer enum and the `111` sentinel, drop minimum/maximum, S-311 as a documented exception); the removed definition at SimSwap `05d46bf` (parent of `7b7e46e`), `sim-swap.yaml` lines 50-72: 17 bands from "0h ≤ d < 4h" to "3y+" plus `111`, and "A provider that exposes this operation MUST support the complete standardized band model; partial support is not permitted". Neither that file nor `sim-swap-retrieveSimSwapAgeBand.feature` mentions repeated queries.
+
+**DECISION** (user, "go", 2026-11-25)
+v3 spec §4.4 said "a range from its published menu", which conflicts with the full-table rule. §4.4 now says the band table is the menu, defined once by CAMARA; the proposal adds only the §4.1 signature (if Governance/TSC allows) and the repeated-query note. Spec §7 item 4 settled. The orchestrator first proposed contributing a range shape for the #277 sentinel; after reading #277 that was dropped, because the thread had already converged and a newcomer reopening it is not simple over clever. A short comment on SimSwapTimeFrame#4 (the repeated-query note) is drafted locally, not posted.
+
+**OPEN ITEMS**
+None new.
+
+## 2026-11-25 — V3-M4 first case: operatorAnswer joins the menu to the signer; first-case.mjs, a shop verifies answers it did not ask for; aud settled with no code change; user-validated 11/11
+
+**EVIDENCE**
+
+Spike (scratch, not in the repo), readout S1 WORKS: the existing exports,
+unchanged, let a shop that did not call the operator verify both answers
+(its own nonce store; `aud` = the caller identity the agent declares;
+`expectedEntry` P60D against a signed P90D accepted; replay rejected
+`NONCE_REJECTED`).
+
+Build: `menu.mjs` adds `operatorAnswer` (`answerWithMenu`, then
+`attachAttestation` with the entry the menu returned, so the signer never
+takes an entry from the request; off menu with a nonce -> signed
+`OUT_OF_RANGE` refusal naming the API). `first-case.mjs` (11 checks):
+P1 SimSwap P90D accepted for a shop needing P60D, response keys only
+`swapped` + `attestation`; P2 Tenure P2Y accepted, no `contractType`;
+N1/N2 replay; N3 a changed byte; N4 shop needs P120D -> LOOSER; N5 recent
+swap, `swapped:true` at P90D for P60D -> NOT_PASS; N6 off-menu `maxAge`
+1440 -> signed refusal verified, 0 backend reads; L1 leak scan (swap
+dates, tenure start, `tenureDate` sent, `maxAge`, `contractType`) clean;
+L2 the scan flags a leaky object; E1 `entryFor` maps the request to P90D.
+Demo data are two scripted lines inside the file (Tenure rule start <=
+`tenureDate`; not a test of CAMARA's table); `m4-facts-mock.mjs` unchanged.
+
+Mutation (main session, exit codes read directly): shop P30D in N4 ->
+10/11, exit 1; menu refusal switched off -> crash, exit 1 (red as a crash,
+not a clean check failure); both restored, `cmp` identical.
+
+All suites exit 0 (main session): first-case 11/11, m1-jws-check 393/393,
+menu-check 46/46, m1-check 20/20, m2-check 17/17, m3-check 26/26,
+m4-check 42/42, m5-check 67/67, m6-check 48/48, demo 34/34.
+
+**EVIDENCE: USER VALIDATION**
+
+2026-11-25: `node first-case.mjs` RESULT 11/11, exit 0.
+
+**DECISION**
+
+1. (User, "go", 2026-11-25.) V3-M4 narrowed on simple over clever. The PRD
+   row also asked to move `demo.mjs` (1582 lines) and `m6-check.mjs`
+   (1332 lines) from the raw-Ed25519 core onto the JWS core; that rewrite
+   shows nothing new about the proposal and is not done. Both stay on the
+   raw core as v2 code: a recorded limit.
+2. Open item 1 (`aud`) is settled with no code change: a verifier that did
+   not call passes, as `expectedAud`, the caller identity it is told; the
+   binding to the verifier comes from the verifier's own nonce. Shown by
+   the spike and P1/P2.
+
+**OPEN ITEMS**
+
+- The leak scan does not cover the recent-swap response (it carries only
+  `swapped:true` and the token).
+- The SimSwap demo rule is swap days < entry days (demo data; the
+  exact-boundary choice stays CAMARA's).
+
+## 2026-11-25 — V3-M3 tighten only: one comparison in verifyAnswer (equal entry any answer, stricter entry pass only, looser LOOSER); user-validated 393/393
+
+**EVIDENCE**
+
+`m1-jws.mjs` adds a frozen `pass` value per schema (SimSwap `swapped: false`, Tenure `tenureDateCheck: true`) and replaces the entry equality check in `verifyAnswer`: an invalid entry gives `ENTRY_MISMATCH`; E < R gives `LOOSER`; E > R without the pass answer gives `NOT_PASS`. `m1-jws-check` went 385 -> 393 (8 cases: equal entry pass and fail, stricter pass, stricter fail, looser P60D vs P90D, P1Y = P365D, P2Y vs P731D, negative control). Existing expectations changed because the rule decides them: R9 and menu-check M29 (asked P90D, signed P30D) `ENTRY_MISMATCH` -> `LOOSER`; 11 verify-side bad-entry cases `WRONG_TYPE` -> `ENTRY_MISMATCH` (the entry is now parsed before the type check). Mutation: the real comparison reversed gave 390/393 (the three looser cases red); restored, `cmp` identical. `m2-check.mjs` comment now says "verifier's nonce". The main session re-ran all suites, each exit 0: m1-jws-check 393/393, menu-check 46/46, m1-check 20/20, m2-check 17/17, m3-check 26/26, m4-check 42/42, m5-check 67/67, m6-check 48/48, demo 34/34, sketch-check exit 0.
+
+**EVIDENCE: USER VALIDATION**
+
+(2026-11-25) m1-jws-check RESULT 393/393, exit 0.
+
+**DECISION**
+
+The monotonicity spike is a source read, not a data run. SimSwap `/check` `swapped` is "swapped during the period within the provided age" (sim-swap.yaml r4.3 lines 37, 252), so a bigger window contains a smaller one. Tenure's decision table (kyc-tenure.yaml r3.4 lines 27-52) is monotone row by row, and a date before the threshold R is a refusal, never a pass. A data spike was dropped: the mock has no Tenure fact and no `/check` answer, so any data would be written to contain the rule (vacuous). The user chose option B (mock answers first) and then, on the simple-over-clever rule, the small build. The orchestrator had recommended the larger option several times before the user asked; recorded here plainly.
+
+**OPEN ITEMS**
+
+CAMARA Tenure's table has no row for a subscription that starts exactly on the threshold date (S = R: row 3 needs R < S, row 5 needs S < R). A possible comment to CAMARA, not built.
+
+## 2026-11-25 — nonce wording follows the v3 correction: README profile rule 2 and the CLAUDE.md invariant say verifier's nonce; sketch re-validated at f3abde7
+
+**EVIDENCE: USER VALIDATION**
+
+(2026-11-25, after commit f3abde7 changed the sketch Nonce description) the user ran `python3 camara/v3/spec/sketch-check.py` (four PASS, exit 0) and `git status --short` (clean). The earlier step 6 validation covered only the file before f3abde7.
+
+**DECISION**
+
+(user, 2026-11-25, option A) The sweep in the previous entry left two hits saying "requester's nonce": README.md profile rule 2 (line 78) and the CLAUDE.md invariant. Both now say "verifier's nonce", to match v3 spec §4.1 (the party that relies on the answer issues the nonce). The README rule mirrors the v1/v2 profile text; v2 already said the nonce is one "the verifier itself (or its principal) issued" (`camara/v2/docs/camara-attested-windowed-disclosure.md` line 310), so the meaning does not change for v2. Kept on purpose: `docs/product/prd.md:93` (FR2, the v1 requirement, where the requester is the verifier); frozen camara/v1 and camara/v2 records; dated findings history. Still stale, fixed in the V3-M3 build: the "requester's nonce" comment in `camara/v3/poc/m2-check.mjs`.
+
+## 2026-11-25 — v3 spec correction before V3-M3: the verifier issues the nonce and accepts equal or stricter entries only; v2 verifier steps restored; open items recorded in the PRD
+
+**EVIDENCE**
+
+1. The first V3-M3 draft spec (local, `.claude/scratch`) put a separate `checkTighten` function on top of verified claims. It asked the user (D1) how a party that did not call the operator verifies a forwarded token, since that party cannot consume the requester's nonce. The user asked "are we patching and need to redesign?".
+2. The orchestrator then read the v2 text. `camara/v2/docs/camara-attested-windowed-disclosure.md` lines 303-315 already state the verifier steps ("nonce matches one the verifier itself (or its principal) issued"; "tighter is acceptable, looser is not"). v3 §4.1 had changed this to "a `nonce` chosen by the requester" and left the verifier steps out. v3 §4.3 said "the next party compares the signed menu entry" with no freshness check. The first V3-M3 draft was a patch on that gap.
+
+**DECISION**
+
+1. (user, 2026-11-25) Correct the spec first. Texts: verifier-issued nonce (§4.1); five verifier steps (§4.1); the equal, stricter, looser rule (§4.3); §7 items 5 and 6. The sketch `Nonce` description changes to match; this changes a user-validated file, so the user re-runs `sketch-check.py`.
+2. V3-M3 is built inside `verifyAnswer`, not as a function on top. The draft decisions D1 (forwarded token) and D2 (fail inference) are dissolved: D1 by the restored flow, D2 by the rule "stricter entry, pass answer only".
+3. (user, 2026-11-25) The user first asked for the open items under `docs/wiki/`. The orchestrator raised the conflict with PRD §3 and no-go 11 (no fourth document) and recommended the PRD; the user chose the PRD (option B). The open items are in PRD §4.4 "v3 open items".
+
+**OPEN ITEMS (documented, not fixed)**
+
+PRD §4.4 "v3 open items" holds 10 items. Item 1 (`aud` when the caller and the verifier differ) must be decided before V3-M4.
+
+**SWEEP (2026-11-25)**
+
+Searched the repo (excluding `.git` and `.claude`) for "chosen by the requester", "requester's nonce", "requester-supplied nonce", "requester-supplied freshness", "next party" and "requester's challenge".
+
+| Hit | Class | Note |
+|---|---|---|
+| `docs/product/camara-v3-spec.md` §4.1 "chosen by the requester" | corrected by this change | verifier-issued nonce |
+| `docs/product/camara-v3-spec.md` §4.3 "the next party compares" | corrected by this change | equal or stricter rule |
+| `docs/product/prd.md` V3-M3 row "the next party checks" | corrected by this change | |
+| `camara/v3/spec/carrier-attestation.yaml` Nonce "requester's challenge" | corrected by this change | |
+| `docs/product/prd.md` FR2 "echoes the requester's nonce" | kept, reported | v1 Mode A requirement, where the requester is the verifier; not wrong as written; the main session decides whether to reword |
+| `README.md` line 78 "echo the requester's nonce" | stale, out of scope, reported | not fixed |
+| `CLAUDE.md` invariant "bound to the requester's nonce" | reported to the user, NOT edited | |
+| `camara/v1/docs/camara-attested-windowed-disclosure.md` lines 176, 200 | frozen, keep | filed record |
+| `camara/v2/docs/camara-attested-windowed-disclosure.md` lines 89, 289; `camara/v2/docs/commonalities-705-status-posted-2026-11-21.md` line 18 | frozen, keep | v2 record |
+| `camara/v1/poc/m2-check.mjs`, `camara/v2/poc/m2-check.mjs`, `camara/v3/poc/m2-check.mjs` comments | PoC comment, keep | v3 poc not edited by this change |
+| `docs/logs/findings.md` line ~3995 | dated history, keep | |
+
+## 2026-11-25 — PRD step 6: OpenAPI sketch on Sync26 (SimSwap /check, Tenure /check-tenure), signed answer and signed refusal; /retrieve-date left out; user-validated
+
+**EVIDENCE**
+
+1. Sources fetched with `gh` on 2026-11-25: `camaraproject/SimSwap` r4.3 `sim-swap.yaml` (`info.version` 2.2.0, line 95; `CreateCheckSimSwap` 259-273; `CheckSimSwapInfo` 244-252; `ErrorInfo` 286-307; `GENERIC_400_OUT_OF_RANGE` 393-398; `BadRequestWithRange400` 544-567) and `camaraproject/Tenure` r3.4 `kyc-tenure.yaml` (`info.version` 0.3.0, line 120; `Tenure` 186-200; `TenureInfo` 201-225; `ErrorInfo` 238-259, identical to SimSwap's; `GENERIC_400_OUT_OF_RANGE` 279-284; `BadRequestWithRange400` 328-351). The main session re-checked the line ranges against the fetched files.
+2. `camara/v3/spec/sketch-check.py` runs four checks: (1) the YAML parses and every `$ref` resolves; (2) drift: the sketch matches the REAL `attestAnswer` and `attestRefusal` output and `menu.json`; (3) a leak guard on the payload schemas; (4) no `contractType` in any response. Six mutants (add `maxAge`; drop `api`; a third refusal reason; `contractType` in the Tenure 200; menu `P60D`; a broken `$ref`) each exit 1 and each differs from the original by `cmp`. The real file exits 0.
+3. Main-session review found two nits, fixed in one round: the `maxAge` example changed from 240 to 2160, and the sketch now says so; `x-camara-commonalities: 0.9.0` was removed, because the added `attestation` member is not part of Commonalities 0.9.0. Accepted as they are: `TenureInfoAttested` has no `contractType` (the no-nonce response is today's `TenureInfo`, stated in the description); the full paths equal the signed `api` claim (CAMARA writes `{apiRoot}/sim-swap/v2` plus `/check`); the HTTP status of a signed `UNAVAILABLE` refusal is open.
+4. USER VALIDATION (2026-11-25): the user ran `sketch-check.py` on the real file (exit 0, four PASS) and on a `maxAge`-leak mutant (`cmp` different, checks 2 and 3a FAIL, exit 1). `git status` showed only `camara/v3/spec/`. Step 4 of the runbook (a read of the sketch) was not reported. Step 2 of the runbook carried a `sed` line that does nothing; it was harmless, its output went to `/dev/null`.
+
+**DECISION**
+
+1. The spec was approved by the user on 2026-11-25. The draft stays local in `.claude/scratch` (gitignored).
+2. D1 = B: `/retrieve-date` is not in the sketch. A signed refusal could not name it, because `KNOWN_APIS` in `camara/v3/poc/m1-jws.mjs` lists only `/check` and `/check-tenure`. Open values wait on SimSwapTimeFrame (spec §4.4). This NARROWS PRD §6 Phase 4b step 6, which named `/retrieve-date`.
+3. D2 = A: a `400` is the CAMARA `ErrorInfo`, unchanged, plus one `attestation` member.
+4. D3 = B: no menu schema. `menu.json` is shown as an example in the operation descriptions. The menu format stays open (spec §7.2).
+5. The user asked whether the first recommendation (A, A, A) was simple over clever. It was not for D1 and D3. The recommendation was revised.
+6. Correction: the orchestrator first said V3-M2b changed the wire shape the sketch must show. That was wrong. V3-M2b changed only the blind-hub envelope, which the sketch leaves out (spec §6).
+
+**OPEN ITEMS (documented, not fixed)**
+
+- The HTTP status of a signed `UNAVAILABLE` refusal is open.
+- The nonce maximum length of 256 is a sketch value (spec §7.3).
+- PRD §6 Phase 4b step 6 named `/retrieve-date`; D1 narrows it.
+
+---
+
+## 2026-11-24/25 — V3-M2b sealed envelope: JWE (RSA-OAEP-256 + A256GCM) padded to one fixed 1024 B size; two POCs decided the demo guards and the fixed size; user-validated 17/17, 385/385 and 48/48
+
+**EVIDENCE**
+
+1. Spec (`.claude/scratch/camara-v3/v3-m2b-spec.md`), approved by the user on condition of a simplicity review; the review the same day removed a JSON header parser (the header is one constant compared as text), the RFC 7516 §11.5 random-key fall-through (one straight path in one try/catch instead), and a test-only hash option (the RFC check runs in the spike only).
+2. Spike (`.claude/scratch/camara-v3/spike-m2b/spike.mjs`): the candidate as specified FAILED check 3 — Node's base64url decoder is lenient (ignores unused trailing bits, accepts `+` and `/`), so 19-24 of 10,008 changed messages opened. With one strict-decode line (each part must re-encode to the same text) all five checks PASS: the RFC 7516 A.1 example decrypts to the RFC plaintext (values parsed from the saved RFC text, lines 1749-1988); true/false/refusal seal to one length; 10,008 faulty inputs give one reason and never throw; 10,000 seals give distinct keys and IVs; 0-5000 B round-trip. Reading the wire as `ascii` hid a bit and let a 0x80 flip through; `latin1` fixed it. Five mutants each red. The main session re-ran the candidate (exit 0), the as-specified version (exit 1) and the header-check mutant (exit 1).
+3. Build, tests first: the new cases were run against the OLD RSA-only envelope and failed where expected (large payloads, fixed length, JWE form) and passed where expected (malformed, tamper, wrong recipient, hub blind). `m6-check` cases 20 and 30 asserted the removed RSA seal limit and went red; the spec's "m6 unchanged" was wrong.
+4. Review round 1 (`/code-review medium`): 9 findings. Confirmed by a main-session probe: `open()` accepted a 1-byte IV and an unpadded body. Also: `demo.mjs` kept its old size checks, which refused answers the new envelope could seal and signed a now-false reason ("answer does not fit one envelope").
+5. POC A/B (`.claude/scratch/camara-v3/poc-ab/RESULTS.md`, rule written before measuring): A (remove the old checks) and B (keep them until V3-M4). B kept three false lines in the demo output, so only A was eligible; with B's text corrected (B2) A still won on stale references (4 against 20). Main session re-ran A: all suites exit 0; the old envelope swapped in turns `m6-check` red.
+6. Review round 2: padding to the NEXT multiple of 1024 lets the hub read the boolean at a bucket edge, and `open()` had no size bound. POC (`.claude/scratch/camara-v3/poc-fixed/RESULTS.md`, rule written before measuring): on the bucket version a 79-code `roamingIn` set with a 35-character nonce gives a true answer of 1020 B (sealed 2142) and a false one of 1024 B (sealed 3507) — the leak is real; on one fixed size, 0 of 40 nonce lengths differ. The main session re-ran the probe on both (1 pair, 0 pairs). A 100 MB JWE: decrypted in 1162 ms on the bucket version, refused without decryption on the fixed one. Two readings stated, not re-ruled: the first 100 MB refusal took 23-34 ms against a pre-registered 5 ms (attributed to a GC pause from the probe's own buffers; under 1 ms with a forced GC; case 17 now asserts the minimum of 3 calls under 100 ms, about 0.04 ms measured); and the "pad to next multiple" mutant with the throw kept is equivalent.
+7. Review rounds 3 and 4: an RSA modulus not a multiple of 8 (e.g. 2052) could never open (fixed with `ceil`); the AES-key reuse test counted RSA-randomised wrapped keys, not keys (now decrypts and counts); DSA keys passed the RSA check; the worst admissible refusal frame was no longer asserted (now 444 B ≤ 1023, mutation-proven); after the exact-length check was added first, cases 15 and 16 no longer reached the checks they are named for (rebuilt at the exact sealed length; main-session mutants: IV check removed → case 15 red, body check removed → case 16 red). The tag-length half of the IV/tag check is not mutation-provable: Node's `setAuthTag` refuses a 15 B tag by itself.
+8. Final run by the main session, every exit 0 under UTC, Pacific/Kiritimati and America/Adak: `m1-jws-check` 385/385, `m2-check` 17/17, `m6-check` 48/48, `menu-check` 46/46, `m1-check` 20/20, `m3-check` 26/26, `m4-check` 42/42, `m5-check` 67/67, `demo.mjs` 34/34; the edge probe on `camara/v3/poc` reports 0 pairs. `m5-check-live` needs a live backend and was not run. Frozen `camara/v2` unchanged.
+9. USER VALIDATION (2026-11-25): the user ran the runbook at this tree and pasted the output: `m2-check` `RESULT: 17/17`, `exit=0`; `m1-jws-check` `RESULT: 385/385`, `exit=0`; `m6-check` `RESULT: 48/48`, `exit=0`; `m1-check`, `m3-check`, `m4-check`, `m5-check`, `menu-check` and `demo` each `exit=0`; the edge probe `poc-fixed/straddle.mjs` on `camara/v3/poc`: "nonce lengths with differing true/false sealed length: 0"; and `.claude/scratch/camara-v3/show-m2b.mjs`: SimSwap and Tenure true/false answers (435-461 B) and a refusal (441 B) all sealed to 2142 B, each opened by the requester to the same bytes and by the hub not at all, "distinct sealed lengths: 1", a 1024 B payload refused at `seal()`, a 10 MB input refused `undecryptable` in 0.05 ms, `SHOW-M2B OK`, `exit=0`. Runs were in the user's default time zone; the three-zone runs are the main session's (item 8). The V3-M2 record (2026-11-24) does not carry over.
+
+**DECISION**
+
+1. The envelope is a JWE in compact form, `RSA-OAEP-256` + `A256GCM`, built with `node:crypto` only (user, 2026-11-24, D1). Why: the module's own rule asked for a vetted AEAD hybrid scheme, not primitives glued by hand; JWE is the JOSE family of the signed answer, keeps the RSA keys in the trust directory, and CAMARA's CloudEvent guide already recommends JWS/JWE. HPKE needs X25519 keys and is not in `node:crypto`. This replaces "the HPKE pattern" wording of the 2026-11-23/24 V3-M2 entry's decision 2; that entry stays as written on its date.
+2. Every message is padded to ONE fixed size, 1024 B (`MAX_PAYLOAD` 1023); `seal()` throws above it; `open()` refuses any input not exactly the sealed length before any crypto (main session, 2026-11-24, from the POC in evidence 6, as the user asked: "decide based on pocs"). This changes the approved D2 ("a multiple of 1024"). Why: buckets leak the boolean at an edge the requester can reach, and an unbounded `open()` decrypts any size. The sealed length is derived from the key (2142 B for RSA-4096).
+3. `demo.mjs`'s old RSA size checks are removed (option A, from the POC in evidence 5); its answer guard stays and now checks `MAX_PAYLOAD` with a true signed reason, "answer over the envelope size". `OAEP_CAPACITY` is removed. `clampReason` and `NONCE_JSON_MAX` stay: they bound signed refusals built from wire input.
+4. One strict base64url decode, `latin1` wire reading, and IV 12 / tag 16 / body 1024 checks, all inside the one try/catch with one reason. Cases the spec left open were settled fail-closed.
+
+**OPEN ITEMS (documented, not fixed)**
+
+- The "pad to the next multiple of 1024" mutant with the size throw kept is equivalent (it cannot fail for payloads ≤ 1023 B).
+- At the size edge a true answer can fit while the 4 B longer false answer is refused. The hub sees one length either way; the requester sees answer against refusal (it is entitled to the bit).
+- `clampReason` / `NONCE_JSON_MAX` numbers (122 / 70) were derived from the old 446 B limit and are kept as they are.
+- The tag-length half of `open()`'s IV/tag check is not mutation-provable (Node refuses a short tag itself).
+- No timing-oracle defence is claimed (JS is not constant-time; RFC 7516 §11.5's fall-through left out on purpose).
+- Project memory (`.claude/remember/MEMORY.md`) still says "RSA-4096 OAEP" and "capacity = bits/8 − 66"; `/remember` updates it.
+
+---
+
+## 2026-11-23/24 — V3-M2 published menu: spike PASS, built, four review rounds; the signed answer names the menu entry only; the Tenure envelope gap becomes V3-M2b; user-validated 385/385 and 46/46
+
+**EVIDENCE**
+
+1. V3-M2 spike (`.claude/scratch/camara-v3/spike-m2/spike.mjs`): pre-registered readout PASS. Only menu values are accepted; across about 13,000 requests no refusal read the backend; at UTC midnight it never answers for the wrong day; a scripted search learns only the menu band, never the raw date. Exit 0 under the default TZ, Pacific/Kiritimati and America/Adak; the mutants local-time, 729-days and read-before-check each differ (`cmp`) and exit 1. The main session re-ran all of it.
+2. Build (`camara/v3/poc/`): new `menu.mjs` (default menu SimSwap `P90D`, Tenure `P2Y`; `loadMenu` throws on an unusable entry; `checkMenu`, `entryFor`, `answerWithMenu`), `menu.json`, `menu-check.mjs`. `m1-jws.mjs`: the signed question is `entry` only (decision 1); refusals name their API; the refusal reason `OFF_MENU_THRESHOLD` is renamed Sync26's `OUT_OF_RANGE`. Spec §4.2 and §6 spliced from main-session text.
+3. The build stopped on case 33 (SIZE GUARD): with `entry` added beside `maxAge`, the worst-case SimSwap JWS was 455 B against the 446 B RSA-4096 OAEP capacity of the v2 envelope. Decision 1 brought it to 437 B.
+4. Main-session check of the build: the worst-case Tenure answer stays over the cap (about 460 B, measured 459-461 B by key and nonce). Measured on the V3-M1 commit `888ef70`: 475 B. So the gap dates from V3-M1; case 33 tested SimSwap only, so no test caught it. Decision 2.
+5. `/code-review medium`, round 1: 7 findings, all confirmed and fixed. Most serious: the requester could not check that the signed `entry` was the question it asked (now `verifyAnswer` requires `expectedEntry`, else `ENTRY_MISMATCH`; `entryFor` gives the requester its expected entry); a signed refusal accepted free text as `api` (now a closed list, `KNOWN_APIS`, at sign and verify). Also: duplicates by days, one duration parser, spec §4.1 wording, CLAUDE.md file map.
+6. `/code-review medium`, round 2 (on the fix round): 7 findings, all confirmed and fixed. The menu keyed APIs as `simSwap`/`tenure` while the signer used the CAMARA paths, so `entryFor` with the signer's name returned null; the menu is now keyed by the schema `api` value (one name for one thing). Tenure entries capped at `P100Y`; the threshold date R must be a real calendar date; new cases 33c/33d show the envelope REFUSES the large Tenure answer and never truncates it, with SimSwap as the negative control; spec §4.3 and the V3-M3 row now say "signed menu entry".
+7. `/code-review medium`, round 3: no invariant break. 5 code items fixed: `checkMenu` now takes the whole request body and reads only its one field as an own property (a real body with `phoneNumber` and `nonce` was refused); an absent field is refused, Sync26's 240 h default is not applied; a given menu runs through `loadMenu`; an API may be absent from a menu; a missing or invalid `today` for Tenure throws `TypeError` outside the wire-input catch. 2 doc items: this entry, and `docs/index.md` (regenerated before `/branch-review`).
+8. `/code-review medium`, round 4: no code defect. Text-only fixes: the `KNOWN_APIS` comment says a new schema must add its `api`; the `today` rule holds whatever the menu offers; a README call signature; the V3-M4 row now owns joining `answerWithMenu` to `attachAttestation`.
+9. Every new guard was mutation-tested (cp backup, `cmp` differs, red, cp restore, `cmp` equal, green), by the agents and, for read-before-check and `expectedEntry`, by the main session.
+10. Final run by the main session, every exit 0 under UTC, Pacific/Kiritimati and America/Adak: `m1-jws-check` 385/385, `menu-check` 46/46, `m1-check` 20/20, `m2-check` 10/10, `m3-check` 26/26, `m4-check` 42/42, `m5-check` 67/67, `m6-check` 47/47. `m5-check-live` needs a live backend and was not run.
+11. USER VALIDATION (2026-11-24): the user ran the runbook at this tree and pasted the output: `m1-jws-check` `RESULT: 385/385`, `exit=0`, with `PASS 33c KNOWN GAP (closed by V3-M2b)`; `m1` to `m6` `-check` each `exit=0`; `menu-check` under `TZ=Pacific/Kiritimati` `RESULT: 46/46`, `exit=0`; and `.claude/scratch/camara-v3/show-m2.mjs` ending `SHOW-M2 OK`, `exit=0`, whose signed payloads carry `api`, `entry` (`P90D`, `P2Y`) and the boolean only, and whose two off-menu requests show `{"refused":"OUT_OF_RANGE"}` with `backend reads=0`. The first `show-m2.mjs` run failed with `ERR_MODULE_NOT_FOUND`: a defect in the main session's helper (it resolved the modules from the working folder), not in V3-M2; fixed to resolve from its own file, and the user re-ran it. No output of step 1 (`menu-check` in the default time zone) was pasted; the main session ran it at this tree (46/46, exit 0, in UTC, Pacific/Kiritimati and America/Adak). The V3-M1 record (314/314, 2026-11-23) does not carry over.
+
+**DECISION**
+
+1. The signed answer names the menu entry only (`entry`, for example `P90D`, `P2Y`); `maxAge` and `tenureDate` are not signed (user, 2026-11-23, "option 1"). Why: the two claims said the same thing twice, the user's aim is "the signed question should be 'is it P90D?', not a raw value or a date", and the smaller token fits the SimSwap envelope. The requester still sends the Sync26 field; the operator maps it to the entry before any read. Consequence: the V3-M1 signed shape the user validated on 2026-11-23 changes; that record stays as written on its date, and this module is validated again at its own count.
+2. The Tenure envelope gap is closed by a new module, V3-M2b, directly after V3-M2 (user, 2026-11-24, "option 1"): a hybrid envelope, a fresh AES-256-GCM key per message for the signed answer and RSA-OAEP for that key only (the HPKE pattern; `m2-envelope.mjs` line 8 already named it). Why: shortening the claims only moves the limit to the next API with a long path; V3-M4 was too late because the gap already exists in committed code; a separate module keeps a security change in its own small diff and its own checkpoint. Numbered step 5b in prd §6 Phase 4b so cited step numbers do not change.
+3. The menu is keyed by the CAMARA API path (`sim-swap/v2/check`, `kyc-tenure/v0.3/check-tenure`), the same value the signer signs (main session, review round 2; told to the user 2026-11-24). This is the menu format later offered to SimSwapTimeFrame.
+4. Cases the spec left open were settled fail-closed: an absent request field refuses (no Sync26 default); an unusable `thresholdR` refuses; an unloadable menu refuses; a bad `today` is a caller bug and throws.
+
+**OPEN ITEMS (documented, not fixed)**
+
+- The signer checks the entry's type only; an operator must call `answerWithMenu` first. V3-M4 joins them (prd §4.4).
+- A signed Tenure answer cannot be sealed for the blind hub (cases 33b/33c). V3-M2b closes it.
+- A requester that asks the same question every day sees the day the answer changes (spec §6). Only billing and per-line query limits help.
+- V3-S0 live half: still not run.
+
+---
+
+## 2026-11-23 — V3-M1 signed answer: spike PASS, built, six review rounds; the signed response is built, not filtered; caller migration moved to V3-M4; user-validated 314/314
+
+**EVIDENCE**
+
+1. V3-S0, first half (public documentation only, 2026-11-23): Orange Playground documents a mock KYC Tenure (`light/kyc-tenure/v0.2/check-tenure`, `tenureDateCheck`) and SIM Swap (`sim-swap/v1/check`, `maxAge`, and `/retrieve-date`). Both paths are older than Sync26 (Tenure v0.3.0, SimSwap v2.2.0). Orange states the "Light" tenure check is limited to 30 days. Not checked: that the account can call Tenure (each API is attached to the app separately); no live call was made.
+2. V3-M1 spike (`.claude/scratch/camara-v3/spike-m1/spike.mjs`, against the frozen v2 core): pre-registered readout PASS. The Sync26 answers are unchanged when `attestation` is added; `contractType` and `latestSimChange` are rejected at sign (6 cases) and verify (8 cases, two key orders). Exit 0; with the closed-set guard removed (`cmp` differs at line 265), exit 1 with 15 FAIL. The main session re-ran both. The spike found that the v2 core rejects an `api` claim and does not check its value.
+3. Build (`camara/v3/poc/`, copied unchanged from `camara/v2/poc/` in `a4283fb`): `m1-jws.mjs` gains a signed `api` claim (`sim-swap/v2/check`, `kyc-tenure/v0.3/check-tenure`), an exported `TENURE_CHECK`, `API_MISMATCH`, a `date` type for `tenureDate`, and `attachAttestation`, which signs the answer it takes from the body and throws only `TypeError` or `AttestationFailed`. Only `m1-jws.mjs`, `m1-jws-check.mjs` and `README.md` differ from v2.
+4. Main-session check of the build: `attachAttestation` returned the answer UNSIGNED when a nonce was given and signing failed, while its comment called that fail-closed. Fixed: it throws `AttestationFailed`.
+5. `/code-review medium`, round 1: 8 findings, all confirmed against the code and fixed. Most serious: `attachAttestation` attached any token string the signer returned, so a signature for another answer or nonce could be attached.
+6. `/code-review medium`, round 2 (on the fix round): 10 findings, all confirmed and fixed. Most serious: a non-string nonce (for example `12345`) produced an unsigned answer with no error; and fields outside the answer (for example a raw `latestSimChange`) passed through unsigned beside the signature. Now only an absent nonce means "do not sign", and each schema listed its allowed unsigned fields (`contractType` for Tenure, none for SimSwap) — a filter later replaced, see decision 5. Also fixed: a Proxy trap escaping untyped, an inherited `api` on a polluted `Object.prototype`, `tenureDate` format, and the v3 spec §4.1 wording (the signature repeats the requester's own question, never the subscriber's raw value).
+7. `/code-review medium`, round 3: 7 findings, all confirmed. Fixed: a body field with a getter could give the response and the signature different values (the body is now read once, into a snapshot, and a case checks every response answer value equals the verified claim); the allow-list applied with or without a nonce (later replaced, decision 5); a negative control that could not fail now can (proven); run-line and usage paths in the copied files now name `camara/v3/poc` (the 8 non-M1 files differ from v2 in those path strings only — 0 other lines, checked by the main session). Moved to V3-M2: the `tenureDate` range. (`/code-review low` before it returned no findings after one tool call in 4 seconds; not counted as a review.)
+8. `/code-review medium`, round 4: two more paths past the filter — plain-field VALUES were unchecked (a `contractType` object could carry a raw date) and Symbol keys skipped the allow-list; fixed with value enums and a Symbol check. Round 5: an options-object getter escaped untyped; with no nonce an answer value was not type-checked (found by the main session); the review also asked whether `contractType` may travel unsigned beside a signature at all. That led to decision 5.
+9. Spike of the build design, then the rewrite: see decision 5. `/code-review medium`, round 6 (on the rewrite): no new leak path. One defect: a schema with an answer field named `attestation` lost its signed value in the response; fixed by reserving `attestation` like `api` (`RESERVED_CLAIM`, mutation-proven: 7 cases red, restored green). Spec §4.1 now says a present but non-string or empty `nonce` (for example `null`) is refused.
+10. Final agent run, re-run by the main session: `m1-jws-check` 314/314 (94 in v2), `m1-check` 20/20, `m2-check` 10/10, `m3-check` 26/26, `m4-check` 42/42, `m5-check` 67/67, `m6-check` 47/47, `demo` 35/35; every exit code 0. Every new guard was mutation-tested (cp backup, `cmp` differs, red case named, cp restore, `cmp` equal, green).
+11. USER VALIDATION (2026-11-23): the user ran the runbook at this tree — `m1-jws-check` (expected `RESULT: 314/314`, exit 0), the other v3 suites and `demo` (exit 0 each), the frozen v2 `m1-jws-check` (94/94, no diff under `camara/v2`), and `.claude/scratch/camara-v3/show-signed.mjs` (a signed Tenure response has only `tenureDateCheck` and `attestation`) — and replied "V3-M1 validated". The output was not pasted; the user's statement is the record. The main session had run the same four steps first, each with the expected result. Earlier v2 user runs do not carry over.
+
+**DECISION**
+
+1. Caller migration (moving M2/M6/demo from the raw-Ed25519 core onto JWS, the never-run V2-M3) moves to V3-M4, not V3-M1 as decision 5 of the entry below says (user, 2026-11-23). Why: V3-M1 must work alone; the migration touches about 3,000 lines of integration code (`demo.mjs` 1611, `m6-check.mjs` 1323), which is the joining module's job. The entry below stays as written on its date.
+2. The "threshold above the cap" leak test moves from V3-M1 to V3-M2 (spec approved by the user, 2026-11-23). Why: M1 has no cap, so the test would be vacuous there (MEMORY: a leak-control test must pick a threshold above the cap). M1 tests that no raw field enters the signature.
+3. If the Playground cannot check 2 years of tenure, the docs show that floor in principle and the item stays open (user, 2026-11-23).
+4. Every case the spec left open was settled fail-closed (repo rule): an absent nonce is the only "do not sign"; `null` or `""` is refused (spec §4.1).
+5. `attachAttestation` BUILDS the signed response instead of filtering the body (user, 2026-11-23: "simple > clever"). Why: review rounds 1 to 5 each found a new path past the filter (extra fields, field values, Symbol keys, getters, answer values without a nonce), all in the same helper, while the core had no new finding after round 1. A signed response is now only the answer field and `attestation`; nothing else from the body is copied. Consequence: Tenure's `contractType`, a raw subscriber value that would have travelled unsigned beside the signature, is left out of a signed response; a request without `nonce` gets today's Sync26 response unchanged. Proven first by a spike (`.claude/scratch/camara-v3/spike-m1b/spike.mjs`): 61/61 PASS over every leak probe from the five rounds, exit 0; the mutant that returns the whole body plus the signature (one line differs) exits 1 with 21 FAIL. The main session re-ran both. The filter code (`plain` map, enums, allow-list, Symbol check) was removed.
+
+**OPEN ITEMS (documented, not fixed)**
+
+- The missing-answer-key guard in `attachAttestation` is an equivalent mutant: removing it leaves the suite green, because `attestAnswer`'s type check rejects the same input. It stays as defense in depth.
+- Signed refusals still do not name the API they refuse. This is V3-M2 scope (prd §4.4).
+- M1 checks the question's type only: `tenureDate` `0000-01-01` or a future date, and `maxAge` 0, negative or above 2400, all sign (review rounds 3 and 4). The allowed range (Tenure's threshold R up to today; `maxAge` 1 to 2400 h; else `400 OUT_OF_RANGE`) is the operator's limit, so it is V3-M2 scope, not M1.
+- V3-S0 live half: not run. It needs the user to confirm KYC Tenure is attached to the app.
+
+---
+
+## 2026-11-23 — CAMARA replies on #705 and PR #331; Sync26 moved toward the proposal; camara/v2 frozen, CAMARA v3 spec opened
+
+**EVIDENCE**
+
+1. Replies, read 2026-11-23 via `gh`, filed verbatim: APIBacklog PR #331 comment 7095374989 (albertoramosmonagas, 08:22:36Z): the 2026-09-03 replies "cover the three TSC points"; the decision sits with the Commonalities WG on #705; post the outcome on #331. Commonalities #705 comment 7100177380 (rartych, 11:51:29Z): response signing "has not been decided yet" and is a Governance/TSC question; use the Sync26 definitions (the age band moved to the Sandbox repo SimSwapTimeFrame); "fully AI-generated contributions" need "clear human involvement, technical understanding, and ownership"; windowed disclosure is worth discussing after the overall direction is agreed. Records: `camara/v2/docs/pr331-comment-received-2026-11-23.md`, `camara/v2/docs/commonalities-705-comment-received-2026-11-23.md`.
+2. The user's reply was posted on #705 on the user's instruction ("post it"): comment 7101615313, 12:46:54Z, read back identical except one trailing newline. Record: `camara/v2/docs/commonalities-705-reply-posted-2026-11-23.md`.
+3. Releases, read 2026-11-23 via `gh`: SimSwap r4.3 (v2.2.0), DeviceSwap r4.3 (v1.1.0), NumberVerification r4.2 (v2.1.1), KnowYourCustomerMatch r2.3 (v1.0.0), KnowYourCustomerFill-in r2.3 (v0.5.0), KnowYourCustomerAgeVerification r2.3 (v0.3.0), Tenure r3.4 (v0.3.0), DeviceLocation r4.3 (location-verification v3.1.0). `/retrieve-age-band` is absent from SimSwap r4.3 and from `main`; the SimSwapTimeFrame README says the TSC moved it on 2026-09-17 and SimSwap#292 removed it before r4.1. SimSwapTimeFrame `code/API_definitions/` holds only the template README (last commit 2026-10-20).
+4. Shape diff, old cited version against Sync26 (agent summary, main session spot-checked each cited line): Tenure r3.4 `kyc-tenure.yaml:27-52` adds an operator regulatory threshold date R, "not part of the API request", with `400 OUT_OF_RANGE`; kyc-age-verification r2.3 `:57` adds `400 OUT_OF_RANGE` outside "the narrower range or set of values agreed during onboarding" (the old version named no error); NumberVerification r4.2 `:30-34` adds single-use, non-refreshable, at most 300 s tokens "to prevent replay attacks"; SimSwap r4.3 `:544` and DeviceSwap r4.3 `:494` add `BadRequestWithRange400`; `maxAge` unchanged (hours, 1-2400); kyc-match score now 0-99. No Sync26 file of the six contains "jws", "signature", "nonce" or "attest" (case-insensitive grep, 0 hits each).
+
+**DECISION**
+
+1. CAMARA moved toward the proposal on its own: operator-set limits refused with `OUT_OF_RANGE`, yes/no answers, `not_available`, token replay protection. These are cited as CAMARA's work and no longer claimed as new (new no-go 19). What stays ours: the signed answer, a published menu, tighten-only, ranges on open values (v3 §3). The next #705 comment says that the floor moved toward the proposal (user, 2026-11-23).
+2. The "finish what they started" precedent moves from `/retrieve-age-band` to Tenure's threshold R and kyc-age-verification's `OUT_OF_RANGE`, both released (user approved the plan, 2026-11-23).
+3. `camara/v2/` is FROZEN as the record of the #705 round, to keep the CAMARA history (user, 2026-11-23). The v3 spec is a permanent document at `docs/product/camara-v3-spec.md` (user chose option A over `camara/v3/docs/`, 2026-11-23); §3 and no-go 11 gain a stated exception for one permanent spec per major project version. `camara/v3/` gets the CAMARA-facing records and filing text as they arrive; v3 cites `camara/v2/poc/` until code changes; the OpenAPI sketch is rewritten in `camara/v3/spec/` as a separate step, on Tenure `/check-tenure`, SimSwap `/check` and `/retrieve-date`.
+4. The route follows the codeowner: response signing to Governance/TSC first, with Tenure + SimSwap `/check` signed as the first case (v3 §4.5); Commonalities guidance after; ranges as a contribution to SimSwapTimeFrame.
+5. The v3 work is broken into modules, each POC-first and user-validated, with doc steps between them in dependency order (prd §4.4 v3 ladder, §6 Phase 4b): V3-S0 Orange check, V3-M1 signed answer, V3-M2 published menu, the OpenAPI sketch, V3-M3 tighten only, V3-M4 first-case demo, the Governance/TSC ask, V3-M5 live, the SimSwapTimeFrame contribution, V3-M6 range. The first drafts had no modules; the user asked for this break-down (user, 2026-11-23). The open V2-M3 items (caller migration, off-menu `maxAge`) move to V3-M1 and V3-M2, because `camara/v2/poc/` is frozen.
+
+---
+
 ## 2026-11-15/21 — -04 SUBMITTED and posted 2026-11-15; posted bytes match the repo; ietf/v5 frozen; posted before /branch-review
 
 **EVIDENCE**
