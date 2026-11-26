@@ -14,6 +14,34 @@ observed record, so nothing gets re-tried or re-argued from memory.
 
 ---
 
+## 2026-11-26 — CAMARA v3 posted: Governance#220, a #705 update, a SimSwapTimeFrame#4 note; PR #43 merged
+
+### Evidence
+
+- PR #43 (`docs/camara-replies-2026-11-23`) merged to `main` as `7017604`
+  by the user, after `/self-review` (no Fix-now items) and `/branch-review`
+  (medium, ready, no blockers) at `a872300`. Order kept: review, Post 3,
+  merge, Post 1, Post 2.
+- Post 3, camaraproject/SimSwapTimeFrame#4, comment 7186218051,
+  2026-11-26T08:07:38Z. Record:
+  `camara/v3/docs/simswaptimeframe-4-note-posted-2026-11-26.md`.
+- Post 1, camaraproject/Governance#220, 2026-11-26T08:11:48Z. Record:
+  `camara/v3/docs/governance-220-filed-2026-11-26.md`.
+- Post 2, camaraproject/Commonalities#705, comment 7186695882,
+  2026-11-26T08:31:22Z. Record:
+  `camara/v3/docs/commonalities-705-update-posted-2026-11-26.md`.
+- Each post was read back with `gh api` and compared with the sent text
+  by `cmp`: exit 0 for all three.
+
+### Decisions
+
+- The AI-use line in Post 2 points back to the 2026-11-23 reply instead of
+  repeating it in the same thread (user choice, 2026-11-26).
+- No meeting promise: Post 2 says "I will attend the Number Insights
+  meetings where possible" (user, 2026-11-26: "i will attend where
+  possible, don't commit").
+- APIBacklog#331 gets no post until #705 or Governance#220 has an outcome.
+
 ## 2026-11-26 — Sync26 operator limits arrived after #705: release dates checked; Post 2 states the dates and claims no cause
 
 ### Evidence (run 2026-11-26, `gh api`, tagged releases only)

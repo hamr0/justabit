@@ -150,6 +150,9 @@ camara/v2/spec/    working copy of camara/v1/spec/, rewritten 2026-08-31 for the
 camara/v3/README.md the v3 readout: the idea, the wire, the menu, the
                    verifier steps, what the PoC contains and supports, limits,
                    open items and status (2026-11-25); a guide, not the spec
+camara/v3/docs/    correspondence records of the v3 round, filed verbatim
+                   as posted: Governance#220, the 2026-11-26 #705 update and
+                   the SimSwapTimeFrame#4 note (2026-11-26)
 camara/v3/poc/     copied unchanged from camara/v2/poc on 2026-11-23 (a4283fb),
                    then diverged at V3-M1: m1-jws.mjs, m1-jws-check.mjs and
                    README.md (signed `api` claim, TENURE_CHECK,
